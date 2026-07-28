@@ -83,8 +83,8 @@
 
 ## Stage 03
 
-- Status: implementation and automated validation complete; live acceptance
-  pending.
+- Status: complete. Automated validation and player-operated live acceptance
+  passed on 2026-07-28.
 - Implemented:
   - One role-identified `AutoCattery.House.AutoOrganizeButton`, created from a
     dedicated House SWF node.
@@ -112,7 +112,7 @@
 
 ## Stage gate
 
-Do not begin Stage 04 until the player completes
-`docs/phase03-manual-test.md`, including repeated House entry/exit, rapid
-clicks, save/pause/transition behavior, and visual checks at representative
-resolutions.
+Stage 03 gate passed on 2026-07-28. Player screenshots confirmed clean idle and
+completed layouts without raw localization keys or overlap. Runtime logs
+confirmed repeated House attach/detach cycles, debounced clicks, unsafe-scene
+handling, and no cat or save access. Stage 04 may begin.
