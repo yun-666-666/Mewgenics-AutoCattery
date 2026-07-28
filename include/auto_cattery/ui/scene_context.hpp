@@ -5,6 +5,7 @@
 #include <functional>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -18,6 +19,15 @@ enum class UiContextKind {
     EmbarkSelection,
     UnsafeTransition
 };
+
+enum class BlockingOverlayKind {
+    None,
+    SaveInProgress
+};
+
+BlockingOverlayKind ClassifyBlockingOverlay(
+    std::string_view scene_name,
+    bool ready) noexcept;
 
 struct UiContextSnapshot {
     UiContextKind kind{UiContextKind::Unknown};

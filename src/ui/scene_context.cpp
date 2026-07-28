@@ -37,6 +37,15 @@ bool IsReadyKind(UiContextKind kind) noexcept {
 
 }  // namespace
 
+BlockingOverlayKind ClassifyBlockingOverlay(
+    std::string_view scene_name,
+    bool ready) noexcept {
+    if (ready && scene_name.find("Save") != std::string_view::npos) {
+        return BlockingOverlayKind::SaveInProgress;
+    }
+    return BlockingOverlayKind::None;
+}
+
 Result<SceneSignatures> LoadSceneSignatures(
     const std::filesystem::path& path) {
     std::ifstream stream(path);

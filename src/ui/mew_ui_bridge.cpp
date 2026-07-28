@@ -267,8 +267,8 @@ SceneObservation MewUiBridge::ObserveScenes(
         scenes.begin(),
         scenes.end(),
         [](const RuntimeScene& scene) {
-            return scene.ready &&
-                   scene.name.find("Save") != std::string::npos;
+            return ClassifyBlockingOverlay(scene.name, scene.ready) ==
+                   BlockingOverlayKind::SaveInProgress;
         });
     if (save_scene != scenes.end()) {
         return {
@@ -279,25 +279,6 @@ SceneObservation MewUiBridge::ObserveScenes(
             false,
             true,
             {"save-scene:" + save_scene->name}
-        };
-    }
-
-    const auto pause_scene = std::find_if(
-        scenes.begin(),
-        scenes.end(),
-        [](const RuntimeScene& scene) {
-            return scene.ready &&
-                   scene.name.find("Pause") != std::string::npos;
-        });
-    if (pause_scene != scenes.end()) {
-        return {
-            UiContextKind::UnsafeTransition,
-            pause_scene->name,
-            reinterpret_cast<std::uintptr_t>(pause_scene->manager),
-            false,
-            false,
-            false,
-            {"pause-scene:" + pause_scene->name}
         };
     }
 

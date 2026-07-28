@@ -37,6 +37,16 @@ void ObserveFrames(
 }  // namespace
 
 void RunSceneContextTests() {
+    AC_CHECK(
+        ui::ClassifyBlockingOverlay("PauseMenu", true) ==
+        ui::BlockingOverlayKind::None);
+    AC_CHECK(
+        ui::ClassifyBlockingOverlay("SaveSelectionScreen", true) ==
+        ui::BlockingOverlayKind::SaveInProgress);
+    AC_CHECK(
+        ui::ClassifyBlockingOverlay("SaveSelectionScreen", false) ==
+        ui::BlockingOverlayKind::None);
+
     const auto signature_path =
         std::filesystem::temp_directory_path() /
         "auto_cattery_phase02_scene_signatures.json";

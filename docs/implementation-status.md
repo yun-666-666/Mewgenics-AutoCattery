@@ -102,6 +102,8 @@
   - Debug and Release `phase03_dll_load_smoke` pass.
   - Controller tests cover unsafe attach rejection, idempotent attach, click
     debounce, placeholder-only execution, and idempotent detach.
+  - A regression test confirms the always-loaded `PauseMenu` scene is not a
+    blocking overlay; only a ready save scene forces the save safety path.
 - Asset provenance:
   - `auto_cattery_house.swf` is mechanically derived from the pinned MIT MewUI
     example SWF by removing its navigation, toggle, and unused third text node.
