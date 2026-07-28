@@ -1,8 +1,8 @@
-house.empty,"",,,,
-house.auto_organize,"Auto-Organize Cattery",,,,
-house.running,"Analyzing...",,,,
-house.completed,"Preview Complete",,,,
-house.unsupported,"Preview Only",,,,
-house.failed,"Preview Unavailable",,,,
-house.placeholder_title,"Auto Cattery Manager",,,,
-house.placeholder_body,"Button connected. This preview did not modify any cats.",,,,
+HOUSE.EMPTY,"",,,,,,,,,,""
+HOUSE.AUTO_ORGANIZE,"Auto-Organize Cattery",,,,,,,,,,"Auto-Organize Cattery"
+HOUSE.RUNNING,"Analyzing...",,,,,,,,,,"Analyzing..."
+HOUSE.COMPLETED,"Preview Complete",,,,,,,,,,"Preview Complete"
+HOUSE.UNSUPPORTED,"Preview Only",,,,,,,,,,"Preview Only"
+HOUSE.FAILED,"Preview Unavailable",,,,,,,,,,"Preview Unavailable"
+HOUSE.PLACEHOLDER_TITLE,"Auto Cattery Manager",,,,,,,,,,"Auto Cattery Manager"
+HOUSE.PLACEHOLDER_BODY,"Preview only. No cats were changed.",,,,,,,,,,"Preview only. No cats were changed."

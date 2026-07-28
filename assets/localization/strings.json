@@ -7,7 +7,7 @@
   "en-US": {
     "house.auto_organize": "Auto-Organize Cattery",
     "house.placeholder_title": "Auto Cattery Manager",
-    "house.placeholder_body": "Button connected. This preview did not modify any cats."
+    "house.placeholder_body": "Preview only. No cats were changed."
   },
   "runtime_fallback": "en-US",
   "runtime_fallback_reason": "The pinned SWF font has no verified CJK glyph coverage."

@@ -10,14 +10,14 @@ constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
 constexpr auto kTitleNode = "test_text";
 constexpr auto kBodyNode = "test_text_2";
 
-constexpr auto kEmptyText = "house.empty";
-constexpr auto kReadyText = "house.auto_organize";
-constexpr auto kRunningText = "house.running";
-constexpr auto kCompletedText = "house.completed";
-constexpr auto kUnsupportedText = "house.unsupported";
-constexpr auto kFailedText = "house.failed";
-constexpr auto kPlaceholderTitle = "house.placeholder_title";
-constexpr auto kPlaceholderBody = "house.placeholder_body";
+constexpr auto kEmptyText = "HOUSE.EMPTY";
+constexpr auto kReadyText = "HOUSE.AUTO_ORGANIZE";
+constexpr auto kRunningText = "HOUSE.RUNNING";
+constexpr auto kCompletedText = "HOUSE.COMPLETED";
+constexpr auto kUnsupportedText = "HOUSE.UNSUPPORTED";
+constexpr auto kFailedText = "HOUSE.FAILED";
+constexpr auto kPlaceholderTitle = "HOUSE.PLACEHOLDER_TITLE";
+constexpr auto kPlaceholderBody = "HOUSE.PLACEHOLDER_BODY";
 
 }  // namespace
 
