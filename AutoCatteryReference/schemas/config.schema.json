@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoCattery Algorithm Config",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "combat_scoring",
+    "breeding_scoring",
+    "classification",
+    "room_planning"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "combat_scoring": {
+      "type": "object",
+      "required": [
+        "recommended_count",
+        "stat_weights"
+      ],
+      "properties": {
+        "recommended_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "minimum_score": {
+          "type": "number"
+        },
+        "exclude_kittens": {
+          "type": "boolean"
+        },
+        "exclude_injured": {
+          "type": "boolean"
+        },
+        "stat_weights": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "breeding_scoring": {
+      "type": "object"
+    },
+    "classification": {
+      "type": "object"
+    },
+    "room_planning": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

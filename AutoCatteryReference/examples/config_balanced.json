@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "combat_scoring": {
+    "recommended_count": 4,
+    "minimum_score": 0.0,
+    "exclude_kittens": true,
+    "exclude_injured": false,
+    "stat_weights": {
+      "strength": 1.0,
+      "dexterity": 1.0,
+      "constitution": 1.0,
+      "intelligence": 1.0,
+      "speed": 1.0,
+      "luck": 1.0
+    },
+    "ability_count_weight": 2.0,
+    "passive_count_weight": 1.5,
+    "mutation_default_weight": 0.5,
+    "disorder_default_penalty": 2.0,
+    "injury_penalty": 5.0,
+    "missing_field_penalty": 0.25,
+    "ability_overrides": {
+      "PowerStrike": 4.0
+    },
+    "passive_overrides": {},
+    "mutation_overrides": {
+      "RareGlow": 3.0
+    },
+    "disorder_overrides": {}
+  },
+  "breeding_scoring": {
+    "core_breeders": 2,
+    "reserve_breeders": 2,
+    "stat_weights": {
+      "strength": 1.0,
+      "dexterity": 1.0,
+      "constitution": 1.0,
+      "intelligence": 1.0,
+      "speed": 1.0,
+      "luck": 1.0
+    },
+    "ability_default_weight": 1.0,
+    "mutation_default_weight": 1.0,
+    "rare_mutation_weights": {
+      "RareGlow": 5.0
+    },
+    "disorder_default_penalty": 3.0,
+    "missing_field_penalty": 0.25
+  },
+  "classification": {
+    "combat_priority_over_breeding": false,
+    "minimum_combat_pool": 3,
+    "minimum_breeding_pool": 2,
+    "minimum_general_reserve": 1,
+    "never_cull_if_data_confidence_below": 0.85
+  },
+  "room_planning": {
+    "default_soft_capacity": 4,
+    "allow_soft_overflow": true,
+    "max_soft_overflow_per_room": 1,
+    "never_exceed_known_hard_capacity": true,
+    "prefer_single_combat_staging_room": true,
+    "keep_kittens_separate_when_possible": true,
+    "allow_partial_plan": true
+  }
+}

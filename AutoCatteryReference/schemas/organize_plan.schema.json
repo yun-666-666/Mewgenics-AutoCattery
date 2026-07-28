@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoCattery OrganizePlan",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source_snapshot_id",
+    "algorithm_version",
+    "decisions",
+    "moves",
+    "quality_cull_candidates",
+    "capacity_relief_candidates",
+    "unplaced_cats",
+    "warnings",
+    "fully_satisfied"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "source_snapshot_id": {
+      "type": "integer"
+    },
+    "algorithm_version": {
+      "type": "string"
+    },
+    "decisions": {
+      "type": "array"
+    },
+    "moves": {
+      "type": "array"
+    },
+    "quality_cull_candidates": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "capacity_relief_candidates": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "unplaced_cats": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fully_satisfied": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

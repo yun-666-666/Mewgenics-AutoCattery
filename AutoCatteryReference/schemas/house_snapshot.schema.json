@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoCattery HouseSnapshot",
+  "type": "object",
+  "required": [
+    "snapshot_id",
+    "scene_generation",
+    "game_day",
+    "game_build_id",
+    "cats",
+    "rooms"
+  ],
+  "properties": {
+    "snapshot_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scene_generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "game_day": {
+      "type": "integer"
+    },
+    "game_build_id": {
+      "type": "string"
+    },
+    "cats": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cat"
+      }
+    },
+    "rooms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/room"
+      }
+    }
+  },
+  "$defs": {
+    "stats": {
+      "type": "object",
+      "properties": {
+        "strength": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "dexterity": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "constitution": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "intelligence": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "speed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "luck": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "cat": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "life_stage",
+        "room_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "life_stage": {
+          "enum": [
+            "unknown",
+            "kitten",
+            "adult",
+            "senior",
+            "dead"
+          ]
+        },
+        "age_days": {
+          "type": "integer"
+        },
+        "room_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "base_stats": {
+          "$ref": "#/$defs/stats"
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "passives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mutations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disorders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parents": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "compatible_breeding_ids": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "injured": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "available_for_combat": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "available_for_breeding": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "player_favorite": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "game_locked": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "protection": {
+          "enum": [
+            "none",
+            "no_cull",
+            "no_move",
+            "no_cull_or_move",
+            "fully_unmanaged"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "room": {
+      "type": "object",
+      "required": [
+        "id",
+        "room_type",
+        "residents"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "room_type": {
+          "type": "string"
+        },
+        "residents": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "hard_capacity": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "soft_capacity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "comfort": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "stimulation": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "allows_breeding": {
+          "type": "boolean"
+        },
+        "allows_kittens": {
+          "type": "boolean"
+        },
+        "is_special_room": {
+          "type": "boolean"
+        },
+        "player_locked": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

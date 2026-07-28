@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "project": "Mewgenics Auto Cattery",
+  "active_stage": 4,
+  "stages": {
+    "1": {
+      "status": "completed",
+      "commit": "f24a44e"
+    },
+    "2": {
+      "status": "completed",
+      "commit": "1fa3e93"
+    },
+    "3": {
+      "status": "completed",
+      "commit": "0f852b0"
+    },
+    "4": {
+      "status": "in_progress",
+      "commit": null
+    },
+    "5": {
+      "status": "pending",
+      "commit": null
+    },
+    "6": {
+      "status": "pending",
+      "commit": null
+    },
+    "7": {
+      "status": "pending",
+      "commit": null
+    },
+    "8": {
+      "status": "pending",
+      "commit": null
+    },
+    "9": {
+      "status": "pending",
+      "commit": null
+    },
+    "10": {
+      "status": "pending",
+      "commit": null
+    },
+    "11": {
+      "status": "pending",
+      "commit": null
+    },
+    "12": {
+      "status": "pending",
+      "commit": null
+    },
+    "13": {
+      "status": "pending",
+      "commit": null
+    },
+    "14": {
+      "status": "pending",
+      "commit": null
+    },
+    "15": {
+      "status": "pending",
+      "commit": null
+    },
+    "16": {
+      "status": "pending",
+      "commit": null
+    }
+  },
+  "updated_at": "2026-07-28T10:47:45.705106+00:00"
+}
