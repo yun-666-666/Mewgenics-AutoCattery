@@ -44,7 +44,39 @@
     logged.
   - All test processes were closed and no Mewgenics process remains.
 
+## Stage 02
+
+- Status: implementation complete; player-operated embark signature capture
+  remains required for final acceptance.
+- Implemented:
+  - `SceneContextService` with stable-frame entry debounce and ten-frame loss
+    debounce.
+  - Generation-tagged `HouseReady`, `EmbarkSelectionReady`, and
+    `UnsafeTransition` snapshots.
+  - Exception-isolated subscriptions on the MewUI game/UI callback thread.
+  - Versioned `config/scene_signatures.json`; empty signatures fail closed.
+  - Debug/opt-in scene summary logging and F8 JSON export without textures,
+    scripts, assets, or save contents.
+  - Explicit save-scene downgrade and no formal buttons or cat access.
+- Automated tests:
+  - Release and Debug `phase02_unit_tests` pass.
+  - Release and Debug `phase02_dll_load_smoke` pass.
+  - Tests cover house/embark entry and exit, duplicate callbacks, transient
+    node/layout changes, ten-frame loss, rapid switches, saving, and subscriber
+    exceptions.
+- Player-assisted evidence on 2026-07-28:
+  - Actual house scene is `House`.
+  - `HouseReady generation=1` was observed.
+  - Resting unloaded the scene and emitted `UnsafeTransition generation=2`.
+  - The reloaded house emitted `HouseReady generation=3`.
+  - Supplied before/after screenshots show the same house UI with dynamic cat
+    positions; detection does not depend on cat layout.
+- Operational rule:
+  - Codex may perform launch/no-crash smoke tests only.
+  - The player performs save selection and gameplay navigation, following
+    `docs/phase02-manual-test.md`.
+
 ## Stage gate
 
-Stage 02 may begin. Release and Debug builds/tests passed, and live validation
-observed `AC1200` followed by `AC1202` on 2026-07-28.
+Stage 03 must not begin until the player captures the real embark-selection
+scene and the signature is added without guessing.

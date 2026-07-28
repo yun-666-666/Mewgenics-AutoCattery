@@ -31,7 +31,9 @@ add_library(auto_cattery_core STATIC
     src/config.cpp
     src/logger.cpp
     src/module_registry.cpp
+    src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
+    src/ui/mew_ui_scene_probe.c
 )
 target_link_libraries(auto_cattery_core PUBLIC mew_ui_api)
 target_compile_features(auto_cattery_core PUBLIC cxx_std_20)
@@ -40,6 +42,7 @@ target_include_directories(auto_cattery_core
         include
         third_party/mewjector
     PRIVATE
+        src/ui
         third_party/json/include
 )
 target_compile_definitions(auto_cattery_core
@@ -71,18 +74,19 @@ if(AUTOCATTERY_BUILD_TESTS)
     add_executable(auto_cattery_tests
         tests/config_tests.cpp
         tests/module_registry_tests.cpp
+        tests/scene_context_tests.cpp
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase01_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase02_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(dll_smoke_tests tests/dll_smoke_tests.cpp)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase01_dll_load_smoke
+        NAME phase02_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()

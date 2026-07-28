@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "house": {
+    "scene_names": ["House"],
+    "required_nodes_any": [],
+    "required_nodes_all": [],
+    "forbidden_nodes": [],
+    "allow_structure_match": false
+  },
+  "embark_selection": {
+    "scene_names": [],
+    "required_nodes_any": [],
+    "required_nodes_all": [],
+    "forbidden_nodes": [],
+    "allow_structure_match": false
+  }
+}

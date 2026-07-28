@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.autocattery/config.schema.json",
-  "title": "AutoCattery phase 01 configuration",
+  "title": "AutoCattery configuration",
   "type": "object",
   "required": ["schema_version", "mod_enabled", "safe_mode", "ui", "safety"],
   "properties": {

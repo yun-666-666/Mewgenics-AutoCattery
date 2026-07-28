@@ -26,10 +26,11 @@ if (-not (Test-Path -LiteralPath $dllSource)) {
 
 $mods = Join-Path $resolvedGameRoot 'mods'
 $dataRoot = Join-Path $mods 'AutoCattery'
-if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery phase 01 files')) {
+if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
     New-Item -ItemType Directory -Force -Path (Join-Path $dataRoot 'config') | Out-Null
     Copy-Item -LiteralPath $dllSource -Destination (Join-Path $mods 'AutoCattery.dll') -Force
     Copy-Item -LiteralPath (Join-Path $source 'config\default_config.json') -Destination (Join-Path $dataRoot 'config') -Force
+    Copy-Item -LiteralPath (Join-Path $source 'config\scene_signatures.json') -Destination (Join-Path $dataRoot 'config') -Force
     Copy-Item -LiteralPath (Join-Path $source 'THIRD_PARTY_NOTICES.md') -Destination $dataRoot -Force
 }
 
