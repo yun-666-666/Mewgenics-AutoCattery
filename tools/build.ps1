@@ -26,9 +26,16 @@ if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 
 $dist = Join-Path $projectRoot "dist\$Configuration"
 New-Item -ItemType Directory -Force -Path (Join-Path $dist 'config') | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $dist 'data\text') | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $dist 'localization') | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $dist 'swfs') | Out-Null
 Copy-Item -LiteralPath (Join-Path $buildDirectory "out\$Configuration\AutoCattery.dll") -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\default_config.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\scene_signatures.json') -Destination (Join-Path $dist 'config') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\data\text\combined.csv.append') -Destination (Join-Path $dist 'data\text') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\localization\strings.json') -Destination (Join-Path $dist 'localization') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\swfs\auto_cattery_house.swf') -Destination (Join-Path $dist 'swfs') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\swfs\swflist.gon.append') -Destination (Join-Path $dist 'swfs') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD_PARTY_NOTICES.md') -Destination $dist -Force
 
 $dumpbinExe = Get-ChildItem -LiteralPath $dumpbin -Filter dumpbin.exe -Recurse |

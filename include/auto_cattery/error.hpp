@@ -18,6 +18,7 @@ enum class ErrorCode {
     BackupFailed,
     WriteConflict,
     OperationCancelled,
+    NotImplemented,
     PartialSuccess,
     InternalError
 };

@@ -1,0 +1,14 @@
+{
+  "zh-CN": {
+    "house.auto_organize": "自动整理猫舍",
+    "house.placeholder_title": "自动猫舍管家",
+    "house.placeholder_body": "按钮已成功接入。当前阶段不会修改任何猫。"
+  },
+  "en-US": {
+    "house.auto_organize": "Auto-Organize Cattery",
+    "house.placeholder_title": "Auto Cattery Manager",
+    "house.placeholder_body": "Button connected. This preview did not modify any cats."
+  },
+  "runtime_fallback": "en-US",
+  "runtime_fallback_reason": "The pinned SWF font has no verified CJK glyph coverage."
+}

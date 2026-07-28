@@ -81,7 +81,36 @@
   - The player performs save selection and gameplay navigation, following
     `docs/phase02-manual-test.md`.
 
+## Stage 03
+
+- Status: implementation and automated validation complete; live acceptance
+  pending.
+- Implemented:
+  - One role-identified `AutoCattery.House.AutoOrganizeButton`, created from a
+    dedicated House SWF node.
+  - House-only attach, unsafe-context detach/disable, and idempotent reuse.
+  - 500 ms click debounce and running-state duplicate suppression.
+  - A placeholder workflow that returns `NotImplemented` and never opens cat,
+    room, save, or persistence data.
+  - Placeholder title/body text that explicitly says no cats were modified.
+  - Chinese and English built-in strings. Runtime uses English until CJK glyph
+    coverage is verified for the pinned SWF font.
+  - Build, deployment, and install verification for the SWF, localization, and
+    append files.
+- Automated tests:
+  - Debug and Release `phase03_unit_tests` pass.
+  - Debug and Release `phase03_dll_load_smoke` pass.
+  - Controller tests cover unsafe attach rejection, idempotent attach, click
+    debounce, placeholder-only execution, and idempotent detach.
+- Asset provenance:
+  - `auto_cattery_house.swf` is mechanically derived from the pinned MIT MewUI
+    example SWF by removing its navigation, toggle, and unused third text node.
+  - `tools/build_house_ui_asset.py` reproduces the derived asset without
+    downloading or copying any new third-party material.
+
 ## Stage gate
 
-Stage 03 may begin. `House` and `ClassChooser` are player-verified signatures,
-and Stage 02 Release/Debug tests and lifecycle evidence pass.
+Do not begin Stage 04 until the player completes
+`docs/phase03-manual-test.md`, including repeated House entry/exit, rapid
+clicks, save/pause/transition behavior, and visual checks at representative
+resolutions.

@@ -1,6 +1,6 @@
 # AutoCattery
 
-Phase 02 scene-context foundation for a Windows x64 Mewgenics DLL mod.
+Phase 03 house-button shell for a Windows x64 Mewgenics DLL mod.
 
 Current behavior is intentionally non-destructive:
 
@@ -11,8 +11,12 @@ Current behavior is intentionally non-destructive:
 - recognizes the stable `House` scene, debounces unload/reload transitions, and
   publishes generation-tagged context events;
 - recognizes the player-verified `ClassChooser` embark-selection scene;
+- injects one `AutoCattery.House.AutoOrganizeButton` in the stable `House`
+  scene and disables/detaches it when the context becomes unsafe;
+- debounces clicks for 500 ms and shows a localized placeholder stating that
+  no cats were modified;
 - provides an opt-in F8 scene-summary export for diagnostics;
-- never creates a formal button and never reads or writes cats, rooms, or saves.
+- never reads or writes cats, rooms, or saves.
 
 Build:
 
@@ -31,5 +35,5 @@ Mewjector scans only the immediate `mods` directory, so the DLL is deployed as
 `mods\AutoCattery.dll`; configuration and logs live under
 `mods\AutoCattery\`.
 
-See `docs/phase02-manual-test.md` for the player-operated scene validation
+See `docs/phase03-manual-test.md` for the player-operated button validation
 steps. Codex does not navigate saves or gameplay screens.

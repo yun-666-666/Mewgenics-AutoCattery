@@ -28,9 +28,16 @@ $mods = Join-Path $resolvedGameRoot 'mods'
 $dataRoot = Join-Path $mods 'AutoCattery'
 if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
     New-Item -ItemType Directory -Force -Path (Join-Path $dataRoot 'config') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $dataRoot 'data\text') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $dataRoot 'localization') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $dataRoot 'swfs') | Out-Null
     Copy-Item -LiteralPath $dllSource -Destination (Join-Path $mods 'AutoCattery.dll') -Force
     Copy-Item -LiteralPath (Join-Path $source 'config\default_config.json') -Destination (Join-Path $dataRoot 'config') -Force
     Copy-Item -LiteralPath (Join-Path $source 'config\scene_signatures.json') -Destination (Join-Path $dataRoot 'config') -Force
+    Copy-Item -LiteralPath (Join-Path $source 'data\text\combined.csv.append') -Destination (Join-Path $dataRoot 'data\text') -Force
+    Copy-Item -LiteralPath (Join-Path $source 'localization\strings.json') -Destination (Join-Path $dataRoot 'localization') -Force
+    Copy-Item -LiteralPath (Join-Path $source 'swfs\auto_cattery_house.swf') -Destination (Join-Path $dataRoot 'swfs') -Force
+    Copy-Item -LiteralPath (Join-Path $source 'swfs\swflist.gon.append') -Destination (Join-Path $dataRoot 'swfs') -Force
     Copy-Item -LiteralPath (Join-Path $source 'THIRD_PARTY_NOTICES.md') -Destination $dataRoot -Force
 }
 

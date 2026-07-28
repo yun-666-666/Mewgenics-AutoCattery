@@ -11,7 +11,11 @@ $required = @(
     'version.dll',
     'chainloader.ini',
     'mods\AutoCattery.dll',
-    'mods\AutoCattery\config\default_config.json'
+    'mods\AutoCattery\config\default_config.json',
+    'mods\AutoCattery\data\text\combined.csv.append',
+    'mods\AutoCattery\localization\strings.json',
+    'mods\AutoCattery\swfs\auto_cattery_house.swf',
+    'mods\AutoCattery\swfs\swflist.gon.append'
 )
 
 $missing = @()
@@ -45,4 +49,4 @@ try {
     $stream.Dispose()
 }
 
-Write-Host 'AutoCattery phase 01 install structure and DLL architecture are valid.'
+Write-Host 'AutoCattery phase 03 install structure and DLL architecture are valid.'

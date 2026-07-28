@@ -3,6 +3,7 @@
 namespace autocattery::tests {
 
 void RunConfigTests();
+void RunHouseButtonControllerTests();
 void RunModuleRegistryTests();
 void RunSceneContextTests();
 
@@ -10,6 +11,7 @@ void RunSceneContextTests();
 
 int main() {
     autocattery::tests::RunConfigTests();
+    autocattery::tests::RunHouseButtonControllerTests();
     autocattery::tests::RunModuleRegistryTests();
     autocattery::tests::RunSceneContextTests();
     if (autocattery::tests::failures != 0) {

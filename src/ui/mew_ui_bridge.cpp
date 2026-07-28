@@ -14,6 +14,9 @@
 
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/ui/house_button_controller.hpp"
+#include "auto_cattery/workflow/organize_workflow_facade.hpp"
+#include "mew_ui_house_button_view.hpp"
 #include "mew_ui_scene_probe.h"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -48,6 +51,9 @@ struct MewUiBridge::RuntimeScene {
     bool ready{};
 };
 
+MewUiBridge::MewUiBridge() = default;
+MewUiBridge::~MewUiBridge() = default;
+
 const char* MewUiBridge::Name() const noexcept {
     return "MewUiBridge";
 }
@@ -56,9 +62,17 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     ready_logged_.store(false);
     last_tick_time_ = {};
     last_scene_summary_.clear();
+    last_house_attach_error_.clear();
     signatures_ = {};
     debug_probe_enabled_ = false;
     diagnostics_root_ = context.mod_root / L"diagnostics";
+    next_house_attach_retry_ = {};
+    house_button_view_ = std::make_unique<MewUiHouseButtonView>();
+    organize_workflow_ =
+        std::make_unique<workflow::OrganizeWorkflowFacade>();
+    house_button_controller_ = std::make_unique<HouseButtonController>(
+        *house_button_view_,
+        *organize_workflow_);
 
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
@@ -90,7 +104,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             "Scene context service failed to start.");
         return false;
     }
-    scene_subscription_ = scene_context_.Subscribe([](const auto& snapshot) {
+    scene_subscription_ = scene_context_.Subscribe([this](const auto& snapshot) {
         std::ostringstream message;
         message << "Context=" << UiContextKindName(snapshot.kind)
                 << " scene='" << snapshot.scene_name
@@ -102,6 +116,13 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             "SceneContext",
             "AC2100",
             message.str());
+        if (snapshot.kind != UiContextKind::House ||
+            !snapshot.input_enabled ||
+            snapshot.save_in_progress) {
+            house_button_controller_->Detach();
+            next_house_attach_retry_ = {};
+            last_house_attach_error_.clear();
+        }
     });
 
     started_ = MewUI_Start(
@@ -134,6 +155,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
 }
 
 void MewUiBridge::Shutdown() noexcept {
+    if (house_button_controller_) {
+        house_button_controller_->Detach();
+    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -145,7 +169,12 @@ void MewUiBridge::Shutdown() noexcept {
     started_ = false;
     last_tick_time_ = {};
     last_scene_summary_.clear();
+    last_house_attach_error_.clear();
+    next_house_attach_retry_ = {};
     ready_logged_.store(false);
+    house_button_controller_.reset();
+    organize_workflow_.reset();
+    house_button_view_.reset();
 }
 
 bool MewUiBridge::Available() const noexcept {
@@ -204,6 +233,32 @@ void MewUiBridge::OnTick() {
         }
     }
     (void)scene_context_.Observe(ObserveScenes(scenes));
+
+    const auto context = scene_context_.Current();
+    if (context.kind == UiContextKind::House &&
+        context.input_enabled &&
+        !context.save_in_progress &&
+        house_button_controller_ &&
+        !house_button_controller_->IsAttached() &&
+        (next_house_attach_retry_.time_since_epoch().count() == 0 ||
+         now >= next_house_attach_retry_)) {
+        const auto attached = house_button_controller_->Attach(context);
+        if (!attached) {
+            if (attached.message != last_house_attach_error_) {
+                last_house_attach_error_ = attached.message;
+                Logger::Instance().Write(
+                    LogLevel::Warn,
+                    "HouseButton",
+                    "AC3103",
+                    "House button attach deferred: " + attached.message);
+            }
+            next_house_attach_retry_ =
+                now + std::chrono::milliseconds(500);
+        } else {
+            next_house_attach_retry_ = {};
+            last_house_attach_error_.clear();
+        }
+    }
 }
 
 SceneObservation MewUiBridge::ObserveScenes(
@@ -224,6 +279,25 @@ SceneObservation MewUiBridge::ObserveScenes(
             false,
             true,
             {"save-scene:" + save_scene->name}
+        };
+    }
+
+    const auto pause_scene = std::find_if(
+        scenes.begin(),
+        scenes.end(),
+        [](const RuntimeScene& scene) {
+            return scene.ready &&
+                   scene.name.find("Pause") != std::string::npos;
+        });
+    if (pause_scene != scenes.end()) {
+        return {
+            UiContextKind::UnsafeTransition,
+            pause_scene->name,
+            reinterpret_cast<std::uintptr_t>(pause_scene->manager),
+            false,
+            false,
+            false,
+            {"pause-scene:" + pause_scene->name}
         };
     }
 
