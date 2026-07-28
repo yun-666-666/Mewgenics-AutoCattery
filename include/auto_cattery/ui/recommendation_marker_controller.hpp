@@ -1,0 +1,53 @@
+#pragma once
+
+#include <chrono>
+#include <functional>
+
+#include "auto_cattery/error.hpp"
+#include "auto_cattery/ui/scene_context.hpp"
+
+namespace autocattery::ui {
+
+class RecommendationMarkerView {
+public:
+    using ClickHandler = std::function<void()>;
+
+    virtual ~RecommendationMarkerView() = default;
+    virtual Result<void> Attach(
+        const UiContextSnapshot& context,
+        ClickHandler click_handler) = 0;
+    virtual void Detach() noexcept = 0;
+    virtual void SetMarkerVisible(bool visible) = 0;
+    [[nodiscard]] virtual bool IsAttached() const noexcept = 0;
+};
+
+class RecommendationMarkerController {
+public:
+    using Clock = std::function<std::chrono::steady_clock::time_point()>;
+
+    explicit RecommendationMarkerController(
+        RecommendationMarkerView& view,
+        Clock clock = {});
+
+    void ObserveRuntime(
+        bool house_ready,
+        bool interstitial_ready,
+        bool expedition_ready);
+    Result<void> Attach(const UiContextSnapshot& context);
+    void Detach() noexcept;
+    void HandleClick();
+
+    [[nodiscard]] bool ShouldShow() const noexcept;
+    [[nodiscard]] bool IsAttached() const noexcept;
+    [[nodiscard]] bool MarkerVisible() const noexcept;
+
+private:
+    RecommendationMarkerView& view_;
+    Clock clock_;
+    bool available_this_day_{true};
+    bool next_day_pending_{};
+    bool marker_visible_{};
+    std::chrono::steady_clock::time_point last_click_{};
+};
+
+}  // namespace autocattery::ui

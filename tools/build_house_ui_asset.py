@@ -1,9 +1,11 @@
-"""Derive the Stage 03 House overlay from the pinned MewUI MIT example SWF.
+"""Derive the Stage 03/04 House overlay from the pinned MewUI MIT example SWF.
 
 The source SWF contains a test button, three text fields, navigation controls,
-and a toggle. AutoCattery keeps only the button and two text fields. All other
-SWF definitions remain byte-for-byte intact so the known-good button artwork
-and its transitive symbol dependencies are preserved.
+and a toggle. AutoCattery keeps the Stage 03 button, places one independently
+named copy of its known-good artwork for the Stage 04 new-day control, and
+removes the unused example fields. All other SWF definitions remain
+byte-for-byte intact so the known-good artwork and its transitive dependencies
+are preserved.
 """
 
 from __future__ import annotations
@@ -17,17 +19,23 @@ DEFINE_SPRITE = 39
 PLACE_OBJECT_2 = 26
 END = 0
 TARGET_MARKER = b"test_button\x00"
+RECOMMENDATION_MARKER = b"recommend_button\x00"
+# Keep the cloned button beside the original button at depth 18.  Higher
+# native House HUD layers must remain in front of both buttons' hanging ropes.
+RECOMMENDATION_DEPTH = 19
 REMOVED_NAMES = (
     b"test_nav_value\x00",
     b"test_nav_left\x00",
     b"test_nav_right\x00",
     b"test_toggle\x00",
+    b"test_text\x00",
+    b"test_text_2\x00",
     b"test_text_3\x00",
 )
 RELOCATED_TRANSFORMS = {
-    b"test_text\x00": (885.0, 190.0, 0.40),
-    b"test_text_2\x00": (930.0, 245.0, None),
+    TARGET_MARKER: (1010.0, 85.0, 0.65),
 }
+RECOMMENDATION_TRANSFORM = (1175.0, 85.0, 0.65)
 
 
 class BitReader:
@@ -186,14 +194,22 @@ def encode_tag(code: int, body: bytes) -> bytes:
     )
 
 
-def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int]:
+def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int, int]:
     sprite_header = body[:4]
     kept = bytearray(sprite_header)
     removed = 0
     relocated = 0
-    for code, tag_start, body_start, tag_end in read_tags(
-        body, 4, len(body)
-    ):
+    cloned = 0
+    tags = list(read_tags(body, 4, len(body)))
+    used_depths = {
+        struct.unpack_from("<H", body, body_start + 1)[0]
+        for code, _, body_start, tag_end in tags
+        if code == PLACE_OBJECT_2 and tag_end - body_start >= 3
+    }
+    if RECOMMENDATION_DEPTH in used_depths:
+        raise ValueError("recommendation depth is already occupied")
+
+    for code, tag_start, body_start, tag_end in tags:
         raw_tag = body[tag_start:tag_end]
         if code == PLACE_OBJECT_2 and any(
             name in raw_tag for name in REMOVED_NAMES
@@ -211,7 +227,25 @@ def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int]:
                     relocated += 1
                     break
         kept.extend(raw_tag)
-    return bytes(kept), removed, relocated
+        if code == PLACE_OBJECT_2 and TARGET_MARKER in raw_tag:
+            clone_body = bytearray(body[body_start:tag_end])
+            struct.pack_into("<H", clone_body, 1, RECOMMENDATION_DEPTH)
+            clone_body = bytearray(
+                bytes(clone_body).replace(
+                    TARGET_MARKER,
+                    RECOMMENDATION_MARKER,
+                    1,
+                )
+            )
+            clone_body = bytearray(
+                relocate_matrix(
+                    bytes(clone_body),
+                    *RECOMMENDATION_TRANSFORM,
+                )
+            )
+            kept.extend(encode_tag(code, bytes(clone_body)))
+            cloned += 1
+    return bytes(kept), removed, relocated, cloned
 
 
 def build(source: Path, destination: Path) -> None:
@@ -221,6 +255,7 @@ def build(source: Path, destination: Path) -> None:
     found = False
     removed = 0
     relocated = 0
+    cloned = 0
 
     for code, tag_start, body_start, tag_end in read_tags(
         swf, start, len(swf)
@@ -229,7 +264,7 @@ def build(source: Path, destination: Path) -> None:
         if code == DEFINE_SPRITE and TARGET_MARKER in body:
             if found:
                 raise ValueError("more than one overlay sprite was found")
-            body, removed, relocated = filter_overlay_sprite(body)
+            body, removed, relocated, cloned = filter_overlay_sprite(body)
             output.extend(encode_tag(code, body))
             found = True
         else:
@@ -239,11 +274,12 @@ def build(source: Path, destination: Path) -> None:
         not found
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
+        or cloned != 1
     ):
         raise ValueError(
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "
             f"found={found} removed={removed} "
-            f"relocated={relocated}"
+            f"relocated={relocated} cloned={cloned}"
         )
 
     struct.pack_into("<I", output, 4, len(output))

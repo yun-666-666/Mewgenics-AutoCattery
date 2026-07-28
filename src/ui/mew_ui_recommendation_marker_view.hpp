@@ -1,6 +1,6 @@
 #pragma once
 
-#include "auto_cattery/ui/house_button_controller.hpp"
+#include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
 #endif
@@ -8,16 +8,14 @@
 
 namespace autocattery::ui {
 
-class MewUiHouseButtonView final : public HouseButtonView {
+class MewUiRecommendationMarkerView final
+    : public RecommendationMarkerView {
 public:
     Result<void> Attach(
         const UiContextSnapshot& context,
         ClickHandler click_handler) override;
     void Detach() noexcept override;
-    void SetState(
-        OrganizeButtonState state,
-        std::string_view detail) override;
-    void ShowPlaceholder() override;
+    void SetMarkerVisible(bool visible) override;
     [[nodiscard]] bool IsAttached() const noexcept override;
 
 private:

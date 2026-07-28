@@ -1,22 +1,19 @@
-#include "mew_ui_house_button_view.hpp"
+#include "mew_ui_recommendation_marker_view.hpp"
 
 #include <utility>
 
 namespace autocattery::ui {
 namespace {
 
-constexpr auto kButtonNode = "test_button";
-constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
-
-constexpr auto kReadyText = "HOUSE.AUTO_ORGANIZE";
-constexpr auto kRunningText = "HOUSE.RUNNING";
-constexpr auto kCompletedText = "HOUSE.COMPLETED";
-constexpr auto kUnsupportedText = "HOUSE.UNSUPPORTED";
-constexpr auto kFailedText = "HOUSE.FAILED";
+constexpr auto kButtonNode = "recommend_button";
+constexpr auto kButtonRole =
+    "AutoCattery.Recommendation.MarkCombatCatsButton";
+constexpr auto kReadyText = "HOUSE.RECOMMEND_COMBAT_CATS";
+constexpr auto kMarkerOnText = "HOUSE.RECOMMEND_DEMO_ON";
 
 }  // namespace
 
-Result<void> MewUiHouseButtonView::Attach(
+Result<void> MewUiRecommendationMarkerView::Attach(
     const UiContextSnapshot& context,
     ClickHandler click_handler) {
     auto* scene = MewUI_GetSceneByName(context.scene_name.c_str());
@@ -25,7 +22,7 @@ Result<void> MewUiHouseButtonView::Attach(
         MewUI_IsSceneDestroying(scene) != 0) {
         return {
             ErrorCode::SceneUnavailable,
-            "house scene is not ready for UI attachment"
+            "house scene is not ready for recommendation UI attachment"
         };
     }
 
@@ -63,7 +60,7 @@ Result<void> MewUiHouseButtonView::Attach(
         click_handler_ = {};
         return {
             ErrorCode::UiNodeNotFound,
-            "the AutoCattery house button asset is unavailable"
+            "the dedicated recommendation button asset is unavailable"
         };
     }
 
@@ -73,7 +70,7 @@ Result<void> MewUiHouseButtonView::Attach(
     return {};
 }
 
-void MewUiHouseButtonView::Detach() noexcept {
+void MewUiRecommendationMarkerView::Detach() noexcept {
     if (scene_manager_ != nullptr &&
         button_ != nullptr &&
         MewUI_IsSceneDestroying(scene_manager_) == 0 &&
@@ -88,56 +85,20 @@ void MewUiHouseButtonView::Detach() noexcept {
     click_handler_ = {};
 }
 
-void MewUiHouseButtonView::SetState(
-    OrganizeButtonState state,
-    std::string_view detail) {
-    (void)detail;
+void MewUiRecommendationMarkerView::SetMarkerVisible(bool visible) {
     if (button_ == nullptr) {
         return;
     }
-
-    const char* label = kReadyText;
-    bool enabled = true;
-    switch (state) {
-    case OrganizeButtonState::Hidden:
-        enabled = false;
-        break;
-    case OrganizeButtonState::DisabledUnsupportedBuild:
-        label = kUnsupportedText;
-        enabled = false;
-        break;
-    case OrganizeButtonState::DisabledBusy:
-    case OrganizeButtonState::Running:
-        label = kRunningText;
-        enabled = false;
-        break;
-    case OrganizeButtonState::Ready:
-        label = kReadyText;
-        break;
-    case OrganizeButtonState::Completed:
-        label = kCompletedText;
-        break;
-    case OrganizeButtonState::Failed:
-        label = kFailedText;
-        break;
-    }
-    MewUI_SetButtonLabelFromLocalizationKey(button_, label);
-    MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
-    MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
+    MewUI_SetButtonLabelFromLocalizationKey(
+        button_,
+        visible ? kMarkerOnText : kReadyText);
 }
 
-void MewUiHouseButtonView::ShowPlaceholder() {
-    // The compact top-right layout uses the button label as its complete
-    // feedback surface. Avoid scene-wide text-node probes here: the pinned
-    // MewUI build handles a missing text node through repeated SEH probes,
-    // which caused a visible pause on every Stage 03 click.
-}
-
-bool MewUiHouseButtonView::IsAttached() const noexcept {
+bool MewUiRecommendationMarkerView::IsAttached() const noexcept {
     return active_ && scene_manager_ != nullptr && button_ != nullptr;
 }
 
-void __cdecl MewUiHouseButtonView::ButtonCallback(
+void __cdecl MewUiRecommendationMarkerView::ButtonCallback(
     void* button,
     MewButtonEvent event_type,
     MewButtonState old_state,
@@ -146,7 +107,8 @@ void __cdecl MewUiHouseButtonView::ButtonCallback(
     (void)button;
     (void)old_state;
     (void)new_state;
-    auto* self = static_cast<MewUiHouseButtonView*>(user_data);
+    auto* self =
+        static_cast<MewUiRecommendationMarkerView*>(user_data);
     if (self != nullptr &&
         event_type == MEW_BUTTON_EVENT_CLICK &&
         self->click_handler_) {

@@ -18,6 +18,8 @@ namespace autocattery::ui {
 
 class HouseButtonController;
 class MewUiHouseButtonView;
+class RecommendationMarkerController;
+class MewUiRecommendationMarkerView;
 
 class MewUiBridge final : public Module {
 public:
@@ -48,12 +50,19 @@ private:
     std::uint64_t scene_subscription_{};
     std::string last_scene_summary_;
     std::string last_house_attach_error_;
+    std::string last_recommendation_attach_error_;
     std::chrono::steady_clock::time_point last_tick_time_{};
     std::chrono::steady_clock::time_point next_house_attach_retry_{};
+    std::chrono::steady_clock::time_point
+        next_recommendation_attach_retry_{};
     std::atomic_bool ready_logged_{false};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<HouseButtonController> house_button_controller_;
+    std::unique_ptr<MewUiRecommendationMarkerView>
+        recommendation_marker_view_;
+    std::unique_ptr<RecommendationMarkerController>
+        recommendation_marker_controller_;
 };
 
 }  // namespace autocattery::ui

@@ -15,8 +15,10 @@
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
+#include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
+#include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -63,16 +65,23 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
+    last_recommendation_attach_error_.clear();
     signatures_ = {};
     debug_probe_enabled_ = false;
     diagnostics_root_ = context.mod_root / L"diagnostics";
     next_house_attach_retry_ = {};
+    next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>();
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
         *organize_workflow_);
+    recommendation_marker_view_ =
+        std::make_unique<MewUiRecommendationMarkerView>();
+    recommendation_marker_controller_ =
+        std::make_unique<RecommendationMarkerController>(
+            *recommendation_marker_view_);
 
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
@@ -120,8 +129,11 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             !snapshot.input_enabled ||
             snapshot.save_in_progress) {
             house_button_controller_->Detach();
+            recommendation_marker_controller_->Detach();
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
+            next_recommendation_attach_retry_ = {};
+            last_recommendation_attach_error_.clear();
         }
     });
 
@@ -158,6 +170,9 @@ void MewUiBridge::Shutdown() noexcept {
     if (house_button_controller_) {
         house_button_controller_->Detach();
     }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->Detach();
+    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -170,9 +185,13 @@ void MewUiBridge::Shutdown() noexcept {
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
+    last_recommendation_attach_error_.clear();
     next_house_attach_retry_ = {};
+    next_recommendation_attach_retry_ = {};
     ready_logged_.store(false);
     house_button_controller_.reset();
+    recommendation_marker_controller_.reset();
+    recommendation_marker_view_.reset();
     organize_workflow_.reset();
     house_button_view_.reset();
 }
@@ -235,6 +254,27 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    const auto scene_ready =
+        [&scenes](std::string_view name) {
+            return std::any_of(
+                scenes.begin(),
+                scenes.end(),
+                [name](const RuntimeScene& scene) {
+                    return scene.ready && scene.name == name;
+                });
+        };
+    const bool house_ready =
+        context.kind == UiContextKind::House &&
+        context.input_enabled &&
+        !context.save_in_progress;
+    const bool interstitial_ready = scene_ready("Interstitial");
+    const bool expedition_ready =
+        scene_ready("Map") || scene_ready("Battle");
+    recommendation_marker_controller_->ObserveRuntime(
+        house_ready,
+        interstitial_ready,
+        expedition_ready);
+
     if (context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress &&
@@ -257,6 +297,32 @@ void MewUiBridge::OnTick() {
         } else {
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
+        }
+    }
+
+    if (house_ready &&
+        recommendation_marker_controller_->ShouldShow() &&
+        !recommendation_marker_controller_->IsAttached() &&
+        (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||
+         now >= next_recommendation_attach_retry_)) {
+        const auto attached =
+            recommendation_marker_controller_->Attach(context);
+        if (!attached) {
+            if (attached.message !=
+                last_recommendation_attach_error_) {
+                last_recommendation_attach_error_ = attached.message;
+                Logger::Instance().Write(
+                    LogLevel::Warn,
+                    "RecommendationMarker",
+                    "AC4105",
+                    "Recommendation button attach deferred: " +
+                        attached.message);
+            }
+            next_recommendation_attach_retry_ =
+                now + std::chrono::milliseconds(500);
+        } else {
+            next_recommendation_attach_retry_ = {};
+            last_recommendation_attach_error_.clear();
         }
     }
 }
