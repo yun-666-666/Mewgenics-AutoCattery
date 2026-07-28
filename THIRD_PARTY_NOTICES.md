@@ -14,5 +14,15 @@
 - License: MIT
 - Use: configuration parsing and layered merge.
 
-No Quick-Cleanup, Mewgenics Mod Framework, game binary, game asset, personal
-save, or reverse-engineered binary output is included.
+## MewUI API
+
+- Source: https://github.com/Pseudonym-Tim/mewgenics-ui-api
+- Revision: `0b3415ab5fa8617edcecc7eb206c165cb8b6e991`
+- Version: `1.2.0`
+- License: MIT
+- Use: compiled-in scene-ready and UI lifecycle API.
+
+Push To Meow and Quick-Cleanup were inspected as MIT-licensed references, but
+their source, binaries, SWFs, FLAs, and assets are not included. No Mewgenics
+Mod Framework file, game binary, game asset, personal save, or reverse-
+engineered binary output is included.

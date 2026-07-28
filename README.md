@@ -7,8 +7,8 @@ Current behavior is intentionally non-destructive:
 - resolves the installed Mewjector v3 API;
 - initializes structured logging and layered JSON configuration;
 - initializes a module registry;
-- attempts the UI bridge and safely enters compatibility-degraded mode because
-  no verifiable open-source MewUI API is currently available;
+- starts the MIT-licensed MewUI API 1.2.0 from source without creating a formal
+  button during phase 01;
 - never reads or writes cats, rooms, scenes, or saves.
 
 Build:

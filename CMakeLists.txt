@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.1.0 LANGUAGES CXX)
+project(AutoCattery VERSION 0.1.0 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -10,12 +10,30 @@ option(AUTOCATTERY_BUILD_TESTS "Build phase 01 unit tests" ON)
 
 include(cmake/Warnings.cmake)
 
+add_library(mew_ui_api STATIC
+    third_party/mew_ui_api/src/native/mew_ui_api.c
+)
+target_include_directories(mew_ui_api
+    PUBLIC
+        third_party/mew_ui_api/src/native
+)
+target_compile_definitions(mew_ui_api
+    PRIVATE
+        _CRT_SECURE_NO_WARNINGS
+        NOMINMAX
+)
+if(MSVC)
+    target_compile_options(mew_ui_api PRIVATE /W3 /utf-8)
+endif()
+target_link_libraries(mew_ui_api PUBLIC user32 kernel32)
+
 add_library(auto_cattery_core STATIC
     src/config.cpp
     src/logger.cpp
     src/module_registry.cpp
     src/ui/mew_ui_bridge.cpp
 )
+target_link_libraries(auto_cattery_core PUBLIC mew_ui_api)
 target_compile_features(auto_cattery_core PUBLIC cxx_std_20)
 target_include_directories(auto_cattery_core
     PUBLIC

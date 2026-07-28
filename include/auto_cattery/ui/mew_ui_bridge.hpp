@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "auto_cattery/api_types.hpp"
 
 namespace autocattery::ui {
@@ -10,9 +12,13 @@ public:
     bool Initialize(const InitContext& context) override;
     void Shutdown() noexcept override;
     [[nodiscard]] bool Available() const noexcept;
+    [[nodiscard]] bool Ready() const noexcept;
 
 private:
-    bool available_{};
+    static void __cdecl Tick(void* user_data);
+
+    bool started_{};
+    std::atomic_bool ready_logged_{false};
 };
 
 }  // namespace autocattery::ui

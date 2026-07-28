@@ -2,7 +2,7 @@
 
 ## Stage 01
 
-- Status: partial; build/test skeleton complete, live UI initialization blocked.
+- Status: complete.
 - Game build:
   - Local `Mewgenics.exe` has no embedded file/product version.
   - Size: `21,981,184` bytes.
@@ -12,13 +12,19 @@
   - Runtime log reports API v3.
   - Source pinned at `ccdd6813cef0f51342eb74c0cecb47654f7dbeef` (`v3.4` tag).
 - JSON parser: nlohmann/json `v3.12.0`, source dependency.
-- MewUI API: no verifiable public source or license was found as of 2026-07-28.
-- Compatibility decision:
-  - The separate closed-source Mewgenics Mod Framework is not used.
-  - It replaces the same `version.dll` and has reported incompatibility with Mewjector.
-  - `MewUiBridge` therefore initializes as unavailable and forces compatibility-degraded mode.
+- MewUI API:
+  - Version `1.2.0`.
+  - Source pinned at `0b3415ab5fa8617edcecc7eb206c165cb8b6e991`.
+  - MIT-licensed source is compiled into AutoCattery.
+  - `MewUiBridge` starts/stops the bootstrap and performs no formal UI work in
+    Stage 01.
+- References:
+  - Push To Meow revision `0ef06c146be341af0eba9d5062081c952902850d`
+    confirmed the current Mewjector hook pattern but contains no button UI.
+  - Quick-Cleanup revision `c1e522bb05a202c8f7045efe0d2e0a74bcabed88`
+    and MewUI API are the actual MIT-licensed button/UI references.
 - Safety:
-  - No game hooks are installed.
+  - Only MewUI lifecycle hooks are installed.
   - No scene, cat, room, or save data is accessed.
   - No formal UI is injected.
 - Local tests:
@@ -40,6 +46,5 @@
 
 ## Stage gate
 
-Stage 02 must not begin until a licensed UI integration source is identified or a
-separately verified native UI adapter is implemented and Stage 01 is validated
-in-game.
+Stage 02 may begin. Release and Debug builds/tests passed, and live validation
+observed `AC1200` followed by `AC1202` on 2026-07-28.

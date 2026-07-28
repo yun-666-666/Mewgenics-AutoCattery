@@ -112,8 +112,14 @@ int InitializeExport() {
             "Config",
             "AC1301",
             "Configuration rejected; safe defaults and read-only mode are active.");
-    } else if (config.value.force_read_only || config.value.safe_mode) {
+    } else if (
+        config.value.force_read_only ||
+        config.value.safe_mode ||
+        (config.value.safety.abort_on_unknown_game_build &&
+         context.game_build_id == "unknown")) {
         g_mode = ModMode::ReadOnly;
+    } else {
+        g_mode = ModMode::Full;
     }
 
     ui::MewUiBridge* ui_bridge_view{};
