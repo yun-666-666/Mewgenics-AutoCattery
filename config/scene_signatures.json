@@ -8,7 +8,7 @@
     "allow_structure_match": false
   },
   "embark_selection": {
-    "scene_names": [],
+    "scene_names": ["ClassChooser"],
     "required_nodes_any": [],
     "required_nodes_all": [],
     "forbidden_nodes": [],

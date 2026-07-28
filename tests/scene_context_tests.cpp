@@ -51,7 +51,7 @@ void RunSceneContextTests() {
                 "forbidden_nodes": []
             },
             "embark_selection": {
-                "scene_names": [],
+                "scene_names": ["ClassChooser"],
                 "required_nodes_any": [],
                 "required_nodes_all": [],
                 "forbidden_nodes": []
@@ -64,6 +64,9 @@ void RunSceneContextTests() {
     AC_CHECK(
         signatures.value.house.required_nodes_any.front() ==
         "house_button_anchor");
+    AC_CHECK(
+        signatures.value.embark_selection.scene_names.front() ==
+        "ClassChooser");
 
     ui::SceneContextService service(3, 10);
     AC_CHECK(static_cast<bool>(service.Start()));

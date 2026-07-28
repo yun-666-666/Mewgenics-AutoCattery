@@ -10,7 +10,7 @@ Current behavior is intentionally non-destructive:
 - starts the MIT-licensed MewUI API 1.2.0 from source;
 - recognizes the stable `House` scene, debounces unload/reload transitions, and
   publishes generation-tagged context events;
-- keeps embark selection disabled until its real scene signature is captured;
+- recognizes the player-verified `ClassChooser` embark-selection scene;
 - provides an opt-in F8 scene-summary export for diagnostics;
 - never creates a formal button and never reads or writes cats, rooms, or saves.
 

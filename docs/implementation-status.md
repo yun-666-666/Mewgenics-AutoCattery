@@ -46,8 +46,7 @@
 
 ## Stage 02
 
-- Status: implementation complete; player-operated embark signature capture
-  remains required for final acceptance.
+- Status: complete.
 - Implemented:
   - `SceneContextService` with stable-frame entry debounce and ten-frame loss
     debounce.
@@ -71,6 +70,12 @@
   - The reloaded house emitted `HouseReady generation=3`.
   - Supplied before/after screenshots show the same house UI with dynamic cat
     positions; detection does not depend on cat layout.
+  - Five player-operated diagnostic captures distinguish `House` from the
+    embark-selection scene.
+  - `ClassChooser` is the only ready business scene introduced on the
+    embark-selection screen (component count stabilized from 79 to 81).
+  - House lifecycle generations progressed through 18 across repeated
+    leave/return cycles without duplicate ready events or errors.
 - Operational rule:
   - Codex may perform launch/no-crash smoke tests only.
   - The player performs save selection and gameplay navigation, following
@@ -78,5 +83,5 @@
 
 ## Stage gate
 
-Stage 03 must not begin until the player captures the real embark-selection
-scene and the signature is added without guessing.
+Stage 03 may begin. `House` and `ClassChooser` are player-verified signatures,
+and Stage 02 Release/Debug tests and lifecycle evidence pass.

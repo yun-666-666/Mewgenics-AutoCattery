@@ -37,14 +37,15 @@ performs all save selection and gameplay navigation.
 Cat count, position, animation, and rest state must not create a context event
 unless the game actually unloads/reloads the `House` scene.
 
-## Embark-selection capture
+## Embark-selection regression test
 
 1. Navigate to the screen where cats can be selected for the next expedition.
-2. Wait two seconds, then press F8 once.
+2. Wait two seconds.
 3. Return to the house and close the game normally.
-4. Send back:
-   - the newest `diagnostics/ui-scene-summary-*.json`;
-   - the `AC2400` and `AC2100` lines covering that transition.
+4. Confirm the log contains
+   `Context=EmbarkSelectionReady scene='ClassChooser'`, followed by an
+   `UnsafeTransition` or `HouseReady` event when leaving.
 
-Until this capture identifies the real scene name, `EmbarkSelectionReady`
-remains fail-closed and Phase 03 must not begin.
+The player capture on 2026-07-28 identified `ClassChooser` as the real
+embark-selection scene. F8 export is only needed again after a game update or
+if the context event stops appearing.
