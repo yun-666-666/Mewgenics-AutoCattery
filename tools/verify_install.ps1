@@ -81,4 +81,4 @@ try {
     $stream.Dispose()
 }
 
-Write-Host 'AutoCattery phase 04 runtime DLL, enabled Mewtator data mod, and DLL architecture are valid.'
+Write-Host 'AutoCattery phase 03 runtime DLL, enabled Mewtator data mod, and DLL architecture are valid.'

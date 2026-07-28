@@ -20,10 +20,6 @@ size_t AcMewEnumerateScenes(
     AcMewSceneRecord* records,
     size_t record_capacity);
 
-int AcMewSceneHasComponentType(
-    void* scene_manager,
-    const char* component_type_name);
-
 #ifdef __cplusplus
 }
 #endif

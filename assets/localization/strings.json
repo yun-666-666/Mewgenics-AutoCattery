@@ -2,20 +2,12 @@
   "zh-CN": {
     "house.auto_organize": "自动整理猫舍",
     "house.placeholder_title": "自动猫舍管家",
-    "house.placeholder_body": "按钮已成功接入。当前阶段不会修改任何猫。",
-    "embark.mark_recommended": "标记推荐战斗猫",
-    "embark.clear_markers": "清除推荐标记",
-    "embark.demo_marker": "★ #1 演示",
-    "embark.demo_explanation": "仅为视觉占位，不会选择任何猫。"
+    "house.placeholder_body": "按钮已成功接入。当前阶段不会修改任何猫。"
   },
   "en-US": {
     "house.auto_organize": "Auto-Organize Cattery",
     "house.placeholder_title": "Auto Cattery Manager",
-    "house.placeholder_body": "Preview only. No cats were changed.",
-    "embark.mark_recommended": "Mark Recommended Combat Cats",
-    "embark.clear_markers": "Clear Recommendation Markers",
-    "embark.demo_marker": "★ #1 DEMO",
-    "embark.demo_explanation": "Visual demo only. No cat was selected."
+    "house.placeholder_body": "Preview only. No cats were changed."
   },
   "runtime_fallback": "en-US",
   "runtime_fallback_reason": "The pinned SWF font has no verified CJK glyph coverage."

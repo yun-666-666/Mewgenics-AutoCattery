@@ -14,22 +14,9 @@
       "type": "object",
       "properties": {
         "house_button_enabled": {"type": "boolean"},
-        "recommendation_button_enabled": {"type": "boolean"},
+        "embark_button_enabled": {"type": "boolean"},
         "show_debug_overlay": {"type": "boolean"}
       }
-    },
-    "recommendation_marker": {
-      "type": "object",
-      "properties": {
-        "enabled": {"type": "boolean"},
-        "show_rank": {"type": "boolean"},
-        "show_score": {"type": "boolean"},
-        "pulse": {"type": "boolean"},
-        "pulse_period_ms": {"type": "integer", "minimum": 100},
-        "max_markers": {"type": "integer", "minimum": 1},
-        "fallback_to_text_prefix": {"type": "boolean"}
-      },
-      "additionalProperties": true
     },
     "safety": {
       "type": "object",

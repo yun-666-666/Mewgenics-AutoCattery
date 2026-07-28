@@ -34,8 +34,6 @@ add_library(auto_cattery_core STATIC
     src/workflow/organize_workflow_facade.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
-    src/ui/recommendation_marker_controller.cpp
-    src/ui/mew_ui_recommendation_marker_view.cpp
     src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
     src/ui/mew_ui_scene_probe.c
@@ -80,20 +78,19 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/config_tests.cpp
         tests/module_registry_tests.cpp
         tests/house_button_controller_tests.cpp
-        tests/recommendation_marker_controller_tests.cpp
         tests/scene_context_tests.cpp
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase04_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase03_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(dll_smoke_tests tests/dll_smoke_tests.cpp)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase04_dll_load_smoke
+        NAME phase03_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()

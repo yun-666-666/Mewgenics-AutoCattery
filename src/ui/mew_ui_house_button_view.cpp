@@ -18,8 +18,6 @@ constexpr auto kUnsupportedText = "HOUSE.UNSUPPORTED";
 constexpr auto kFailedText = "HOUSE.FAILED";
 constexpr auto kPlaceholderTitle = "HOUSE.PLACEHOLDER_TITLE";
 constexpr auto kPlaceholderBody = "HOUSE.PLACEHOLDER_BODY";
-constexpr std::int32_t kVisibleFrame = 0;
-constexpr std::int32_t kHiddenFrame = 80;
 
 }  // namespace
 
@@ -48,13 +46,8 @@ Result<void> MewUiHouseButtonView::Attach(
         this,
         &button_,
         &created);
-    button_node_ = MewUI_FindNodeInSceneByName(
-        scene_manager_,
-        kButtonNode);
-    if (button_ == nullptr || button_node_ == nullptr) {
+    if (button_ == nullptr) {
         scene_manager_ = nullptr;
-        button_ = nullptr;
-        button_node_ = nullptr;
         click_handler_ = {};
         return {
             ErrorCode::UiNodeNotFound,
@@ -63,7 +56,6 @@ Result<void> MewUiHouseButtonView::Attach(
     }
 
     (void)created;
-    MewUI_PlayMovieClipFrame(button_node_, kVisibleFrame);
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
     MewUI_SetTextInSceneFromLocalizationKey(
@@ -82,23 +74,11 @@ void MewUiHouseButtonView::Detach() noexcept {
         button_ != nullptr &&
         MewUI_IsSceneDestroying(scene_manager_) == 0 &&
         MewUI_IsComponentInScene(scene_manager_, button_) != 0) {
-        MewUI_SetTextInSceneFromLocalizationKey(
-            scene_manager_,
-            kTitleNode,
-            kEmptyText);
-        MewUI_SetTextInSceneFromLocalizationKey(
-            scene_manager_,
-            kBodyNode,
-            kEmptyText);
         MewUI_SetButtonInteractable(button_, 0);
         MewUI_SetButtonEnabled(button_, 0);
-        if (button_node_ != nullptr) {
-            MewUI_PlayMovieClipFrame(button_node_, kHiddenFrame);
-        }
     }
     scene_manager_ = nullptr;
     button_ = nullptr;
-    button_node_ = nullptr;
     click_handler_ = {};
 }
 

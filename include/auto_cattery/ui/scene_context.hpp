@@ -43,7 +43,6 @@ struct SceneSignatureRule {
     std::vector<std::string> required_nodes_any;
     std::vector<std::string> required_nodes_all;
     std::vector<std::string> forbidden_nodes;
-    std::vector<std::string> forbidden_component_types;
     bool allow_structure_match{};
 };
 

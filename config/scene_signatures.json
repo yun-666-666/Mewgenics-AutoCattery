@@ -5,7 +5,6 @@
     "required_nodes_any": [],
     "required_nodes_all": [],
     "forbidden_nodes": [],
-    "forbidden_component_types": ["FurnitureBuildingUI"],
     "allow_structure_match": false
   },
   "embark_selection": {
@@ -13,7 +12,6 @@
     "required_nodes_any": [],
     "required_nodes_all": [],
     "forbidden_nodes": [],
-    "forbidden_component_types": [],
     "allow_structure_match": false
   }
 }
