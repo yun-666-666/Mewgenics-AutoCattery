@@ -24,6 +24,15 @@ Json SafeDefaults() {
             {"embark_button_enabled", true},
             {"show_debug_overlay", false}
         }},
+        {"recommendation_marker", {
+            {"enabled", true},
+            {"show_rank", true},
+            {"show_score", true},
+            {"pulse", true},
+            {"pulse_period_ms", 900},
+            {"max_markers", 8},
+            {"fallback_to_text_prefix", true}
+        }},
         {"safety", {
             {"require_preview_before_destructive_actions", true},
             {"create_backup_before_apply", true},
@@ -133,6 +142,26 @@ Result<Config> LoadConfig(
         AssignIfPresent(ui, "show_debug_overlay", result.ui.show_debug_overlay);
 
         const auto& safety = merged.at("safety");
+        const auto& marker = merged.at("recommendation_marker");
+        AssignIfPresent(
+            marker, "enabled", result.recommendation_marker.enabled);
+        AssignIfPresent(
+            marker, "show_rank", result.recommendation_marker.show_rank);
+        AssignIfPresent(
+            marker, "show_score", result.recommendation_marker.show_score);
+        AssignIfPresent(
+            marker, "pulse", result.recommendation_marker.pulse);
+        AssignIfPresent(
+            marker,
+            "pulse_period_ms",
+            result.recommendation_marker.pulse_period_ms);
+        AssignIfPresent(
+            marker, "max_markers", result.recommendation_marker.max_markers);
+        AssignIfPresent(
+            marker,
+            "fallback_to_text_prefix",
+            result.recommendation_marker.fallback_to_text_prefix);
+
         AssignIfPresent(
             safety,
             "require_preview_before_destructive_actions",

@@ -9,6 +9,15 @@
     "embark_button_enabled": true,
     "show_debug_overlay": false
   },
+  "recommendation_marker": {
+    "enabled": true,
+    "show_rank": true,
+    "show_score": true,
+    "pulse": true,
+    "pulse_period_ms": 900,
+    "max_markers": 8,
+    "fallback_to_text_prefix": true
+  },
   "safety": {
     "require_preview_before_destructive_actions": true,
     "create_backup_before_apply": true,

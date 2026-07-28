@@ -15,8 +15,10 @@
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
+#include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
+#include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -63,10 +65,12 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
+    last_embark_attach_error_.clear();
     signatures_ = {};
     debug_probe_enabled_ = false;
     diagnostics_root_ = context.mod_root / L"diagnostics";
     next_house_attach_retry_ = {};
+    next_embark_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>();
@@ -77,6 +81,15 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
         context.mod_root / L"config" / L"user_config.json");
+    embark_button_enabled_ =
+        static_cast<bool>(config) &&
+        config.value.ui.embark_button_enabled &&
+        config.value.recommendation_marker.enabled;
+    recommendation_marker_view_ =
+        std::make_unique<MewUiRecommendationMarkerView>();
+    recommendation_marker_controller_ =
+        std::make_unique<RecommendationMarkerController>(
+            *recommendation_marker_view_);
 #ifdef _DEBUG
     debug_probe_enabled_ = true;
 #else
@@ -123,6 +136,16 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
         }
+        if (snapshot.kind != UiContextKind::EmbarkSelection ||
+            !snapshot.input_enabled ||
+            snapshot.save_in_progress ||
+            (recommendation_marker_controller_->IsAttached() &&
+             recommendation_marker_controller_->SceneGeneration() !=
+                 snapshot.scene_generation)) {
+            recommendation_marker_controller_->Detach();
+            next_embark_attach_retry_ = {};
+            last_embark_attach_error_.clear();
+        }
     });
 
     started_ = MewUI_Start(
@@ -158,6 +181,9 @@ void MewUiBridge::Shutdown() noexcept {
     if (house_button_controller_) {
         house_button_controller_->Detach();
     }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->Detach();
+    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -170,9 +196,14 @@ void MewUiBridge::Shutdown() noexcept {
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
+    last_embark_attach_error_.clear();
     next_house_attach_retry_ = {};
+    next_embark_attach_retry_ = {};
+    embark_button_enabled_ = false;
     ready_logged_.store(false);
     house_button_controller_.reset();
+    recommendation_marker_controller_.reset();
+    recommendation_marker_view_.reset();
     organize_workflow_.reset();
     house_button_view_.reset();
 }
@@ -257,6 +288,36 @@ void MewUiBridge::OnTick() {
         } else {
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
+        }
+    }
+
+    if (embark_button_enabled_ &&
+        context.kind == UiContextKind::EmbarkSelection &&
+        context.input_enabled &&
+        !context.save_in_progress &&
+        recommendation_marker_controller_ &&
+        (!recommendation_marker_controller_->IsAttached() ||
+         recommendation_marker_controller_->SceneGeneration() !=
+             context.scene_generation) &&
+        (next_embark_attach_retry_.time_since_epoch().count() == 0 ||
+         now >= next_embark_attach_retry_)) {
+        const auto attached =
+            recommendation_marker_controller_->AttachButton(context);
+        if (!attached) {
+            if (attached.message != last_embark_attach_error_) {
+                last_embark_attach_error_ = attached.message;
+                Logger::Instance().Write(
+                    LogLevel::Warn,
+                    "RecommendationMarker",
+                    "AC4105",
+                    "Embark marker button attach deferred: " +
+                        attached.message);
+            }
+            next_embark_attach_retry_ =
+                now + std::chrono::milliseconds(500);
+        } else {
+            next_embark_attach_retry_ = {};
+            last_embark_attach_error_.clear();
         }
     }
 }

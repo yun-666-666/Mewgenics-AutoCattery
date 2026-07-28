@@ -116,3 +116,27 @@ Stage 03 gate passed on 2026-07-28. Player screenshots confirmed clean idle and
 completed layouts without raw localization keys or overlap. Runtime logs
 confirmed repeated House attach/detach cycles, debounced clicks, unsafe-scene
 handling, and no cat or save access. Stage 04 may begin.
+
+## Stage 04
+
+- Status: implementation and automated validation complete; player-operated
+  live acceptance pending.
+- Implemented:
+  - One role-identified embark recommendation marker button, attached only to
+    the verified `ClassChooser` / `EmbarkSelectionReady` context.
+  - A click toggle between a text-only `* #1 DEMO` visual and a clean overlay.
+  - No real cat target, snapshot, score, selection adapter, room adapter, save
+    adapter, or persistence path.
+  - Generation-bound marker records. A generation change clears visual nodes
+    before the view is detached.
+  - Disabled repeated input during the synchronous marking transition.
+  - Stage 04 marker style configuration placeholders.
+- Automated tests:
+  - Debug and Release `phase04_unit_tests` cover wrong/unsafe context rejection,
+    idempotent attachment, fifty marker toggles, failed visual attachment,
+    generation replacement, clear-before-detach ordering, and idempotent
+    detachment.
+  - Debug and Release `phase04_dll_load_smoke` cover repeated DLL lifecycle.
+- Live acceptance:
+  - Must follow `docs/phase04-manual-test.md`. Until it passes, the stage gate
+    remains pending and Stage 05 must not begin.
