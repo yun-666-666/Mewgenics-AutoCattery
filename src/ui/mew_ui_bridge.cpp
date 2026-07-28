@@ -29,6 +29,11 @@ namespace autocattery::ui {
 namespace {
 
 constexpr std::size_t kSceneProbeCapacity = 64;
+constexpr auto kFurnitureComponentSignature =
+    "forbidden-component:FurnitureBuildingUI";
+constexpr auto kHouseButtonNode = "test_button";
+constexpr auto kRecommendationButtonNode = "recommendation_button";
+constexpr std::int32_t kHiddenButtonFrame = 80;
 
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
@@ -65,12 +70,12 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
-    last_embark_attach_error_.clear();
+    last_recommendation_attach_error_.clear();
     signatures_ = {};
     debug_probe_enabled_ = false;
     diagnostics_root_ = context.mod_root / L"diagnostics";
     next_house_attach_retry_ = {};
-    next_embark_attach_retry_ = {};
+    next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>();
@@ -81,9 +86,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
         context.mod_root / L"config" / L"user_config.json");
-    embark_button_enabled_ =
+    recommendation_button_enabled_ =
         static_cast<bool>(config) &&
-        config.value.ui.embark_button_enabled &&
+        config.value.ui.recommendation_button_enabled &&
         config.value.recommendation_marker.enabled;
     recommendation_marker_view_ =
         std::make_unique<MewUiRecommendationMarkerView>();
@@ -136,15 +141,15 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
         }
-        if (snapshot.kind != UiContextKind::EmbarkSelection ||
+        if (snapshot.kind != UiContextKind::House ||
             !snapshot.input_enabled ||
             snapshot.save_in_progress ||
             (recommendation_marker_controller_->IsAttached() &&
              recommendation_marker_controller_->SceneGeneration() !=
                  snapshot.scene_generation)) {
             recommendation_marker_controller_->Detach();
-            next_embark_attach_retry_ = {};
-            last_embark_attach_error_.clear();
+            next_recommendation_attach_retry_ = {};
+            last_recommendation_attach_error_.clear();
         }
     });
 
@@ -196,10 +201,10 @@ void MewUiBridge::Shutdown() noexcept {
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
-    last_embark_attach_error_.clear();
+    last_recommendation_attach_error_.clear();
     next_house_attach_retry_ = {};
-    next_embark_attach_retry_ = {};
-    embark_button_enabled_ = false;
+    next_recommendation_attach_retry_ = {};
+    recommendation_button_enabled_ = false;
     ready_logged_.store(false);
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
@@ -266,6 +271,22 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    if (context.kind == UiContextKind::UnsafeTransition &&
+        Contains(
+            context.matched_signatures,
+            kFurnitureComponentSignature)) {
+        // GotoAndPlay advances after the empty frame. Reassert it on each UI
+        // tick while FurnitureBuildingUI is active so neither MOD-owned
+        // MovieClip can loop back to its visible frame.
+        MewUI_PlayMovieClipInScene(
+            context.scene_name.c_str(),
+            kHouseButtonNode,
+            kHiddenButtonFrame);
+        MewUI_PlayMovieClipInScene(
+            context.scene_name.c_str(),
+            kRecommendationButtonNode,
+            kHiddenButtonFrame);
+    }
     if (context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress &&
@@ -291,33 +312,33 @@ void MewUiBridge::OnTick() {
         }
     }
 
-    if (embark_button_enabled_ &&
-        context.kind == UiContextKind::EmbarkSelection &&
+    if (recommendation_button_enabled_ &&
+        context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress &&
         recommendation_marker_controller_ &&
         (!recommendation_marker_controller_->IsAttached() ||
          recommendation_marker_controller_->SceneGeneration() !=
              context.scene_generation) &&
-        (next_embark_attach_retry_.time_since_epoch().count() == 0 ||
-         now >= next_embark_attach_retry_)) {
+        (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||
+         now >= next_recommendation_attach_retry_)) {
         const auto attached =
             recommendation_marker_controller_->AttachButton(context);
         if (!attached) {
-            if (attached.message != last_embark_attach_error_) {
-                last_embark_attach_error_ = attached.message;
+            if (attached.message != last_recommendation_attach_error_) {
+                last_recommendation_attach_error_ = attached.message;
                 Logger::Instance().Write(
                     LogLevel::Warn,
                     "RecommendationMarker",
                     "AC4105",
-                    "Embark marker button attach deferred: " +
+                    "House recommendation button attach deferred: " +
                         attached.message);
             }
-            next_embark_attach_retry_ =
+            next_recommendation_attach_retry_ =
                 now + std::chrono::milliseconds(500);
         } else {
-            next_embark_attach_retry_ = {};
-            last_embark_attach_error_.clear();
+            next_recommendation_attach_retry_ = {};
+            last_recommendation_attach_error_.clear();
         }
     }
 }
@@ -341,6 +362,52 @@ SceneObservation MewUiBridge::ObserveScenes(
             true,
             {"save-scene:" + save_scene->name}
         };
+    }
+
+    const auto forbidden_component =
+        [&scenes](
+            UiContextKind kind,
+            const SceneSignatureRule& rule)
+        -> SceneObservation {
+        for (const auto& scene : scenes) {
+            if (!scene.ready ||
+                !Contains(rule.scene_names, scene.name)) {
+                continue;
+            }
+            for (const auto& component_type :
+                 rule.forbidden_component_types) {
+                if (AcMewSceneHasComponentType(
+                        scene.manager,
+                        component_type.c_str()) != 0) {
+                    return {
+                        UiContextKind::UnsafeTransition,
+                        scene.name,
+                        reinterpret_cast<std::uintptr_t>(scene.manager),
+                        false,
+                        false,
+                        false,
+                        {
+                            "blocked-context:" +
+                            std::string(UiContextKindName(kind)),
+                            "forbidden-component:" + component_type
+                        }
+                    };
+                }
+            }
+        }
+        return {};
+    };
+
+    auto blocked_house =
+        forbidden_component(UiContextKind::House, signatures_.house);
+    if (blocked_house.kind == UiContextKind::UnsafeTransition) {
+        return blocked_house;
+    }
+    auto blocked_embark = forbidden_component(
+        UiContextKind::EmbarkSelection,
+        signatures_.embark_selection);
+    if (blocked_embark.kind == UiContextKind::UnsafeTransition) {
+        return blocked_embark;
     }
 
     const auto match_rule =
@@ -384,6 +451,16 @@ SceneObservation MewUiBridge::ObserveScenes(
                 if (MewUI_FindNodeInSceneByName(scene.manager, node.c_str())) {
                     forbidden_match = true;
                     matched.push_back("forbidden:" + node);
+                }
+            }
+            for (const auto& component_type :
+                 rule.forbidden_component_types) {
+                if (AcMewSceneHasComponentType(
+                        scene.manager,
+                        component_type.c_str()) != 0) {
+                    forbidden_match = true;
+                    matched.push_back(
+                        "forbidden-component:" + component_type);
                 }
             }
 

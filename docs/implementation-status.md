@@ -119,11 +119,12 @@ handling, and no cat or save access. Stage 04 may begin.
 
 ## Stage 04
 
-- Status: implementation and automated validation complete; player-operated
-  live acceptance pending.
+- Status: corrected implementation and automated validation complete;
+  player-operated live re-acceptance pending.
 - Implemented:
-  - One role-identified embark recommendation marker button, attached only to
-    the verified `ClassChooser` / `EmbarkSelectionReady` context.
+  - One role-identified recommendation marker button on the player-confirmed
+    normal House departure surface, beside the Stage 03 control and the
+    game-owned departure sign.
   - A click toggle between a text-only `* #1 DEMO` visual and a clean overlay.
   - No real cat target, snapshot, score, selection adapter, room adapter, save
     adapter, or persistence path.
@@ -131,6 +132,24 @@ handling, and no cat or save access. Stage 04 may begin.
     before the view is detached.
   - Disabled repeated input during the synchronous marking transition.
   - Stage 04 marker style configuration placeholders.
+  - A read-only `FurnitureBuildingUI` component-type probe, using the exact
+    type observed in the local game binary, rejects furniture placement mode.
+  - The House overlay asset now contains separate, reproducibly generated
+    nodes for the organize and recommendation controls.
+  - The pinned button sprite has a reproducibly generated empty frame. On a
+    furniture-mode transition both Button components are disabled, their text
+    is cleared, and their MovieClip instances move to that empty frame; House
+    re-entry restores the visible frame before interaction is enabled. Because
+    the verified MewUI API exposes goto-and-play rather than goto-and-stop,
+    the furniture guard reasserts the empty frame on UI ticks while the exact
+    forbidden component remains active.
+- 2026-07-28 corrective evidence:
+  - Runtime reached `EmbarkSelectionReady scene='ClassChooser'`, but `AC4105`
+    proved that the House-only SWF nodes were unavailable there.
+  - Player screenshots showed the expected placement surface was the normal
+    House screen and showed stale Stage 03 controls inside furniture mode.
+  - The corrected route does not copy or commit `ui.swf`, `house.swf`, or
+    `furniture.swf`; it keeps using the pinned MIT MewUI example asset.
 - Automated tests:
   - Debug and Release `phase04_unit_tests` cover wrong/unsafe context rejection,
     idempotent attachment, fifty marker toggles, failed visual attachment,

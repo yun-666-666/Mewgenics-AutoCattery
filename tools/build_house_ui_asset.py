@@ -1,9 +1,10 @@
-"""Derive the Stage 03 House overlay from the pinned MewUI MIT example SWF.
+"""Derive the House overlays from the pinned MewUI MIT example SWF.
 
 The source SWF contains a test button, three text fields, navigation controls,
-and a toggle. AutoCattery keeps only the button and two text fields. All other
-SWF definitions remain byte-for-byte intact so the known-good button artwork
-and its transitive symbol dependencies are preserved.
+and a toggle. AutoCattery keeps the Stage 03 button/text nodes and clones them
+for the Stage 04 recommendation shell. All other SWF definitions remain
+byte-for-byte intact so the known-good button artwork and its transitive
+symbol dependencies are preserved.
 """
 
 from __future__ import annotations
@@ -15,8 +16,12 @@ import struct
 
 DEFINE_SPRITE = 39
 PLACE_OBJECT_2 = 26
+REMOVE_OBJECT_2 = 28
+SHOW_FRAME = 1
 END = 0
 TARGET_MARKER = b"test_button\x00"
+BUTTON_VISIBLE_FRAME = 0
+BUTTON_HIDDEN_FRAME = 80
 REMOVED_NAMES = (
     b"test_nav_value\x00",
     b"test_nav_left\x00",
@@ -27,6 +32,20 @@ REMOVED_NAMES = (
 RELOCATED_TRANSFORMS = {
     b"test_text\x00": (885.0, 190.0, 0.40),
     b"test_text_2\x00": (930.0, 245.0, None),
+}
+CLONED_OBJECTS = {
+    b"test_button\x00": (
+        b"recommendation_button\x00",
+        (1028.0, 260.0, None),
+    ),
+    b"test_text\x00": (
+        b"recommendation_text\x00",
+        (810.0, 300.0, 0.40),
+    ),
+    b"test_text_2\x00": (
+        b"recommendation_text_2\x00",
+        (850.0, 350.0, 0.70),
+    ),
 }
 
 
@@ -186,14 +205,102 @@ def encode_tag(code: int, body: bytes) -> bytes:
     )
 
 
-def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int]:
+def clone_named_object(
+    body: bytes,
+    source_name: bytes,
+    destination_name: bytes,
+    depth: int,
+    transform: tuple[float, float, float | None],
+) -> bytes:
+    if body.count(source_name) != 1:
+        raise ValueError(
+            f"expected exactly one {source_name!r} in PlaceObject2"
+        )
+    cloned = bytearray(body.replace(source_name, destination_name, 1))
+    struct.pack_into("<H", cloned, 1, depth)
+    return relocate_matrix(bytes(cloned), *transform)
+
+
+def named_character_id(sprite_body: bytes, instance_name: bytes) -> int:
+    matches: list[int] = []
+    for code, _, body_start, tag_end in read_tags(
+        sprite_body, 4, len(sprite_body)
+    ):
+        if code != PLACE_OBJECT_2:
+            continue
+        tag_body = sprite_body[body_start:tag_end]
+        if instance_name not in tag_body:
+            continue
+        if len(tag_body) < 5 or not tag_body[0] & 0x02:
+            raise ValueError(
+                f"{instance_name!r} has no PlaceObject2 character id"
+            )
+        matches.append(struct.unpack_from("<H", tag_body, 3)[0])
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected one {instance_name!r} character id, got {matches}"
+        )
+    return matches[0]
+
+
+def append_hidden_button_frame(body: bytes) -> bytes:
+    character_id, frame_count = struct.unpack_from("<HH", body, 0)
+    del character_id
+    if frame_count != BUTTON_HIDDEN_FRAME:
+        raise ValueError(
+            f"expected {BUTTON_HIDDEN_FRAME} source button frames, "
+            f"got {frame_count}"
+        )
+
+    active_depths: set[int] = set()
+    end_tag: bytes | None = None
+    kept = bytearray(body[:4])
+    for code, tag_start, body_start, tag_end in read_tags(
+        body, 4, len(body)
+    ):
+        tag_body = body[body_start:tag_end]
+        if code == PLACE_OBJECT_2:
+            if len(tag_body) < 3:
+                raise ValueError("truncated button PlaceObject2 tag")
+            depth = struct.unpack_from("<H", tag_body, 1)[0]
+            if tag_body[0] & 0x02:
+                active_depths.add(depth)
+        elif code == REMOVE_OBJECT_2:
+            if len(tag_body) != 2:
+                raise ValueError("invalid button RemoveObject2 tag")
+            active_depths.discard(struct.unpack_from("<H", tag_body, 0)[0])
+        if code == END:
+            end_tag = body[tag_start:tag_end]
+            break
+        kept.extend(body[tag_start:tag_end])
+
+    if end_tag is None or not active_depths:
+        raise ValueError("button sprite has no removable final-frame artwork")
+    for depth in sorted(active_depths):
+        kept.extend(encode_tag(REMOVE_OBJECT_2, struct.pack("<H", depth)))
+    kept.extend(encode_tag(SHOW_FRAME, b""))
+    kept.extend(end_tag)
+    struct.pack_into("<H", kept, 2, frame_count + 1)
+    return bytes(kept)
+
+
+def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int, int]:
     sprite_header = body[:4]
     kept = bytearray(sprite_header)
     removed = 0
     relocated = 0
-    for code, tag_start, body_start, tag_end in read_tags(
-        body, 4, len(body)
-    ):
+    cloned = 0
+    tags = list(read_tags(body, 4, len(body)))
+    max_depth = max(
+        (
+            struct.unpack_from("<H", body, body_start + 1)[0]
+            for code, _, body_start, tag_end in tags
+            if code == PLACE_OBJECT_2 and tag_end - body_start >= 3
+        ),
+        default=0,
+    )
+
+    for code, tag_start, body_start, tag_end in tags:
         raw_tag = body[tag_start:tag_end]
         if code == PLACE_OBJECT_2 and any(
             name in raw_tag for name in REMOVED_NAMES
@@ -211,16 +318,52 @@ def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int]:
                     relocated += 1
                     break
         kept.extend(raw_tag)
-    return bytes(kept), removed, relocated
+
+        if code == PLACE_OBJECT_2:
+            tag_body = body[body_start:tag_end]
+            for source_name, (destination_name, transform) in (
+                CLONED_OBJECTS.items()
+            ):
+                if source_name in tag_body:
+                    max_depth += 1
+                    cloned_body = clone_named_object(
+                        tag_body,
+                        source_name,
+                        destination_name,
+                        max_depth,
+                        transform,
+                    )
+                    kept.extend(encode_tag(code, cloned_body))
+                    cloned += 1
+                    break
+    return bytes(kept), removed, relocated, cloned
 
 
 def build(source: Path, destination: Path) -> None:
     swf = source.read_bytes()
     start = tag_stream_start(swf)
+    overlay_bodies = [
+        swf[body_start:tag_end]
+        for code, _, body_start, tag_end in read_tags(
+            swf, start, len(swf)
+        )
+        if code == DEFINE_SPRITE and TARGET_MARKER in swf[body_start:tag_end]
+    ]
+    if len(overlay_bodies) != 1:
+        raise ValueError(
+            f"expected one source overlay sprite, got {len(overlay_bodies)}"
+        )
+    button_character_id = named_character_id(
+        overlay_bodies[0],
+        TARGET_MARKER,
+    )
+
     output = bytearray(swf[:start])
     found = False
+    hidden_frame_added = False
     removed = 0
     relocated = 0
+    cloned = 0
 
     for code, tag_start, body_start, tag_end in read_tags(
         swf, start, len(swf)
@@ -229,21 +372,34 @@ def build(source: Path, destination: Path) -> None:
         if code == DEFINE_SPRITE and TARGET_MARKER in body:
             if found:
                 raise ValueError("more than one overlay sprite was found")
-            body, removed, relocated = filter_overlay_sprite(body)
+            body, removed, relocated, cloned = filter_overlay_sprite(body)
             output.extend(encode_tag(code, body))
             found = True
+        elif (
+            code == DEFINE_SPRITE
+            and len(body) >= 4
+            and struct.unpack_from("<H", body, 0)[0] == button_character_id
+        ):
+            if hidden_frame_added:
+                raise ValueError("button sprite was defined more than once")
+            body = append_hidden_button_frame(body)
+            output.extend(encode_tag(code, body))
+            hidden_frame_added = True
         else:
             output.extend(swf[tag_start:tag_end])
 
     if (
         not found
+        or not hidden_frame_added
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
+        or cloned != len(CLONED_OBJECTS)
     ):
         raise ValueError(
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "
-            f"found={found} removed={removed} "
-            f"relocated={relocated}"
+            f"found={found} hidden_frame_added={hidden_frame_added} "
+            f"removed={removed} "
+            f"relocated={relocated} cloned={cloned}"
         )
 
     struct.pack_into("<I", output, 4, len(output))

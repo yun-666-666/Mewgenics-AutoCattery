@@ -46,6 +46,7 @@ void RunConfigTests() {
     AC_CHECK(static_cast<bool>(valid));
     AC_CHECK(valid.value.language == "en-US");
     AC_CHECK(valid.value.safe_mode);
+    AC_CHECK(valid.value.ui.recommendation_button_enabled);
     AC_CHECK(valid.value.recommendation_marker.enabled);
     AC_CHECK(valid.value.recommendation_marker.show_rank);
     AC_CHECK(valid.value.recommendation_marker.show_score);

@@ -7,6 +7,58 @@
 #endif
 #include "mew_ui_api.h"
 
+int AcMewSceneHasComponentType(
+    void* scene_manager,
+    const char* component_type_name) {
+    MewPodVectorPtr* components;
+    size_t expected_length;
+    uint32_t index;
+
+    if (!scene_manager || !component_type_name) {
+        return 0;
+    }
+
+    expected_length = strlen(component_type_name);
+    components = NULL;
+    __try {
+        components =
+            *(MewPodVectorPtr**)((uint8_t*)scene_manager +
+                                 MEW_OFF_SCENE_COMPONENT_LISTS);
+        if (!components) {
+            return 0;
+        }
+
+        for (index = 0U; index < components->size; ++index) {
+            MewComponent* component;
+            MewNarrowString type_name;
+            const char* type_data;
+            size_t type_length;
+
+            component = (MewComponent*)components->data[index];
+            if (!component ||
+                !component->vtable ||
+                !component->vtable->GetObjectTypeSTR) {
+                continue;
+            }
+
+            memset(&type_name, 0, sizeof(type_name));
+            component->vtable->GetObjectTypeSTR(component, &type_name);
+            type_data = MewUI_GetNarrowStringData(&type_name);
+            type_length = MewUI_GetNarrowStringSize(&type_name);
+            if (type_data &&
+                type_length == expected_length &&
+                memcmp(type_data, component_type_name, expected_length) == 0) {
+                return 1;
+            }
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+
+    return 0;
+}
+
 size_t AcMewEnumerateScenes(
     AcMewSceneRecord* records,
     size_t record_capacity) {

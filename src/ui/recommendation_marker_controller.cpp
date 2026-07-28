@@ -10,13 +10,13 @@ RecommendationMarkerController::RecommendationMarkerController(
 
 Result<void> RecommendationMarkerController::AttachButton(
     const UiContextSnapshot& context) {
-    if (context.kind != UiContextKind::EmbarkSelection ||
+    if (context.kind != UiContextKind::House ||
         !context.input_enabled ||
         context.save_in_progress ||
         context.scene_generation == 0) {
         return {
             ErrorCode::SceneUnavailable,
-            "embark-selection UI is not safe for interaction"
+            "the House departure UI is not safe for interaction"
         };
     }
 
@@ -42,7 +42,7 @@ Result<void> RecommendationMarkerController::AttachButton(
         LogLevel::Info,
         "RecommendationMarker",
         "AC4100",
-        "Attached the embark recommendation marker button shell.");
+        "Attached the House departure recommendation marker button shell.");
     return {};
 }
 
@@ -104,7 +104,7 @@ void RecommendationMarkerController::Detach() noexcept {
         LogLevel::Info,
         "RecommendationMarker",
         "AC4101",
-        "Cleared markers and detached the embark recommendation button.");
+        "Cleared markers and detached the House recommendation button.");
 }
 
 void RecommendationMarkerController::HandleClick() {

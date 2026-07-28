@@ -21,7 +21,7 @@ Json SafeDefaults() {
         {"language", "zh-CN"},
         {"ui", {
             {"house_button_enabled", true},
-            {"embark_button_enabled", true},
+            {"recommendation_button_enabled", true},
             {"show_debug_overlay", false}
         }},
         {"recommendation_marker", {
@@ -138,7 +138,10 @@ Result<Config> LoadConfig(
 
         const auto& ui = merged.at("ui");
         AssignIfPresent(ui, "house_button_enabled", result.ui.house_button_enabled);
-        AssignIfPresent(ui, "embark_button_enabled", result.ui.embark_button_enabled);
+        AssignIfPresent(
+            ui,
+            "recommendation_button_enabled",
+            result.ui.recommendation_button_enabled);
         AssignIfPresent(ui, "show_debug_overlay", result.ui.show_debug_overlay);
 
         const auto& safety = merged.at("safety");

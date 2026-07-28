@@ -58,13 +58,15 @@ void RunSceneContextTests() {
                 "scene_names": ["House"],
                 "required_nodes_any": ["house_button_anchor"],
                 "required_nodes_all": [],
-                "forbidden_nodes": []
+                "forbidden_nodes": [],
+                "forbidden_component_types": ["FurnitureBuildingUI"]
             },
             "embark_selection": {
                 "scene_names": ["ClassChooser"],
                 "required_nodes_any": [],
                 "required_nodes_all": [],
-                "forbidden_nodes": []
+                "forbidden_nodes": [],
+                "forbidden_component_types": []
             }
         })";
     }
@@ -74,6 +76,9 @@ void RunSceneContextTests() {
     AC_CHECK(
         signatures.value.house.required_nodes_any.front() ==
         "house_button_anchor");
+    AC_CHECK(
+        signatures.value.house.forbidden_component_types.front() ==
+        "FurnitureBuildingUI");
     AC_CHECK(
         signatures.value.embark_selection.scene_names.front() ==
         "ClassChooser");

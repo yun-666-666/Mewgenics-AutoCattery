@@ -22,6 +22,10 @@ Result<SceneSignatureRule> ParseRule(const Json& object) {
             object.value("required_nodes_all", std::vector<std::string>{});
         rule.forbidden_nodes =
             object.value("forbidden_nodes", std::vector<std::string>{});
+        rule.forbidden_component_types =
+            object.value(
+                "forbidden_component_types",
+                std::vector<std::string>{});
         rule.allow_structure_match =
             object.value("allow_structure_match", false);
     } catch (const Json::exception& error) {

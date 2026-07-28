@@ -30,6 +30,7 @@ private:
 
     void* scene_manager_{};
     void* button_{};
+    void* button_node_{};
     ClickHandler click_handler_;
 };
 

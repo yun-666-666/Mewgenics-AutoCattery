@@ -1,7 +1,7 @@
 {
   "title": "AutoCattery",
-  "description": "Provides localized House and embark marker UI assets for the AutoCattery DLL mod.",
+  "description": "Provides localized House organize and recommendation marker UI assets for the AutoCattery DLL mod.",
   "author": "wordy + Codex",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "requirements": []
 }

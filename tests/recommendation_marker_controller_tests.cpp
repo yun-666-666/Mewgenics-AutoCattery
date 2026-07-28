@@ -95,14 +95,15 @@ public:
     std::vector<std::string> events;
 };
 
-ui::UiContextSnapshot EmbarkContext(std::uint64_t generation = 1) {
+ui::UiContextSnapshot HouseDepartureContext(
+    std::uint64_t generation = 1) {
     return {
-        ui::UiContextKind::EmbarkSelection,
-        "ClassChooser",
+        ui::UiContextKind::House,
+        "House",
         generation,
         true,
         false,
-        {"scene:ClassChooser"}
+        {"scene:House"}
     };
 }
 
@@ -112,22 +113,26 @@ void RunRecommendationMarkerControllerTests() {
     FakeRecommendationMarkerView view;
     ui::RecommendationMarkerController controller(view);
 
-    auto wrong_scene = EmbarkContext();
-    wrong_scene.kind = ui::UiContextKind::House;
+    auto wrong_scene = HouseDepartureContext();
+    wrong_scene.kind = ui::UiContextKind::EmbarkSelection;
     AC_CHECK(!static_cast<bool>(controller.AttachButton(wrong_scene)));
     AC_CHECK(view.attach_calls == 0);
 
-    auto unsafe = EmbarkContext();
+    auto unsafe = HouseDepartureContext();
     unsafe.save_in_progress = true;
     AC_CHECK(!static_cast<bool>(controller.AttachButton(unsafe)));
     AC_CHECK(view.attach_calls == 0);
 
-    AC_CHECK(static_cast<bool>(controller.AttachButton(EmbarkContext())));
+    AC_CHECK(
+        static_cast<bool>(
+            controller.AttachButton(HouseDepartureContext())));
     AC_CHECK(controller.IsAttached());
     AC_CHECK(controller.SceneGeneration() == 1);
     AC_CHECK(view.state == ui::RecommendationButtonState::Ready);
 
-    AC_CHECK(static_cast<bool>(controller.AttachButton(EmbarkContext())));
+    AC_CHECK(
+        static_cast<bool>(
+            controller.AttachButton(HouseDepartureContext())));
     AC_CHECK(view.attach_calls == 1);
 
     for (int click = 0; click < 50; ++click) {
@@ -143,7 +148,7 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(controller.HasMarkers());
     const auto event_count = view.events.size();
     AC_CHECK(static_cast<bool>(
-        controller.AttachButton(EmbarkContext(2))));
+        controller.AttachButton(HouseDepartureContext(2))));
     AC_CHECK(view.attach_calls == 2);
     AC_CHECK(view.detach_calls == 1);
     AC_CHECK(!controller.HasMarkers());

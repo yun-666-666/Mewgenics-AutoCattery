@@ -5,11 +5,11 @@
 namespace autocattery::ui {
 namespace {
 
-constexpr auto kButtonNode = "test_button";
+constexpr auto kButtonNode = "recommendation_button";
 constexpr auto kButtonRole =
-    "AutoCattery.Embark.MarkRecommendedCombatCatsButton";
-constexpr auto kMarkerTextNode = "test_text";
-constexpr auto kExplanationTextNode = "test_text_2";
+    "AutoCattery.House.MarkRecommendedCombatCatsButton";
+constexpr auto kMarkerTextNode = "recommendation_text";
+constexpr auto kExplanationTextNode = "recommendation_text_2";
 
 constexpr auto kEmptyText = "EMBARK.EMPTY";
 constexpr auto kReadyText = "EMBARK.MARK_RECOMMENDED";
@@ -17,6 +17,8 @@ constexpr auto kMarkingText = "EMBARK.MARKING";
 constexpr auto kMarkedText = "EMBARK.CLEAR_MARKERS";
 constexpr auto kDemoMarkerText = "EMBARK.DEMO_MARKER";
 constexpr auto kDemoExplanationText = "EMBARK.DEMO_EXPLANATION";
+constexpr std::int32_t kVisibleFrame = 0;
+constexpr std::int32_t kHiddenFrame = 80;
 
 }  // namespace
 
@@ -29,7 +31,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         MewUI_IsSceneDestroying(scene) != 0) {
         return {
             ErrorCode::SceneUnavailable,
-            "embark-selection scene is not ready for UI attachment"
+            "the House departure screen is not ready for UI attachment"
         };
     }
 
@@ -46,22 +48,29 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         this,
         &button_,
         &created);
+    button_node_ = MewUI_FindNodeInSceneByName(
+        scene_manager_,
+        kButtonNode);
     marker_text_ =
         MewUI_FindNodeInSceneByName(scene_manager_, kMarkerTextNode);
-    if (button_ == nullptr || marker_text_ == nullptr) {
+    if (button_ == nullptr ||
+        button_node_ == nullptr ||
+        marker_text_ == nullptr) {
         scene_manager_ = nullptr;
         button_ = nullptr;
+        button_node_ = nullptr;
         marker_text_ = nullptr;
         scene_generation_ = 0;
         click_handler_ = {};
         return {
             ErrorCode::UiNodeNotFound,
-            "the embark button or safe demo text node is unavailable"
+            "the House recommendation button or demo text node is unavailable"
         };
     }
 
     (void)created;
     ClearAllVisuals();
+    MewUI_PlayMovieClipFrame(button_node_, kVisibleFrame);
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
     return {};
@@ -129,9 +138,14 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
         MewUI_IsComponentInScene(scene_manager_, button_) != 0) {
         MewUI_SetButtonInteractable(button_, 0);
         MewUI_SetButtonEnabled(button_, 0);
+        ClearAllVisuals();
+        if (button_node_ != nullptr) {
+            MewUI_PlayMovieClipFrame(button_node_, kHiddenFrame);
+        }
     }
     scene_manager_ = nullptr;
     button_ = nullptr;
+    button_node_ = nullptr;
     marker_text_ = nullptr;
     scene_generation_ = 0;
     click_handler_ = {};

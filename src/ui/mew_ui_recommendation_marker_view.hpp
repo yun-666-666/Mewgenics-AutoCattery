@@ -33,6 +33,7 @@ private:
 
     void* scene_manager_{};
     void* button_{};
+    void* button_node_{};
     void* marker_text_{};
     std::uint64_t scene_generation_{};
     ClickHandler click_handler_;

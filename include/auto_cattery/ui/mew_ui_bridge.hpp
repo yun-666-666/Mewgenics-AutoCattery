@@ -44,17 +44,18 @@ private:
 
     bool started_{};
     bool debug_probe_enabled_{};
-    bool embark_button_enabled_{};
+    bool recommendation_button_enabled_{};
     std::filesystem::path diagnostics_root_;
     SceneSignatures signatures_;
     SceneContextService scene_context_;
     std::uint64_t scene_subscription_{};
     std::string last_scene_summary_;
     std::string last_house_attach_error_;
-    std::string last_embark_attach_error_;
+    std::string last_recommendation_attach_error_;
     std::chrono::steady_clock::time_point last_tick_time_{};
     std::chrono::steady_clock::time_point next_house_attach_retry_{};
-    std::chrono::steady_clock::time_point next_embark_attach_retry_{};
+    std::chrono::steady_clock::time_point
+        next_recommendation_attach_retry_{};
     std::atomic_bool ready_logged_{false};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;

@@ -14,7 +14,7 @@
       "type": "object",
       "properties": {
         "house_button_enabled": {"type": "boolean"},
-        "embark_button_enabled": {"type": "boolean"},
+        "recommendation_button_enabled": {"type": "boolean"},
         "show_debug_overlay": {"type": "boolean"}
       }
     },

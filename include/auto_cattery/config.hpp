@@ -9,7 +9,7 @@ namespace autocattery {
 
 struct UiConfig {
     bool house_button_enabled{true};
-    bool embark_button_enabled{true};
+    bool recommendation_button_enabled{true};
     bool show_debug_overlay{false};
 };
 

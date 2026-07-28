@@ -15,6 +15,20 @@ if (-not (Test-Path -LiteralPath $cmake)) {
 }
 
 $buildDirectory = Join-Path $projectRoot 'build'
+$generatedAssetDirectory = Join-Path $buildDirectory 'generated_assets'
+New-Item -ItemType Directory -Force -Path $generatedAssetDirectory | Out-Null
+$generatedHouseAsset = Join-Path $generatedAssetDirectory 'auto_cattery_house.swf'
+& py `
+    (Join-Path $projectRoot 'tools\build_house_ui_asset.py') `
+    (Join-Path $projectRoot 'third_party\mew_ui_api\swfs\house_ui_test.swf') `
+    $generatedHouseAsset
+if ($LASTEXITCODE -ne 0) { throw 'House UI asset generation failed.' }
+$committedHouseAsset = Join-Path $projectRoot 'assets\swfs\auto_cattery_house.swf'
+if ((Get-FileHash -Algorithm SHA256 -LiteralPath $generatedHouseAsset).Hash -ne
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $committedHouseAsset).Hash) {
+    throw 'Committed House UI asset is not reproducible from the pinned source.'
+}
+
 & $cmake -S $projectRoot -B $buildDirectory -G 'Visual Studio 17 2022' -A x64
 if ($LASTEXITCODE -ne 0) { throw 'CMake configure failed.' }
 
