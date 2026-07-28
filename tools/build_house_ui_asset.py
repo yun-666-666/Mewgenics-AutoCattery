@@ -24,9 +24,9 @@ REMOVED_NAMES = (
     b"test_toggle\x00",
     b"test_text_3\x00",
 )
-RELOCATED_POSITIONS = {
-    b"test_text\x00": (850.0, 160.0),
-    b"test_text_2\x00": (930.0, 215.0),
+RELOCATED_TRANSFORMS = {
+    b"test_text\x00": (885.0, 190.0, 0.40),
+    b"test_text_2\x00": (930.0, 245.0, None),
 }
 
 
@@ -85,7 +85,12 @@ def signed_bit_count(*values: int) -> int:
     )
 
 
-def relocate_matrix(body: bytes, x: float, y: float) -> bytes:
+def relocate_matrix(
+    body: bytes,
+    x: float,
+    y: float,
+    scale: float | None,
+) -> bytes:
     flags = body[0]
     if not flags & 0x04:
         raise ValueError("named overlay object has no transform matrix")
@@ -101,6 +106,11 @@ def relocate_matrix(body: bytes, x: float, y: float) -> bytes:
             reader.signed(scale_bits),
             reader.signed(scale_bits),
         )
+    if scale is not None:
+        has_scale = 1
+        scale_raw = round(scale * 65536)
+        scale_values = (scale_raw, scale_raw)
+        scale_bits = signed_bit_count(*scale_values)
 
     has_rotate = reader.unsigned(1)
     rotate_values: tuple[int, int] | None = None
@@ -191,11 +201,11 @@ def filter_overlay_sprite(body: bytes) -> tuple[bytes, int, int]:
             removed += 1
             continue
         if code == PLACE_OBJECT_2:
-            for name, position in RELOCATED_POSITIONS.items():
+            for name, transform in RELOCATED_TRANSFORMS.items():
                 if name in raw_tag:
                     tag_body = relocate_matrix(
                         body[body_start:tag_end],
-                        *position,
+                        *transform,
                     )
                     raw_tag = encode_tag(code, tag_body)
                     relocated += 1
@@ -228,7 +238,7 @@ def build(source: Path, destination: Path) -> None:
     if (
         not found
         or removed != len(REMOVED_NAMES)
-        or relocated != len(RELOCATED_POSITIONS)
+        or relocated != len(RELOCATED_TRANSFORMS)
     ):
         raise ValueError(
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "

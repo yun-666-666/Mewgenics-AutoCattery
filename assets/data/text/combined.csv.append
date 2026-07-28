@@ -1,4 +1,4 @@
-HOUSE.EMPTY,"",,,,,,,,,,""
+HOUSE.EMPTY," ",,,,,,,,,," "
 HOUSE.AUTO_ORGANIZE,"Auto-Organize Cattery",,,,,,,,,,"Auto-Organize Cattery"
 HOUSE.RUNNING,"Analyzing...",,,,,,,,,,"Analyzing..."
 HOUSE.COMPLETED,"Preview Complete",,,,,,,,,,"Preview Complete"
