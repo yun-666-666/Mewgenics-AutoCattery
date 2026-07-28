@@ -33,7 +33,12 @@ Deploy after building:
 
 Mewjector scans only the immediate `mods` directory, so the DLL is deployed as
 `mods\AutoCattery.dll`; configuration and logs live under
-`mods\AutoCattery\`.
+`mods\AutoCattery\`. The button SWF and game text patch are deployed as the
+enabled Mewtator data mod `Mewtator\mods\AutoCattery`.
+
+Launch the game through Mewtator after deployment. Launching directly from
+Steam without an equivalent `-modpaths` entry loads the DLL but not the button
+assets.
 
 See `docs/phase03-manual-test.md` for the player-operated button validation
 steps. Codex does not navigate saves or gameplay screens.

@@ -13,8 +13,10 @@ selects saves and navigates gameplay.
    .\tools\verify_install.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'
    ```
 
-2. Copy the save to a separate backup location before launching.
-3. Record the save timestamp and size.
+2. Start Mewtator and launch Mewgenics from it. Launching directly from Steam
+   may omit the AutoCattery data-mod path.
+3. Copy the save to a separate backup location before loading it.
+4. Record the save timestamp and size.
 
 ## Acceptance
 
