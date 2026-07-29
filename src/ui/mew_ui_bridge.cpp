@@ -176,7 +176,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             message << "rank=" << (index + 1)
                     << " signature=" << (unsigned)opened.signature_valid
                     << " scene=" << (unsigned)opened.scene_valid
-                    << " house=" << (unsigned)opened.house_unique
+                    << " drawer=" << (unsigned)opened.drawer_unique
                     << " cat=" << (unsigned)opened.cat_valid
                     << " opened=" << (unsigned)opened.invoked
                     << " box_changed=0 expedition_selection_changed=0";

@@ -30,10 +30,29 @@ constexpr double kVirtualWidth = 1280.0;
 constexpr double kVirtualHeight = 720.0;
 constexpr double kRowXMin = 995.0;
 constexpr double kRowXMax = 1210.0;
-constexpr double kRowY = 155.0;
-constexpr double kRowStep = 51.0;
-constexpr double kRowHeight = 44.0;
+constexpr double kRowY = 140.0;
+constexpr double kRowStep = 42.0;
+constexpr double kRowHeight = 42.0;
+constexpr std::size_t kMovieClipStateFlagsOffset = 0x09U;
+constexpr unsigned char kMovieClipPlayingBit = 0x02U;
 MewUiRecommendationMarkerView* g_wheel_view{};
+
+bool HoldMovieClipFrame(void* movie_clip, int frame) noexcept {
+    if (MewUI_PlayMovieClipFrame(movie_clip, frame) == 0) {
+        return false;
+    }
+    __try {
+        // Current Mewgenics callers use the same goto-frame function and
+        // clear this bit immediately afterward for goto-and-stop behavior.
+        auto* flags = static_cast<unsigned char*>(movie_clip) +
+            kMovieClipStateFlagsOffset;
+        *flags &= static_cast<unsigned char>(~kMovieClipPlayingBit);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
 
 }  // namespace
 
@@ -207,7 +226,7 @@ void MewUiRecommendationMarkerView::ClearSummary() noexcept {
                 kItemTextNodes[row],
                 kRowText,
                 "");
-            MewUI_PlayMovieClipFrame(item_nodes_[row], 0);
+            HoldMovieClipFrame(item_nodes_[row], 0);
         }
     }
 }
@@ -351,9 +370,9 @@ bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
                 shown ? item_labels_[item_index].c_str() : "") == 0) {
             return false;
         }
-        if (MewUI_PlayMovieClipFrame(
+        if (!HoldMovieClipFrame(
                 item_nodes_[row],
-                shown ? 1 : 0) == 0) {
+                shown ? 1 : 0)) {
             return false;
         }
     }

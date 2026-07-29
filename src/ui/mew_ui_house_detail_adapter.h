@@ -7,7 +7,7 @@ extern "C" {
 typedef struct AcMewHouseDetailResult {
     unsigned char signature_valid;
     unsigned char scene_valid;
-    unsigned char house_unique;
+    unsigned char drawer_unique;
     unsigned char cat_valid;
     unsigned char invoked;
 } AcMewHouseDetailResult;

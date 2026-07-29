@@ -371,11 +371,16 @@ by the Unsupported Stage 10 adapter.
   showed and animated four `Clean Up!` signs before Mark, Clear removed only
   their text, and neither row clicks nor hover-gated wheel input arrived
   reliably.
-- The current replacement uses exactly four compact rope-free static rows
+- The current replacement uses exactly four compact non-Button static rows
   listing rank, display name, score, and `?` for unconfirmed eligibility.
   Each row is a private two-frame SWF sign plus independent text: frame 0 is
-  empty/stopped and frame 1 contains only stopped sign artwork. No game Button
-  component or button timeline controls these rows.
+  empty and frame 1 contains only the sign base. The source trash icon, label,
+  full-rope placement, and later button timeline are not copied.
+- The first static-row live test proved wheel scrolling and rank hit testing
+  reached the MOD, but also proved that `MewUI_PlayMovieClipFrame` kept the
+  two-frame row playing, so it flashed before Mark and after Clear. The current
+  build follows the current EXE's native goto-and-stop sequence by clearing
+  MovieClip state bit `+0x09 & ~0x02` immediately after the frame jump.
 - A House-thread Windows message observer hit-tests the visible row rectangles
   directly. Mouse wheel scrolls through up to eight results one row at a time,
   and mouse release maps the physical row to the current real rank. Messages
@@ -385,7 +390,12 @@ by the Unsupported Stage 10 adapter.
   native details drawer and green focus outline. The build-specific adapter
   reuses the locally disassembled HouseCatClickManager path only after current
   EXE instruction signatures, scene generation, component ownership/type, and
-  unique House validation pass.
+  unique HouseDrawerUI validation pass.
+- Live `AC12109` evidence showed the old adapter received every clicked rank
+  but threw inside the native call (`signature=scene=house=cat=1`,
+  `opened=0`). Reinspection of the native call site proved its first argument
+  is the HouseDrawerUI returned by the click manager, not the House component.
+  The adapter now passes the unique type-checked HouseDrawerUI.
 - This player-triggered action changes only the House detail focus. It has no
   adventure-box, expedition-team, confirmation, or save-write API.
 - The first click recomputes with the Stage 6 independent-cat scorer after
@@ -398,8 +408,9 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 awaits player-visible validation that exactly four compact static rows
-appear only after marking without animation, wheel scrolling reaches later
-ranks, each row opens the matching cat details, clear/scene-exit removes both
-artwork and text, and the adventure box and expedition team remain unchanged.
-Stage 13 must not begin until that passes.
+Stage 12 awaits player-visible validation of the corrected frozen-frame rows
+and HouseDrawerUI detail call: rows must appear only after Mark without
+flashing, wheel scrolling must reach later ranks, each row must open the
+matching cat details, Clear/scene exit must remove artwork and text, and the
+adventure box and expedition team must remain unchanged. Stage 13 must not
+begin until that passes.

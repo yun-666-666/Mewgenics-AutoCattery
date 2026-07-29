@@ -33,6 +33,7 @@ RECOMMENDATION_ROW_DEPTH = 40
 RECOMMENDATION_TEXT_DEPTH = 50
 RECOMMENDATION_ITEM_COUNT = 4
 BUTTON_ROPE_DEPTH = 1
+BUTTON_ICON_DEPTH = 6
 BUTTON_LABEL_DEPTH = 8
 DEFINITION_TAGS = frozenset({
     2, 6, 7, 10, 11, 20, 21, 22, 32, 33, 34, 35, 36, 37,
@@ -236,6 +237,7 @@ def make_recommendation_row_sprite(
 ) -> bytes:
     static_parts: list[bytes] = []
     rope_parts = 0
+    icon_parts = 0
     label_parts = 0
     frame = 0
     for code, tag_start, body_start, tag_end in read_tags(
@@ -247,16 +249,23 @@ def make_recommendation_row_sprite(
             depth = struct.unpack_from("<H", body, body_start + 1)[0]
             if depth == BUTTON_ROPE_DEPTH:
                 rope_parts += 1
+            elif depth == BUTTON_ICON_DEPTH:
+                icon_parts += 1
             elif depth == BUTTON_LABEL_DEPTH:
                 label_parts += 1
             else:
                 static_parts.append(body[tag_start:tag_end])
         if code == SHOW_FRAME:
             frame += 1
-    if rope_parts != 1 or label_parts != 1 or len(static_parts) != 2:
+    if (
+        rope_parts != 1
+        or icon_parts != 1
+        or label_parts != 1
+        or len(static_parts) != 1
+    ):
         raise ValueError(
             "unexpected source button first frame: "
-            f"rope={rope_parts} label={label_parts} "
+            f"rope={rope_parts} icon={icon_parts} label={label_parts} "
             f"static={len(static_parts)}"
         )
 

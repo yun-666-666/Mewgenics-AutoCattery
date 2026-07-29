@@ -28,6 +28,10 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 第二版 4 个原生 Button 组件同样实机失败：游戏在 Mark 前主动显示并
   播放 `Clean Up!` 按钮时间轴；Clear 只清掉文字，无法隐藏按钮画面；
   游戏 Button 的命中/hover 也没有可靠传给四行，因此点击和滚轮均无效。
+- 第三版已能滚动并正确上报被点击的 rank，但 2026-07-29 实机仍失败：
+  两帧推荐牌被 `goto-and-play` 持续循环而闪烁，Mark 前即出现且 Clear
+  后不能保持隐藏；`AC12109` 证明点击已到达、签名/scene/目标猫均有效，
+  但 `opened=0`，旧适配器把 `House` 错当成原生详情函数第一个参数。
 - 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
   组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
   匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
@@ -76,15 +80,18 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   `?` 明示当前 reader 尚不能确认年龄、受伤和出战资格；不使用猫名
   做映射。
 - 四行不再创建游戏 Button 组件。每行由私有两帧 SWF 静态牌子和独立
-  文字组成：frame 0 为空且停止，frame 1 只含无绳木牌且停止。因而
-  Mark 前没有牌子/动画，Clear 后牌子与文字都会消失。
+  文字组成：frame 0 为空，frame 1 只含木牌底图；垃圾桶图标、原始
+  label、完整绳子 placement 和后续按钮时间轴均未复制。
+- 当前 EXE 的原生停帧调用序列已验证为：goto-frame 后清除 MovieClip
+  `+0x09` 的 `0x02` 播放位。四行显示与隐藏均复用该序列，不再用
+  `goto-and-play` 假装停帧；Mark 前、Clear 后和离开场景时保持 frame 0。
 - House UI 线程只观察四行的实际屏幕区域：`WM_LBUTTONUP` 产生玩家
   主动详情点击，`WM_MOUSEWHEEL` 产生逐项滚动；消息始终继续传给游戏，
   不依赖失效的原生推荐 Button hover/click，也不吞掉游戏输入。
 - 当前 EXE 本地反汇编验证了 HouseCatClickManager 的原生点击路径：
-  House 组件、HouseCat 组件和 `show_drawer=1` 进入详情函数。该调用被
-  隔离在 build-specific adapter，调用前验证两段当前 EXE 指令签名、
-  House 唯一性、组件类型/归属、House scene 和 generation。
+  先取得唯一 `HouseDrawerUI`，再以 `HouseDrawerUI`、`HouseCat` 和
+  `show_drawer=1` 进入详情函数。旧版误传 `House` 导致 SEH fail closed；
+  当前 build-specific adapter 已改为验证并传递唯一 `HouseDrawerUI`。
 - 详情点击是玩家主动操作，只改变 House 当前查看/绿色焦点猫；不调用
   冒险盒、出征队伍、确认或存档接口。
 - `Probe Required` 保持两秒后变为 `Clear Recommendations`；再次点击
@@ -93,7 +100,7 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Stage gate
 
-`StaticRowsInputValidationRequired; compact static rows deployed`
+`StaticRowsStopAndDrawerValidationRequired; frozen rows and corrected drawer adapter deployed`
 
 Release DLL 与 UI 数据 MOD 已部署到真实目录。Stage 12 等待玩家确认
 四行只在 Mark 后静态显示、Clear 后完整隐藏、滚轮浏览、点击打开正确猫

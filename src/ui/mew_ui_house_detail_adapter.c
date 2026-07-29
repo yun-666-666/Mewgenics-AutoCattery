@@ -74,11 +74,11 @@ static int AcSignaturesMatch(uint8_t* module_base) {
     }
 }
 
-static void* AcFindUniqueHouse(void* scene_manager) {
+static void* AcFindUniqueHouseDrawer(void* scene_manager) {
     MewPodVectorPtr* components;
-    void* house;
+    void* drawer;
     uint32_t index;
-    house = NULL;
+    drawer = NULL;
     __try {
         components = *(MewPodVectorPtr**)((uint8_t*)scene_manager +
                                           MEW_OFF_SCENE_COMPONENT_LISTS);
@@ -88,15 +88,15 @@ static void* AcFindUniqueHouse(void* scene_manager) {
         }
         for (index = 0U; index < components->size; ++index) {
             void* component = components->data[index];
-            if (!AcTypeEquals(component, "House")) {
+            if (!AcTypeEquals(component, "HouseDrawerUI")) {
                 continue;
             }
-            if (house) {
+            if (drawer) {
                 return NULL;
             }
-            house = component;
+            drawer = component;
         }
-        return house;
+        return drawer;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         return NULL;
@@ -108,7 +108,7 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
     void* house_cat_component) {
     AcMewHouseDetailResult result;
     uint8_t* module_base;
-    void* house;
+    void* drawer;
     memset(&result, 0, sizeof(result));
     if (!scene_manager ||
         MewUI_IsSceneReadyForUITick(scene_manager) == 0 ||
@@ -121,11 +121,11 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
         return result;
     }
     result.signature_valid = 1U;
-    house = AcFindUniqueHouse(scene_manager);
-    if (!house) {
+    drawer = AcFindUniqueHouseDrawer(scene_manager);
+    if (!drawer) {
         return result;
     }
-    result.house_unique = 1U;
+    result.drawer_unique = 1U;
     if (!house_cat_component ||
         MewUI_IsComponentInScene(
             scene_manager,
@@ -138,7 +138,7 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
         AcOpenCatDetailsFn open_details =
             (AcOpenCatDetailsFn)(
                 module_base + AC_RVA_HOUSE_OPEN_CAT_DETAILS);
-        open_details(house, house_cat_component, 1U);
+        open_details(drawer, house_cat_component, 1U);
         result.invoked = 1U;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
