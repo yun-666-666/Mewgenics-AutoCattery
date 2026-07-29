@@ -8,6 +8,7 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kClickDebounce = std::chrono::milliseconds(250);
+constexpr auto kStatusHold = std::chrono::seconds(2);
 
 }  // namespace
 
@@ -81,6 +82,7 @@ Result<void> RecommendationMarkerController::Attach(
 
     marker_visible_ = false;
     attached_generation_ = context.scene_generation;
+    ready_after_ = {};
     view_.SetStatus(RecommendationUiStatus::Ready);
     Logger::Instance().Write(
         LogLevel::Info,
@@ -94,6 +96,7 @@ void RecommendationMarkerController::Detach() noexcept {
     marker_visible_ = false;
     attached_generation_ = 0;
     last_click_ = {};
+    ready_after_ = {};
     if (!view_.IsAttached()) {
         return;
     }
@@ -107,7 +110,9 @@ void RecommendationMarkerController::Detach() noexcept {
 }
 
 void RecommendationMarkerController::HandleClick() {
-    if (!view_.IsAttached() || !available_this_day_) {
+    if (!view_.IsAttached() ||
+        !available_this_day_ ||
+        ready_after_.time_since_epoch().count() != 0) {
         return;
     }
 
@@ -137,7 +142,18 @@ void RecommendationMarkerController::CompleteProbe(
         scene_generation != attached_generation_) {
         return;
     }
-    view_.SetStatus(RecommendationUiStatus::Ready);
+    ready_after_ = clock_() + kStatusHold;
+}
+
+void RecommendationMarkerController::Poll() {
+    if (ready_after_.time_since_epoch().count() == 0 ||
+        clock_() < ready_after_) {
+        return;
+    }
+    ready_after_ = {};
+    if (view_.IsAttached()) {
+        view_.SetStatus(RecommendationUiStatus::Ready);
+    }
 }
 
 void RecommendationMarkerController::SetRequestHandler(

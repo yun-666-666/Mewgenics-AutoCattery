@@ -48,8 +48,11 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   组件/类型/Button 数量及匿名 type/role digest。重复点击可对比未装盒、
   装入和移出猫时的结构变化。日志不含猫名、CatId、指针、存档名或路径。
 - 实机发现 `Probe Required` 只在 ESC 引发 detach/attach 后恢复；原因是
-  probe 完成后控制器没有主动恢复按钮状态。现在 `AC12102` 完成时会按
-  相同 scene generation 将按钮恢复为 `Mark Combat Cats`。
+  probe 完成后控制器没有主动恢复按钮状态。现在 `AC12102` 完成后按
+  相同 scene generation 保持 `Probe Required` 两秒，再恢复为
+  `Mark Combat Cats`。
+- 左侧整理按钮的 Completed/Failed 反馈同样保持两秒后恢复 Ready；反馈
+  期间不接受重复点击。
 - generation/UnsafeTransition 会重置或清除 probe。没有稳定 CatId、
   view identity、视觉 marker 与 recycle 证据时始终不映射、不标记。
 

@@ -9,6 +9,7 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kClickDebounce = std::chrono::milliseconds(500);
+constexpr auto kStatusHold = std::chrono::seconds(2);
 
 }  // namespace
 
@@ -48,6 +49,7 @@ Result<void> HouseButtonController::Attach(
     }
 
     scene_generation_ = context.scene_generation;
+    ready_after_ = {};
     SetState(OrganizeButtonState::Ready);
     Logger::Instance().Write(
         LogLevel::Info,
@@ -67,6 +69,7 @@ void HouseButtonController::Detach() noexcept {
     state_ = OrganizeButtonState::Hidden;
     scene_generation_ = 0;
     last_click_ = {};
+    ready_after_ = {};
     Logger::Instance().Write(
         LogLevel::Info,
         "HouseButton",
@@ -87,10 +90,7 @@ bool HouseButtonController::IsAttached() const noexcept {
 
 void HouseButtonController::HandleClick() {
     if (!view_.IsAttached() ||
-        state_ == OrganizeButtonState::Running ||
-        state_ == OrganizeButtonState::DisabledBusy ||
-        state_ == OrganizeButtonState::DisabledUnsupportedBuild ||
-        state_ == OrganizeButtonState::Hidden) {
+        state_ != OrganizeButtonState::Ready) {
         return;
     }
 
@@ -117,21 +117,29 @@ void HouseButtonController::HandleClick() {
 }
 
 void HouseButtonController::Poll() {
-    if (!preview_task_.valid() ||
-        preview_task_.wait_for(std::chrono::milliseconds(0)) !=
+    if (preview_task_.valid() &&
+        preview_task_.wait_for(std::chrono::milliseconds(0)) ==
             std::future_status::ready) {
-        return;
+        const auto preview = preview_task_.get();
+        if (!view_.IsAttached() ||
+            preview_generation_ != scene_generation_) {
+            return;
+        }
+        view_.ShowPlaceholder();
+        SetState(
+            preview ? OrganizeButtonState::Completed
+                    : OrganizeButtonState::Failed,
+            preview.message);
+        ready_after_ = clock_() + kStatusHold;
     }
-    const auto preview = preview_task_.get();
-    if (!view_.IsAttached() ||
-        preview_generation_ != scene_generation_) {
-        return;
+
+    if (ready_after_.time_since_epoch().count() != 0 &&
+        clock_() >= ready_after_) {
+        ready_after_ = {};
+        if (view_.IsAttached()) {
+            SetState(OrganizeButtonState::Ready);
+        }
     }
-    view_.ShowPlaceholder();
-    SetState(
-        preview ? OrganizeButtonState::Completed
-                : OrganizeButtonState::Failed,
-        preview.message);
 }
 
 }  // namespace autocattery::ui

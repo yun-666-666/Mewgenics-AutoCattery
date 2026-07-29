@@ -67,6 +67,7 @@ private:
     std::chrono::steady_clock::time_point last_click_{};
     std::future<Result<void>> preview_task_;
     std::uint64_t preview_generation_{};
+    std::chrono::steady_clock::time_point ready_after_{};
 };
 
 }  // namespace autocattery::ui

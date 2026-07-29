@@ -132,18 +132,24 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(view.placeholder_calls == 1);
     AC_CHECK(view.state == ui::OrganizeButtonState::Completed);
 
-    now += 499ms;
+    now += 1999ms;
+    controller.Poll();
+    AC_CHECK(view.state == ui::OrganizeButtonState::Completed);
     view.Click();
     AC_CHECK(workflow.preview_calls == 1);
 
     now += 1ms;
+    controller.Poll();
+    AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
     view.Click();
     FinishPreview(controller, view);
     AC_CHECK(workflow.preview_calls == 2);
     AC_CHECK(view.placeholder_calls == 2);
 
     for (int click = 0; click < 18; ++click) {
-        now += 500ms;
+        now += 2s;
+        controller.Poll();
+        AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
         view.Click();
         FinishPreview(controller, view);
     }

@@ -116,9 +116,11 @@ void MewUiHouseButtonView::SetState(
         break;
     case OrganizeButtonState::Completed:
         label = kCompletedText;
+        enabled = false;
         break;
     case OrganizeButtonState::Failed:
         label = kFailedText;
+        enabled = false;
         break;
     }
     MewUI_SetButtonLabelFromLocalizationKey(button_, label);

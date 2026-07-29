@@ -163,10 +163,15 @@ void RunRecommendationMarkerControllerTests() {
     probe_controller.CompleteProbe(11);
     AC_CHECK(probe_view.probe_required);
     probe_controller.CompleteProbe(12);
-    AC_CHECK(!probe_view.probe_required);
+    AC_CHECK(probe_view.probe_required);
+    now += 1999ms;
+    probe_controller.Poll();
+    AC_CHECK(probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 1);
-    now += 250ms;
+    now += 1ms;
+    probe_controller.Poll();
+    AC_CHECK(!probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 2);
 }

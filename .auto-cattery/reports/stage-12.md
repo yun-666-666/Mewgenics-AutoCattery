@@ -48,7 +48,10 @@ CatId→猫卡证据与 probe：
   CatId 或 view identity，真实高亮仍 fail closed。
 - 实机同时证实按钮缺少完成回调：probe 已输出 `AC12102`，文字仍停在
   `Probe Required`，只有 ESC 导致重新 attach 后才恢复。本次已补充
-  generation 匹配的完成回调，探针完成后主动恢复按钮文字。
+  generation 匹配的完成回调；按玩家反馈，探针完成后保持
+  `Probe Required` 两秒，再主动恢复按钮文字。
+- 左侧整理按钮的 Completed/Failed 反馈也改为保持两秒，然后恢复 Ready；
+  两个按钮在反馈期均拒绝重复点击。
 
 Toolkit：
 - 读取 `LICENSE_TOOLKIT.txt`、`README_FIRST_先读我.md`、核心接口契约、
@@ -80,24 +83,24 @@ Toolkit：
 文件大小：
 - 所有新增产品文件和新增测试文件均低于 250 行。
 - 最大新增产品/测试文件为
-  `tests/recommendation_marker_controller_tests.cpp`，167 行。
+  `tests/house_button_controller_tests.cpp`，189 行。
 - 未修改用户已有的 `mew_ui_scene_probe.c/.h` 内容；两者 blob hash 与
   当前 index 完全相同。
 
 验证：
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（6.97 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.12 秒）。
+- Debug `phase12_unit_tests`：通过（5.82 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.08 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.58 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.07 秒）。
+- Release `phase12_unit_tests`：通过（0.54 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
 - `git diff --check`：通过（仅 Git 的预期 LF→CRLF 提示）。
 - 禁止行为、Stage 13～16、隐私/密钥、存档/WAL/SHM、日志、二进制和
   个人路径扫描：通过。
 - 覆盖 sidecar 缺失/checksum/schema/字段、Unknown/N+1/N+2、配置/算法/
   identity、候选交集、空/Unknown/少量/100/1000、稳定 CatId、无点击
-  0 调用、重复点击 debounce、generation/UnsafeTransition、probe 完成
-  恢复按钮和匿名边界。
+  0 调用、重复点击 debounce、generation/UnsafeTransition、两个按钮
+  两秒反馈计时、probe 完成恢复按钮和匿名边界。
 - 真实 marker 完整/部分 mapping、卡片复用和视觉清理测试未伪造；这些
   依赖当前缺失的真实适配器证据，是本阶段 blocker。
 
@@ -108,20 +111,22 @@ Toolkit：
 - 用户明确授权后，本次 Release DLL 已部署到真实 MOD 目录；Mewtator
   数据 MOD 已部署并启用，安装校验通过。
 - 构建 DLL 与已安装 DLL 的 SHA-256 均为
-  `ED8BA206684C2B070C1F09711A78C8865C5F6BF7529859937D884A553D7617EA`，
-  大小均为 683520 bytes。
+  `5C1F84881442A527A730CE8142C76C24FFBC69B7733EFD5EE1CB6D268D93DAC8`，
+  大小均为 684032 bytes。
 - 用户允许联网，但活动 `AGENTS.md` 禁止 web research；本次未联网。
 
 玩家最小只读测试：
 1. 通过 Mewtator 启动游戏，使已启用的 AutoCattery 数据 MOD 路径传入
    Mewgenics。
-2. 新一天 House 点击 `Mark Combat Cats`；确认文字短暂显示
-   `Probe Required`，随后无需 ESC 自动恢复为 `Mark Combat Cats`。
-3. 玩家手动放一只猫入盒，再点同一按钮并等待三秒。
-4. 再手动放一只猫入盒，重复点击和等待。
-5. 手动移出一只猫，再重复点击和等待；不要点击游戏原生 `出发!`。
-6. 正常退出游戏，提供日志中四组 `AC12101`、`AC12102` 行。
-7. 回滚只需恢复原已安装 DLL；本阶段没有存档或游戏数据需要恢复。
+2. 新一天 House 点击 `Mark Combat Cats`；确认 `Probe Required` 保持
+   约两秒，随后无需 ESC 自动恢复为 `Mark Combat Cats`。
+3. 点击左侧整理按钮；确认 Completed 或 Failed 结果保持约两秒，再自动
+   恢复原按钮文字。
+4. 玩家手动放一只猫入盒，再点推荐按钮并等待三秒。
+5. 再手动放一只猫入盒，重复点击和等待。
+6. 手动移出一只猫，再重复点击和等待；不要点击游戏原生 `出发!`。
+7. 正常退出游戏，提供日志中四组 `AC12101`、`AC12102` 行。
+8. 回滚只需恢复原已安装 DLL；本阶段没有存档或游戏数据需要恢复。
 
 剩余 blocker：
 - 缺少当前 House 可见/可装盒候选 CatId 的可重复验证只读边界。

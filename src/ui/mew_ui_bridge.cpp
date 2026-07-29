@@ -267,6 +267,9 @@ void MewUiBridge::OnTick() {
     if (house_button_controller_) {
         house_button_controller_->Poll();
     }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->Poll();
+    }
 
     if (!ready_logged_.exchange(true)) {
         Logger::Instance().Write(

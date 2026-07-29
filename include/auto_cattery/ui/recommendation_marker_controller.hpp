@@ -43,6 +43,7 @@ public:
     void Detach() noexcept;
     void HandleClick();
     void CompleteProbe(std::uint64_t scene_generation);
+    void Poll();
     void SetRequestHandler(RequestHandler handler);
 
     [[nodiscard]] bool ShouldShow() const noexcept;
@@ -58,6 +59,7 @@ private:
     std::uint64_t attached_generation_{};
     RequestHandler request_handler_;
     std::chrono::steady_clock::time_point last_click_{};
+    std::chrono::steady_clock::time_point ready_after_{};
 };
 
 }  // namespace autocattery::ui
