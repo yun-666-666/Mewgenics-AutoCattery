@@ -44,14 +44,14 @@ private:
     bool InstallWheelHook() noexcept;
     void RemoveWheelHook() noexcept;
     bool RefreshVisibleItems() noexcept;
+    [[nodiscard]] int HitTestRow(HWND window) const noexcept;
 
     void* scene_manager_{};
     void* button_{};
     std::array<void*, 4> item_nodes_{};
-    std::array<void*, 4> item_buttons_{};
     bool active_{};
     HHOOK wheel_hook_{};
-    std::atomic<int> hovered_item_{-1};
+    std::atomic<int> pending_click_row_{-1};
     std::atomic<int> pending_wheel_delta_{};
     int wheel_delta_remainder_{};
     std::size_t first_visible_item_{};

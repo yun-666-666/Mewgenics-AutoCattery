@@ -1,5 +1,6 @@
 #include "mew_ui_recommendation_marker_view.hpp"
 
+#include <algorithm>
 #include <array>
 #include <string>
 #include <utility>
@@ -12,18 +13,26 @@ constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
 constexpr auto kReadyText = "HOUSE.RECOMMEND_COMBAT_CATS";
 constexpr auto kMarkedText = "HOUSE.RECOMMEND_CLEAR";
+constexpr auto kRowText = "HOUSE.RECOMMEND_ROW";
 constexpr std::array<const char*, 4> kItemNodes{
-    "recommend_cat_1",
-    "recommend_cat_2",
-    "recommend_cat_3",
-    "recommend_cat_4"
+    "recommend_row_1",
+    "recommend_row_2",
+    "recommend_row_3",
+    "recommend_row_4"
 };
-constexpr std::array<const char*, 4> kItemRoles{
-    "AutoCattery.Recommendation.Cat1",
-    "AutoCattery.Recommendation.Cat2",
-    "AutoCattery.Recommendation.Cat3",
-    "AutoCattery.Recommendation.Cat4"
+constexpr std::array<const char*, 4> kItemTextNodes{
+    "recommend_text_1",
+    "recommend_text_2",
+    "recommend_text_3",
+    "recommend_text_4"
 };
+constexpr double kVirtualWidth = 1280.0;
+constexpr double kVirtualHeight = 720.0;
+constexpr double kRowXMin = 995.0;
+constexpr double kRowXMax = 1210.0;
+constexpr double kRowY = 155.0;
+constexpr double kRowStep = 51.0;
+constexpr double kRowHeight = 44.0;
 MewUiRecommendationMarkerView* g_wheel_view{};
 
 }  // namespace
@@ -92,28 +101,18 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         };
     }
 
-    for (std::size_t index = 0; index < item_buttons_.size(); ++index) {
+    for (std::size_t index = 0; index < item_nodes_.size(); ++index) {
         auto* item_node =
             MewUI_FindNodeInSceneByName(scene_manager_, kItemNodes[index]);
         item_nodes_[index] = item_node;
-        MewButtonCreateInfo item_info{};
-        item_info.scene_manager = scene_manager_;
-        item_info.button_node = item_node;
-        item_info.node_name = kItemNodes[index];
-        item_info.role_name = kItemRoles[index];
-        item_info.label_text = "";
-        item_info.enabled = 0;
-        item_info.activate_enabled = 0;
-        item_info.strict_mouse = 1;
-        item_info.interact_override = MEW_BUTTON_INTERACT_FORCE_DISABLED;
-        item_info.callback = &ButtonCallback;
-        item_info.user_data = this;
-        item_buttons_[index] = MewUI_CreateButtonFromNode(&item_info);
-        if (item_buttons_[index] == nullptr) {
+        auto* text_node = MewUI_FindNodeInSceneByName(
+            scene_manager_,
+            kItemTextNodes[index]);
+        if (item_node == nullptr || text_node == nullptr) {
             Detach();
             return {
                 ErrorCode::UiNodeNotFound,
-                "a dedicated recommendation item asset is unavailable"
+                "a static recommendation row asset is unavailable"
             };
         }
     }
@@ -145,10 +144,9 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
         scene_manager_ = nullptr;
         button_ = nullptr;
         item_nodes_.fill(nullptr);
-        item_buttons_.fill(nullptr);
     }
     active_ = false;
-    hovered_item_.store(-1);
+    pending_click_row_.store(-1);
     pending_wheel_delta_.store(0);
     wheel_delta_remainder_ = 0;
     click_handler_ = {};
@@ -177,7 +175,7 @@ Result<void> MewUiRecommendationMarkerView::ShowItems(
         labels.empty()) {
         return {
             ErrorCode::UiNodeNotFound,
-            "recommendation item buttons are unavailable"
+            "recommendation rows are unavailable"
         };
     }
     item_labels_ = labels;
@@ -195,29 +193,39 @@ Result<void> MewUiRecommendationMarkerView::ShowItems(
 void MewUiRecommendationMarkerView::ClearSummary() noexcept {
     item_labels_.clear();
     first_visible_item_ = 0;
-    hovered_item_.store(-1);
+    pending_click_row_.store(-1);
     pending_wheel_delta_.store(0);
     wheel_delta_remainder_ = 0;
     if (scene_manager_ == nullptr ||
         MewUI_IsSceneDestroying(scene_manager_) != 0) {
         return;
     }
-    for (std::size_t row = 0; row < item_buttons_.size(); ++row) {
-        auto* item = item_buttons_[row];
-        if (item != nullptr &&
-            MewUI_IsComponentInScene(scene_manager_, item) != 0) {
-            MewUI_PlayMovieClipFrame(item_nodes_[row], 59);
-            MewUI_SetButtonInteractable(item, 0);
-            MewUI_SetButtonEnabled(item, 0);
-            MewUI_ClearButtonLabel(item);
+    for (std::size_t row = 0; row < item_nodes_.size(); ++row) {
+        if (item_nodes_[row] != nullptr) {
+            MewUI_SetTextInSceneFromLocalizationKeyValue(
+                scene_manager_,
+                kItemTextNodes[row],
+                kRowText,
+                "");
+            MewUI_PlayMovieClipFrame(item_nodes_[row], 0);
         }
     }
 }
 
 void MewUiRecommendationMarkerView::Poll() {
+    const int clicked_row = pending_click_row_.exchange(-1);
+    if (active_ && clicked_row >= 0 &&
+        static_cast<std::size_t>(clicked_row) < item_nodes_.size()) {
+        const auto item_index =
+            first_visible_item_ + static_cast<std::size_t>(clicked_row);
+        if (item_index < item_labels_.size() && item_click_handler_) {
+            item_click_handler_(item_index);
+        }
+    }
+
     const int delta = pending_wheel_delta_.exchange(0);
-    if (!active_ || item_labels_.size() <= item_buttons_.size() ||
-        hovered_item_.load() < 0 || delta == 0) {
+    if (!active_ || item_labels_.size() <= item_nodes_.size() ||
+        delta == 0) {
         return;
     }
     wheel_delta_remainder_ += delta;
@@ -228,7 +236,7 @@ void MewUiRecommendationMarkerView::Poll() {
     }
 
     const auto max_first =
-        item_labels_.size() - item_buttons_.size();
+        item_labels_.size() - item_nodes_.size();
     if (steps > 0) {
         const auto up = static_cast<std::size_t>(steps);
         first_visible_item_ =
@@ -259,39 +267,10 @@ void __cdecl MewUiRecommendationMarkerView::ButtonCallback(
     auto* self =
         static_cast<MewUiRecommendationMarkerView*>(user_data);
     if (self != nullptr &&
-        event_type == MEW_BUTTON_EVENT_CLICK) {
-        if (button == self->button_ && self->click_handler_) {
-            self->click_handler_();
-            return;
-        }
-        for (std::size_t index = 0;
-             index < self->item_buttons_.size();
-             ++index) {
-            if (button == self->item_buttons_[index] &&
-                self->item_click_handler_) {
-                self->item_click_handler_(
-                    self->first_visible_item_ + index);
-                return;
-            }
-        }
-    }
-    if (self == nullptr) {
-        return;
-    }
-    for (std::size_t index = 0;
-         index < self->item_buttons_.size();
-         ++index) {
-        if (button != self->item_buttons_[index]) {
-            continue;
-        }
-        if (event_type == MEW_BUTTON_EVENT_HOVER_ENTER) {
-            self->hovered_item_.store(static_cast<int>(index));
-        } else if (event_type == MEW_BUTTON_EVENT_HOVER_EXIT &&
-                   self->hovered_item_.load() ==
-                       static_cast<int>(index)) {
-            self->hovered_item_.store(-1);
-        }
-        return;
+        button == self->button_ &&
+        event_type == MEW_BUTTON_EVENT_CLICK &&
+        self->click_handler_) {
+        self->click_handler_();
     }
 }
 
@@ -301,15 +280,20 @@ LRESULT CALLBACK MewUiRecommendationMarkerView::WheelMessageHook(
     LPARAM message_pointer) {
     if (code >= 0 && remove_message == PM_REMOVE &&
         g_wheel_view != nullptr &&
-        g_wheel_view->active_ &&
-        g_wheel_view->hovered_item_.load() >= 0) {
+        g_wheel_view->active_) {
         const auto* message =
             reinterpret_cast<const MSG*>(message_pointer);
-        if (message != nullptr &&
-            message->message == WM_MOUSEWHEEL) {
-            const auto delta =
-                GET_WHEEL_DELTA_WPARAM(message->wParam);
-            g_wheel_view->pending_wheel_delta_.fetch_add(delta);
+        if (message != nullptr) {
+            const int row =
+                g_wheel_view->HitTestRow(message->hwnd);
+            if (row >= 0 && message->message == WM_MOUSEWHEEL) {
+                const auto delta =
+                    GET_WHEEL_DELTA_WPARAM(message->wParam);
+                g_wheel_view->pending_wheel_delta_.fetch_add(delta);
+            } else if (row >= 0 &&
+                       message->message == WM_LBUTTONUP) {
+                g_wheel_view->pending_click_row_.store(row);
+            }
         }
     }
     return CallNextHookEx(
@@ -354,31 +338,69 @@ bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
         MewUI_IsSceneDestroying(scene_manager_) != 0) {
         return false;
     }
-    for (std::size_t row = 0; row < item_buttons_.size(); ++row) {
-        auto* item = item_buttons_[row];
-        if (item == nullptr ||
-            MewUI_IsComponentInScene(scene_manager_, item) == 0) {
+    for (std::size_t row = 0; row < item_nodes_.size(); ++row) {
+        if (item_nodes_[row] == nullptr) {
             return false;
         }
         const auto item_index = first_visible_item_ + row;
         const bool shown = item_index < item_labels_.size();
-        if (shown &&
-            MewUI_PlayMovieClipFrame(item_nodes_[row], 0) == 0) {
+        if (MewUI_SetTextInSceneFromLocalizationKeyValue(
+                scene_manager_,
+                kItemTextNodes[row],
+                kRowText,
+                shown ? item_labels_[item_index].c_str() : "") == 0) {
             return false;
         }
-        if (shown &&
-            MewUI_SetButtonLabelText(
-                item,
-                item_labels_[item_index].c_str()) == 0) {
+        if (MewUI_PlayMovieClipFrame(
+                item_nodes_[row],
+                shown ? 1 : 0) == 0) {
             return false;
-        }
-        MewUI_SetButtonEnabled(item, shown ? 1 : 0);
-        MewUI_SetButtonInteractable(item, shown ? 1 : 0);
-        if (!shown) {
-            MewUI_ClearButtonLabel(item);
         }
     }
     return true;
+}
+
+int MewUiRecommendationMarkerView::HitTestRow(
+    HWND window) const noexcept {
+    if (window == nullptr || !active_ || item_labels_.empty()) {
+        return -1;
+    }
+
+    POINT cursor{};
+    RECT client{};
+    if (GetCursorPos(&cursor) == 0 ||
+        ScreenToClient(window, &cursor) == 0 ||
+        GetClientRect(window, &client) == 0) {
+        return -1;
+    }
+    const double client_width =
+        static_cast<double>(client.right - client.left);
+    const double client_height =
+        static_cast<double>(client.bottom - client.top);
+    if (client_width <= 0.0 || client_height <= 0.0) {
+        return -1;
+    }
+
+    const double virtual_x =
+        static_cast<double>(cursor.x) *
+        kVirtualWidth / client_width;
+    const double virtual_y =
+        static_cast<double>(cursor.y) *
+        kVirtualHeight / client_height;
+    if (virtual_x < kRowXMin || virtual_x > kRowXMax) {
+        return -1;
+    }
+
+    const auto visible_rows =
+        std::min(item_nodes_.size(), item_labels_.size());
+    for (std::size_t row = 0; row < visible_rows; ++row) {
+        const double row_y = kRowY + kRowStep * row;
+        if (virtual_y >= row_y &&
+            virtual_y <= row_y + kRowHeight) {
+            return static_cast<int>(row);
+        }
+    }
+    return -1;
 }
 
 }  // namespace autocattery::ui

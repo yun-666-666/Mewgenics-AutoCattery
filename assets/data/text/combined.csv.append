@@ -9,3 +9,4 @@ HOUSE.PLACEHOLDER_BODY,"Preview only. No cats were changed.",,,,,,,,,,"Preview o
 HOUSE.RECOMMEND_COMBAT_CATS,"Mark Combat Cats",,,,,,,,,,"Mark Combat Cats"
 HOUSE.RECOMMEND_DEMO_ON,"Demo ON - Click to Clear",,,,,,,,,,"Demo ON - Click to Clear"
 HOUSE.RECOMMEND_CLEAR,"Clear Recommendations",,,,,,,,,,"Clear Recommendations"
+HOUSE.RECOMMEND_ROW,"{v0}",,,,,,,,,,"{v0}"

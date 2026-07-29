@@ -342,7 +342,7 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage 12
 
-- Status: VisualValidationRequired.
+- Status: StaticRowsInputValidationRequired.
 - The existing Stage 4 button now makes an on-demand Stage 12 request. It
   reads only the MOD-owned `state/recommendations.json` boundary and displays
   `Probe Required`; it never shows a fabricated cat recommendation.
@@ -367,13 +367,21 @@ by the Unsupported Stage 10 adapter.
   every cloned sign retained a full rope whose visual/input area covered
   earlier rows, disabled rows remained visible, and the column obstructed the
   native depart control.
-- The replacement uses exactly four reusable rope-free rows listing rank,
-  display name, score, and `?` for unconfirmed eligibility. Hovering the list
-  and using the mouse wheel scrolls through up to eight ranked results one row
-  at a time. Disabled rows use an empty stopped SWF frame, so pre-mark and
-  cleared states have no residual blank signs. Identity remains CatId-only;
-  names are display labels, never match keys.
-- Clicking a recommendation button opens that exact HouseCat in the game's
+- The second four-Button replacement also failed live validation: the game
+  showed and animated four `Clean Up!` signs before Mark, Clear removed only
+  their text, and neither row clicks nor hover-gated wheel input arrived
+  reliably.
+- The current replacement uses exactly four compact rope-free static rows
+  listing rank, display name, score, and `?` for unconfirmed eligibility.
+  Each row is a private two-frame SWF sign plus independent text: frame 0 is
+  empty/stopped and frame 1 contains only stopped sign artwork. No game Button
+  component or button timeline controls these rows.
+- A House-thread Windows message observer hit-tests the visible row rectangles
+  directly. Mouse wheel scrolls through up to eight results one row at a time,
+  and mouse release maps the physical row to the current real rank. Messages
+  are never swallowed or rewritten. Identity remains CatId-only; names are
+  display labels, never match keys.
+- Clicking a recommendation row opens that exact HouseCat in the game's
   native details drawer and green focus outline. The build-specific adapter
   reuses the locally disassembled HouseCatClickManager path only after current
   EXE instruction signatures, scene generation, component ownership/type, and
@@ -390,7 +398,8 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 awaits player-visible validation that exactly four rope-free rows
-appear only after marking, wheel scrolling reaches later ranks, each row opens
-the matching cat details, clear/scene-exit cleanup works, and the adventure box
-and expedition team remain unchanged. Stage 13 must not begin until that passes.
+Stage 12 awaits player-visible validation that exactly four compact static rows
+appear only after marking without animation, wheel scrolling reaches later
+ranks, each row opens the matching cat details, clear/scene-exit removes both
+artwork and text, and the adventure box and expedition team remain unchanged.
+Stage 13 must not begin until that passes.
