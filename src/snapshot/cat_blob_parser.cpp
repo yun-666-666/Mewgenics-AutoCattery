@@ -12,7 +12,7 @@ namespace {
 constexpr std::uint32_t kCatMagic = 19;
 constexpr std::size_t kNameLengthOffset = 12;
 constexpr std::size_t kNameStart = 20;
-constexpr std::size_t kPreStringMetadataSize = 24;
+constexpr std::size_t kPostDescriptorMetadataSize = 16;
 constexpr std::size_t kEquipmentBlockSize = 368;
 constexpr std::size_t kStatBlockSize = 92;
 constexpr std::size_t kStatSeedSize = 8;
@@ -24,6 +24,8 @@ constexpr std::size_t kPreAbilityMetadataSize = 14;
 constexpr std::size_t kAbilitySlotCount = 10;
 constexpr std::size_t kExtendedAbilitySlotCount = 4;
 constexpr std::size_t kPostClassMetadataSize = 115;
+constexpr std::size_t kPostClassBirthDayOffset = 12;
+constexpr std::size_t kPostClassDeathDayOffset = 20;
 
 template<class T>
 bool ReadAt(
@@ -167,10 +169,12 @@ Result<CatSnapshot> ParseCatBlob(
         return {{}, name.code, name.message};
     }
     cat.display_name = name.value;
-    if (kPreStringMetadataSize > bytes.size() - cursor) {
+    std::string stat_affinity;
+    if (!ReadAsciiString(bytes, cursor, stat_affinity, true) ||
+        kPostDescriptorMetadataSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat metadata is truncated"};
     }
-    cursor += kPreStringMetadataSize;
+    cursor += kPostDescriptorMetadataSize;
     if (!ReadAsciiString(bytes, cursor, cat.breed_id) ||
         kEquipmentBlockSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat breed block is invalid"};
@@ -236,12 +240,38 @@ Result<CatSnapshot> ParseCatBlob(
             "cat class is invalid"
         };
     }
-    // Current saves use Colorless for cats that have not been committed to a
-    // prior combat class. Player validation confirmed classed House cats are
-    // already spent and cannot be selected for another expedition.
+    const auto post_class_start = bytes.size() - kPostClassMetadataSize;
+    std::int64_t birth_day{};
+    std::int64_t death_day{};
+    if (!ReadAt(
+            bytes,
+            post_class_start + kPostClassBirthDayOffset,
+            birth_day) ||
+        !ReadAt(
+            bytes,
+            post_class_start + kPostClassDeathDayOffset,
+            death_day) ||
+        birth_day < 0 || death_day < -1) {
+        return {
+            {},
+            ErrorCode::CatDataUnavailable,
+            "cat life-state block is invalid"
+        };
+    }
+    cat.birth_day = birth_day;
+    if (current_day && *current_day >= birth_day) {
+        cat.age_days = *current_day - birth_day;
+    }
+    if (death_day >= 0) {
+        cat.life_stage = LifeStage::Dead;
+    }
+    // Colorless is the save's not-yet-committed combat class. Death is an
+    // independent persisted state and must always exclude the cat, including
+    // a dead cat that still has the Colorless class.
     cat.available_for_combat =
-        cat.class_id == "Colorless" ? TriState::Yes : TriState::No;
-    (void)current_day;
+        cat.life_stage != LifeStage::Dead && cat.class_id == "Colorless"
+            ? TriState::Yes
+            : TriState::No;
     return {std::move(cat)};
 }
 

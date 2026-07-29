@@ -447,15 +447,20 @@ by the Unsupported Stage 10 adapter.
   ordinary rooms, `AdventureBox`, and empty room IDs. An empty room means only
   that no room assignment is known; it no longer removes the cat. Historical
   rows present only in the `cats` table remain excluded.
-- The latest larger save has 25 current House cats: 16 `Colorless` cats are
-  combat-available and all 9 cats with an assigned combat class are already
-  spent and excluded. Recommendation output includes every available cat,
+- The 25-cat save has 16 `Colorless` cats, but one has a persisted death day;
+  only 15 are combat-available. That dead cat and all 9 cats with an assigned
+  combat class are excluded. Recommendation output includes every available cat,
   without the old limit of eight; the four physical rows remain a scrollable
   window over the full result set.
+- The main save has 74 current House cats. Its variable-length pre-breed
+  stat-affinity descriptor exposed a fixed-width parser error, while the live
+  HouseCat mapper separately rejected counts above its fixed capacity of 64.
+  The reader now follows the length prefix and reads persisted birth/death days;
+  component and mapping storage is dynamically sized from the current scene.
 - Capture reads all save candidates in the active Steam profile and selects
   the candidate with a complete stable CatId-to-rooted-HouseCat mapping. This
-  selects the current 8-cat or 25-cat save immediately and rejects a stale
-  snapshot from the other slot.
+  selects the current 8-, 25-, or 74-cat save immediately and rejects a stale
+  snapshot from another slot.
 - Recommendation row labels use direct UTF-8 text instead of a localization
   numeric placeholder, so clearing a row cannot render `0` or `.`. The two
   upper MOD buttons are reused by role and have their callbacks refreshed,
@@ -477,6 +482,6 @@ by the Unsupported Stage 10 adapter.
 ## Stage gate
 
 Stage 12 is reopened for player-visible save-switch validation. The native cat
-detail path remains player-confirmed, but the retry/lifecycle/grid repair must
-now pass in one process across both the 8-cat and larger save. Stage 13 remains
-blocked.
+detail path remains player-confirmed, but death filtering, dynamic large-save
+mapping, and the retry/lifecycle/grid repair must pass in one process across the
+8-, 25-, and 74-cat saves. Stage 13 remains blocked.

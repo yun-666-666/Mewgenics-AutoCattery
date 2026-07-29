@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-#define AC_MEW_HOUSE_CAT_MATCH_CAPACITY 64U
-
 typedef struct AcMewHouseCatMatch {
     int64_t cat_id;
     void* component;
@@ -25,13 +23,14 @@ typedef struct AcMewHouseCatIdentityProbe {
     uint8_t consistent_mapping;
     uint8_t reserved;
     size_t match_count;
-    AcMewHouseCatMatch matches[AC_MEW_HOUSE_CAT_MATCH_CAPACITY];
 } AcMewHouseCatIdentityProbe;
 
 AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
     void* scene_manager,
     const int64_t* cat_ids,
-    size_t cat_id_count);
+    size_t cat_id_count,
+    AcMewHouseCatMatch* matches,
+    size_t match_capacity);
 
 #ifdef __cplusplus
 }

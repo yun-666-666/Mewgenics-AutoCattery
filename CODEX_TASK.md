@@ -66,8 +66,13 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   `house_state` 也有 25 个当前 CatId。它们必须全部保留：普通房间、
   `AdventureBox` 出战箱和空房间归属都属于当前 House 候选；只有不在
   `house_state` 的历史 `cats` 表记录才排除。
-- 同一存档的 25 只当前猫中，16 只 class_id 为 `Colorless`，9 只已有
-  战斗 class。与玩家的已出战状态核对后，后者必须排除，不能再次推荐。
+- 同一存档的 25 只当前猫中，16 只 class_id 为 `Colorless`，但其中 1 只
+  有持久化 death day；另 9 只已有战斗 class。真实可出战池是 15 只，
+  死猫与已有 class 的猫都必须排除，不能再次推荐。
+- 主存档当前 `house_state` 有 74 只猫。旧 reader 把 breed 前的变长
+  stat-affinity 描述误当固定 24 bytes，遇到 `dex` 后记录错位；运行时
+  HouseCat probe 又固定只容纳 64 项，直接返回 0 个匹配。这两处均是
+  存档/数量相关缺陷，不是评分耗时。
 - 23:54:33 离开 House 时，`AC4101` 同一毫秒在 chainloader 中出现大量
   旧 UI 地址访问异常。两个 MOD 按钮 view 都会在 scene 已卸载后继续调用
   旧组件/MovieClip，并在重进 House 时可能复用旧句柄；这与跨存档后的
@@ -105,12 +110,13 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 新增 `AC12105` HouseCat 身份 probe：在只读快照 CatId 集合与 HouseCat
   组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
   相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
-- 稳定双射成立后即时复用 Stage 6 单猫评分，排除已有战斗 class 的猫，
+- 稳定双射成立后即时复用 Stage 6 单猫评分，排除持久化 dead 猫和已有
+  战斗 class 的猫，
   并按 CatId 生成全部可出战猫的 `排名 猫名 分数 ?`；不再限制为 8 条，
   界面仍只复用 4 个紧凑行。鼠标停在列表上
   滚轮可逐项向下/向上浏览；点击物理行时会换算为当前可见的真实排名。
-  `?` 明示当前 reader 尚不能确认年龄和受伤；出战资格由当前 class
-  状态筛选。不使用猫名
+  `?` 明示当前 reader 尚不能确认其余 life-stage 阈值和受伤；出战资格
+  由 death day 与当前 class 状态筛选。不使用猫名
   做映射。
 - 四行不再创建游戏 Button 组件。每行由私有三帧 SWF 白纸和独立文字
   组成：frame 0 为空，frame 1 为正常白纸，frame 2 为原生按钮 down
@@ -152,6 +158,10 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - `house_state` 的每个当前 CatId 都进入解析和映射：普通房间、
   `AdventureBox` 与空 room_id 均保留。空 room_id 只表示没有可验证的
   房间归属，不再把猫从候选集删除。
+- Cat blob 的 breed 前 metadata 按真实的长度前缀 descriptor 加固定字段
+  解析，不再假定每个存档都为固定 24 bytes；post-class 的 birth/death day
+  已读取。HouseCat 组件、映射和去重表按当前数量动态分配，不再存在
+  64 只猫的业务上限。
 - 四行文字改为直接 UTF-8 文本写入，不再把空值传入本地化数值占位符，
   因此 Clear/隐藏不会留下 `0` 或 `.`。两个上方 MOD 按钮按 role 复用并
   刷新回调，不再因家具界面 detach/attach 累积重复 Button 组件。
@@ -166,10 +176,11 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Stage gate
 
-`SaveSwitchValidationRequired`
+`EligibilityAndLargeSaveValidationRequired`
 
 此前玩家已确认四行点击会打开正确猫详情；但最新跨存档实机验收发现
 旧 UI 句柄、错误磁盘存档选择和较大存档空房间记录三个缺陷。当前修复
-需重新验证：同一进程切换两个存档不闪烁、上方按钮持续可点击、一次
-Mark 能在有界等待后显示，以及两列两行布局无误触。通过前 Stage 13
-继续 blocked。
+需重新验证：同一进程依次切换 8/25/74 猫存档不闪烁、上方按钮持续
+可点击；25 猫档只显示 15 只并排除 1 只死猫和 9 只已有 class 的猫；
+74 猫档能完整映射并显示全部 70 只可用猫；两列两行布局无误触。通过前
+Stage 13 继续 blocked。

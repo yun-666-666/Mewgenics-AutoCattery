@@ -718,6 +718,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
     bool selected_exact{};
     bool diagnostic_available{};
     std::size_t selected_match_count{};
+    std::vector<AcMewHouseCatMatch> selected_matches;
     for (const auto& candidate : captured.value) {
         if (!candidate.capabilities.stable_cat_id ||
             candidate.scene_generation != mapping_snapshot_generation_) {
@@ -728,13 +729,18 @@ void MewUiBridge::ObserveHouseCatIdentity(
         for (const auto& cat : candidate.cats) {
             cat_ids.push_back(cat.id);
         }
+        std::vector<AcMewHouseCatMatch> candidate_matches(
+            candidate.cats.size());
         const auto candidate_identity = AcMewProbeHouseCatIdentity(
             scene->manager,
             cat_ids.data(),
-            cat_ids.size());
+            cat_ids.size(),
+            candidate_matches.data(),
+            candidate_matches.size());
         const auto candidate_roots = std::count_if(
-            candidate_identity.matches,
-            candidate_identity.matches + candidate_identity.match_count,
+            candidate_matches.begin(),
+            candidate_matches.begin() +
+                static_cast<std::ptrdiff_t>(candidate_identity.match_count),
             [](const AcMewHouseCatMatch& match) {
                 return match.root_node != nullptr;
             });
@@ -776,6 +782,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
             coverage_ready = candidate_coverage;
             selected_exact = candidate_exact;
             selected_match_count = candidate_identity.match_count;
+            selected_matches = std::move(candidate_matches);
         }
         if (candidate_exact) {
             break;
@@ -811,18 +818,24 @@ void MewUiBridge::ObserveHouseCatIdentity(
     }
 
     auto scoring_config = recommendation_scoring_config_;
-    // Class identity now excludes cats already spent in a prior expedition.
-    // Life-stage and injury remain unavailable, so preserve those limitations
-    // without discarding the complete confirmed Colorless candidate pool.
+    // Class identity excludes cats already spent in a prior expedition, and
+    // the persisted death day excludes dead cats. Other life-stage thresholds
+    // and injury remain unavailable, so preserve those limitations.
     scoring_config.require_confirmed_eligibility = false;
     scoring_config.recommended_count = selected_snapshot->cats.size();
     scoring_config.minimum_score =
         std::numeric_limits<double>::lowest();
-    const auto spent_cats = std::count_if(
+    const auto dead_cats = std::count_if(
         selected_snapshot->cats.begin(),
         selected_snapshot->cats.end(),
         [](const snapshot::CatSnapshot& cat) {
-            return cat.available_for_combat == snapshot::TriState::No;
+            return cat.life_stage == snapshot::LifeStage::Dead;
+        });
+    const auto classed_cats = std::count_if(
+        selected_snapshot->cats.begin(),
+        selected_snapshot->cats.end(),
+        [](const snapshot::CatSnapshot& cat) {
+            return cat.class_id != "Colorless";
         });
     const auto ranking =
         scoring::RankCombatCats(*selected_snapshot, scoring_config);
@@ -833,7 +846,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
             LogLevel::Info,
             "RecommendationMarker",
             "AC12106",
-            "marked=0 spent=" + std::to_string(spent_cats) +
+            "marked=0 excluded_dead=" + std::to_string(dead_cats) +
+            " excluded_classed=" + std::to_string(classed_cats) +
             " stable_cat_id_boundary=1 "
             "visual_fallback=clickable_list "
             "expedition_selection_changed=0");
@@ -861,15 +875,17 @@ void MewUiBridge::ObserveHouseCatIdentity(
                 return candidate.cat_id == cat_id;
             });
         const auto mapped = std::find_if(
-            identity.matches,
-            identity.matches + identity.match_count,
+            selected_matches.begin(),
+            selected_matches.begin() +
+                static_cast<std::ptrdiff_t>(selected_match_count),
             [cat_id](const AcMewHouseCatMatch& candidate) {
                 return candidate.cat_id == cat_id &&
                        candidate.root_node != nullptr;
             });
         if (cat == selected_snapshot->cats.end() ||
             score == ranking.value.ranked.end() ||
-            mapped == identity.matches + identity.match_count) {
+            mapped == selected_matches.begin() +
+                static_cast<std::ptrdiff_t>(selected_match_count)) {
             continue;
         }
         ++marked;
@@ -914,7 +930,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
         "RecommendationMarker",
         "AC12106",
         "marked=" + std::to_string(marked) +
-            " spent=" + std::to_string(spent_cats) +
+            " excluded_dead=" + std::to_string(dead_cats) +
+            " excluded_classed=" + std::to_string(classed_cats) +
             " mapped_house_cats=" + std::to_string(identity.match_count) +
             "/" + std::to_string(identity.house_cat_count) +
             " stable_cat_id_boundary=1 visual_fallback=clickable_list "

@@ -44,6 +44,13 @@ int wmain(int argument_count, wchar_t** arguments) {
             return cat.available_for_combat ==
                 autocattery::snapshot::TriState::No;
         });
+    const auto dead = std::count_if(
+        snapshot.cats.begin(),
+        snapshot.cats.end(),
+        [](const auto& cat) {
+            return cat.life_stage ==
+                autocattery::snapshot::LifeStage::Dead;
+        });
     const auto validation = autocattery::snapshot::Validate(snapshot);
     const auto repeated = adapter.CaptureHouseSnapshot(1);
     std::vector<autocattery::snapshot::CatId> first_ids;
@@ -218,6 +225,7 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " adventure=" << adventure
         << " combat_available=" << combat_available
         << " combat_spent=" << combat_spent
+        << " dead=" << dead
         << " day=";
     if (snapshot.game_day) {
         std::cout << *snapshot.game_day;

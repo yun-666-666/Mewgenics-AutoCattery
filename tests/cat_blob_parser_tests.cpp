@@ -24,7 +24,9 @@ void AppendString(
 }
 
 std::vector<std::uint8_t> CatBlob(
-    std::string_view class_id = "Colorless") {
+    std::string_view class_id = "Colorless",
+    std::string_view stat_affinity = "",
+    std::int64_t death_day = -1) {
     std::vector<std::uint8_t> bytes(20, 0);
     const std::uint32_t magic = 19;
     const std::uint32_t name_length = 3;
@@ -33,7 +35,8 @@ std::vector<std::uint8_t> CatBlob(
     for (const wchar_t character : std::wstring_view(L"Mew")) {
         Append(bytes, character);
     }
-    bytes.resize(bytes.size() + 24, 0);
+    AppendString(bytes, stat_affinity);
+    bytes.resize(bytes.size() + 16, 0);
     AppendString(bytes, "None");
     bytes.resize(bytes.size() + 368, 0);
     AppendString(bytes, "female31");
@@ -62,7 +65,17 @@ std::vector<std::uint8_t> CatBlob(
         Append(bytes, std::uint32_t{5});
     }
     AppendString(bytes, class_id);
+    const auto post_class_start = bytes.size();
     bytes.resize(bytes.size() + 115, 0);
+    const std::int64_t birth_day = 3;
+    std::memcpy(
+        bytes.data() + post_class_start + 12,
+        &birth_day,
+        sizeof(birth_day));
+    std::memcpy(
+        bytes.data() + post_class_start + 20,
+        &death_day,
+        sizeof(death_day));
     return bytes;
 }
 
@@ -78,8 +91,9 @@ void RunCatBlobParserTests() {
     AC_CHECK(parsed.value.genetic_stats.values[6] == 7);
     AC_CHECK(parsed.value.heredity_bonus.values[0] == 11);
     AC_CHECK(parsed.value.equipment_bonus.values[6] == 27);
-    AC_CHECK(!parsed.value.birth_day.has_value());
-    AC_CHECK(!parsed.value.age_days.has_value());
+    AC_CHECK(parsed.value.birth_day == 3);
+    AC_CHECK(parsed.value.age_days == 14);
+    AC_CHECK(parsed.value.life_stage == snapshot::LifeStage::Unknown);
     AC_CHECK(parsed.value.class_id == "Colorless");
     AC_CHECK(
         parsed.value.available_for_combat == snapshot::TriState::Yes);
@@ -92,6 +106,22 @@ void RunCatBlobParserTests() {
     AC_CHECK(classed.value.class_id == "Hunter");
     AC_CHECK(
         classed.value.available_for_combat == snapshot::TriState::No);
+
+    const auto variable_metadata = snapshot::ParseCatBlob(
+        44,
+        CatBlob("Colorless", "dex"),
+        17);
+    AC_CHECK(static_cast<bool>(variable_metadata));
+    AC_CHECK(variable_metadata.value.class_id == "Colorless");
+
+    const auto dead = snapshot::ParseCatBlob(
+        45,
+        CatBlob("Colorless", "", 12),
+        17);
+    AC_CHECK(static_cast<bool>(dead));
+    AC_CHECK(dead.value.life_stage == snapshot::LifeStage::Dead);
+    AC_CHECK(
+        dead.value.available_for_combat == snapshot::TriState::No);
 
     AC_CHECK(!static_cast<bool>(
         snapshot::ParseCatBlob(0, CatBlob(), 17)));

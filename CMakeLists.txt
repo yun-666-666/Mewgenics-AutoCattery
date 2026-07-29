@@ -152,6 +152,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/workflow_execution_router_tests.cpp
         tests/workflow_recommendation_writer_tests.cpp
         tests/lz4_block_tests.cpp
+        tests/mew_ui_house_cat_probe_tests.cpp
         tests/snapshot_domain_tests.cpp
         tests/snapshot_assembler_tests.cpp
         tests/win_sqlite_api_tests.cpp

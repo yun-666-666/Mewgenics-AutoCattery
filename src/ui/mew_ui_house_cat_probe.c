@@ -1,6 +1,7 @@
 #include "mew_ui_house_cat_probe.h"
 
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <windows.h>
 
@@ -66,8 +67,7 @@ static int AcReadIdentity(
     size_t offset,
     uint8_t width,
     int64_t* value) {
-    const size_t readable = AcReadableBytes(component);
-    if (!value || offset > readable || width > readable - offset) {
+    if (!component || !value) {
         return 0;
     }
     __try {
@@ -99,22 +99,32 @@ static void* AcRootNode(void* component) {
 }
 static size_t AcFindHouseCats(
     void* scene_manager,
-    void** components,
-    size_t capacity) {
+    void*** components_out) {
     MewPodVectorPtr* all;
+    void** components;
     uint32_t index;
     size_t count;
-    if (!scene_manager || !components || capacity == 0U) {
+    if (!scene_manager || !components_out) {
         return 0U;
     }
+    *components_out = NULL;
+    components = NULL;
     __try {
         all = *(MewPodVectorPtr**)((uint8_t*)scene_manager +
                                    MEW_OFF_SCENE_COMPONENT_LISTS);
         if (!all || !all->data || all->size > 4096U) {
             return 0U;
         }
+        if (all->size == 0U ||
+            all->size > SIZE_MAX / sizeof(*components)) {
+            return 0U;
+        }
+        components = (void**)calloc(all->size, sizeof(*components));
+        if (!components) {
+            return 0U;
+        }
         count = 0U;
-        for (index = 0U; index < all->size && count < capacity; ++index) {
+        for (index = 0U; index < all->size; ++index) {
             MewNarrowString type_name;
             void* component = all->data[index];
             if (AcGetTypeName(component, &type_name) &&
@@ -122,9 +132,15 @@ static size_t AcFindHouseCats(
                 components[count++] = component;
             }
         }
+        if (count == 0U) {
+            free(components);
+            return 0U;
+        }
+        *components_out = components;
         return count;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
+        free(components);
         return 0U;
     }
 }
@@ -147,11 +163,11 @@ static int AcEvaluateLayout(
     size_t cat_count,
     size_t offset,
     uint8_t width,
-    uint8_t* mapping) {
-    uint8_t seen[AC_MEW_HOUSE_CAT_MATCH_CAPACITY];
+    size_t* mapping,
+    uint8_t* seen) {
     size_t component_index;
     size_t matched;
-    memset(seen, 0, sizeof(seen));
+    memset(seen, 0, cat_count * sizeof(*seen));
     matched = 0U;
     for (component_index = 0U;
          component_index < component_count;
@@ -173,7 +189,7 @@ static int AcEvaluateLayout(
             return 0;
         }
         seen[cat_index] = 1U;
-        mapping[cat_index] = (uint8_t)component_index;
+        mapping[cat_index] = component_index;
         ++matched;
     }
     return matched == cat_count;
@@ -181,54 +197,75 @@ static int AcEvaluateLayout(
 AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
     void* scene_manager,
     const int64_t* cat_ids,
-    size_t cat_id_count) {
+    size_t cat_id_count,
+    AcMewHouseCatMatch* matches,
+    size_t match_capacity) {
     AcMewHouseCatIdentityProbe result;
-    void* components[AC_MEW_HOUSE_CAT_MATCH_CAPACITY];
-    uint8_t first_mapping[AC_MEW_HOUSE_CAT_MATCH_CAPACITY];
+    void** components;
+    size_t* first_mapping;
+    size_t* mapping;
+    uint8_t* seen;
+    size_t component_count;
     size_t offset;
     uint8_t width;
     memset(&result, 0, sizeof(result));
-    memset(components, 0, sizeof(components));
-    memset(first_mapping, 0, sizeof(first_mapping));
-    result.requested_cat_count = (uint32_t)cat_id_count;
+    components = NULL;
+    first_mapping = NULL;
+    mapping = NULL;
+    seen = NULL;
     result.consistent_mapping = 1U;
-    if (!cat_ids || cat_id_count == 0U ||
-        cat_id_count > AC_MEW_HOUSE_CAT_MATCH_CAPACITY) {
+    if (!cat_ids || !matches || cat_id_count == 0U ||
+        cat_id_count > UINT32_MAX || match_capacity < cat_id_count ||
+        cat_id_count > SIZE_MAX / sizeof(*first_mapping)) {
         return result;
     }
-    result.house_cat_count = (uint32_t)AcFindHouseCats(
-        scene_manager,
-        components,
-        AC_MEW_HOUSE_CAT_MATCH_CAPACITY);
-    if (result.house_cat_count < cat_id_count ||
-        result.house_cat_count > AC_MEW_HOUSE_CAT_MATCH_CAPACITY) {
-        return result;
+    result.requested_cat_count = (uint32_t)cat_id_count;
+    component_count = AcFindHouseCats(scene_manager, &components);
+    result.house_cat_count = (uint32_t)component_count;
+    if (component_count < cat_id_count) {
+        goto cleanup;
     }
-
+    for (offset = 0U; offset < component_count; ++offset) {
+        if (AcReadableBytes(components[offset]) < AC_SCAN_LIMIT) {
+            goto cleanup;
+        }
+    }
+    first_mapping = (size_t*)calloc(cat_id_count, sizeof(*first_mapping));
+    mapping = (size_t*)calloc(cat_id_count, sizeof(*mapping));
+    seen = (uint8_t*)calloc(cat_id_count, sizeof(*seen));
+    if (!first_mapping || !mapping || !seen) {
+        goto cleanup;
+    }
     for (offset = AC_SCAN_BEGIN;
          offset + 8U <= AC_SCAN_LIMIT;
          offset += 4U) {
         for (width = 8U; width >= 4U; width -= 4U) {
-            uint8_t mapping[AC_MEW_HOUSE_CAT_MATCH_CAPACITY];
             size_t index;
-            memset(mapping, 0, sizeof(mapping));
+            memset(mapping, 0, cat_id_count * sizeof(*mapping));
             if (!AcEvaluateLayout(
                     components,
-                    cat_id_count,
+                    component_count,
                     cat_ids,
                     cat_id_count,
                     offset,
                     width,
-                    mapping)) {
+                    mapping,
+                    seen)) {
                 continue;
             }
             ++result.valid_layout_count;
             if (result.valid_layout_count == 1U) {
                 result.first_identity_offset = (uint32_t)offset;
                 result.first_identity_width = width;
-                memcpy(first_mapping, mapping, cat_id_count);
+                memcpy(
+                    first_mapping,
+                    mapping,
+                    cat_id_count * sizeof(*first_mapping));
             } else if (
-                memcmp(first_mapping, mapping, cat_id_count) != 0) {
+                memcmp(
+                    first_mapping,
+                    mapping,
+                    cat_id_count * sizeof(*first_mapping)) != 0) {
                 result.consistent_mapping = 0U;
             }
             for (index = 0U; index < cat_id_count; ++index) {
@@ -244,13 +281,18 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
         result.consistent_mapping;
     if (result.stable_bijection) {
         size_t index;
-        result.match_count = cat_id_count;
         for (index = 0U; index < cat_id_count; ++index) {
             void* component = components[first_mapping[index]];
-            result.matches[index].cat_id = cat_ids[index];
-            result.matches[index].component = component;
-            result.matches[index].root_node = AcRootNode(component);
+            matches[index].cat_id = cat_ids[index];
+            matches[index].component = component;
+            matches[index].root_node = AcRootNode(component);
         }
+        result.match_count = cat_id_count;
     }
+cleanup:
+    free(seen);
+    free(mapping);
+    free(first_mapping);
+    free(components);
     return result;
 }

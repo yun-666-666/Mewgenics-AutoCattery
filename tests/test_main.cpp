@@ -24,6 +24,7 @@ void RunCatBlobParserTests();
 void RunHouseButtonControllerTests();
 void RunHouseStateParserTests();
 void RunLz4BlockTests();
+void RunMewUiHouseCatProbeTests();
 void RunModuleRegistryTests();
 void RunOrganizeWorkflowFacadeTests();
 void RunProtectionPolicyTests();
@@ -75,6 +76,7 @@ int main() {
     autocattery::tests::RunHouseButtonControllerTests();
     autocattery::tests::RunHouseStateParserTests();
     autocattery::tests::RunLz4BlockTests();
+    autocattery::tests::RunMewUiHouseCatProbeTests();
     autocattery::tests::RunModuleRegistryTests();
     autocattery::tests::RunOrganizeWorkflowFacadeTests();
     autocattery::tests::RunProtectionPolicyTests();
