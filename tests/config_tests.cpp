@@ -108,9 +108,10 @@ void RunConfigTests() {
     AC_CHECK(future.value.force_read_only);
 
     Write(user, R"({"safety":{"create_backup_before_apply":false}})");
-    const auto unsafe = LoadConfig(defaults, user);
-    AC_CHECK(!static_cast<bool>(unsafe));
-    AC_CHECK(unsafe.code == ErrorCode::ConfigInvalid);
+    const auto backup_disabled = LoadConfig(defaults, user);
+    AC_CHECK(static_cast<bool>(backup_disabled));
+    AC_CHECK(!backup_disabled.value.execution_safety.create_backup_before_apply);
+    AC_CHECK(!backup_disabled.value.execution.cull_enabled);
 
     Write(user, R"({"execution":{"real_write_adapter_enabled":true}})");
     const auto unverified_execution = LoadConfig(defaults, user);

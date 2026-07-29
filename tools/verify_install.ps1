@@ -12,6 +12,7 @@ $runtimeRequired = @(
     'chainloader.ini',
     'mods\AutoCattery.dll',
     'mods\AutoCattery\config\default_config.json',
+    'mods\AutoCattery\config\config.schema.json',
     'mods\AutoCattery\localization\strings.json'
 )
 

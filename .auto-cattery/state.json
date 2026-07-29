@@ -59,8 +59,11 @@
       "stage_13_blocked": false
     },
     "13": {
-      "status": "in_progress",
-      "commit": null
+      "status": "settings_ui_validation_required",
+      "commit": null,
+      "capability": "ValidatedHotReloadableConfigAndSessionSettingsPanel",
+      "game_validation_status": "awaiting_player_house_settings_panel_validation",
+      "stage_14_blocked": true
     },
     "14": {
       "status": "pending",
@@ -75,5 +78,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-30T03:12:03+08:00"
+  "updated_at": "2026-07-30T04:22:42+08:00"
 }

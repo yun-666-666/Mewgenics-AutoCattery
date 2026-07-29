@@ -20,6 +20,7 @@ public:
   [[nodiscard]] Result<PreviewBundle>
   Claim(const PreviewId &id, const PreviewBindings &current_bindings);
   [[nodiscard]] Result<void> Cancel(const PreviewId &id);
+  void InvalidateAll() noexcept;
 
 private:
   struct Entry {

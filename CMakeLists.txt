@@ -51,6 +51,12 @@ add_library(auto_cattery_core STATIC
     src/room_planning/planner.cpp
     src/room_planning/validator.cpp
     src/config.cpp
+    src/config/decoder.cpp
+    src/config/defaults.cpp
+    src/config/migration.cpp
+    src/config/reader.cpp
+    src/config/validation.cpp
+    src/config_runtime.cpp
     src/logger.cpp
     src/module_registry.cpp
     src/scoring/combat_ranker.cpp
@@ -72,15 +78,21 @@ add_library(auto_cattery_core STATIC
     src/workflow/preview_store.cpp
     src/workflow/recommendation_snapshot_writer.cpp
     src/workflow/state_machine.cpp
+    src/settings_service.cpp
+    src/settings_editor.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/mew_ui_house_cat_probe.c
     src/ui/mew_ui_house_detail_adapter.c
     src/ui/mew_ui_mapping_probe.c
+    src/ui/mew_ui_movie_clip.cpp
     src/ui/recommendation_marker_controller.cpp
+    src/ui/settings_panel_controller.cpp
     src/ui/mew_ui_recommendation_marker_view.cpp
+    src/ui/mew_ui_settings_panel_view.cpp
     src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
+    src/ui/mew_ui_config_binding.cpp
     src/ui/mew_ui_scene_components.c
     src/ui/mew_ui_scene_probe.c
 )
@@ -136,6 +148,9 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/combat_ranker_tests.cpp
         tests/combat_ranking_cache_tests.cpp
         tests/combat_scorer_tests.cpp
+        tests/config_boundary_tests.cpp
+        tests/config_migration_tests.cpp
+        tests/config_runtime_tests.cpp
         tests/config_tests.cpp
         tests/execution_precondition_tests.cpp
         tests/execution_storage_tests.cpp
@@ -163,13 +178,15 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/save_database_tests.cpp
         tests/save_locator_tests.cpp
         tests/scene_context_tests.cpp
+        tests/settings_panel_controller_tests.cpp
+        tests/settings_service_tests.cpp
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_include_directories(auto_cattery_tests PRIVATE third_party/json/include)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase12_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase13_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
@@ -180,7 +197,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase12_dll_load_smoke
+        NAME phase13_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()

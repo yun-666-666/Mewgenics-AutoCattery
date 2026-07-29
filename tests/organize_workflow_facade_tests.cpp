@@ -41,6 +41,13 @@ public:
 }  // namespace
 
 void RunOrganizeWorkflowFacadeTests() {
+    auto configurable_adapter = std::make_unique<FakeReadAdapter>();
+    workflow::OrganizeWorkflowFacade configurable(
+        std::move(configurable_adapter));
+    Config updated_config;
+    updated_config.combat_scoring.recommended_count = 3;
+    AC_CHECK(static_cast<bool>(configurable.ApplyConfig(updated_config)));
+
     auto adapter = std::make_unique<FakeReadAdapter>();
     auto* adapter_view = adapter.get();
     workflow::OrganizeWorkflowFacade workflow(std::move(adapter));
@@ -57,6 +64,7 @@ void RunOrganizeWorkflowFacadeTests() {
     AC_CHECK(
         workflow.State() ==
         autocattery::workflow::WorkflowState::AwaitingConfirmation);
+    AC_CHECK(!static_cast<bool>(workflow.ApplyConfig(Config{})));
     const auto execution = workflow.RequestExecution();
     AC_CHECK(!static_cast<bool>(execution));
     AC_CHECK(execution.code == ErrorCode::UnsupportedGameBuild);

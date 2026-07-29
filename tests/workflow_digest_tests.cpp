@@ -14,6 +14,12 @@ void RunWorkflowDigestTests() {
   AC_CHECK(workflow::DigestConfig(first) == workflow::DigestConfig(same));
   same.combat_scoring.stat_weights[5] = 2.0;
   AC_CHECK(workflow::DigestConfig(first) != workflow::DigestConfig(same));
+  same = first;
+  same.execution.require_quiescent_backup = false;
+  AC_CHECK(workflow::DigestConfig(first) != workflow::DigestConfig(same));
+  same = first;
+  same.protection.sidecar_file = "other.json";
+  AC_CHECK(workflow::DigestConfig(first) != workflow::DigestConfig(same));
 
   classification::ClassificationPlan ordered;
   ordered.capacity_relief_candidates = {1, 2};

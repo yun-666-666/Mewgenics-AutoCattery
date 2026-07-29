@@ -57,8 +57,27 @@ std::string DigestPrivateIdentity(std::string_view value) {
 std::string DigestConfig(const Config &config) {
   std::ostringstream canonical;
   Append(canonical, config.schema_version);
+  Append(canonical, config.general.version);
+  Append(canonical, config.general.mod_enabled);
+  Append(canonical, config.general.safe_mode);
+  Append(canonical, config.general.log_level);
+  Append(canonical, config.general.language);
   Append(canonical, config.safe_mode);
   Append(canonical, config.force_read_only);
+  Append(canonical, config.ui.version);
+  Append(canonical, config.ui.house_button_enabled);
+  Append(canonical, config.ui.embark_button_enabled);
+  Append(canonical, config.ui.show_debug_overlay);
+  Append(canonical, config.execution_safety.version);
+  Append(canonical,
+         config.execution_safety.require_preview_before_destructive_actions);
+  Append(canonical, config.execution_safety.create_backup_before_apply);
+  Append(canonical, config.execution_safety.read_only_mode);
+  Append(canonical, config.execution_safety.single_click_execute);
+  Append(canonical, config.execution_safety.abort_on_unknown_game_build);
+  Append(canonical, config.execution.real_write_adapter_enabled);
+  Append(canonical, config.execution.cull_enabled);
+  Append(canonical, config.execution.require_quiescent_backup);
   Append(canonical, config.workflow.preview_ttl_seconds);
   AppendScoring(canonical, config.combat_scoring);
   Append(canonical, config.combat_scoring.recommended_count);
@@ -74,6 +93,10 @@ std::string DigestConfig(const Config &config) {
   Append(canonical, config.classification.minimum_breeding_pool);
   Append(canonical, config.classification.minimum_general_reserve);
   Append(canonical, config.classification.never_cull_if_data_confidence_below);
+  Append(canonical, config.protection.version);
+  Append(canonical, config.protection.sidecar_file);
+  Append(canonical, config.protection.protect_unknown_native_state);
+  Append(canonical, config.protection.require_stable_identity_for_sidecar);
   Append(canonical, config.room_planning.version);
   Append(canonical, config.room_planning.default_soft_capacity);
   Append(canonical, config.room_planning.allow_soft_overflow);
@@ -84,6 +107,17 @@ std::string DigestConfig(const Config &config) {
   Append(canonical, config.room_planning.avoid_inbreeding_pairs);
   Append(canonical, config.room_planning.keep_kittens_separate_when_possible);
   Append(canonical, config.room_planning.allow_partial_plan);
+  Append(canonical, config.recommendation_marker.version);
+  Append(canonical, config.recommendation_marker.recommended_count);
+  Append(canonical, config.recommendation_marker.show_score);
+  Append(canonical, config.recommendation_marker.show_rank);
+  Append(canonical, config.recommendation_marker.pulse_top_n);
+  Append(canonical, config.recommendation_marker.auto_clear_on_scene_exit);
+  Append(canonical, config.recommendation_marker.recompute_if_stale);
+  Append(canonical, config.recommendation_marker.never_auto_select);
+  Append(canonical, config.diagnostics.version);
+  Append(canonical, config.diagnostics.show_debug_overlay);
+  Append(canonical, config.diagnostics.export_scene_summary_enabled);
   return DigestPrivateIdentity(canonical.str());
 }
 

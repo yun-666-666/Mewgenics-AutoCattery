@@ -125,6 +125,27 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
     };
 }
 
+Result<void> OrganizeWorkflowFacade::ApplyConfig(Config config) {
+    if (state_.State() != WorkflowState::Idle) {
+        return {
+            ErrorCode::WriteConflict,
+            "configuration can only be applied while the workflow is idle"
+        };
+    }
+    if (!read_adapter_) {
+        return {
+            ErrorCode::NotInitialized,
+            "read-only snapshot adapter is unavailable"
+        };
+    }
+    preview_builder_ = std::make_unique<PreviewBuilder>(
+        *read_adapter_,
+        std::move(config));
+    preview_store_.InvalidateAll();
+    latest_preview_.reset();
+    return {};
+}
+
 WorkflowState OrganizeWorkflowFacade::State() const noexcept {
     return state_.State();
 }

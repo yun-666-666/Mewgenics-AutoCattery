@@ -5,39 +5,68 @@
   "type": "object",
   "required": [
     "schema_version",
-    "mod_enabled",
-    "safe_mode",
+    "general",
     "ui",
-    "safety",
+    "execution_safety",
     "execution",
     "workflow",
     "combat_scoring",
     "breeding_scoring",
     "classification",
     "protection",
-    "room_planning"
+    "room_planning",
+    "recommendation_marker",
+    "diagnostics"
   ],
   "properties": {
-    "schema_version": {"type": "integer", "minimum": 1},
-    "mod_enabled": {"type": "boolean"},
-    "safe_mode": {"type": "boolean"},
-    "log_level": {"enum": ["trace", "debug", "info", "warn", "error"]},
-    "language": {"type": "string", "minLength": 2},
+    "schema_version": {"const": 2},
+    "general": {
+      "type": "object",
+      "required": ["version", "mod_enabled", "safe_mode", "log_level", "language"],
+      "properties": {
+        "version": {"const": 1},
+        "mod_enabled": {"type": "boolean"},
+        "safe_mode": {"type": "boolean"},
+        "log_level": {"enum": ["trace", "debug", "info", "warn", "error"]},
+        "language": {"type": "string", "minLength": 2, "maxLength": 32}
+      },
+      "additionalProperties": false
+    },
     "ui": {
       "type": "object",
+      "required": [
+        "version",
+        "house_button_enabled",
+        "embark_button_enabled",
+        "show_debug_overlay"
+      ],
       "properties": {
+        "version": {"const": 1},
         "house_button_enabled": {"type": "boolean"},
         "embark_button_enabled": {"type": "boolean"},
         "show_debug_overlay": {"type": "boolean"}
-      }
+      },
+      "additionalProperties": false
     },
-    "safety": {
+    "execution_safety": {
       "type": "object",
+      "required": [
+        "version",
+        "require_preview_before_destructive_actions",
+        "create_backup_before_apply",
+        "read_only_mode",
+        "single_click_execute",
+        "abort_on_unknown_game_build"
+      ],
       "properties": {
+        "version": {"const": 1},
         "require_preview_before_destructive_actions": {"const": true},
-        "create_backup_before_apply": {"const": true},
-        "abort_on_unknown_game_build": {"type": "boolean"}
-      }
+        "create_backup_before_apply": {"type": "boolean"},
+        "read_only_mode": {"type": "boolean"},
+        "single_click_execute": {"type": "boolean"},
+        "abort_on_unknown_game_build": {"const": true}
+      },
+      "additionalProperties": false
     },
     "execution": {
       "type": "object",
@@ -76,51 +105,21 @@
       ],
       "properties": {
         "version": {"const": 1},
-        "recommended_count": {"type": "integer", "minimum": 0},
-        "minimum_score": {"type": "number"},
+        "recommended_count": {"type": "integer", "minimum": 1, "maximum": 100},
+        "minimum_score": {"type": "number", "minimum": -10000, "maximum": 10000},
         "minimum_known_stats": {"type": "integer", "minimum": 0, "maximum": 7},
         "exclude_kittens": {"type": "boolean"},
         "exclude_injured": {"type": "boolean"},
         "require_confirmed_eligibility": {"type": "boolean"},
-        "missing_stat_penalty": {"type": "number"},
-        "active_ability_default_weight": {"type": "number"},
-        "passive_default_weight": {"type": "number"},
-        "disorder_default_penalty": {"type": "number"},
-        "injury_penalty": {"type": "number"},
-        "stat_weights": {
-          "type": "object",
-          "required": [
-            "strength",
-            "dexterity",
-            "constitution",
-            "intelligence",
-            "speed",
-            "charisma",
-            "luck"
-          ],
-          "properties": {
-            "strength": {"type": "number"},
-            "dexterity": {"type": "number"},
-            "constitution": {"type": "number"},
-            "intelligence": {"type": "number"},
-            "speed": {"type": "number"},
-            "charisma": {"type": "number"},
-            "luck": {"type": "number"}
-          },
-          "additionalProperties": false
-        },
-        "active_ability_overrides": {
-          "type": "object",
-          "additionalProperties": {"type": "number"}
-        },
-        "passive_overrides": {
-          "type": "object",
-          "additionalProperties": {"type": "number"}
-        },
-        "disorder_overrides": {
-          "type": "object",
-          "additionalProperties": {"type": "number"}
-        }
+        "missing_stat_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "active_ability_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "passive_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "disorder_default_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "injury_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "stat_weights": {"$ref": "#/$defs/stat_weights"},
+        "active_ability_overrides": {"$ref": "#/$defs/weights"},
+        "passive_overrides": {"$ref": "#/$defs/weights"},
+        "disorder_overrides": {"$ref": "#/$defs/weights"}
       },
       "additionalProperties": false
     },
@@ -136,49 +135,19 @@
       ],
       "properties": {
         "version": {"const": 1},
-        "core_breeders": {"type": "integer", "minimum": 0},
-        "reserve_breeders": {"type": "integer", "minimum": 0},
-        "minimum_score": {"type": "number"},
+        "core_breeders": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "reserve_breeders": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "minimum_score": {"type": "number", "minimum": -10000, "maximum": 10000},
         "minimum_known_stats": {"type": "integer", "minimum": 0, "maximum": 7},
         "require_confirmed_eligibility": {"type": "boolean"},
-        "missing_stat_penalty": {"type": "number"},
-        "active_ability_default_weight": {"type": "number"},
-        "passive_default_weight": {"type": "number"},
-        "disorder_default_penalty": {"type": "number"},
-        "stat_weights": {
-          "type": "object",
-          "required": [
-            "strength",
-            "dexterity",
-            "constitution",
-            "intelligence",
-            "speed",
-            "charisma",
-            "luck"
-          ],
-          "properties": {
-            "strength": {"type": "number"},
-            "dexterity": {"type": "number"},
-            "constitution": {"type": "number"},
-            "intelligence": {"type": "number"},
-            "speed": {"type": "number"},
-            "charisma": {"type": "number"},
-            "luck": {"type": "number"}
-          },
-          "additionalProperties": false
-        },
-        "active_ability_overrides": {
-          "type": "object",
-          "additionalProperties": {"type": "number"}
-        },
-        "passive_overrides": {
-          "type": "object",
-          "additionalProperties": {"type": "number"}
-        },
-        "disorder_overrides": {
-          "type": "object",
-          "additionalProperties": {"type": "number"}
-        }
+        "missing_stat_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "active_ability_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "passive_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "disorder_default_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "stat_weights": {"$ref": "#/$defs/stat_weights"},
+        "active_ability_overrides": {"$ref": "#/$defs/weights"},
+        "passive_overrides": {"$ref": "#/$defs/weights"},
+        "disorder_overrides": {"$ref": "#/$defs/weights"}
       },
       "additionalProperties": false
     },
@@ -194,9 +163,9 @@
       "properties": {
         "version": {"const": 1},
         "combat_priority_over_breeding": {"type": "boolean"},
-        "minimum_combat_pool": {"type": "integer", "minimum": 0},
-        "minimum_breeding_pool": {"type": "integer", "minimum": 0},
-        "minimum_general_reserve": {"type": "integer", "minimum": 0},
+        "minimum_combat_pool": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "minimum_breeding_pool": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "minimum_general_reserve": {"type": "integer", "minimum": 0, "maximum": 10000},
         "never_cull_if_data_confidence_below": {
           "type": "number",
           "minimum": 0,
@@ -242,9 +211,9 @@
       ],
       "properties": {
         "version": {"const": 1},
-        "default_soft_capacity": {"type": "integer", "minimum": 1},
+        "default_soft_capacity": {"type": "integer", "minimum": 1, "maximum": 1000},
         "allow_soft_overflow": {"type": "boolean"},
-        "max_soft_overflow_per_room": {"type": "integer", "minimum": 0},
+        "max_soft_overflow_per_room": {"type": "integer", "minimum": 0, "maximum": 1000},
         "never_exceed_known_hard_capacity": {"const": true},
         "prefer_single_combat_staging_room": {"type": "boolean"},
         "keep_breeding_pairs_together": {"type": "boolean"},
@@ -253,7 +222,75 @@
         "allow_partial_plan": {"const": true}
       },
       "additionalProperties": false
+    },
+    "recommendation_marker": {
+      "type": "object",
+      "required": [
+        "version",
+        "recommended_count",
+        "show_score",
+        "show_rank",
+        "pulse_top_n",
+        "auto_clear_on_scene_exit",
+        "recompute_if_stale",
+        "never_auto_select"
+      ],
+      "properties": {
+        "version": {"const": 1},
+        "recommended_count": {"type": "integer", "minimum": 1, "maximum": 100},
+        "show_score": {"type": "boolean"},
+        "show_rank": {"type": "boolean"},
+        "pulse_top_n": {"const": 0},
+        "auto_clear_on_scene_exit": {"const": true},
+        "recompute_if_stale": {"const": true},
+        "never_auto_select": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": ["version", "show_debug_overlay", "export_scene_summary_enabled"],
+      "properties": {
+        "version": {"const": 1},
+        "show_debug_overlay": {"type": "boolean"},
+        "export_scene_summary_enabled": {"type": "boolean"}
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties": true
+  "$defs": {
+    "stat_weights": {
+      "type": "object",
+      "required": [
+        "strength",
+        "dexterity",
+        "constitution",
+        "intelligence",
+        "speed",
+        "charisma",
+        "luck"
+      ],
+      "properties": {
+        "strength": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "dexterity": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "constitution": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "intelligence": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "speed": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "charisma": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "luck": {"type": "number", "minimum": -10000, "maximum": 10000}
+      },
+      "additionalProperties": false
+    },
+    "weights": {
+      "type": "object",
+      "maxProperties": 512,
+      "propertyNames": {"minLength": 1, "maxLength": 128},
+      "additionalProperties": {
+        "type": "number",
+        "minimum": -10000,
+        "maximum": 10000
+      }
+    }
+  },
+  "additionalProperties": false
 }

@@ -1,17 +1,24 @@
 {
-  "schema_version": 1,
-  "mod_enabled": true,
-  "safe_mode": true,
-  "log_level": "info",
-  "language": "zh-CN",
+  "schema_version": 2,
+  "general": {
+    "version": 1,
+    "mod_enabled": true,
+    "safe_mode": true,
+    "log_level": "info",
+    "language": "zh-CN"
+  },
   "ui": {
+    "version": 1,
     "house_button_enabled": true,
     "embark_button_enabled": true,
     "show_debug_overlay": false
   },
-  "safety": {
+  "execution_safety": {
+    "version": 1,
     "require_preview_before_destructive_actions": true,
     "create_backup_before_apply": true,
+    "read_only_mode": true,
+    "single_click_execute": false,
     "abort_on_unknown_game_build": true
   },
   "execution": {
@@ -97,5 +104,20 @@
     "avoid_inbreeding_pairs": true,
     "keep_kittens_separate_when_possible": true,
     "allow_partial_plan": true
+  },
+  "recommendation_marker": {
+    "version": 1,
+    "recommended_count": 8,
+    "show_score": true,
+    "show_rank": true,
+    "pulse_top_n": 0,
+    "auto_clear_on_scene_exit": true,
+    "recompute_if_stale": true,
+    "never_auto_select": true
+  },
+  "diagnostics": {
+    "version": 1,
+    "show_debug_overlay": false,
+    "export_scene_summary_enabled": false
   }
 }

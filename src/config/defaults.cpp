@@ -1,0 +1,141 @@
+#include "config_json.hpp"
+
+namespace autocattery::config_detail {
+
+Json SafeDefaultsJson() {
+    return {
+        {"schema_version", 2},
+        {"general", {
+            {"version", 1},
+            {"mod_enabled", true},
+            {"safe_mode", true},
+            {"log_level", "info"},
+            {"language", "zh-CN"}
+        }},
+        {"mod_enabled", true},
+        {"safe_mode", true},
+        {"log_level", "info"},
+        {"language", "zh-CN"},
+        {"ui", {
+            {"version", 1},
+            {"house_button_enabled", true},
+            {"embark_button_enabled", true},
+            {"show_debug_overlay", false}
+        }},
+        {"execution_safety", {
+            {"version", 1},
+            {"require_preview_before_destructive_actions", true},
+            {"create_backup_before_apply", true},
+            {"read_only_mode", true},
+            {"single_click_execute", false},
+            {"abort_on_unknown_game_build", true}
+        }},
+        {"safety", {
+            {"version", 1},
+            {"require_preview_before_destructive_actions", true},
+            {"create_backup_before_apply", true},
+            {"read_only_mode", true},
+            {"single_click_execute", false},
+            {"abort_on_unknown_game_build", true}
+        }},
+        {"execution", {
+            {"real_write_adapter_enabled", false},
+            {"cull_enabled", false},
+            {"require_quiescent_backup", true}
+        }},
+        {"workflow", {{"preview_ttl_seconds", 120}}},
+        {"combat_scoring", {
+            {"version", 1},
+            {"recommended_count", 8},
+            {"minimum_score", 0.0},
+            {"minimum_known_stats", 7},
+            {"exclude_kittens", true},
+            {"exclude_injured", false},
+            {"require_confirmed_eligibility", true},
+            {"missing_stat_penalty", 0.0},
+            {"active_ability_default_weight", 0.0},
+            {"passive_default_weight", 0.0},
+            {"disorder_default_penalty", 0.0},
+            {"injury_penalty", 0.0},
+            {"stat_weights", {
+                {"strength", 1.0},
+                {"dexterity", 1.0},
+                {"constitution", 1.0},
+                {"intelligence", 1.0},
+                {"speed", 1.0},
+                {"charisma", 1.0},
+                {"luck", 1.0}
+            }},
+            {"active_ability_overrides", Json::object()},
+            {"passive_overrides", Json::object()},
+            {"disorder_overrides", Json::object()}
+        }},
+        {"breeding_scoring", {
+            {"version", 1},
+            {"core_breeders", 4},
+            {"reserve_breeders", 4},
+            {"minimum_score", 0.0},
+            {"minimum_known_stats", 7},
+            {"require_confirmed_eligibility", true},
+            {"missing_stat_penalty", 0.0},
+            {"active_ability_default_weight", 0.0},
+            {"passive_default_weight", 0.0},
+            {"disorder_default_penalty", 0.0},
+            {"stat_weights", {
+                {"strength", 1.0},
+                {"dexterity", 1.0},
+                {"constitution", 1.0},
+                {"intelligence", 1.0},
+                {"speed", 1.0},
+                {"charisma", 1.0},
+                {"luck", 1.0}
+            }},
+            {"active_ability_overrides", Json::object()},
+            {"passive_overrides", Json::object()},
+            {"disorder_overrides", Json::object()}
+        }},
+        {"classification", {
+            {"version", 1},
+            {"combat_priority_over_breeding", false},
+            {"minimum_combat_pool", 8},
+            {"minimum_breeding_pool", 8},
+            {"minimum_general_reserve", 4},
+            {"never_cull_if_data_confidence_below", 0.85}
+        }},
+        {"protection", {
+            {"version", 1},
+            {"sidecar_file", "protection.json"},
+            {"protect_unknown_native_state", true},
+            {"require_stable_identity_for_sidecar", true}
+        }},
+        {"room_planning", {
+            {"version", 1},
+            {"default_soft_capacity", 4},
+            {"allow_soft_overflow", true},
+            {"max_soft_overflow_per_room", 2},
+            {"never_exceed_known_hard_capacity", true},
+            {"prefer_single_combat_staging_room", true},
+            {"keep_breeding_pairs_together", true},
+            {"avoid_inbreeding_pairs", true},
+            {"keep_kittens_separate_when_possible", true},
+            {"allow_partial_plan", true}
+        }},
+        {"recommendation_marker", {
+            {"version", 1},
+            {"recommended_count", 8},
+            {"show_score", true},
+            {"show_rank", true},
+            {"pulse_top_n", 0},
+            {"auto_clear_on_scene_exit", true},
+            {"recompute_if_stale", true},
+            {"never_auto_select", true}
+        }},
+        {"diagnostics", {
+            {"version", 1},
+            {"show_debug_overlay", false},
+            {"export_scene_summary_enabled", false}
+        }}
+    };
+}
+
+}  // namespace autocattery::config_detail

@@ -46,6 +46,7 @@ if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
     New-Item -ItemType Directory -Force -Path (Join-Path $dataModRoot 'swfs') | Out-Null
     Copy-Item -LiteralPath $dllSource -Destination (Join-Path $mods 'AutoCattery.dll') -Force
     Copy-Item -LiteralPath (Join-Path $source 'config\default_config.json') -Destination (Join-Path $runtimeRoot 'config') -Force
+    Copy-Item -LiteralPath (Join-Path $source 'config\config.schema.json') -Destination (Join-Path $runtimeRoot 'config') -Force
     Copy-Item -LiteralPath (Join-Path $source 'config\scene_signatures.json') -Destination (Join-Path $runtimeRoot 'config') -Force
     Copy-Item -LiteralPath (Join-Path $source 'localization\strings.json') -Destination (Join-Path $runtimeRoot 'localization') -Force
     Copy-Item -LiteralPath (Join-Path $source 'THIRD_PARTY_NOTICES.md') -Destination $runtimeRoot -Force

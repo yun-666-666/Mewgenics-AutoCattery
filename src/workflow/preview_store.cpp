@@ -97,4 +97,9 @@ Result<void> PreviewStore::Cancel(const PreviewId &id) {
   return {};
 }
 
+void PreviewStore::InvalidateAll() noexcept {
+  std::scoped_lock lock(mutex_);
+  entries_.clear();
+}
+
 } // namespace autocattery::workflow

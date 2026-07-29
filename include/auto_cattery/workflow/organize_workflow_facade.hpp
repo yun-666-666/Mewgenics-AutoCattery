@@ -31,6 +31,7 @@ public:
         const PreviewBindings& current_bindings);
     virtual Result<void> Cancel(const PreviewId& preview_id);
     virtual Result<void> RequestExecution();
+    [[nodiscard]] Result<void> ApplyConfig(Config config);
     [[nodiscard]] WorkflowState State() const noexcept;
 
 private:

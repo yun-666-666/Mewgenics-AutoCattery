@@ -55,6 +55,12 @@ void RunWorkflowPreviewStoreTests() {
   duplicate.preview.id = "fixed-preview";
   AC_CHECK(static_cast<bool>(store.Store(duplicate)));
   AC_CHECK(!static_cast<bool>(store.Store(duplicate)));
+
+  workflow::PreviewBundle invalidated = first;
+  invalidated.preview.id = "invalidate-me";
+  AC_CHECK(static_cast<bool>(store.Store(invalidated)));
+  store.InvalidateAll();
+  AC_CHECK(!static_cast<bool>(store.Read("invalidate-me")));
 }
 
 } // namespace autocattery::tests

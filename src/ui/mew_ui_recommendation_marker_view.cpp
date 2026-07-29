@@ -6,6 +6,8 @@
 #include <string>
 #include <utility>
 
+#include "mew_ui_movie_clip.hpp"
+
 namespace autocattery::ui {
 namespace {
 
@@ -42,26 +44,7 @@ constexpr std::array<HitRectangle, 4> kItemHitRectangles{{
 }};
 constexpr auto kClickAnimationDuration =
     std::chrono::milliseconds(90);
-constexpr std::size_t kMovieClipStateFlagsOffset = 0x09U;
-constexpr unsigned char kMovieClipPlayingBit = 0x02U;
 MewUiRecommendationMarkerView* g_wheel_view{};
-
-bool HoldMovieClipFrame(void* movie_clip, int frame) noexcept {
-    if (MewUI_PlayMovieClipFrame(movie_clip, frame) == 0) {
-        return false;
-    }
-    __try {
-        // Current Mewgenics callers use the same goto-frame function and
-        // clear this bit immediately afterward for goto-and-stop behavior.
-        auto* flags = static_cast<unsigned char*>(movie_clip) +
-            kMovieClipStateFlagsOffset;
-        *flags &= static_cast<unsigned char>(~kMovieClipPlayingBit);
-        return true;
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        return false;
-    }
-}
 
 }  // namespace
 
@@ -253,7 +236,7 @@ void MewUiRecommendationMarkerView::ClearSummary() noexcept {
                 scene_manager_,
                 kItemTextNodes[row],
                 "");
-            HoldMovieClipFrame(item_nodes_[row], 0);
+            HoldMewUiMovieClipFrame(item_nodes_[row], 0);
         }
     }
 }
@@ -268,7 +251,7 @@ void MewUiRecommendationMarkerView::Poll() {
         const auto item_index =
             first_visible_item_ + static_cast<std::size_t>(pressed_row);
         if (item_index < item_labels_.size() &&
-            HoldMovieClipFrame(item_nodes_[pressed_row], 2)) {
+            HoldMewUiMovieClipFrame(item_nodes_[pressed_row], 2)) {
             pressed_row_ = pressed_row;
             pressed_until_ = now + kClickAnimationDuration;
         }
@@ -280,7 +263,7 @@ void MewUiRecommendationMarkerView::Poll() {
             first_visible_item_ + static_cast<std::size_t>(clicked_row);
         if (item_index < item_labels_.size() && item_click_handler_) {
             pending_activation_item_ = item_index;
-            HoldMovieClipFrame(item_nodes_[clicked_row], 2);
+            HoldMewUiMovieClipFrame(item_nodes_[clicked_row], 2);
             pressed_row_ = clicked_row;
             pressed_until_ = now + kClickAnimationDuration;
         }
@@ -291,7 +274,7 @@ void MewUiRecommendationMarkerView::Poll() {
         const auto row = static_cast<std::size_t>(pressed_row_);
         const auto visible_index = first_visible_item_ + row;
         if (visible_index < item_labels_.size()) {
-            HoldMovieClipFrame(item_nodes_[row], 1);
+            HoldMewUiMovieClipFrame(item_nodes_[row], 1);
         }
         pressed_row_ = -1;
         auto activation = std::exchange(
@@ -461,7 +444,7 @@ bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
                 shown ? item_labels_[item_index].c_str() : "") == 0) {
             return false;
         }
-        if (!HoldMovieClipFrame(
+        if (!HoldMewUiMovieClipFrame(
                 item_nodes_[row],
                 shown ? 1 : 0)) {
             return false;

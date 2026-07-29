@@ -19,6 +19,7 @@
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/recommendation/snapshot_reader.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
+#include "auto_cattery/settings_service.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
@@ -28,6 +29,8 @@
 #include "mew_ui_house_detail_adapter.h"
 #include "mew_ui_mapping_probe.h"
 #include "mew_ui_recommendation_marker_view.hpp"
+#include "mew_ui_settings_panel_view.hpp"
+#include "auto_cattery/ui/settings_panel_controller.hpp"
 #include "mew_ui_scene_probe.h"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -130,6 +133,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     recommendation_marker_controller_ =
         std::make_unique<RecommendationMarkerController>(
             *recommendation_marker_view_);
+    settings_panel_view_ = std::make_unique<MewUiSettingsPanelView>();
     recommendation_marker_controller_->SetRequestHandler(
         [this](std::uint64_t generation) {
             recommendation_detail_targets_.clear();
@@ -210,16 +214,33 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                 message.str());
         });
 
-    const auto config = LoadConfig(
+    config_runtime_ = std::make_unique<RuntimeConfigService>(
         context.mod_root / L"config" / L"default_config.json",
-        context.mod_root / L"config" / L"user_config.json");
-    recommendation_scoring_config_ =
-        config ? config.value.combat_scoring
-               : scoring::CombatScoringConfig{};
+        context.mod_root / L"config" / L"user_config.json",
+        RuntimeConfigService::Clock{},
+        [this](const ConfigInvalidation&) {
+            ApplyRuntimeConfig();
+        });
+    const auto loaded_config = config_runtime_->LoadInitial();
+    if (loaded_config.status == ConfigReloadStatus::Rejected) {
+        Logger::Instance().Write(
+            LogLevel::Error,
+            "Config",
+            "AC1302",
+            "Runtime configuration rejected; safe read-only defaults are active: " +
+                loaded_config.message);
+    }
+    const auto config = config_runtime_->Current();
+    recommendation_scoring_config_ = config.combat_scoring;
+    recommendation_marker_config_ = config.recommendation_marker;
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>(
             std::make_unique<snapshot::SaveSnapshotAdapter>(),
-            config ? config.value : Config{});
+            config);
+    settings_service_ = std::make_unique<SettingsService>(*config_runtime_);
+    settings_panel_controller_ = std::make_unique<SettingsPanelController>(
+        *settings_service_,
+        *settings_panel_view_);
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
         *organize_workflow_);
@@ -227,7 +248,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     debug_probe_enabled_ = true;
 #else
     debug_probe_enabled_ =
-        static_cast<bool>(config) && config.value.ui.show_debug_overlay;
+        config.ui.show_debug_overlay || config.diagnostics.show_debug_overlay;
 #endif
 
     const auto signatures = LoadSceneSignatures(
@@ -271,6 +292,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             mapping_snapshot_next_attempt_ = {};
             house_button_controller_->Detach();
             recommendation_marker_controller_->Detach();
+            if (settings_panel_controller_) {
+                settings_panel_controller_->Detach();
+            }
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
             next_recommendation_attach_retry_ = {};
@@ -314,6 +338,9 @@ void MewUiBridge::Shutdown() noexcept {
     if (recommendation_marker_controller_) {
         recommendation_marker_controller_->Detach();
     }
+    if (settings_panel_controller_) {
+        settings_panel_controller_->Detach();
+    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -347,6 +374,10 @@ void MewUiBridge::Shutdown() noexcept {
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
     recommendation_marker_view_.reset();
+    settings_panel_controller_.reset();
+    settings_service_.reset();
+    settings_panel_view_.reset();
+    config_runtime_.reset();
     organize_workflow_.reset();
     house_button_view_.reset();
 }
@@ -378,6 +409,21 @@ void MewUiBridge::OnTick() {
         return;
     }
     last_tick_time_ = now;
+    if (config_runtime_) {
+        const auto state = organize_workflow_
+            ? organize_workflow_->State()
+            : workflow::WorkflowState::Idle;
+        const auto reload = config_runtime_->PollHotReload(state);
+        if (reload.status == ConfigReloadStatus::Rejected) {
+            Logger::Instance().Write(
+                LogLevel::Warn,
+                "Config",
+                "AC1304",
+                "Runtime configuration hot-reload rejected; previous "
+                "configuration remains active: " +
+                    reload.message);
+        }
+    }
     if (house_button_controller_) {
         house_button_controller_->Poll();
     }
@@ -430,15 +476,94 @@ void MewUiBridge::OnTick() {
         context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress;
+    const auto active_config = config_runtime_
+        ? config_runtime_->Current()
+        : Config{};
+    const bool mod_ui_enabled = active_config.general.mod_enabled;
+    const bool house_button_enabled =
+        mod_ui_enabled && active_config.ui.house_button_enabled;
+    const bool recommendation_button_enabled =
+        mod_ui_enabled && active_config.ui.embark_button_enabled;
+    if (settings_panel_controller_) {
+        if ((!house_ready || !mod_ui_enabled) &&
+            settings_panel_controller_->IsOpen()) {
+            settings_panel_controller_->Detach();
+        } else if (house_ready && mod_ui_enabled &&
+                   (GetAsyncKeyState(VK_F9) & 1) != 0) {
+            if (settings_panel_controller_->IsOpen()) {
+                settings_panel_controller_->Detach();
+            } else {
+                recommendation_marker_controller_->Detach();
+                const auto attached = settings_panel_controller_->Attach(context);
+                Logger::Instance().Write(
+                    attached ? LogLevel::Info : LogLevel::Warn,
+                    "SettingsPanel",
+                    attached ? "AC1310" : "AC1311",
+                    attached
+                        ? "Session settings panel opened on verified MOD rows."
+                        : "Settings panel could not open: " + attached.message);
+            }
+        }
+    }
+
+    const bool settings_open =
+        settings_panel_controller_ && settings_panel_controller_->IsOpen();
+    if (settings_open) {
+        const auto workflow_state = organize_workflow_
+            ? organize_workflow_->State()
+            : workflow::WorkflowState::Idle;
+        if ((GetAsyncKeyState(VK_TAB) & 1) != 0 ||
+            (GetAsyncKeyState(VK_NEXT) & 1) != 0) {
+            (void)settings_panel_controller_->NextPage(1);
+        } else if ((GetAsyncKeyState(VK_PRIOR) & 1) != 0) {
+            (void)settings_panel_controller_->NextPage(-1);
+        }
+        if ((GetAsyncKeyState(VK_UP) & 1) != 0) {
+            (void)settings_panel_controller_->MoveSelection(-1);
+        } else if ((GetAsyncKeyState(VK_DOWN) & 1) != 0) {
+            (void)settings_panel_controller_->MoveSelection(1);
+        }
+        if ((GetAsyncKeyState(VK_LEFT) & 1) != 0) {
+            (void)settings_panel_controller_->AdjustSelected(
+                -1,
+                workflow_state);
+        } else if ((GetAsyncKeyState(VK_RIGHT) & 1) != 0) {
+            (void)settings_panel_controller_->AdjustSelected(
+                1,
+                workflow_state);
+        } else if ((GetAsyncKeyState(VK_RETURN) & 1) != 0) {
+            (void)settings_panel_controller_->ActivateSelected(workflow_state);
+        }
+        if ((GetAsyncKeyState(VK_LBUTTON) & 1) != 0 &&
+            settings_panel_view_) {
+            const auto hit = settings_panel_view_->HitTest(GetForegroundWindow());
+            if (hit) {
+                const auto selected =
+                    settings_panel_controller_->SelectVisibleRow(hit->row);
+                if (selected) {
+                    (void)settings_panel_controller_->AdjustSelected(
+                        hit->direction,
+                        workflow_state);
+                }
+            }
+        }
+        (void)settings_panel_controller_->Refresh();
+    }
     const bool interstitial_ready = scene_ready("Interstitial");
     const bool expedition_ready =
         scene_ready("Map") || scene_ready("Battle");
     recommendation_marker_controller_->ObserveRuntime(
-        house_ready,
+        house_ready && recommendation_button_enabled && !settings_open,
         interstitial_ready,
         expedition_ready);
 
-    if (context.kind == UiContextKind::House &&
+    if (!house_button_enabled && house_button_controller_ &&
+        house_button_controller_->IsAttached()) {
+        house_button_controller_->Detach();
+    }
+
+    if (house_button_enabled &&
+        context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress &&
         house_button_controller_ &&
@@ -463,7 +588,9 @@ void MewUiBridge::OnTick() {
         }
     }
 
-    if (house_ready &&
+    if (recommendation_button_enabled &&
+        !settings_open &&
+        house_ready &&
         recommendation_marker_controller_->ShouldShow() &&
         !recommendation_marker_controller_->IsAttached() &&
         (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||
@@ -822,9 +949,11 @@ void MewUiBridge::ObserveHouseCatIdentity(
     // the persisted death day excludes dead cats. Other life-stage thresholds
     // and injury remain unavailable, so preserve those limitations.
     scoring_config.require_confirmed_eligibility = false;
-    scoring_config.recommended_count = selected_snapshot->cats.size();
-    scoring_config.minimum_score =
-        std::numeric_limits<double>::lowest();
+    scoring_config.recommended_count = std::min({
+        scoring_config.recommended_count,
+        recommendation_marker_config_.recommended_count,
+        selected_snapshot->cats.size()
+    });
     const auto dead_cats = std::count_if(
         selected_snapshot->cats.begin(),
         selected_snapshot->cats.end(),
@@ -890,10 +1019,15 @@ void MewUiBridge::ObserveHouseCatIdentity(
         }
         ++marked;
         std::ostringstream label;
-        label << marked << ' '
-              << SafeDisplayName(cat->display_name)
-              << ' ' << std::fixed << std::setprecision(1)
-              << score->score << " ?";
+        if (recommendation_marker_config_.show_rank) {
+            label << marked << ' ';
+        }
+        label << SafeDisplayName(cat->display_name);
+        if (recommendation_marker_config_.show_score) {
+            label << ' ' << std::fixed << std::setprecision(1)
+                  << score->score;
+        }
+        label << " ?";
         labels.push_back(label.str());
         detail_targets.push_back(mapped->component);
     }
