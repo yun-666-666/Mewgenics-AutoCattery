@@ -52,10 +52,10 @@
       "stage_12_blocked": false
     },
     "12": {
-      "status": "probe_required",
+      "status": "visual_validation_required",
       "commit": null,
-      "capability": "ProbeRequired",
-      "real_highlight_status": "blocked_by_unverified_house_cat_id_to_view_mapping",
+      "capability": "SafeHouseSummaryFallback",
+      "real_highlight_status": "awaiting_player_visible_validation",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T19:29:36+08:00"
+  "updated_at": "2026-07-29T19:48:00+08:00"
 }

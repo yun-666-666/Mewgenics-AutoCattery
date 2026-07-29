@@ -83,6 +83,8 @@ Result<void> RecommendationMarkerController::Attach(
     marker_visible_ = false;
     attached_generation_ = context.scene_generation;
     ready_after_ = {};
+    status_after_hold_ = RecommendationUiStatus::Ready;
+    view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
     Logger::Instance().Write(
         LogLevel::Info,
@@ -97,9 +99,11 @@ void RecommendationMarkerController::Detach() noexcept {
     attached_generation_ = 0;
     last_click_ = {};
     ready_after_ = {};
+    status_after_hold_ = RecommendationUiStatus::Ready;
     if (!view_.IsAttached()) {
         return;
     }
+    view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
     view_.Detach();
     Logger::Instance().Write(
@@ -123,6 +127,20 @@ void RecommendationMarkerController::HandleClick() {
     }
     last_click_ = now;
 
+    if (marker_visible_) {
+        marker_visible_ = false;
+        status_after_hold_ = RecommendationUiStatus::Ready;
+        view_.ClearSummary();
+        view_.SetStatus(RecommendationUiStatus::Ready);
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationMarker",
+            "AC12107",
+            "Player cleared the read-only House recommendation summary; "
+            "selection_changed=0.");
+        return;
+    }
+
     marker_visible_ = false;
     if (request_handler_) {
         request_handler_(attached_generation_);
@@ -142,7 +160,29 @@ void RecommendationMarkerController::CompleteProbe(
         scene_generation != attached_generation_) {
         return;
     }
+    status_after_hold_ = RecommendationUiStatus::Ready;
     ready_after_ = clock_() + kStatusHold;
+}
+
+Result<void> RecommendationMarkerController::ShowRecommendations(
+    std::uint64_t scene_generation,
+    std::string_view summary) {
+    if (!view_.IsAttached() ||
+        scene_generation != attached_generation_) {
+        return {
+            ErrorCode::SceneUnavailable,
+            "recommendation result belongs to a stale House scene"
+        };
+    }
+
+    const auto shown = view_.ShowSummary(summary);
+    if (!shown) {
+        return shown;
+    }
+    marker_visible_ = true;
+    status_after_hold_ = RecommendationUiStatus::Marked;
+    ready_after_ = clock_() + kStatusHold;
+    return {};
 }
 
 void RecommendationMarkerController::Poll() {
@@ -152,7 +192,7 @@ void RecommendationMarkerController::Poll() {
     }
     ready_after_ = {};
     if (view_.IsAttached()) {
-        view_.SetStatus(RecommendationUiStatus::Ready);
+        view_.SetStatus(status_after_hold_);
     }
 }
 

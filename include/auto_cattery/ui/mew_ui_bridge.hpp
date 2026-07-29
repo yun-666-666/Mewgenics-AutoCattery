@@ -10,6 +10,7 @@
 
 #include "auto_cattery/api_types.hpp"
 #include "auto_cattery/recommendation/mapping_probe.hpp"
+#include "auto_cattery/scoring/domain.hpp"
 #include "auto_cattery/snapshot/domain.hpp"
 #include "auto_cattery/ui/scene_context.hpp"
 
@@ -72,6 +73,7 @@ private:
     std::uint32_t mapping_probe_request_sequence_{};
     std::uint32_t mapping_snapshot_request_sequence_{};
     std::uint64_t mapping_snapshot_generation_{};
+    scoring::CombatScoringConfig recommendation_scoring_config_;
     std::future<Result<snapshot::HouseSnapshot>>
         mapping_snapshot_task_;
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;

@@ -342,7 +342,7 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage 12
 
-- Status: ProbeRequired; real recommendation highlighting is not implemented.
+- Status: VisualValidationRequired.
 - The existing Stage 4 button now makes an on-demand Stage 12 request. It
   reads only the MOD-owned `state/recommendations.json` boundary and displays
   `Probe Required`; it never shows a fabricated cat recommendation.
@@ -355,22 +355,27 @@ by the Unsupported Stage 10 adapter.
 - Player live evidence corrected the active surface: cats are chosen and put
   into the expedition box in House; ClassChooser only displays the boxed
   subset and cannot change it.
-- The recomputation provider directly reuses Stage 6 `RankCombatCats` and
-  requires an independently verified current House candidate source. No such
-  production source exists, and stored House records are not substituted for
-  currently visible/selectable House views.
+- Player live evidence `AC12105` established a complete stable bijection
+  between all eight read-only snapshot CatIds and all eight rooted HouseCat
+  components for the current build.
 - An explicitly armed, read-only House mapping probe records only generation,
   anonymous component/type/Button counts, and anonymous type/role digests.
   Repeated clicks allow before/after box-state comparison without cat names,
   CatIds, pointers, save names, or paths.
-- Local MewUI/source evidence still does not prove CatId-to-card identity,
-  marker add/remove, selection-state independence, or virtual-card recycle
-  handling. Capability therefore remains ProbeRequired and no visual marker,
-  selection, confirmation, party write, save access, or DLL deployment occurs.
+- Local MewUI has no verified per-entity outline/star API. The implementation
+  therefore uses the Stage 12 safe visual fallback: a MOD-owned House summary
+  listing rank, display name, score, and `?` for unconfirmed eligibility data.
+  Identity is still CatId-only; names are display labels, never match keys.
+- The first click recomputes with the Stage 6 independent-cat scorer after
+  snapshot/generation/bijection validation. The second click clears the list.
+  Leaving House also clears it. No selection, box, party, confirmation, or
+  game-save write API exists in this path.
 - Debug/Release `phase12_unit_tests` and `phase12_dll_load_smoke` are the
-  required validation targets.
+  required validation targets and pass. The Release DLL and Mewtator UI data
+  MOD are deployed for player-visible validation.
 
 ## Stage gate
 
-Stage 12 is blocked at ProbeRequired pending player-assisted anonymous House
-evidence. Stage 13 must not begin.
+Stage 12 awaits player-visible validation of summary display, clear behavior,
+scene-exit cleanup, and unchanged native selection/box state. Stage 13 must not
+begin until that validation passes.

@@ -9,6 +9,10 @@ constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
 constexpr auto kReadyText = "HOUSE.RECOMMEND_COMBAT_CATS";
+constexpr auto kMarkedText = "HOUSE.RECOMMEND_CLEAR";
+constexpr auto kSummaryNode = "recommend_summary";
+constexpr auto kSummaryText = "HOUSE.RECOMMEND_SUMMARY";
+constexpr auto kEmptyText = "HOUSE.EMPTY";
 
 }  // namespace
 
@@ -66,10 +70,12 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     active_ = true;
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
+    ClearSummary();
     return {};
 }
 
 void MewUiRecommendationMarkerView::Detach() noexcept {
+    ClearSummary();
     if (scene_manager_ != nullptr &&
         button_ != nullptr &&
         MewUI_IsSceneDestroying(scene_manager_) == 0 &&
@@ -93,7 +99,37 @@ void MewUiRecommendationMarkerView::SetStatus(
         MewUI_SetButtonLabelText(button_, "Probe Required");
         return;
     }
+    if (status == RecommendationUiStatus::Marked) {
+        MewUI_SetButtonLabelFromLocalizationKey(button_, kMarkedText);
+        return;
+    }
     MewUI_SetButtonLabelFromLocalizationKey(button_, kReadyText);
+}
+
+Result<void> MewUiRecommendationMarkerView::ShowSummary(
+    std::string_view summary) {
+    const std::string text(summary);
+    if (scene_manager_ == nullptr ||
+        MewUI_SetTextInSceneFromLocalizationKeyValue(
+            scene_manager_,
+            kSummaryNode,
+            kSummaryText,
+            text.c_str()) == 0) {
+        return {
+            ErrorCode::UiNodeNotFound,
+            "recommendation summary text node is unavailable"
+        };
+    }
+    return {};
+}
+
+void MewUiRecommendationMarkerView::ClearSummary() noexcept {
+    if (scene_manager_ != nullptr) {
+        MewUI_SetTextInSceneFromLocalizationKey(
+            scene_manager_,
+            kSummaryNode,
+            kEmptyText);
+    }
 }
 
 bool MewUiRecommendationMarkerView::IsAttached() const noexcept {

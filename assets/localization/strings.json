@@ -4,14 +4,18 @@
     "house.placeholder_title": "自动猫舍管家",
     "house.placeholder_body": "按钮已成功接入。当前阶段不会修改任何猫。",
     "house.recommend_combat_cats": "标记推荐战斗猫",
-    "house.recommend_demo_on": "演示标记已开启，点击清除"
+    "house.recommend_demo_on": "演示标记已开启，点击清除",
+    "house.recommend_clear": "清除推荐",
+    "house.recommend_summary": "{v0}"
   },
   "en-US": {
     "house.auto_organize": "Auto-Organize Cattery",
     "house.placeholder_title": "Auto Cattery Manager",
     "house.placeholder_body": "Preview only. No cats were changed.",
     "house.recommend_combat_cats": "Mark Combat Cats",
-    "house.recommend_demo_on": "Demo ON - Click to Clear"
+    "house.recommend_demo_on": "Demo ON - Click to Clear",
+    "house.recommend_clear": "Clear Recommendations",
+    "house.recommend_summary": "{v0}"
   },
   "runtime_fallback": "en-US",
   "runtime_fallback_reason": "The pinned SWF font has no verified CJK glyph coverage."

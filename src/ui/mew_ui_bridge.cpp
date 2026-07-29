@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <string>
 #include <string_view>
 
 #include <nlohmann/json.hpp>
@@ -16,6 +17,7 @@
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/recommendation/snapshot_reader.hpp"
+#include "auto_cattery/scoring/combat_ranker.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
@@ -52,6 +54,17 @@ std::string SafeTechnicalName(std::string_view value) {
         output.push_back(safe ? static_cast<char>(character) : '?');
     }
     return output;
+}
+
+std::string SafeDisplayName(std::string_view value) {
+    std::string output(value);
+    for (auto& character : output) {
+        const auto byte = static_cast<unsigned char>(character);
+        if (byte < 0x20 || byte == 0x7F) {
+            character = ' ';
+        }
+    }
+    return output.empty() ? "Cat" : output;
 }
 
 std::string TimestampForFilename() {
@@ -146,6 +159,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
         context.mod_root / L"config" / L"user_config.json");
+    recommendation_scoring_config_ =
+        config ? config.value.combat_scoring
+               : scoring::CombatScoringConfig{};
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>(
             std::make_unique<snapshot::SaveSnapshotAdapter>(),
@@ -519,8 +535,6 @@ void MewUiBridge::ObserveMappingProbe(
                     detail.str());
             }
         }
-        recommendation_marker_controller_->CompleteProbe(
-            summary.scene_generation);
     }
 }
 
@@ -549,6 +563,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
             "RecommendationProbe",
             "AC12105",
             message.str());
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
         return;
     }
     const auto scene = std::find_if(
@@ -569,6 +585,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
             "RecommendationProbe",
             "AC12105",
             message.str());
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
         return;
     }
 
@@ -606,6 +624,98 @@ void MewUiBridge::ObserveHouseCatIdentity(
         "RecommendationProbe",
         "AC12105",
         message.str());
+
+    const bool identity_ready =
+        identity.stable_bijection != 0 &&
+        identity.consistent_mapping != 0 &&
+        identity.match_count == captured.value.cats.size() &&
+        roots == static_cast<std::ptrdiff_t>(identity.match_count);
+    if (!identity_ready) {
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
+        return;
+    }
+
+    auto scoring_config = recommendation_scoring_config_;
+    // This build's save reader does not expose life-stage, injury, or combat
+    // availability yet. Preserve all confirmed exclusions, but allow the
+    // Stage 6 scorer to produce explicitly low-confidence visual suggestions.
+    scoring_config.require_confirmed_eligibility = false;
+    const auto ranking =
+        scoring::RankCombatCats(captured.value, scoring_config);
+    if (!ranking || ranking.value.recommended_cat_ids.empty()) {
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationMarker",
+            "AC12106",
+            "marked=0 stable_cat_id_boundary=1 "
+            "visual_fallback=summary selection_changed=0");
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
+        return;
+    }
+
+    std::ostringstream summary;
+    summary << std::fixed << std::setprecision(1);
+    std::size_t marked{};
+    for (const auto cat_id : ranking.value.recommended_cat_ids) {
+        const auto cat = std::find_if(
+            captured.value.cats.begin(),
+            captured.value.cats.end(),
+            [cat_id](const snapshot::CatSnapshot& candidate) {
+                return candidate.id == cat_id;
+            });
+        const auto score = std::find_if(
+            ranking.value.ranked.begin(),
+            ranking.value.ranked.end(),
+            [cat_id](const scoring::CombatScoreResult& candidate) {
+                return candidate.cat_id == cat_id;
+            });
+        const auto mapped = std::find_if(
+            identity.matches,
+            identity.matches + identity.match_count,
+            [cat_id](const AcMewHouseCatMatch& candidate) {
+                return candidate.cat_id == cat_id &&
+                       candidate.root_node != nullptr;
+            });
+        if (cat == captured.value.cats.end() ||
+            score == ranking.value.ranked.end() ||
+            mapped == identity.matches + identity.match_count) {
+            continue;
+        }
+        ++marked;
+        summary << "* #" << marked << ' '
+                << SafeDisplayName(cat->display_name)
+                << "  " << score->score << "  ?\n";
+    }
+
+    if (marked == 0) {
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
+        return;
+    }
+    const auto shown =
+        recommendation_marker_controller_->ShowRecommendations(
+            mapping_snapshot_generation_,
+            summary.str());
+    if (!shown) {
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "RecommendationMarker",
+            "AC12108",
+            "Read-only recommendation summary could not be attached to "
+            "the current House scene.");
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
+        return;
+    }
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "RecommendationMarker",
+        "AC12106",
+        "marked=" + std::to_string(marked) +
+            " stable_cat_id_boundary=1 visual_fallback=summary "
+            "selection_changed=0");
 }
 
 SceneObservation MewUiBridge::ObserveScenes(

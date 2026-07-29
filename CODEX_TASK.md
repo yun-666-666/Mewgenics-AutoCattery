@@ -11,7 +11,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Evidence result
 
-- 当前能力为 `ProbeRequired`，不是 `VerifiedHighlight`。
+- 2026-07-29 玩家实机日志 `AC12105` 已证明当前 build 的 8 个
+  HouseCat 与 8 个只读快照 CatId 存在完整、一致、稳定的双射：
+  `offset=128 width=8 matched=8 roots=8 stable_bijection=1`。
 - Stage 11 writer 的实际 schema 1 只有 checksum、创建 game day、源
   snapshot ID、战斗算法版本、配置摘要及推荐 CatId/排名/分数/置信度。
   它没有 build identity、save identity 或完整并发信息；PreviewOnly
@@ -19,9 +21,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 玩家实机确认：挑猫和放入出征盒子发生在 `House`；点击游戏原生
   `出发!` 后的 `ClassChooser` 只能查看已装盒的猫，不能选择或更换。
   因此 ClassChooser 不是 Stage 12 推荐入口。
-- 当前 House 证据仍不能证明候选 CatId、CatId→可见猫视图、纯视觉
-  marker API 或猫移动/装盒生命周期。生产候选 source 因而保持
-  Unsupported；Unknown 资格仍由 Stage 6 fail closed。
+- 本地 MewUI 没有已验证的猫实体描边/星标 API。按照阶段停止条件，
+  采用 MOD 自有 House 文本列表作为更安全的视觉回退，不触碰原生
+  HouseCat renderer、选择状态、猫名或存档。
 - 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
   组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
   匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
@@ -62,13 +64,17 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 新增 `AC12105` HouseCat 身份 probe：在只读快照 CatId 集合与 HouseCat
   组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
   相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
-- generation/UnsafeTransition 会重置或清除 probe。没有稳定 CatId、
-  view identity、视觉 marker 与 recycle 证据时始终不映射、不标记。
+- 稳定双射成立后即时复用 Stage 6 单猫评分，按 CatId 生成最多 8 条
+  `* #排名 猫名 分数 ?`。`?` 明示当前 reader 尚不能确认年龄、受伤和
+  出战资格；不使用猫名做映射。
+- `Probe Required` 保持两秒后变为 `Clear Recommendations`；再次点击
+  清除列表。generation/UnsafeTransition/离开 House 会清除结果。
+- 任何快照、generation、双射、root、评分或文本节点异常均 fail closed。
 
 ## Stage gate
 
-`ProbeRequired; real highlight blocked by unverified House CatId-to-view and visual marker lifecycle`
+`VisualValidationRequired; stable CatId mapping and safe House summary fallback implemented`
 
-Stage 12 未完成真实高亮验收，Stage 13 继续 blocked。用户明确授权后，
-只读探针 DLL 已部署到真实 MOD 目录；未读取或写入玩家真实存档。需要
-玩家按阶段报告中的最小步骤采集只读证据。
+Release DLL 与 UI 数据 MOD 已部署到真实目录。Stage 12 等待玩家确认
+列表显示、清除、场景退出无残留且猫的装盒/选择状态没有变化；确认前
+Stage 13 继续 blocked。

@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <functional>
+#include <string_view>
 
 #include "auto_cattery/error.hpp"
 #include "auto_cattery/ui/scene_context.hpp"
@@ -10,7 +11,8 @@ namespace autocattery::ui {
 
 enum class RecommendationUiStatus {
     Ready,
-    ProbeRequired
+    ProbeRequired,
+    Marked
 };
 
 class RecommendationMarkerView {
@@ -23,6 +25,8 @@ public:
         ClickHandler click_handler) = 0;
     virtual void Detach() noexcept = 0;
     virtual void SetStatus(RecommendationUiStatus status) = 0;
+    virtual Result<void> ShowSummary(std::string_view summary) = 0;
+    virtual void ClearSummary() noexcept = 0;
     [[nodiscard]] virtual bool IsAttached() const noexcept = 0;
 };
 
@@ -43,6 +47,9 @@ public:
     void Detach() noexcept;
     void HandleClick();
     void CompleteProbe(std::uint64_t scene_generation);
+    Result<void> ShowRecommendations(
+        std::uint64_t scene_generation,
+        std::string_view summary);
     void Poll();
     void SetRequestHandler(RequestHandler handler);
 
@@ -60,6 +67,8 @@ private:
     RequestHandler request_handler_;
     std::chrono::steady_clock::time_point last_click_{};
     std::chrono::steady_clock::time_point ready_after_{};
+    RecommendationUiStatus status_after_hold_{
+        RecommendationUiStatus::Ready};
 };
 
 }  // namespace autocattery::ui

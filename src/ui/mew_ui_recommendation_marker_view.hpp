@@ -16,6 +16,8 @@ public:
         ClickHandler click_handler) override;
     void Detach() noexcept override;
     void SetStatus(RecommendationUiStatus status) override;
+    Result<void> ShowSummary(std::string_view summary) override;
+    void ClearSummary() noexcept override;
     [[nodiscard]] bool IsAttached() const noexcept override;
 
 private:

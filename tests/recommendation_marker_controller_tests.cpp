@@ -31,10 +31,25 @@ public:
     }
 
     void SetStatus(ui::RecommendationUiStatus status) override {
-        marker_visible = false;
+        marker_visible =
+            status == ui::RecommendationUiStatus::Marked;
         probe_required =
             status == ui::RecommendationUiStatus::ProbeRequired;
-        events.push_back(probe_required ? "probe-required" : "marker-off");
+        events.push_back(
+            probe_required
+                ? "probe-required"
+                : (marker_visible ? "marked" : "marker-off"));
+    }
+
+    Result<void> ShowSummary(std::string_view value) override {
+        summary = value;
+        events.push_back("summary-on");
+        return {};
+    }
+
+    void ClearSummary() noexcept override {
+        summary.clear();
+        events.push_back("summary-off");
     }
 
     [[nodiscard]] bool IsAttached() const noexcept override {
@@ -50,6 +65,7 @@ public:
     bool attached{};
     bool marker_visible{};
     bool probe_required{};
+    std::string summary;
     int attach_calls{};
     int detach_calls{};
     std::vector<std::string> events;
@@ -173,6 +189,31 @@ void RunRecommendationMarkerControllerTests() {
     probe_controller.Poll();
     AC_CHECK(!probe_view.probe_required);
     probe_view.Click();
+    AC_CHECK(requests == 2);
+
+    AC_CHECK(!static_cast<bool>(
+        probe_controller.ShowRecommendations(11, "stale")));
+    AC_CHECK(probe_view.summary.empty());
+    AC_CHECK(static_cast<bool>(
+        probe_controller.ShowRecommendations(
+            12,
+            "* #1 Mew  42.0  ?")));
+    AC_CHECK(probe_controller.MarkerVisible());
+    AC_CHECK(probe_view.probe_required);
+    AC_CHECK(!probe_view.marker_visible);
+    AC_CHECK(probe_view.summary == "* #1 Mew  42.0  ?");
+    now += 1999ms;
+    probe_controller.Poll();
+    AC_CHECK(probe_view.probe_required);
+    now += 1ms;
+    probe_controller.Poll();
+    AC_CHECK(probe_view.marker_visible);
+    AC_CHECK(probe_controller.MarkerVisible());
+
+    probe_view.Click();
+    AC_CHECK(!probe_controller.MarkerVisible());
+    AC_CHECK(!probe_view.marker_visible);
+    AC_CHECK(probe_view.summary.empty());
     AC_CHECK(requests == 2);
 }
 
