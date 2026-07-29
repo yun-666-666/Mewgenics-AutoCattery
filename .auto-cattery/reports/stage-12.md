@@ -1,5 +1,5 @@
 阶段：12
-状态：DetailTargetAndTextValidationRequired；详情转换与文字待实机验收
+状态：ExactDrawerValidationRequired；精确 drawer getter 待实机验收
 
 实际能力：
 - 玩家点击 House 的 `Mark Combat Cats` 后才读取只读快照、验证当前
@@ -26,7 +26,14 @@
   `signature=scene=drawer=cat=1`，但仍为 `opened=0`。
 - 继续沿原生调用点回溯确认：详情函数的第二参数也不是 HouseCat 组件；
   游戏先用 HouseCat 调用 RVA `0xEFCB0`，再把返回的内部详情目标传入。
-  当前第五版复用相同转换，并新增转换函数/调用点签名和结果类型验证。
+  第五版复用相同转换，并新增转换函数/调用点签名和结果类型验证。
+- 最新实机日志中第 1～8 名均正确到达，且每次都是
+  `signature=scene=drawer=cat=target=1 opened=0`。因此按钮命中、rank、
+  HouseCat 和第二参数已经排除，异常只在最终原生详情调用。
+- 重新逐条复刻原生路径确认剩余差异：游戏对唯一
+  `HouseCatClickManager` 调用 RVA `0x1A93F0`，把返回值作为最终函数第一
+  参数；第五版仅枚举 scene 中同类型 `HouseDrawerUI`，并未证明对象身份。
+  当前第六版改为调用精确 getter，并验证返回类型。
 - 同次截图证明文字框偏左且宽于木牌。当前按 SWF 实际 bounds 计算：
   木牌/文字框中心为 1124.35/1124.16，宽为 114.89/107.33；text field
   使用 `(1071, 152 + row*42, scale=0.25)`，保持 HTML 居中对齐。
@@ -49,18 +56,21 @@
   游戏输入消息，也不再依赖失效的推荐 Button hover/click。
 
 原生详情适配证据与安全：
-- 当前 EXE 本地反汇编确认 HouseCatClickManager 的玩家点击路径先取得
-  唯一 `HouseDrawerUI`，再把 HouseCat 转为内部详情目标，最后向详情
-  函数传入 `HouseDrawerUI`、内部详情目标和 `show_drawer=1`。
+- 当前 EXE 本地反汇编确认 HouseCatClickManager 的玩家点击路径先对
+  click manager 调用 `0x1A93F0` 取得实际 `HouseDrawerUI`，再把 HouseCat
+  转为内部详情目标，最后向详情函数传入该 drawer、内部详情目标和
+  `show_drawer=1`。
 - build-specific adapter 调用前验证：
   1. 当前 House scene ready 且未销毁；
   2. scene generation 与生成推荐时一致；
-  3. 当前 EXE 转换函数、转换调用点、详情函数、详情调用点四段指令
-     签名一致；
-  4. scene 中 `HouseDrawerUI` 组件唯一；
+  3. 当前 EXE drawer getter/getter 调用点、转换函数/转换调用点、详情
+     函数/详情调用点六段指令签名一致；
+  4. scene 中 `HouseCatClickManager` 唯一，getter 返回对象类型为
+     `HouseDrawerUI`；
   5. 目标组件仍归属该 scene 且类型仍为 HouseCat；
   6. 转换结果非空且能读取有效组件类型。
-- 任一验证失败均不调用，并记录匿名 `AC12109` 技术结果。
+- 任一验证失败均不调用。`AC12109` 额外记录 manager、scene drawer
+  存在/同一性，以及 SEH 失败阶段、异常码和模块内 RVA，不记录指针。
 - 该玩家主动调用只改变 House 当前详情焦点；不调用冒险盒、出征队伍、
   确认、休息、日期推进、导航或存档写入接口。
 - 不记录猫名、CatId、组件指针、存档名或个人路径。
@@ -71,10 +81,8 @@
 - `docs/implementation-status.md`
 - `.auto-cattery/state.json`
 - `.auto-cattery/reports/stage-12.md`
-- `assets/swfs/auto_cattery_house.swf`
 - `src/ui/mew_ui_bridge.cpp`
 - `src/ui/mew_ui_house_detail_adapter.c/.h`
-- `tools/build_house_ui_asset.py`
 
 验证：
 - SWF 重新生成及结构检查：通过；包含且仅包含
@@ -86,10 +94,10 @@
 - 四个文字节点共同引用私有 character 148，初始 HTML 为空，不会在
   attach 前闪现 source `Test`。
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（5.96 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.09 秒）。
+- Debug `phase12_unit_tests`：通过（5.55 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.12 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.57 秒）。
+- Release `phase12_unit_tests`：通过（0.61 秒）。
 - Release `phase12_dll_load_smoke`：通过（0.07 秒）。
 - SWF 几何检查：通过；木牌/文字框中心差 0.19，文字框宽小于木牌宽。
 - 控制器测试覆盖 stale generation、两秒状态、最多 8 条数据、有效/
@@ -98,8 +106,8 @@
   `D:\steam\steam\steamapps\common\Mewgenics\Mods\AutoCattery.dll`
 - Mewtator UI 数据 MOD 已部署并启用：
   `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
-- 构建与安装 DLL 均为 724480 bytes，SHA-256 均为
-  `27CBBFAEAFC54CA266C0744849EF67BC256D6BA5EBA5818FCE2DA5BA2FB20BEE`。
+- 构建与安装 DLL 均为 725504 bytes，SHA-256 均为
+  `13610746E682B1428CB98BAE5955E673FFFF8BB68BC0C0C248DCC0003BFA3425`。
 - 源与安装 SWF 均为 725591 bytes，SHA-256 均为
   `2F0B2A21AA0AA5F236E22792032BEA8A2756D816F0D4388237F9EA2A79C3E40E`。
 - 用户明确要求需要时允许联网；搜索了公开 Mewgenics/MOD 信息，但未
@@ -122,10 +130,10 @@
 
 剩余事项：
 - 第四版实机已确认停帧/Clear 隐藏通过，且点击 rank 正确到达；当前
-  第五版的内部详情目标转换与文字居中仍需玩家验收。通过前 Stage 12
+  第六版的精确 click-manager drawer getter 仍需玩家验收。通过前 Stage 12
   不标记 completed，Stage 13 继续 blocked。
-- 若仍为 `AC12109 target=0/opened=0` 或详情猫不匹配，继续按新日志做
-  最小调整。
+- 若仍未打开，新的 `AC12109 failure/exception/exception_rva` 会直接给出
+  失败阶段和当前 EXE 指令位置，再按该证据做最小调整。
 
 本地 commit：本次实现提交见最终回复（报告与代码同一提交）
 是否 push：否

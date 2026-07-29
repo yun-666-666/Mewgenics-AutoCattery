@@ -176,10 +176,20 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             message << "rank=" << (index + 1)
                     << " signature=" << (unsigned)opened.signature_valid
                     << " scene=" << (unsigned)opened.scene_valid
+                    << " manager=" << (unsigned)opened.click_manager_valid
                     << " drawer=" << (unsigned)opened.drawer_unique
+                    << " scene_drawer="
+                    << (unsigned)opened.scene_drawer_unique
+                    << " drawer_match="
+                    << (unsigned)opened.drawer_matches_scene
                     << " cat=" << (unsigned)opened.cat_valid
                     << " target=" << (unsigned)opened.detail_target_valid
                     << " opened=" << (unsigned)opened.invoked
+                    << " failure=" << (unsigned)opened.failure_stage
+                    << " exception=0x" << std::hex
+                    << opened.seh_code
+                    << " exception_rva=0x"
+                    << opened.exception_rva << std::dec
                     << " box_changed=0 expedition_selection_changed=0";
             Logger::Instance().Write(
                 opened.invoked ? LogLevel::Info : LogLevel::Warn,

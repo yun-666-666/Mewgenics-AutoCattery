@@ -400,6 +400,17 @@ by the Unsupported Stage 10 adapter.
   converts HouseCat through RVA `0xEFCB0` before passing the result as the
   details function's second argument. The adapter now reproduces that exact
   conversion and validates its function/call-site signatures and result type.
+- The latest live log then proved ranks 1-8 all reached the adapter with
+  `signature=scene=drawer=cat=target=1` but still returned `opened=0`.
+  Reproducing the native path instruction-for-instruction identified the
+  remaining mismatch: the game obtains its first argument by calling RVA
+  `0x1A93F0` on the unique `HouseCatClickManager`; scene enumeration of a
+  same-typed `HouseDrawerUI` does not prove object identity. The adapter now
+  calls that exact getter and validates the returned `HouseDrawerUI`.
+- `AC12109` now reports click-manager validation, whether the getter result
+  matches the scene-enumerated drawer, and SEH failure stage/code/module RVA.
+  It records no object address or player identity and makes any remaining
+  native failure instruction-level rather than ambiguous.
 - The latest screenshot also proved the centered HTML text field itself was
   placed left of the sign. Its generated transform is now calculated from the
   real SWF bounds: sign/text centers are 1124.35/1124.16 and text width 107.33
@@ -417,7 +428,7 @@ by the Unsupported Stage 10 adapter.
 ## Stage gate
 
 Stage 12 has player confirmation that frozen-frame visibility works. It now
-awaits player-visible validation of the native HouseCat detail-target
-conversion and centered text: each row must open the matching cat details,
-labels must sit inside the sign, and the adventure box and expedition team
-must remain unchanged. Stage 13 must not begin until that passes.
+awaits player-visible validation of the exact click-manager drawer getter:
+each row must open the matching cat details, labels must stay inside the sign,
+and the adventure box and expedition team must remain unchanged. Stage 13
+must not begin until that passes.
