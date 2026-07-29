@@ -8,6 +8,11 @@
 
 namespace autocattery::ui {
 
+enum class RecommendationUiStatus {
+    Ready,
+    ProbeRequired
+};
+
 class RecommendationMarkerView {
 public:
     using ClickHandler = std::function<void()>;
@@ -17,13 +22,14 @@ public:
         const UiContextSnapshot& context,
         ClickHandler click_handler) = 0;
     virtual void Detach() noexcept = 0;
-    virtual void SetMarkerVisible(bool visible) = 0;
+    virtual void SetStatus(RecommendationUiStatus status) = 0;
     [[nodiscard]] virtual bool IsAttached() const noexcept = 0;
 };
 
 class RecommendationMarkerController {
 public:
     using Clock = std::function<std::chrono::steady_clock::time_point()>;
+    using RequestHandler = std::function<void(std::uint64_t)>;
 
     explicit RecommendationMarkerController(
         RecommendationMarkerView& view,
@@ -36,6 +42,7 @@ public:
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
     void HandleClick();
+    void SetRequestHandler(RequestHandler handler);
 
     [[nodiscard]] bool ShouldShow() const noexcept;
     [[nodiscard]] bool IsAttached() const noexcept;
@@ -47,6 +54,8 @@ private:
     bool available_this_day_{true};
     bool next_day_pending_{};
     bool marker_visible_{};
+    std::uint64_t attached_generation_{};
+    RequestHandler request_handler_;
     std::chrono::steady_clock::time_point last_click_{};
 };
 

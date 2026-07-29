@@ -5,23 +5,19 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
-
 #include <nlohmann/json.hpp>
 
 namespace autocattery::workflow {
-namespace {
 
-std::string Checksum(std::string_view text) {
+std::string RecommendationPayloadChecksum(std::string_view payload_text) {
   std::uint64_t value = 14695981039346656037ULL;
-  for (const unsigned char byte : text) {
+  for (const unsigned char byte : payload_text) {
     value = (value ^ byte) * 1099511628211ULL;
   }
   std::ostringstream output;
   output << std::hex << std::setfill('0') << std::setw(16) << value;
   return output.str();
 }
-
-} // namespace
 
 AtomicRecommendationSnapshotWriter::AtomicRecommendationSnapshotWriter(
     std::filesystem::path mod_data_root)
@@ -50,7 +46,8 @@ Result<void> AtomicRecommendationSnapshotWriter::WriteCommitted(
                                       {"confidence", entry.confidence}});
   }
   const auto payload_text = payload.dump();
-  const nlohmann::json envelope{{"checksum", Checksum(payload_text)},
+  const nlohmann::json envelope{
+      {"checksum", RecommendationPayloadChecksum(payload_text)},
                                 {"payload", payload}};
 
   std::error_code error;

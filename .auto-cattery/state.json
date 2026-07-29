@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 11,
+  "active_stage": 12,
   "stages": {
     "1": {
       "status": "completed",
@@ -49,11 +49,14 @@
       "status": "completed_preview_only",
       "commit": null,
       "real_execution_status": "blocked_by_unsupported_stage_10_adapter",
-      "stage_12_blocked": true
+      "stage_12_blocked": false
     },
     "12": {
-      "status": "pending",
-      "commit": null
+      "status": "probe_required",
+      "commit": null,
+      "capability": "ProbeRequired",
+      "real_highlight_status": "blocked_by_unverified_cat_id_to_view_mapping",
+      "stage_13_blocked": true
     },
     "13": {
       "status": "pending",
@@ -72,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T23:45:00+08:00"
+  "updated_at": "2026-07-29T18:05:38+08:00"
 }

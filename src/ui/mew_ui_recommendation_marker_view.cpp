@@ -9,7 +9,6 @@ constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
 constexpr auto kReadyText = "HOUSE.RECOMMEND_COMBAT_CATS";
-constexpr auto kMarkerOnText = "HOUSE.RECOMMEND_DEMO_ON";
 
 }  // namespace
 
@@ -85,13 +84,16 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
     click_handler_ = {};
 }
 
-void MewUiRecommendationMarkerView::SetMarkerVisible(bool visible) {
+void MewUiRecommendationMarkerView::SetStatus(
+    RecommendationUiStatus status) {
     if (button_ == nullptr) {
         return;
     }
-    MewUI_SetButtonLabelFromLocalizationKey(
-        button_,
-        visible ? kMarkerOnText : kReadyText);
+    if (status == RecommendationUiStatus::ProbeRequired) {
+        MewUI_SetButtonLabelText(button_, "Probe Required");
+        return;
+    }
+    MewUI_SetButtonLabelFromLocalizationKey(button_, kReadyText);
 }
 
 bool MewUiRecommendationMarkerView::IsAttached() const noexcept {

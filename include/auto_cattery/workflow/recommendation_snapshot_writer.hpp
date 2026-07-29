@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "auto_cattery/error.hpp"
@@ -9,6 +10,9 @@
 #include "auto_cattery/workflow/domain.hpp"
 
 namespace autocattery::workflow {
+
+[[nodiscard]] std::string RecommendationPayloadChecksum(
+    std::string_view payload_text);
 
 struct RecommendationEntry {
   snapshot::CatId cat_id{};

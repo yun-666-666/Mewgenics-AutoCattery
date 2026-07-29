@@ -30,9 +30,11 @@ public:
         events.push_back("detach");
     }
 
-    void SetMarkerVisible(bool visible) override {
-        marker_visible = visible;
-        events.push_back(visible ? "marker-on" : "marker-off");
+    void SetStatus(ui::RecommendationUiStatus status) override {
+        marker_visible = false;
+        probe_required =
+            status == ui::RecommendationUiStatus::ProbeRequired;
+        events.push_back(probe_required ? "probe-required" : "marker-off");
     }
 
     [[nodiscard]] bool IsAttached() const noexcept override {
@@ -47,6 +49,7 @@ public:
 
     bool attached{};
     bool marker_visible{};
+    bool probe_required{};
     int attach_calls{};
     int detach_calls{};
     std::vector<std::string> events;
@@ -98,7 +101,7 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(!view.marker_visible);
 
     view.Click();
-    AC_CHECK(controller.MarkerVisible());
+    AC_CHECK(!controller.MarkerVisible());
     controller.ObserveRuntime(false, false, false);
     AC_CHECK(!controller.IsAttached());
     AC_CHECK(!controller.MarkerVisible());
@@ -135,6 +138,30 @@ void RunRecommendationMarkerControllerTests() {
     unsafe.save_in_progress = true;
     controller.Detach();
     AC_CHECK(!static_cast<bool>(controller.Attach(unsafe)));
+
+    FakeRecommendationMarkerView probe_view;
+    int requests{};
+    std::uint64_t requested_generation{};
+    ui::RecommendationMarkerController probe_controller(
+        probe_view,
+        [&now] {
+            return now;
+        });
+    probe_controller.SetRequestHandler(
+        [&](std::uint64_t generation) {
+            ++requests;
+            requested_generation = generation;
+        });
+    AC_CHECK(static_cast<bool>(
+        probe_controller.Attach(RecommendationHouseContext(12))));
+    AC_CHECK(requests == 0);
+    probe_view.Click();
+    AC_CHECK(requests == 1);
+    AC_CHECK(requested_generation == 12);
+    AC_CHECK(probe_view.probe_required);
+    AC_CHECK(!probe_controller.MarkerVisible());
+    probe_view.Click();
+    AC_CHECK(requests == 1);
 }
 
 }  // namespace autocattery::tests

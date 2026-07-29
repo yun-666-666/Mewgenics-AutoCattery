@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "auto_cattery/api_types.hpp"
+#include "auto_cattery/recommendation/mapping_probe.hpp"
 #include "auto_cattery/ui/scene_context.hpp"
 
 namespace autocattery::workflow {
@@ -39,12 +40,16 @@ private:
     void OnTick();
     SceneObservation ObserveScenes(
         const std::vector<RuntimeScene>& scenes) const;
+    void ObserveMappingProbe(
+        const UiContextSnapshot& context,
+        const std::vector<RuntimeScene>& scenes);
     void LogSceneSummary(const std::vector<RuntimeScene>& scenes);
     void ExportSceneSummary(const std::vector<RuntimeScene>& scenes) const;
 
     bool started_{};
     bool debug_probe_enabled_{};
     std::filesystem::path diagnostics_root_;
+    std::filesystem::path recommendation_sidecar_path_;
     SceneSignatures signatures_;
     SceneContextService scene_context_;
     std::uint64_t scene_subscription_{};
@@ -56,6 +61,8 @@ private:
     std::chrono::steady_clock::time_point
         next_recommendation_attach_retry_{};
     std::atomic_bool ready_logged_{false};
+    recommendation::MappingProbeSession mapping_probe_session_;
+    bool mapping_probe_logged_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<HouseButtonController> house_button_controller_;

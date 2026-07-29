@@ -15,7 +15,7 @@ public:
         const UiContextSnapshot& context,
         ClickHandler click_handler) override;
     void Detach() noexcept override;
-    void SetMarkerVisible(bool visible) override;
+    void SetStatus(RecommendationUiStatus status) override;
     [[nodiscard]] bool IsAttached() const noexcept override;
 
 private:

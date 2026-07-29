@@ -80,7 +80,8 @@ Result<void> RecommendationMarkerController::Attach(
     }
 
     marker_visible_ = false;
-    view_.SetMarkerVisible(false);
+    attached_generation_ = context.scene_generation;
+    view_.SetStatus(RecommendationUiStatus::Ready);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
@@ -91,11 +92,12 @@ Result<void> RecommendationMarkerController::Attach(
 
 void RecommendationMarkerController::Detach() noexcept {
     marker_visible_ = false;
+    attached_generation_ = 0;
     last_click_ = {};
     if (!view_.IsAttached()) {
         return;
     }
-    view_.SetMarkerVisible(false);
+    view_.SetStatus(RecommendationUiStatus::Ready);
     view_.Detach();
     Logger::Instance().Write(
         LogLevel::Info,
@@ -116,15 +118,22 @@ void RecommendationMarkerController::HandleClick() {
     }
     last_click_ = now;
 
-    marker_visible_ = !marker_visible_;
-    view_.SetMarkerVisible(marker_visible_);
+    marker_visible_ = false;
+    if (request_handler_) {
+        request_handler_(attached_generation_);
+    }
+    view_.SetStatus(RecommendationUiStatus::ProbeRequired);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
-        "AC4102",
-        marker_visible_
-            ? "Enabled MOD-owned demo marker; no cat or team state was read or changed."
-            : "Cleared MOD-owned demo marker; no cat or team state was read or changed.");
+        "AC12100",
+        "Recommendation request stopped at ProbeRequired; no cat card "
+        "mapping or visual marker was attempted.");
+}
+
+void RecommendationMarkerController::SetRequestHandler(
+    RequestHandler handler) {
+    request_handler_ = std::move(handler);
 }
 
 bool RecommendationMarkerController::ShouldShow() const noexcept {

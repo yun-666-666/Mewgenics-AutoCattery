@@ -337,3 +337,34 @@ test is requested for the Unsupported adapter.
 Stage 11 PreviewOnly is complete. Stage 12 remains blocked until the player
 explicitly requests it; real organize execution remains independently blocked
 by the Unsupported Stage 10 adapter.
+
+## Stage 12
+
+- Status: ProbeRequired; real recommendation highlighting is not implemented.
+- The existing Stage 4 button now makes an on-demand Stage 12 request. It
+  reads only the MOD-owned `state/recommendations.json` boundary and displays
+  `Probe Required`; it never shows a fabricated cat recommendation.
+- The schema-1 reader validates the exact Stage 11 payload and checksum.
+  Missing sidecars are normal; malformed, old/future, incomplete, duplicate,
+  or non-finite data is rejected.
+- Historical use fails closed because schema 1 lacks build and save identity.
+  Unknown/current-day mismatch, config changes, algorithm changes, and
+  unverified current candidates also require a current recomputation.
+- The recomputation provider directly reuses Stage 6 `RankCombatCats` and
+  requires an independently verified current ClassChooser candidate source.
+  No such production source exists, and House save cats are not substituted.
+- An explicitly armed, read-only ClassChooser mapping probe records only scene
+  generation, anonymous component/type/Button counts, and stable role
+  availability. It never records cat names, CatIds, pointers, save names, or
+  paths.
+- Local MewUI/source evidence still does not prove CatId-to-card identity,
+  marker add/remove, selection-state independence, or virtual-card recycle
+  handling. Capability therefore remains ProbeRequired and no visual marker,
+  selection, confirmation, party write, save access, or DLL deployment occurs.
+- Debug/Release `phase12_unit_tests` and `phase12_dll_load_smoke` are the
+  required validation targets.
+
+## Stage gate
+
+Stage 12 is blocked at ProbeRequired pending player-assisted anonymous
+ClassChooser evidence. Stage 13 must not begin.

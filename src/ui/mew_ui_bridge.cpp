@@ -14,11 +14,13 @@
 
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/recommendation/snapshot_reader.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
+#include "mew_ui_mapping_probe.h"
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
 #ifdef WIN32_LEAN_AND_MEAN
@@ -70,6 +72,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     signatures_ = {};
     debug_probe_enabled_ = false;
     diagnostics_root_ = context.mod_root / L"diagnostics";
+    recommendation_sidecar_path_ =
+        recommendation::RecommendationSidecarPath(context.mod_root);
+    mapping_probe_session_.Clear();
+    mapping_probe_logged_ = false;
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
@@ -78,6 +84,31 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     recommendation_marker_controller_ =
         std::make_unique<RecommendationMarkerController>(
             *recommendation_marker_view_);
+    recommendation_marker_controller_->SetRequestHandler(
+        [this](std::uint64_t) {
+            const auto historical =
+                recommendation::ReadRecommendationSnapshot(
+                    recommendation_sidecar_path_);
+            const auto message =
+                historical.status ==
+                        recommendation::SnapshotReadStatus::Missing
+                    ? "No committed recommendation sidecar is available; "
+                      "anonymous mapping probe armed."
+                    : (historical.status ==
+                               recommendation::SnapshotReadStatus::Rejected
+                           ? "Recommendation sidecar was rejected; anonymous "
+                             "mapping probe armed."
+                           : "Recommendation sidecar read, but schema 1 lacks "
+                             "build/save identity; anonymous mapping probe "
+                             "armed.");
+            Logger::Instance().Write(
+                LogLevel::Info,
+                "RecommendationProbe",
+                "AC12101",
+                message);
+            mapping_probe_session_.Arm();
+            mapping_probe_logged_ = false;
+        });
 
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
@@ -191,6 +222,9 @@ void MewUiBridge::Shutdown() noexcept {
     last_recommendation_attach_error_.clear();
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
+    recommendation_sidecar_path_.clear();
+    mapping_probe_session_.Clear();
+    mapping_probe_logged_ = false;
     ready_logged_.store(false);
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
@@ -260,6 +294,7 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    ObserveMappingProbe(context, scenes);
     const auto scene_ready =
         [&scenes](std::string_view name) {
             return std::any_of(
@@ -330,6 +365,58 @@ void MewUiBridge::OnTick() {
             next_recommendation_attach_retry_ = {};
             last_recommendation_attach_error_.clear();
         }
+    }
+}
+
+void MewUiBridge::ObserveMappingProbe(
+    const UiContextSnapshot& context,
+    const std::vector<RuntimeScene>& scenes) {
+    if (mapping_probe_session_.ShouldSample(context)) {
+        const auto scene = std::find_if(
+            scenes.begin(),
+            scenes.end(),
+            [&context](const RuntimeScene& candidate) {
+                return candidate.ready &&
+                       candidate.name == context.scene_name;
+            });
+        if (scene == scenes.end()) {
+            return;
+        }
+        const auto native =
+            AcMewInspectAnonymousMapping(scene->manager);
+        mapping_probe_session_.Observe(
+            context,
+            {
+                native.component_count,
+                native.typed_component_count,
+                native.button_count,
+                native.role_count,
+                native.role_digest
+            });
+    } else if (mapping_probe_session_.Armed() &&
+               context.kind == UiContextKind::UnsafeTransition) {
+        mapping_probe_session_.Observe(context, {});
+    }
+
+    if (mapping_probe_session_.Complete() && !mapping_probe_logged_) {
+        mapping_probe_logged_ = true;
+        const auto& summary = mapping_probe_session_.Summary();
+        std::ostringstream message;
+        message << "MappingUnavailable generation="
+                << summary.scene_generation
+                << " anonymous_components="
+                << summary.observation.component_count
+                << " typed_components="
+                << summary.observation.typed_component_count
+                << " buttons=" << summary.observation.button_count
+                << " stable_roles="
+                << (summary.stable_component_roles ? 1 : 0)
+                << " stable_cat_id_boundary=0 visual_marker_boundary=0";
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationProbe",
+            "AC12102",
+            message.str());
     }
 }
 

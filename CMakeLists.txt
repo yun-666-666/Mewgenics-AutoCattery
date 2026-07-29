@@ -42,6 +42,11 @@ add_library(auto_cattery_core STATIC
     src/execution/transaction_executor.cpp
     src/protection/policy.cpp
     src/protection/sidecar.cpp
+    src/recommendation/candidate_source.cpp
+    src/recommendation/mapping_probe.cpp
+    src/recommendation/ranking_provider.cpp
+    src/recommendation/snapshot_reader.cpp
+    src/recommendation/snapshot_validator.cpp
     src/room_planning/capability_adapter.cpp
     src/room_planning/planner.cpp
     src/room_planning/validator.cpp
@@ -69,6 +74,7 @@ add_library(auto_cattery_core STATIC
     src/workflow/state_machine.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
+    src/ui/mew_ui_mapping_probe.c
     src/ui/recommendation_marker_controller.cpp
     src/ui/mew_ui_recommendation_marker_view.cpp
     src/ui/scene_context.cpp
@@ -117,6 +123,10 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/classifier_tests.cpp
         tests/protection_policy_tests.cpp
         tests/protection_sidecar_tests.cpp
+        tests/recommendation_mapping_probe_tests.cpp
+        tests/recommendation_ranking_provider_tests.cpp
+        tests/recommendation_snapshot_reader_tests.cpp
+        tests/recommendation_snapshot_validator_tests.cpp
         tests/room_capability_adapter_tests.cpp
         tests/room_planner_tests.cpp
         tests/room_planning_validator_tests.cpp
@@ -152,9 +162,10 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
+    target_include_directories(auto_cattery_tests PRIVATE third_party/json/include)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase11_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase12_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
@@ -165,7 +176,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase11_dll_load_smoke
+        NAME phase12_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()
