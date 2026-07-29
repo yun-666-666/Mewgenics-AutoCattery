@@ -170,3 +170,32 @@
 
 Stage 06 passed on 2026-07-29. Stage 07 may begin only when the player
 explicitly requests it.
+
+## Stage 07
+
+- Status: complete; read-only breeding scoring and safe preview
+  classification stage.
+- The user-provided AutoCattery Toolkit 1.0.0 flow was adapted, while its
+  six-stat, mutation, breeding-eligibility, protection, and compatibility
+  assumptions were rejected where the current adapter cannot verify them.
+- Breeding score uses all seven confirmed game stats from genetic plus
+  heredity bonus values. Equipment bonus is explicitly excluded.
+- Ability, passive, and disorder values default to zero and require explicit
+  saved-ID overrides.
+- Stable classification produces combat recommendation, breeding core/reserve,
+  general reserve, protected, ineligible, and preview cull roles.
+- Minimum combat, breeding, and general pools are enforced. Unknown
+  protection, special state, identity, breeding eligibility, relationships,
+  life stage, injury state, or insufficient confidence blocks candidates.
+- Quality candidates and the potential capacity-relief pool are separate.
+  Room capacity is not evaluated before Stage 09.
+- No candidate permits destructive execution; no UI, movement, culling,
+  executor, or save write was added.
+- Debug and Release unit/DLL smoke tests pass.
+- The current-save probe returns eight breeding ranking rows, zero validation
+  errors, stable IDs/ranking, zero preview culls, and zero executable culls.
+
+## Stage gate
+
+Stage 07 passed on 2026-07-29. Stage 08 may begin only when the player
+explicitly requests it.

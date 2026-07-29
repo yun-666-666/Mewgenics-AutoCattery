@@ -1,4 +1,6 @@
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
+#include "auto_cattery/breeding/breeding_ranker.hpp"
+#include "auto_cattery/classification/classifier.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
 
 #include <algorithm>
@@ -69,6 +71,23 @@ int wmain(int argument_count, wchar_t** arguments) {
     }
     const bool stable_ranking =
         ranking && repeated_ranking && ranked_ids == repeated_ranked_ids;
+    autocattery::breeding::BreedingScoringConfig breeding_config;
+    const auto breeding =
+        autocattery::breeding::RankBreedingCats(snapshot, breeding_config);
+    const auto classification = ranking && breeding
+        ? autocattery::classification::ClassifyCats(
+            snapshot,
+            ranking.value,
+            breeding.value,
+            breeding_config,
+            autocattery::classification::ClassificationConfig{},
+            autocattery::classification::CullSafetyFactsByCat{})
+        : autocattery::Result<
+            autocattery::classification::ClassificationPlan>{
+                {},
+                autocattery::ErrorCode::SnapshotInvalid,
+                "ranking unavailable"
+            };
     std::cout
         << "house_cats=" << snapshot.cats.size()
         << " rooms=" << snapshot.rooms.size()
@@ -88,6 +107,23 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " recommended="
         << (ranking ? ranking.value.recommended_cat_ids.size() : 0)
         << " stable_ranking=" << (stable_ranking ? 1 : 0)
+        << " breeding_ranked="
+        << (breeding ? breeding.value.ranked.size() : 0)
+        << " preview_culls="
+        << (classification
+            ? classification.value.quality_cull_candidates.size()
+            : 0)
+        << " executable_culls="
+        << (classification
+            ? std::count_if(
+                classification.value.decisions.begin(),
+                classification.value.decisions.end(),
+                [](const auto& decision) {
+                    return decision.destructive_action_allowed;
+                })
+            : 0)
         << '\n';
-    return validation.Valid() && stable_ids && stable_ranking ? 0 : 2;
+    return validation.Valid() && stable_ids && stable_ranking &&
+        breeding && classification &&
+        classification.value.quality_cull_candidates.empty() ? 0 : 2;
 }

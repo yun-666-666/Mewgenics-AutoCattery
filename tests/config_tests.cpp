@@ -50,6 +50,13 @@ void RunConfigTests() {
     AC_CHECK(valid.value.combat_scoring.require_confirmed_eligibility);
     AC_CHECK(valid.value.combat_scoring.stat_weights.size() == 7);
     AC_CHECK(valid.value.combat_scoring.stat_weights[5] == 1.0);
+    AC_CHECK(valid.value.breeding_scoring.core_breeders == 4);
+    AC_CHECK(valid.value.breeding_scoring.require_confirmed_eligibility);
+    AC_CHECK(valid.value.breeding_scoring.stat_weights.size() == 7);
+    AC_CHECK(valid.value.classification.minimum_combat_pool == 8);
+    AC_CHECK(
+        valid.value.classification.never_cull_if_data_confidence_below ==
+        0.85);
 
     Write(user, R"({
         "combat_scoring": {
@@ -67,6 +74,26 @@ void RunConfigTests() {
     AC_CHECK(
         scoring.value.combat_scoring.active_ability_overrides.at("Fireball") ==
         4.25);
+
+    Write(user, R"({
+        "breeding_scoring": {
+            "core_breeders": 3,
+            "stat_weights": {"charisma": 2.0},
+            "disorder_overrides": {"Fragile": 5.0}
+        },
+        "classification": {
+            "minimum_general_reserve": 6,
+            "never_cull_if_data_confidence_below": 0.95
+        }
+    })");
+    const auto breeding = LoadConfig(defaults, user);
+    AC_CHECK(static_cast<bool>(breeding));
+    AC_CHECK(breeding.value.breeding_scoring.core_breeders == 3);
+    AC_CHECK(breeding.value.breeding_scoring.stat_weights[5] == 2.0);
+    AC_CHECK(
+        breeding.value.breeding_scoring.disorder_overrides.at("Fragile") ==
+        5.0);
+    AC_CHECK(breeding.value.classification.minimum_general_reserve == 6);
 
     Write(user, R"({"schema_version":99})");
     const auto future = LoadConfig(defaults, user);
@@ -87,6 +114,13 @@ void RunConfigTests() {
     const auto non_finite = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(non_finite));
     AC_CHECK(non_finite.code == ErrorCode::ConfigInvalid);
+
+    Write(
+        user,
+        R"({"classification":{"never_cull_if_data_confidence_below":1.1}})");
+    const auto unsafe_threshold = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(unsafe_threshold));
+    AC_CHECK(unsafe_threshold.code == ErrorCode::ConfigInvalid);
 
     Write(user, "{");
     const auto truncated = LoadConfig(defaults, user);

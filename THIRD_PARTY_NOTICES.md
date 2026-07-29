@@ -32,5 +32,6 @@ engineered binary output is included.
 - Source: user-provided `Mewgenics_AutoCattery_Codex_Toolkit_v1.0.0`
 - Version: `1.0.0`
 - License: MIT
-- Use: deterministic single-cat scoring, stable ranking, and top-N selection
-  flow adapted to the verified seven-stat and string-ID snapshot model.
+- Use: deterministic single-cat combat/breeding scoring, stable ranking,
+  retained-pool classification, and preview-only cull candidate flow adapted
+  to the verified seven-stat and string-ID snapshot model.

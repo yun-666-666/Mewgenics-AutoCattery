@@ -1,0 +1,54 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "auto_cattery/scoring/domain.hpp"
+#include "auto_cattery/snapshot/domain.hpp"
+
+namespace autocattery::breeding {
+
+inline constexpr char kBreedingAlgorithmVersion[] =
+    "confirmed-heritable-fields-v1";
+
+struct BreedingScoringConfig {
+    std::uint32_t version{1};
+    std::size_t core_breeders{4};
+    std::size_t reserve_breeders{4};
+    double minimum_score{};
+    std::size_t minimum_known_stats{snapshot::kStatCount};
+    bool require_confirmed_eligibility{true};
+    std::array<double, snapshot::kStatCount> stat_weights{
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+    };
+    double missing_stat_penalty{};
+    double active_ability_default_weight{};
+    double passive_default_weight{};
+    double disorder_default_penalty{};
+    std::unordered_map<std::string, double> active_ability_overrides;
+    std::unordered_map<std::string, double> passive_overrides;
+    std::unordered_map<std::string, double> disorder_overrides;
+};
+
+struct BreedingScoreResult {
+    snapshot::CatId cat_id{};
+    bool eligible{};
+    double score{};
+    double confidence{};
+    std::int64_t heritable_stat_sum{};
+    std::vector<std::string> exclusion_reasons;
+    std::vector<std::string> limitations;
+    std::vector<scoring::ScoreComponent> components;
+};
+
+struct BreedingRanking {
+    std::uint64_t source_snapshot_id{};
+    std::string algorithm_version;
+    std::vector<BreedingScoreResult> ranked;
+};
+
+}  // namespace autocattery::breeding

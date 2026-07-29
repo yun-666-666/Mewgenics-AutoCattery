@@ -5,6 +5,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "auto_cattery/breeding/breeding_scorer.hpp"
+#include "auto_cattery/classification/classifier.hpp"
 #include "auto_cattery/scoring/combat_scorer.hpp"
 #include "auto_cattery/version.hpp"
 
@@ -55,6 +57,38 @@ Json SafeDefaults() {
             {"active_ability_overrides", Json::object()},
             {"passive_overrides", Json::object()},
             {"disorder_overrides", Json::object()}
+        }},
+        {"breeding_scoring", {
+            {"version", 1},
+            {"core_breeders", 4},
+            {"reserve_breeders", 4},
+            {"minimum_score", 0.0},
+            {"minimum_known_stats", 7},
+            {"require_confirmed_eligibility", true},
+            {"missing_stat_penalty", 0.0},
+            {"active_ability_default_weight", 0.0},
+            {"passive_default_weight", 0.0},
+            {"disorder_default_penalty", 0.0},
+            {"stat_weights", {
+                {"strength", 1.0},
+                {"dexterity", 1.0},
+                {"constitution", 1.0},
+                {"intelligence", 1.0},
+                {"speed", 1.0},
+                {"charisma", 1.0},
+                {"luck", 1.0}
+            }},
+            {"active_ability_overrides", Json::object()},
+            {"passive_overrides", Json::object()},
+            {"disorder_overrides", Json::object()}
+        }},
+        {"classification", {
+            {"version", 1},
+            {"combat_priority_over_breeding", false},
+            {"minimum_combat_pool", 8},
+            {"minimum_breeding_pool", 8},
+            {"minimum_general_reserve", 4},
+            {"never_cull_if_data_confidence_below", 0.85}
         }}
     };
 }
@@ -260,6 +294,80 @@ Result<Config> LoadConfig(
         AssignOverrides(
             combat.at("disorder_overrides"),
             result.combat_scoring.disorder_overrides);
+
+        const auto& breeding = merged.at("breeding_scoring");
+        AssignIfPresent(
+            breeding, "version", result.breeding_scoring.version);
+        AssignIfPresent(
+            breeding, "core_breeders", result.breeding_scoring.core_breeders);
+        AssignIfPresent(
+            breeding,
+            "reserve_breeders",
+            result.breeding_scoring.reserve_breeders);
+        AssignIfPresent(
+            breeding, "minimum_score", result.breeding_scoring.minimum_score);
+        AssignIfPresent(
+            breeding,
+            "minimum_known_stats",
+            result.breeding_scoring.minimum_known_stats);
+        AssignIfPresent(
+            breeding,
+            "require_confirmed_eligibility",
+            result.breeding_scoring.require_confirmed_eligibility);
+        AssignIfPresent(
+            breeding,
+            "missing_stat_penalty",
+            result.breeding_scoring.missing_stat_penalty);
+        AssignIfPresent(
+            breeding,
+            "active_ability_default_weight",
+            result.breeding_scoring.active_ability_default_weight);
+        AssignIfPresent(
+            breeding,
+            "passive_default_weight",
+            result.breeding_scoring.passive_default_weight);
+        AssignIfPresent(
+            breeding,
+            "disorder_default_penalty",
+            result.breeding_scoring.disorder_default_penalty);
+        AssignWeights(
+            breeding.at("stat_weights"),
+            result.breeding_scoring.stat_weights);
+        AssignOverrides(
+            breeding.at("active_ability_overrides"),
+            result.breeding_scoring.active_ability_overrides);
+        AssignOverrides(
+            breeding.at("passive_overrides"),
+            result.breeding_scoring.passive_overrides);
+        AssignOverrides(
+            breeding.at("disorder_overrides"),
+            result.breeding_scoring.disorder_overrides);
+
+        const auto& classification = merged.at("classification");
+        AssignIfPresent(
+            classification,
+            "version",
+            result.classification.version);
+        AssignIfPresent(
+            classification,
+            "combat_priority_over_breeding",
+            result.classification.combat_priority_over_breeding);
+        AssignIfPresent(
+            classification,
+            "minimum_combat_pool",
+            result.classification.minimum_combat_pool);
+        AssignIfPresent(
+            classification,
+            "minimum_breeding_pool",
+            result.classification.minimum_breeding_pool);
+        AssignIfPresent(
+            classification,
+            "minimum_general_reserve",
+            result.classification.minimum_general_reserve);
+        AssignIfPresent(
+            classification,
+            "never_cull_if_data_confidence_below",
+            result.classification.never_cull_if_data_confidence_below);
     } catch (const Json::exception& error) {
         return {{}, ErrorCode::ConfigInvalid, error.what()};
     }
@@ -270,6 +378,24 @@ Result<Config> LoadConfig(
             {},
             scoring_validation.code,
             "combat_scoring: " + scoring_validation.message
+        };
+    }
+    const auto breeding_validation =
+        breeding::Validate(result.breeding_scoring);
+    if (!breeding_validation) {
+        return {
+            {},
+            breeding_validation.code,
+            "breeding_scoring: " + breeding_validation.message
+        };
+    }
+    const auto classification_validation =
+        classification::Validate(result.classification);
+    if (!classification_validation) {
+        return {
+            {},
+            classification_validation.code,
+            "classification: " + classification_validation.message
         };
     }
     result.force_read_only = result.schema_version > kSupportedConfigSchema;

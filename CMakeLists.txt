@@ -28,6 +28,9 @@ endif()
 target_link_libraries(mew_ui_api PUBLIC user32 kernel32)
 
 add_library(auto_cattery_core STATIC
+    src/breeding/breeding_ranker.cpp
+    src/breeding/breeding_scorer.cpp
+    src/classification/classifier.cpp
     src/config.cpp
     src/logger.cpp
     src/module_registry.cpp
@@ -89,6 +92,9 @@ endforeach()
 if(AUTOCATTERY_BUILD_TESTS)
     enable_testing()
     add_executable(auto_cattery_tests
+        tests/breeding_ranker_tests.cpp
+        tests/breeding_scorer_tests.cpp
+        tests/classifier_tests.cpp
         tests/combat_ranker_tests.cpp
         tests/combat_ranking_cache_tests.cpp
         tests/combat_scorer_tests.cpp
@@ -111,7 +117,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase06_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase07_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
@@ -122,7 +128,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase06_dll_load_smoke
+        NAME phase07_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()

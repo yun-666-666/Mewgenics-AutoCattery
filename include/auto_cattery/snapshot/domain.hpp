@@ -60,6 +60,7 @@ struct CatSnapshot {
     bool in_adventure_box{};
     LifeStage life_stage{LifeStage::Unknown};
     TriState available_for_combat{TriState::Unknown};
+    TriState available_for_breeding{TriState::Unknown};
     TriState injured{TriState::Unknown};
 };
 
@@ -78,6 +79,7 @@ struct CapabilityMatrix {
     bool read_typed_abilities{};
     bool read_class_id{};
     bool read_age{};
+    bool read_breeding_eligibility{};
     bool read_relationships{};
     bool read_room_assignments{};
     bool read_room_capacities{};

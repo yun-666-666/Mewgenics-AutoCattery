@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <string>
 
+#include "auto_cattery/breeding/domain.hpp"
+#include "auto_cattery/classification/domain.hpp"
 #include "auto_cattery/error.hpp"
 #include "auto_cattery/scoring/domain.hpp"
 
@@ -29,6 +31,8 @@ struct Config {
     UiConfig ui;
     SafetyConfig safety;
     scoring::CombatScoringConfig combat_scoring;
+    breeding::BreedingScoringConfig breeding_scoring;
+    classification::ClassificationConfig classification;
     bool force_read_only{false};
 };
 

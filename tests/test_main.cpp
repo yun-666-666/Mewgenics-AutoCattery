@@ -3,6 +3,9 @@
 namespace autocattery::tests {
 
 void RunConfigTests();
+void RunBreedingRankerTests();
+void RunBreedingScorerTests();
+void RunClassifierTests();
 void RunCombatRankerTests();
 void RunCombatRankingCacheTests();
 void RunCombatScorerTests();
@@ -23,6 +26,9 @@ void RunWinSqliteApiTests();
 }  // namespace autocattery::tests
 
 int main() {
+    autocattery::tests::RunBreedingRankerTests();
+    autocattery::tests::RunBreedingScorerTests();
+    autocattery::tests::RunClassifierTests();
     autocattery::tests::RunCombatRankerTests();
     autocattery::tests::RunCombatRankingCacheTests();
     autocattery::tests::RunCombatScorerTests();
