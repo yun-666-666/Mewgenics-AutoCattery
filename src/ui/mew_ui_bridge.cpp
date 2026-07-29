@@ -431,6 +431,8 @@ void MewUiBridge::ObserveMappingProbe(
             "RecommendationProbe",
             "AC12102",
             message.str());
+        recommendation_marker_controller_->CompleteProbe(
+            summary.scene_generation);
     }
 }
 

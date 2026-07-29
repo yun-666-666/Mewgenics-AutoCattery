@@ -40,6 +40,15 @@ CatId→猫卡证据与 probe：
   猫名、CatId、指针、Steam ID、存档名或个人路径。
 - generation 变化重新取稳定样本；UnsafeTransition/退出清除。
 - `stable_cat_id_boundary=0`、`visual_marker_boundary=0` 时永远不标记。
+- 2026-07-29 实机日志包含六组完整 `AC12101`/`AC12102`。前两次为
+  606 components、digest `68be98812c154e9b`；后四次为 608 components、
+  digest `3f012bf02853f222`。Button 数量始终为 76。
+- 后四次在多次装入/移出操作之间完全相同，而且测试中的 ESC 会触发
+  UnsafeTransition 和新 generation；因此该变化不足以证明猫卡数量、
+  CatId 或 view identity，真实高亮仍 fail closed。
+- 实机同时证实按钮缺少完成回调：probe 已输出 `AC12102`，文字仍停在
+  `Probe Required`，只有 ESC 导致重新 attach 后才恢复。本次已补充
+  generation 匹配的完成回调，探针完成后主动恢复按钮文字。
 
 Toolkit：
 - 读取 `LICENSE_TOOLKIT.txt`、`README_FIRST_先读我.md`、核心接口契约、
@@ -77,17 +86,18 @@ Toolkit：
 
 验证：
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（6.42 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.11 秒）。
+- Debug `phase12_unit_tests`：通过（6.97 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.12 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.50 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
+- Release `phase12_unit_tests`：通过（0.58 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.07 秒）。
 - `git diff --check`：通过（仅 Git 的预期 LF→CRLF 提示）。
 - 禁止行为、Stage 13～16、隐私/密钥、存档/WAL/SHM、日志、二进制和
   个人路径扫描：通过。
 - 覆盖 sidecar 缺失/checksum/schema/字段、Unknown/N+1/N+2、配置/算法/
   identity、候选交集、空/Unknown/少量/100/1000、稳定 CatId、无点击
-  0 调用、重复点击 debounce、generation/UnsafeTransition 和匿名边界。
+  0 调用、重复点击 debounce、generation/UnsafeTransition、probe 完成
+  恢复按钮和匿名边界。
 - 真实 marker 完整/部分 mapping、卡片复用和视觉清理测试未伪造；这些
   依赖当前缺失的真实适配器证据，是本阶段 blocker。
 
@@ -98,15 +108,15 @@ Toolkit：
 - 用户明确授权后，本次 Release DLL 已部署到真实 MOD 目录；Mewtator
   数据 MOD 已部署并启用，安装校验通过。
 - 构建 DLL 与已安装 DLL 的 SHA-256 均为
-  `936ADEE7CAD8E5CF3F4967A86A7C545BD1D875E5B4CA194603425A43AF0CE8DE`，
+  `ED8BA206684C2B070C1F09711A78C8865C5F6BF7529859937D884A553D7617EA`，
   大小均为 683520 bytes。
 - 用户允许联网，但活动 `AGENTS.md` 禁止 web research；本次未联网。
 
 玩家最小只读测试：
 1. 通过 Mewtator 启动游戏，使已启用的 AutoCattery 数据 MOD 路径传入
    Mewgenics。
-2. 新一天 House 尚未放猫入盒时，点击 `Mark Combat Cats`，确认文字变
-   为 `Probe Required`，留在 House 等待三秒。
+2. 新一天 House 点击 `Mark Combat Cats`；确认文字短暂显示
+   `Probe Required`，随后无需 ESC 自动恢复为 `Mark Combat Cats`。
 3. 玩家手动放一只猫入盒，再点同一按钮并等待三秒。
 4. 再手动放一只猫入盒，重复点击和等待。
 5. 手动移出一只猫，再重复点击和等待；不要点击游戏原生 `出发!`。

@@ -160,8 +160,15 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(requested_generation == 12);
     AC_CHECK(probe_view.probe_required);
     AC_CHECK(!probe_controller.MarkerVisible());
+    probe_controller.CompleteProbe(11);
+    AC_CHECK(probe_view.probe_required);
+    probe_controller.CompleteProbe(12);
+    AC_CHECK(!probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 1);
+    now += 250ms;
+    probe_view.Click();
+    AC_CHECK(requests == 2);
 }
 
 }  // namespace autocattery::tests

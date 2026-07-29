@@ -131,6 +131,15 @@ void RecommendationMarkerController::HandleClick() {
         "mapping or visual marker was attempted.");
 }
 
+void RecommendationMarkerController::CompleteProbe(
+    std::uint64_t scene_generation) {
+    if (!view_.IsAttached() ||
+        scene_generation != attached_generation_) {
+        return;
+    }
+    view_.SetStatus(RecommendationUiStatus::Ready);
+}
+
 void RecommendationMarkerController::SetRequestHandler(
     RequestHandler handler) {
     request_handler_ = std::move(handler);

@@ -22,6 +22,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 当前 House 证据仍不能证明候选 CatId、CatId→可见猫视图、纯视觉
   marker API 或猫移动/装盒生命周期。生产候选 source 因而保持
   Unsupported；Unknown 资格仍由 Stage 6 fail closed。
+- 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
+  组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
+  匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
 - 活动 `AGENTS.md` 禁止 web research；用户虽允许联网，本阶段未联网。
 - Toolkit 1.0.0 只用于核对 MIT 许可、单猫评分、不自动组队/选择、稳定
   CatId 决胜和确定性输出。其整数 RoomId、六属性、示例 ID、游戏 API、
@@ -44,6 +47,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 玩家点击后留在 House，probe 才采集三次稳定匿名样本：generation、
   组件/类型/Button 数量及匿名 type/role digest。重复点击可对比未装盒、
   装入和移出猫时的结构变化。日志不含猫名、CatId、指针、存档名或路径。
+- 实机发现 `Probe Required` 只在 ESC 引发 detach/attach 后恢复；原因是
+  probe 完成后控制器没有主动恢复按钮状态。现在 `AC12102` 完成时会按
+  相同 scene generation 将按钮恢复为 `Mark Combat Cats`。
 - generation/UnsafeTransition 会重置或清除 probe。没有稳定 CatId、
   view identity、视觉 marker 与 recycle 证据时始终不映射、不标记。
 

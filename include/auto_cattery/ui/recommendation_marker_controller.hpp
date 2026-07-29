@@ -42,6 +42,7 @@ public:
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
     void HandleClick();
+    void CompleteProbe(std::uint64_t scene_generation);
     void SetRequestHandler(RequestHandler handler);
 
     [[nodiscard]] bool ShouldShow() const noexcept;
