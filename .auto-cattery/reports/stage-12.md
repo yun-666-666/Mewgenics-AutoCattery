@@ -1,5 +1,5 @@
 阶段：12
-状态：ExactDrawerValidationRequired；精确 drawer getter 待实机验收
+状态：NativeDrawerInterfaceValidationRequired；原生接口指针待实机验收
 
 实际能力：
 - 玩家点击 House 的 `Mark Combat Cats` 后才读取只读快照、验证当前
@@ -33,7 +33,14 @@
 - 重新逐条复刻原生路径确认剩余差异：游戏对唯一
   `HouseCatClickManager` 调用 RVA `0x1A93F0`，把返回值作为最终函数第一
   参数；第五版仅枚举 scene 中同类型 `HouseDrawerUI`，并未证明对象身份。
-  当前第六版改为调用精确 getter，并验证返回类型。
+  第六版改为调用精确 getter。
+- 第六版实机日志稳定显示 `manager=1 drawer=0 failure=0`；同轮
+  `AC12103` 又明确显示 `HouseDrawerUI components=1`。getter 没有异常，
+  是后续把它返回的原生接口/子对象指针当作 scene 组件基址调用类型虚
+  函数，导致错误拦截并提前返回，`cat/target` 根本未执行。
+- 当前第七版保留唯一 scene 组件证据，但不再对接口指针调用
+  `GetObjectTypeSTR`；改为验证签名所对应详情函数实际读取的
+  `drawer+0x38` 与 `drawer+0x60` 均有效，再使用游戏 getter 原值调用。
 - 同次截图证明文字框偏左且宽于木牌。当前按 SWF 实际 bounds 计算：
   木牌/文字框中心为 1124.35/1124.16，宽为 114.89/107.33；text field
   使用 `(1071, 152 + row*42, scale=0.25)`，保持 HTML 居中对齐。
@@ -65,8 +72,8 @@
   2. scene generation 与生成推荐时一致；
   3. 当前 EXE drawer getter/getter 调用点、转换函数/转换调用点、详情
      函数/详情调用点六段指令签名一致；
-  4. scene 中 `HouseCatClickManager` 唯一，getter 返回对象类型为
-     `HouseDrawerUI`；
+  4. scene 中 `HouseCatClickManager` 与 `HouseDrawerUI` 均唯一，getter
+     返回接口指针的 `+0x38/+0x60` 必需字段有效；
   5. 目标组件仍归属该 scene 且类型仍为 HouseCat；
   6. 转换结果非空且能读取有效组件类型。
 - 任一验证失败均不调用。`AC12109` 额外记录 manager、scene drawer
@@ -94,11 +101,11 @@
 - 四个文字节点共同引用私有 character 148，初始 HTML 为空，不会在
   attach 前闪现 source `Test`。
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（5.55 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.12 秒）。
+- Debug `phase12_unit_tests`：通过（5.15 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.10 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.61 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.07 秒）。
+- Release `phase12_unit_tests`：通过（0.47 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
 - SWF 几何检查：通过；木牌/文字框中心差 0.19，文字框宽小于木牌宽。
 - 控制器测试覆盖 stale generation、两秒状态、最多 8 条数据、有效/
   越界项点击、详情回调 generation/rank、view poll、清除和不重复评分。
@@ -106,8 +113,8 @@
   `D:\steam\steam\steamapps\common\Mewgenics\Mods\AutoCattery.dll`
 - Mewtator UI 数据 MOD 已部署并启用：
   `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
-- 构建与安装 DLL 均为 725504 bytes，SHA-256 均为
-  `13610746E682B1428CB98BAE5955E673FFFF8BB68BC0C0C248DCC0003BFA3425`。
+- 构建与安装 DLL 均为 724992 bytes，SHA-256 均为
+  `9390CC8D81EA6FD510FCF65424215ADC14F4654DBA91B2E55907CED77D62CE03`。
 - 源与安装 SWF 均为 725591 bytes，SHA-256 均为
   `2F0B2A21AA0AA5F236E22792032BEA8A2756D816F0D4388237F9EA2A79C3E40E`。
 - 用户明确要求需要时允许联网；搜索了公开 Mewgenics/MOD 信息，但未
@@ -130,7 +137,7 @@
 
 剩余事项：
 - 第四版实机已确认停帧/Clear 隐藏通过，且点击 rank 正确到达；当前
-  第六版的精确 click-manager drawer getter 仍需玩家验收。通过前 Stage 12
+  第七版的原生 drawer 接口指针修复仍需玩家验收。通过前 Stage 12
   不标记 completed，Stage 13 继续 blocked。
 - 若仍未打开，新的 `AC12109 failure/exception/exception_rva` 会直接给出
   失败阶段和当前 EXE 指令位置，再按该证据做最小调整。

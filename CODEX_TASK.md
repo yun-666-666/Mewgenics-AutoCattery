@@ -43,6 +43,11 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   `HouseCatClickManager` 路径发现，原生第一参数来自对 click manager
   调用 RVA `0x1A93F0` 的返回值；第五版却从 scene 枚举同类型
   `HouseDrawerUI`，没有证明它就是 click manager 实际持有的实例。
+- 第六版实机日志稳定显示 `manager=1 drawer=0 failure=0`，而同轮
+  `AC12103` 明确显示 `HouseDrawerUI components=1`。这证明 getter 已
+  正常返回，但返回的是最终原生调用使用的接口/子对象指针，不能当作
+  scene 组件基址调用 `GetObjectTypeSTR`；第六版的类型检查错误地提前
+  返回，因此 `cat/target` 也没有执行。
 - 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
   组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
   匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
@@ -105,7 +110,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   最终以该 drawer、详情目标和 `show_drawer=1` 进入详情函数。当前
   adapter 验证 drawer getter、drawer 调用点、目标转换函数、目标转换
   调用点、详情函数和详情调用点六段当前 EXE 签名，并验证 manager、
-  drawer、HouseCat 与转换结果类型后才调用。
+  scene 中唯一 `HouseDrawerUI`、getter 返回指针的原生 `+0x38/+0x60`
+  必需布局、HouseCat 与转换结果类型后才调用；不再把接口指针误当组件
+  基址调用类型虚函数。
 - `AC12109` 现在额外记录 `manager`、scene 枚举 drawer 是否存在及是否
   与 getter 结果相同，并在 SEH 时记录失败阶段、异常码和模块内异常
   RVA；不记录指针或身份。即使实机仍失败，也能由一条日志定位准确阶段
@@ -121,7 +128,7 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Stage gate
 
-`ExactDrawerValidationRequired; exact click-manager drawer getter deployed`
+`NativeDrawerInterfaceValidationRequired; native interface-pointer fix deployed`
 
 Release DLL 与 UI 数据 MOD 已部署到真实目录。Stage 12 等待玩家确认
 四行只在 Mark 后静态显示、Clear 后完整隐藏、滚轮浏览、点击打开正确猫

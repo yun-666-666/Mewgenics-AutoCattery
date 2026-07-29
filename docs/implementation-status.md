@@ -411,6 +411,13 @@ by the Unsupported Stage 10 adapter.
   matches the scene-enumerated drawer, and SEH failure stage/code/module RVA.
   It records no object address or player identity and makes any remaining
   native failure instruction-level rather than ambiguous.
+- The next live run consistently reported `manager=1 drawer=0 failure=0`,
+  while the same scene's `AC12103` reported exactly one `HouseDrawerUI`.
+  The getter had succeeded; its return is the native interface/subobject
+  pointer used by the call site, not a scene-component base suitable for
+  `GetObjectTypeSTR`. The adapter no longer rejects that valid pointer through
+  the component-type vtable. It instead validates the exact `+0x38` and
+  `+0x60` fields consumed by the signed native detail routine.
 - The latest screenshot also proved the centered HTML text field itself was
   placed left of the sign. Its generated transform is now calculated from the
   real SWF bounds: sign/text centers are 1124.35/1124.16 and text width 107.33
@@ -428,7 +435,7 @@ by the Unsupported Stage 10 adapter.
 ## Stage gate
 
 Stage 12 has player confirmation that frozen-frame visibility works. It now
-awaits player-visible validation of the exact click-manager drawer getter:
+awaits player-visible validation of the native drawer interface pointer:
 each row must open the matching cat details, labels must stay inside the sign,
 and the adventure box and expedition team must remain unchanged. Stage 13
 must not begin until that passes.

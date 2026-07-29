@@ -147,6 +147,17 @@ static void* AcFindUniqueComponent(
     }
 }
 
+static int AcHouseDrawerLayoutValid(void* drawer) {
+    __try {
+        return drawer &&
+               *(void**)((uint8_t*)drawer + 0x38U) &&
+               *(void**)((uint8_t*)drawer + 0x60U);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
 static LONG AcCaptureException(
     EXCEPTION_POINTERS* exception,
     uint8_t* module_base,
@@ -209,6 +220,12 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
         return result;
     }
     result.click_manager_valid = 1U;
+    scene_drawer = AcFindUniqueComponent(
+        scene_manager,
+        "HouseDrawerUI");
+    if (scene_drawer) {
+        result.scene_drawer_unique = 1U;
+    }
     __try {
         AcResolveHouseDrawerFn resolve_drawer =
             (AcResolveHouseDrawerFn)(
@@ -223,18 +240,12 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
         1U)) {
         return result;
     }
-    if (!drawer || !AcTypeEquals(drawer, "HouseDrawerUI")) {
+    if (!AcHouseDrawerLayoutValid(drawer)) {
         return result;
     }
     result.drawer_unique = 1U;
-    scene_drawer = AcFindUniqueComponent(
-        scene_manager,
-        "HouseDrawerUI");
-    if (scene_drawer) {
-        result.scene_drawer_unique = 1U;
-        result.drawer_matches_scene =
-            scene_drawer == drawer ? 1U : 0U;
-    }
+    result.drawer_matches_scene =
+        scene_drawer == drawer ? 1U : 0U;
     if (!house_cat_component ||
         MewUI_IsComponentInScene(
             scene_manager,
