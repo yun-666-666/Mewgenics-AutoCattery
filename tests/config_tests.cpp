@@ -46,6 +46,27 @@ void RunConfigTests() {
     AC_CHECK(static_cast<bool>(valid));
     AC_CHECK(valid.value.language == "en-US");
     AC_CHECK(valid.value.safe_mode);
+    AC_CHECK(valid.value.combat_scoring.recommended_count == 8);
+    AC_CHECK(valid.value.combat_scoring.require_confirmed_eligibility);
+    AC_CHECK(valid.value.combat_scoring.stat_weights.size() == 7);
+    AC_CHECK(valid.value.combat_scoring.stat_weights[5] == 1.0);
+
+    Write(user, R"({
+        "combat_scoring": {
+            "recommended_count": 3,
+            "minimum_score": 50,
+            "stat_weights": {"charisma": -0.5},
+            "active_ability_overrides": {"Fireball": 4.25}
+        }
+    })");
+    const auto scoring = LoadConfig(defaults, user);
+    AC_CHECK(static_cast<bool>(scoring));
+    AC_CHECK(scoring.value.combat_scoring.recommended_count == 3);
+    AC_CHECK(scoring.value.combat_scoring.minimum_score == 50.0);
+    AC_CHECK(scoring.value.combat_scoring.stat_weights[5] == -0.5);
+    AC_CHECK(
+        scoring.value.combat_scoring.active_ability_overrides.at("Fireball") ==
+        4.25);
 
     Write(user, R"({"schema_version":99})");
     const auto future = LoadConfig(defaults, user);
@@ -56,6 +77,16 @@ void RunConfigTests() {
     const auto unsafe = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(unsafe));
     AC_CHECK(unsafe.code == ErrorCode::ConfigInvalid);
+
+    Write(user, R"({"combat_scoring":{"minimum_known_stats":8}})");
+    const auto impossible = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(impossible));
+    AC_CHECK(impossible.code == ErrorCode::ConfigInvalid);
+
+    Write(user, R"({"combat_scoring":{"minimum_score":1e999}})");
+    const auto non_finite = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(non_finite));
+    AC_CHECK(non_finite.code == ErrorCode::ConfigInvalid);
 
     Write(user, "{");
     const auto truncated = LoadConfig(defaults, user);

@@ -19,7 +19,9 @@ constexpr std::size_t kStatSeedSize = 8;
 constexpr std::size_t kStatBonusOffset = 36;
 constexpr std::size_t kStatEquipmentOffset = 64;
 constexpr std::size_t kPreAbilityMetadataSize = 14;
-constexpr std::size_t kAbilitySlotCount = 9;
+// Core save order verified against the current save format:
+// move, basic attack, four active abilities, two passives, two disorders.
+constexpr std::size_t kAbilitySlotCount = 10;
 
 template<class T>
 bool ReadAt(

@@ -67,7 +67,7 @@ void RunCatBlobParserTests() {
     AC_CHECK(parsed.value.id == 42);
     AC_CHECK(parsed.value.display_name == "Mew");
     AC_CHECK(parsed.value.class_id.empty());
-    AC_CHECK(parsed.value.raw_ability_slots.size() == 9);
+    AC_CHECK(parsed.value.raw_ability_slots.size() == 10);
     AC_CHECK(parsed.value.genetic_stats.values[0] == 1);
     AC_CHECK(parsed.value.genetic_stats.values[6] == 7);
     AC_CHECK(parsed.value.heredity_bonus.values[0] == 11);

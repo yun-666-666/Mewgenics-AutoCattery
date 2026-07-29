@@ -1,4 +1,5 @@
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
+#include "auto_cattery/scoring/combat_ranker.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -42,6 +43,32 @@ int wmain(int argument_count, wchar_t** arguments) {
     }
     const bool stable_ids =
         repeated && first_ids == repeated_ids;
+    autocattery::scoring::CombatScoringConfig scoring_config;
+    const auto ranking =
+        autocattery::scoring::RankCombatCats(snapshot, scoring_config);
+    const auto repeated_ranking = repeated
+        ? autocattery::scoring::RankCombatCats(
+            repeated.value,
+            scoring_config)
+        : autocattery::Result<autocattery::scoring::CombatRanking>{
+            {},
+            autocattery::ErrorCode::SnapshotInvalid,
+            "repeated snapshot unavailable"
+        };
+    std::vector<autocattery::snapshot::CatId> ranked_ids;
+    std::vector<autocattery::snapshot::CatId> repeated_ranked_ids;
+    if (ranking) {
+        for (const auto& score : ranking.value.ranked) {
+            ranked_ids.push_back(score.cat_id);
+        }
+    }
+    if (repeated_ranking) {
+        for (const auto& score : repeated_ranking.value.ranked) {
+            repeated_ranked_ids.push_back(score.cat_id);
+        }
+    }
+    const bool stable_ranking =
+        ranking && repeated_ranking && ranked_ids == repeated_ranked_ids;
     std::cout
         << "house_cats=" << snapshot.cats.size()
         << " rooms=" << snapshot.rooms.size()
@@ -57,6 +84,10 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " warnings=" << validation.WarningCount()
         << " errors=" << validation.ErrorCount()
         << " stable_ids=" << (stable_ids ? 1 : 0)
+        << " ranked=" << (ranking ? ranking.value.ranked.size() : 0)
+        << " recommended="
+        << (ranking ? ranking.value.recommended_cat_ids.size() : 0)
+        << " stable_ranking=" << (stable_ranking ? 1 : 0)
         << '\n';
-    return validation.Valid() && stable_ids ? 0 : 2;
+    return validation.Valid() && stable_ids && stable_ranking ? 0 : 2;
 }

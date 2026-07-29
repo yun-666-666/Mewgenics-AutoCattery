@@ -29,7 +29,7 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
         .read_heredity_bonus = true,
         .read_equipment_bonus = true,
         .read_raw_ability_slots = true,
-        .read_typed_abilities = false,
+        .read_typed_abilities = true,
         .read_class_id = false,
         .read_age = false,
         .read_relationships = false,

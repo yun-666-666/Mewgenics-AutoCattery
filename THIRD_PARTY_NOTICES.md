@@ -26,3 +26,11 @@ Push To Meow and Quick-Cleanup were inspected as MIT-licensed references, but
 their source, binaries, SWFs, FLAs, and assets are not included. No Mewgenics
 Mod Framework file, game binary, game asset, personal save, or reverse-
 engineered binary output is included.
+
+## AutoCattery Codex Toolkit
+
+- Source: user-provided `Mewgenics_AutoCattery_Codex_Toolkit_v1.0.0`
+- Version: `1.0.0`
+- License: MIT
+- Use: deterministic single-cat scoring, stable ranking, and top-N selection
+  flow adapted to the verified seven-stat and string-ID snapshot model.

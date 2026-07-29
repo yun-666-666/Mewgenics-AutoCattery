@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 5,
+  "active_stage": 6,
   "stages": {
     "1": {
       "status": "completed",
@@ -21,10 +21,10 @@
     },
     "5": {
       "status": "completed",
-      "commit": null
+      "commit": "252399f"
     },
     "6": {
-      "status": "pending",
+      "status": "completed",
       "commit": null
     },
     "7": {
@@ -68,5 +68,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T13:05:19.6191628+08:00"
+  "updated_at": "2026-07-29T15:50:00+08:00"
 }

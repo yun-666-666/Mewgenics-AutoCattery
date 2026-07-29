@@ -3,7 +3,7 @@
   "$id": "https://local.autocattery/config.schema.json",
   "title": "AutoCattery configuration",
   "type": "object",
-  "required": ["schema_version", "mod_enabled", "safe_mode", "ui", "safety"],
+  "required": ["schema_version", "mod_enabled", "safe_mode", "ui", "safety", "combat_scoring"],
   "properties": {
     "schema_version": {"type": "integer", "minimum": 1},
     "mod_enabled": {"type": "boolean"},
@@ -25,6 +25,65 @@
         "create_backup_before_apply": {"const": true},
         "abort_on_unknown_game_build": {"type": "boolean"}
       }
+    },
+    "combat_scoring": {
+      "type": "object",
+      "required": [
+        "version",
+        "recommended_count",
+        "minimum_score",
+        "minimum_known_stats",
+        "stat_weights"
+      ],
+      "properties": {
+        "version": {"const": 1},
+        "recommended_count": {"type": "integer", "minimum": 0},
+        "minimum_score": {"type": "number"},
+        "minimum_known_stats": {"type": "integer", "minimum": 0, "maximum": 7},
+        "exclude_kittens": {"type": "boolean"},
+        "exclude_injured": {"type": "boolean"},
+        "require_confirmed_eligibility": {"type": "boolean"},
+        "missing_stat_penalty": {"type": "number"},
+        "active_ability_default_weight": {"type": "number"},
+        "passive_default_weight": {"type": "number"},
+        "disorder_default_penalty": {"type": "number"},
+        "injury_penalty": {"type": "number"},
+        "stat_weights": {
+          "type": "object",
+          "required": [
+            "strength",
+            "dexterity",
+            "constitution",
+            "intelligence",
+            "speed",
+            "charisma",
+            "luck"
+          ],
+          "properties": {
+            "strength": {"type": "number"},
+            "dexterity": {"type": "number"},
+            "constitution": {"type": "number"},
+            "intelligence": {"type": "number"},
+            "speed": {"type": "number"},
+            "charisma": {"type": "number"},
+            "luck": {"type": "number"}
+          },
+          "additionalProperties": false
+        },
+        "active_ability_overrides": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "passive_overrides": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "disorder_overrides": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

@@ -12,6 +12,20 @@ namespace autocattery::snapshot {
 using CatId = std::int64_t;
 using RoomId = std::string;
 
+enum class TriState {
+    Unknown,
+    No,
+    Yes
+};
+
+enum class LifeStage {
+    Unknown,
+    Kitten,
+    Adult,
+    Senior,
+    Dead
+};
+
 enum class Stat {
     Strength,
     Dexterity,
@@ -44,6 +58,9 @@ struct CatSnapshot {
     std::optional<std::int64_t> age_days;
     std::optional<RoomId> room_id;
     bool in_adventure_box{};
+    LifeStage life_stage{LifeStage::Unknown};
+    TriState available_for_combat{TriState::Unknown};
+    TriState injured{TriState::Unknown};
 };
 
 struct RoomSnapshot {

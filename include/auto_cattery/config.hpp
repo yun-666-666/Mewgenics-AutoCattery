@@ -4,6 +4,7 @@
 #include <string>
 
 #include "auto_cattery/error.hpp"
+#include "auto_cattery/scoring/domain.hpp"
 
 namespace autocattery {
 
@@ -27,6 +28,7 @@ struct Config {
     std::string language{"zh-CN"};
     UiConfig ui;
     SafetyConfig safety;
+    scoring::CombatScoringConfig combat_scoring;
     bool force_read_only{false};
 };
 

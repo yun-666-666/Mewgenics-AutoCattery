@@ -140,5 +140,33 @@
 
 ## Stage gate
 
-Stage 05 passed on 2026-07-29. Stage 06 may begin only when the player
+## Stage 06
+
+- Status: complete; pure read-only scoring/ranking stage.
+- The user-provided AutoCattery Toolkit 1.0.0 deterministic single-cat
+  selector flow was adapted to the verified snapshot domain.
+- The old six-stat reference assumption was rejected. Ranking uses all seven
+  real stats, including Charisma, and totals genetic, heredity bonus, and
+  equipment bonus values.
+- Core save ability parsing was corrected from nine to ten slots: movement,
+  basic attack, four active abilities, two passives, and two disorders.
+- Subjective ability/disorder values default to zero and require explicit
+  configuration overrides.
+- Known dead, kitten, unavailable, and injured states are filterable. The
+  current save adapter still reports these states as unknown, so results carry
+  explicit limitations and fail the default confirmed-eligibility gate.
+- Stable ranking, configurable threshold/top-N selection, finite-value
+  validation, explanations, and deterministic caching are implemented.
+- Debug and Release unit/DLL smoke tests pass. Tests cover 1000 cats and 100
+  identical repeats.
+- The current-save probe returns eight ranked house cats, zero default
+  recommendations until eligibility is confirmed, zero validation errors,
+  stable IDs, and stable ranking
+  across two captures.
+- No UI marking, team composition, movement, culling, or persistence write was
+  added.
+
+## Stage gate
+
+Stage 06 passed on 2026-07-29. Stage 07 may begin only when the player
 explicitly requests it.
