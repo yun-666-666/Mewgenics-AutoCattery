@@ -57,6 +57,12 @@ CatId→猫卡证据与 probe：
   和 `AC12104`（Button role、数量）；名称经过日志字符白名单处理。
 - 详细 probe 不输出猫名、CatId、组件指针、Steam ID、存档名或路径，
   也不修改组件、猫或选择状态。
+- 2026-07-29 四次类型测试确认 8 个 `HouseCat` 始终各有根节点，数量与
+  当前只读快照的 8 只猫一致。装盒产生的 `Ragdoll` 根节点为 0→1→2，
+  但移出后仍为 2，因此 Ragdoll 被判定为缓存而非稳定身份。
+- 新 `AC12105` probe 异步读取只读快照，只在 House 同 generation 中
+  检查 HouseCat 内是否存在覆盖全部 CatId 的一致双射布局。它不输出
+  CatId/指针，且即使找到映射也不执行视觉修改。
 
 Toolkit：
 - 读取 `LICENSE_TOOLKIT.txt`、`README_FIRST_先读我.md`、核心接口契约、
@@ -94,10 +100,10 @@ Toolkit：
 
 验证：
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（6.17 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.10 秒）。
+- Debug `phase12_unit_tests`：通过（5.68 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.09 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.59 秒）。
+- Release `phase12_unit_tests`：通过（0.53 秒）。
 - Release `phase12_dll_load_smoke`：通过（0.07 秒）。
 - `git diff --check`：通过（仅 Git 的预期 LF→CRLF 提示）。
 - 禁止行为、Stage 13～16、隐私/密钥、存档/WAL/SHM、日志、二进制和
@@ -116,8 +122,8 @@ Toolkit：
 - 用户明确授权后，本次 Release DLL 已部署到真实 MOD 目录；Mewtator
   数据 MOD 已部署并启用，安装校验通过。
 - 构建 DLL 与已安装 DLL 的 SHA-256 均为
-  `624784A93AFBC4DFF85E1788C29087759294EC549003D1E90F6BCD4FE224F683`，
-  大小均为 688128 bytes。
+  `454F42388EB07708207596AABFF1BFA586F65587BF1D0702418CCD402243A62D`，
+  大小均为 706560 bytes。
 - 用户允许联网，但活动 `AGENTS.md` 禁止 web research；本次未联网。
 
 玩家最小只读测试：
@@ -127,12 +133,11 @@ Toolkit：
    约两秒，随后无需 ESC 自动恢复为 `Mark Combat Cats`。
 3. 点击左侧整理按钮；确认 Completed 或 Failed 结果保持约两秒，再自动
    恢复原按钮文字。
-4. 尚未装猫时点击一次推荐按钮并等待三秒。
-5. 玩家手动放一只猫入盒，再点推荐按钮并等待三秒。
-6. 再手动放一只猫入盒，重复点击和等待。
-7. 手动移出一只猫，再重复点击和等待；不要点击游戏原生 `出发!`。
-8. 正常退出游戏；核对四次请求的 `AC12103` 类型数量差异。
-9. 回滚只需恢复原已安装 DLL；本阶段没有存档或游戏数据需要恢复。
+4. 在 House 点击一次推荐按钮并等待三秒。
+5. 正常退出游戏；核对本次请求的 `AC12105`。只有
+   `house_cats=requested_ids=matched=roots` 且
+   `consistent=1 stable_bijection=1` 才允许进入视觉标记实现。
+6. 回滚只需恢复原已安装 DLL；本阶段没有存档或游戏数据需要恢复。
 
 剩余 blocker：
 - 缺少当前 House 可见/可装盒候选 CatId 的可重复验证只读边界。

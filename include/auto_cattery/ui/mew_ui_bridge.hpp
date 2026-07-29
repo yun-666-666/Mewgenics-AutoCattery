@@ -3,12 +3,14 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <future>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "auto_cattery/api_types.hpp"
 #include "auto_cattery/recommendation/mapping_probe.hpp"
+#include "auto_cattery/snapshot/domain.hpp"
 #include "auto_cattery/ui/scene_context.hpp"
 
 namespace autocattery::workflow {
@@ -43,6 +45,9 @@ private:
     void ObserveMappingProbe(
         const UiContextSnapshot& context,
         const std::vector<RuntimeScene>& scenes);
+    void ObserveHouseCatIdentity(
+        const UiContextSnapshot& context,
+        const std::vector<RuntimeScene>& scenes);
     void LogSceneSummary(const std::vector<RuntimeScene>& scenes);
     void ExportSceneSummary(const std::vector<RuntimeScene>& scenes) const;
 
@@ -63,7 +68,12 @@ private:
     std::atomic_bool ready_logged_{false};
     recommendation::MappingProbeSession mapping_probe_session_;
     bool mapping_probe_logged_{};
+    bool mapping_identity_logged_{};
     std::uint32_t mapping_probe_request_sequence_{};
+    std::uint32_t mapping_snapshot_request_sequence_{};
+    std::uint64_t mapping_snapshot_generation_{};
+    std::future<Result<snapshot::HouseSnapshot>>
+        mapping_snapshot_task_;
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<HouseButtonController> house_button_controller_;

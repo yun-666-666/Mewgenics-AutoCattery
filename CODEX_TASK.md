@@ -56,6 +56,12 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 匿名总数组无法区分 604→606 的具体来源。当前只读探针追加 `AC12103`
   技术组件类型/数量/根节点数量，以及 `AC12104` Button role/数量；不
   输出猫名、CatId、指针或存档身份。需要用装盒前后差异确定真实类型。
+- 2026-07-29 类型日志证明 House 中有 8 个 `HouseCat` 且全部有根节点，
+  与只读快照的 8 只猫数量一致。`Ragdoll` 根节点随装盒从 0→1→2，但
+  移出后仍为 2，属于缓存状态，不能作为身份边界。
+- 新增 `AC12105` HouseCat 身份 probe：在只读快照 CatId 集合与 HouseCat
+  组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
+  相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
 - generation/UnsafeTransition 会重置或清除 probe。没有稳定 CatId、
   view identity、视觉 marker 与 recycle 证据时始终不映射、不标记。
 

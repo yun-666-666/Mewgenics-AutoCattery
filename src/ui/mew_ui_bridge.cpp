@@ -21,6 +21,7 @@
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
+#include "mew_ui_house_cat_probe.h"
 #include "mew_ui_mapping_probe.h"
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
@@ -92,7 +93,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         recommendation::RecommendationSidecarPath(context.mod_root);
     mapping_probe_session_.Clear();
     mapping_probe_logged_ = false;
+    mapping_identity_logged_ = false;
     mapping_probe_request_sequence_ = 0;
+    mapping_snapshot_request_sequence_ = 0;
+    mapping_snapshot_generation_ = 0;
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
@@ -102,7 +106,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         std::make_unique<RecommendationMarkerController>(
             *recommendation_marker_view_);
     recommendation_marker_controller_->SetRequestHandler(
-        [this](std::uint64_t) {
+        [this](std::uint64_t generation) {
             const auto historical =
                 recommendation::ReadRecommendationSnapshot(
                     recommendation_sidecar_path_);
@@ -127,6 +131,16 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                     " " + message);
             mapping_probe_session_.Arm();
             mapping_probe_logged_ = false;
+            mapping_identity_logged_ = false;
+            mapping_snapshot_request_sequence_ =
+                mapping_probe_request_sequence_;
+            mapping_snapshot_generation_ = generation;
+            mapping_snapshot_task_ = std::async(
+                std::launch::async,
+                [generation] {
+                    snapshot::SaveSnapshotAdapter adapter;
+                    return adapter.CaptureHouseSnapshot(generation);
+                });
         });
 
     const auto config = LoadConfig(
@@ -244,7 +258,10 @@ void MewUiBridge::Shutdown() noexcept {
     recommendation_sidecar_path_.clear();
     mapping_probe_session_.Clear();
     mapping_probe_logged_ = false;
+    mapping_identity_logged_ = false;
     mapping_probe_request_sequence_ = 0;
+    mapping_snapshot_request_sequence_ = 0;
+    mapping_snapshot_generation_ = 0;
     ready_logged_.store(false);
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
@@ -318,6 +335,7 @@ void MewUiBridge::OnTick() {
 
     const auto context = scene_context_.Current();
     ObserveMappingProbe(context, scenes);
+    ObserveHouseCatIdentity(context, scenes);
     const auto scene_ready =
         [&scenes](std::string_view name) {
             return std::any_of(
@@ -504,6 +522,90 @@ void MewUiBridge::ObserveMappingProbe(
         recommendation_marker_controller_->CompleteProbe(
             summary.scene_generation);
     }
+}
+
+void MewUiBridge::ObserveHouseCatIdentity(
+    const UiContextSnapshot& context,
+    const std::vector<RuntimeScene>& scenes) {
+    if (mapping_identity_logged_ ||
+        !mapping_probe_session_.Complete() ||
+        !mapping_snapshot_task_.valid() ||
+        mapping_snapshot_task_.wait_for(std::chrono::milliseconds(0)) !=
+            std::future_status::ready) {
+        return;
+    }
+    mapping_identity_logged_ = true;
+    const auto captured = mapping_snapshot_task_.get();
+    std::ostringstream message;
+    message << "request=" << mapping_snapshot_request_sequence_
+            << " generation=" << mapping_snapshot_generation_;
+    if (!captured ||
+        !captured.value.capabilities.stable_cat_id ||
+        captured.value.scene_generation != mapping_snapshot_generation_) {
+        message << " snapshot_valid=0 house_cats=0 requested_ids=0"
+                << " layouts=0 stable_bijection=0";
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationProbe",
+            "AC12105",
+            message.str());
+        return;
+    }
+    const auto scene = std::find_if(
+        scenes.begin(),
+        scenes.end(),
+        [&context](const RuntimeScene& candidate) {
+            return candidate.ready &&
+                   candidate.name == context.scene_name;
+        });
+    if (scene == scenes.end() ||
+        context.kind != UiContextKind::House ||
+        context.scene_generation != mapping_snapshot_generation_) {
+        message << " snapshot_valid=1 house_cats=0 requested_ids="
+                << captured.value.cats.size()
+                << " layouts=0 stable_bijection=0";
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationProbe",
+            "AC12105",
+            message.str());
+        return;
+    }
+
+    std::vector<std::int64_t> cat_ids;
+    cat_ids.reserve(captured.value.cats.size());
+    for (const auto& cat : captured.value.cats) {
+        cat_ids.push_back(cat.id);
+    }
+    const auto identity = AcMewProbeHouseCatIdentity(
+        scene->manager,
+        cat_ids.data(),
+        cat_ids.size());
+    const auto roots = std::count_if(
+        identity.matches,
+        identity.matches + identity.match_count,
+        [](const AcMewHouseCatMatch& match) {
+            return match.root_node != nullptr;
+        });
+    message << " snapshot_valid=1 house_cats="
+            << identity.house_cat_count
+            << " requested_ids=" << identity.requested_cat_count
+            << " layouts=" << identity.valid_layout_count
+            << " offset=" << identity.first_identity_offset
+            << " width=" << static_cast<unsigned>(
+                   identity.first_identity_width)
+            << " consistent=" << static_cast<unsigned>(
+                   identity.consistent_mapping)
+            << " matched=" << identity.match_count
+            << " roots=" << roots
+            << " stable_bijection=" << static_cast<unsigned>(
+                   identity.stable_bijection)
+            << " visual_marker_boundary=0";
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "RecommendationProbe",
+        "AC12105",
+        message.str());
 }
 
 SceneObservation MewUiBridge::ObserveScenes(
