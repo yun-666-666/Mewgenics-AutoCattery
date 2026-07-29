@@ -4,9 +4,11 @@ The source SWF contains a test button, three text fields, navigation controls,
 and a toggle. AutoCattery keeps the Stage 03 button, places one independently
 named copy of its known-good artwork for the Stage 04 new-day control, adds
 four independently named Stage 12 recommendation rows, and removes the unused
-example fields. Each row is a private two-frame static sign (hidden/shown) plus
-an independent text field. It has no rope, button animation, or game Button
-component. All other SWF definitions remain
+example fields. Each row is a private three-frame paper sign
+(hidden/normal/pressed) plus an independent text field. The paper is isolated
+from the source texture and enlarged to the original board bounds. It has no
+wooden board, rope, game Button component, or autonomous timeline animation.
+All other SWF definitions remain
 byte-for-byte intact so the known-good artwork and its transitive dependencies
 are preserved.
 """
@@ -16,10 +18,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import struct
+import zlib
 
 
 DEFINE_SPRITE = 39
 DEFINE_EDIT_TEXT = 37
+DEFINE_SHAPE = 2
+DEFINE_BITS_LOSSLESS_2 = 36
 PLACE_OBJECT_2 = 26
 SHOW_FRAME = 1
 DO_ACTION = 12
@@ -33,6 +38,7 @@ RECOMMENDATION_ROW_DEPTH = 40
 RECOMMENDATION_TEXT_DEPTH = 50
 RECOMMENDATION_ITEM_COUNT = 4
 BUTTON_ROPE_DEPTH = 1
+BUTTON_BACKGROUND_DEPTH = 5
 BUTTON_ICON_DEPTH = 6
 BUTTON_LABEL_DEPTH = 8
 DEFINITION_TAGS = frozenset({
@@ -60,6 +66,18 @@ RECOMMENDATION_TEXT_TRANSFORMS = tuple(
     (1071.0, 152.0 + index * 42.0, 0.25)
     for index in range(RECOMMENDATION_ITEM_COUNT)
 )
+# Pixel coordinates in the pinned source bitmap. The polygon follows the
+# jagged white-paper silhouette and excludes the surrounding wooden board.
+PAPER_POLYGON = (
+    (52, 130), (102, 115), (119, 132), (129, 115),
+    (244, 112), (257, 133), (268, 111), (378, 104),
+    (381, 214), (365, 217), (353, 232), (338, 217),
+    (324, 232), (302, 224), (277, 223), (263, 236),
+    (251, 212), (238, 238), (227, 224), (153, 228),
+    (143, 219), (133, 226), (119, 213), (106, 226),
+    (83, 219), (66, 219), (54, 210),
+)
+PAPER_CROP = (52, 99, 382, 239)
 
 
 class BitReader:
@@ -115,6 +133,156 @@ def signed_bit_count(*values: int) -> int:
             for value in values
         ),
     )
+
+
+def read_rect(data: bytes, byte_offset: int) -> tuple[
+    tuple[int, int, int, int],
+    int,
+]:
+    reader = BitReader(data, byte_offset * 8)
+    count = reader.unsigned(5)
+    bounds = (
+        reader.signed(count),
+        reader.signed(count),
+        reader.signed(count),
+        reader.signed(count),
+    )
+    return bounds, (reader.position + 7) // 8
+
+
+def matrix_end(data: bytes, byte_offset: int) -> int:
+    reader = BitReader(data, byte_offset * 8)
+    if reader.unsigned(1):
+        count = reader.unsigned(5)
+        reader.signed(count)
+        reader.signed(count)
+    if reader.unsigned(1):
+        count = reader.unsigned(5)
+        reader.signed(count)
+        reader.signed(count)
+    count = reader.unsigned(5)
+    reader.signed(count)
+    reader.signed(count)
+    return (reader.position + 7) // 8
+
+
+def encode_matrix(
+    scale_x: float,
+    scale_y: float,
+    translate_x: int,
+    translate_y: int,
+) -> bytes:
+    scale_values = (
+        round(scale_x * 65536),
+        round(scale_y * 65536),
+    )
+    scale_bits = signed_bit_count(*scale_values)
+    translate_bits = signed_bit_count(translate_x, translate_y)
+    writer = BitWriter()
+    writer.unsigned(1, 1)
+    writer.unsigned(scale_bits, 5)
+    writer.signed(scale_values[0], scale_bits)
+    writer.signed(scale_values[1], scale_bits)
+    writer.unsigned(0, 1)
+    writer.unsigned(translate_bits, 5)
+    writer.signed(translate_x, translate_bits)
+    writer.signed(translate_y, translate_bits)
+    return writer.bytes()
+
+
+def point_in_polygon(x: float, y: float) -> bool:
+    inside = False
+    previous = PAPER_POLYGON[-1]
+    for current in PAPER_POLYGON:
+        x1, y1 = previous
+        x2, y2 = current
+        if (y1 > y) != (y2 > y):
+            crossing = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < crossing:
+                inside = not inside
+        previous = current
+    return inside
+
+
+def make_paper_bitmap(
+    body: bytes,
+    character_id: int,
+) -> bytes:
+    if len(body) < 7 or body[2] != 5:
+        raise ValueError("source button texture is not lossless ARGB")
+    width, height = struct.unpack_from("<HH", body, 3)
+    pixels = zlib.decompress(body[7:])
+    if len(pixels) != width * height * 4:
+        raise ValueError("source button texture has unexpected dimensions")
+
+    left, top, right, bottom = PAPER_CROP
+    if right > width or bottom > height:
+        raise ValueError("paper crop exceeds the source button texture")
+    crop_width = right - left
+    crop_height = bottom - top
+    cropped = bytearray(crop_width * crop_height * 4)
+    for crop_y, source_y in enumerate(range(top, bottom)):
+        for crop_x, source_x in enumerate(range(left, right)):
+            if not point_in_polygon(source_x + 0.5, source_y + 0.5):
+                continue
+            source_offset = (source_y * width + source_x) * 4
+            target_offset = (
+                (crop_y * crop_width + crop_x) * 4
+            )
+            cropped[target_offset:target_offset + 4] = (
+                pixels[source_offset:source_offset + 4]
+            )
+
+    return (
+        struct.pack(
+            "<HBHH",
+            character_id,
+            5,
+            crop_width,
+            crop_height,
+        )
+        + zlib.compress(bytes(cropped), 9)
+    )
+
+
+def bitmap_id_from_shape(body: bytes) -> int:
+    _, position = read_rect(body, 2)
+    if body[position] != 1 or body[position + 1] != 0x41:
+        raise ValueError("button background shape is not one clipped bitmap")
+    return struct.unpack_from("<H", body, position + 2)[0]
+
+
+def make_paper_shape(
+    body: bytes,
+    character_id: int,
+    bitmap_character_id: int,
+) -> bytes:
+    bounds, position = read_rect(body, 2)
+    if body[position] != 1 or body[position + 1] != 0x41:
+        raise ValueError("button background shape is not one clipped bitmap")
+    matrix_start = position + 4
+    old_matrix_end = matrix_end(body, matrix_start)
+    left, top, right, bottom = PAPER_CROP
+    crop_width = right - left
+    crop_height = bottom - top
+    xmin, xmax, ymin, ymax = bounds
+    matrix = encode_matrix(
+        (xmax - xmin) / crop_width,
+        (ymax - ymin) / crop_height,
+        xmin,
+        ymin,
+    )
+    output = bytearray(body[:matrix_start])
+    struct.pack_into("<H", output, 0, character_id)
+    struct.pack_into(
+        "<H",
+        output,
+        position + 2,
+        bitmap_character_id,
+    )
+    output.extend(matrix)
+    output.extend(body[old_matrix_end:])
+    return bytes(output)
 
 
 def relocate_matrix(
@@ -234,8 +402,11 @@ def with_character_id(body: bytes, character_id: int) -> bytes:
 def make_recommendation_row_sprite(
     body: bytes,
     character_id: int,
+    normal_shape_character_id: int,
+    pressed_shape_character_id: int,
 ) -> bytes:
-    static_parts: list[bytes] = []
+    normal_background: bytes | None = None
+    pressed_background: bytes | None = None
     rope_parts = 0
     icon_parts = 0
     label_parts = 0
@@ -253,31 +424,48 @@ def make_recommendation_row_sprite(
                 icon_parts += 1
             elif depth == BUTTON_LABEL_DEPTH:
                 label_parts += 1
-            else:
-                static_parts.append(body[tag_start:tag_end])
+            elif depth == BUTTON_BACKGROUND_DEPTH:
+                normal_background = with_character_id(
+                    body[body_start:tag_end],
+                    normal_shape_character_id,
+                )
+        if (
+            frame == 39
+            and code == PLACE_OBJECT_2
+            and struct.unpack_from("<H", body, body_start + 1)[0] ==
+                BUTTON_BACKGROUND_DEPTH
+        ):
+            pressed_background = with_character_id(
+                body[body_start:tag_end],
+                pressed_shape_character_id,
+            )
         if code == SHOW_FRAME:
             frame += 1
     if (
         rope_parts != 1
         or icon_parts != 1
         or label_parts != 1
-        or len(static_parts) != 1
+        or normal_background is None
+        or pressed_background is None
     ):
         raise ValueError(
             "unexpected source button first frame: "
             f"rope={rope_parts} icon={icon_parts} label={label_parts} "
-            f"static={len(static_parts)}"
+            f"normal={normal_background is not None} "
+            f"pressed={pressed_background is not None}"
         )
 
     output = bytearray(struct.pack(
         "<HH",
         character_id,
-        2,
+        3,
     ))
     output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(encode_tag(SHOW_FRAME, b""))
-    for raw_tag in static_parts:
-        output.extend(raw_tag)
+    output.extend(encode_tag(PLACE_OBJECT_2, normal_background))
+    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
+    output.extend(encode_tag(SHOW_FRAME, b""))
+    output.extend(encode_tag(PLACE_OBJECT_2, pressed_background))
     output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(encode_tag(SHOW_FRAME, b""))
     output.extend(encode_tag(END, b""))
@@ -294,6 +482,24 @@ def make_recommendation_text_definition(
     output = bytearray(body.replace(initial_text, b"></font>", 1))
     struct.pack_into("<H", output, 0, character_id)
     return bytes(output)
+
+
+def button_background_ids(body: bytes) -> tuple[int, int]:
+    frame = 0
+    normal = None
+    pressed = None
+    for code, _, body_start, _ in read_tags(body, 4, len(body)):
+        if code == PLACE_OBJECT_2:
+            depth = struct.unpack_from("<H", body, body_start + 1)[0]
+            if depth == BUTTON_BACKGROUND_DEPTH and frame == 0:
+                normal = placed_character_id(body[body_start:])
+            elif depth == BUTTON_BACKGROUND_DEPTH and frame == 39:
+                pressed = placed_character_id(body[body_start:])
+        if code == SHOW_FRAME:
+            frame += 1
+    if normal is None or pressed is None:
+        raise ValueError("source button normal/down backgrounds are unavailable")
+    return normal, pressed
 
 
 def filter_overlay_sprite(
@@ -461,10 +667,50 @@ def build(source: Path, destination: Path) -> None:
         or not existing_character_ids
     ):
         raise ValueError("source button/text characters could not be resolved")
-    recommendation_row_character_id = max(existing_character_ids) + 1
-    recommendation_text_character_id = (
-        recommendation_row_character_id + 1
-    )
+
+    button_body = None
+    definition_bodies: dict[int, tuple[int, bytes]] = {}
+    for code, _, body_start, tag_end in tags:
+        body = swf[body_start:tag_end]
+        if code in DEFINITION_TAGS and len(body) >= 2:
+            definition_bodies[struct.unpack_from("<H", body, 0)[0]] = (
+                code,
+                body,
+            )
+        if (
+            code == DEFINE_SPRITE
+            and len(body) >= 2
+            and struct.unpack_from("<H", body, 0)[0] ==
+                overlay_button_character_id
+        ):
+            button_body = body
+    if button_body is None:
+        raise ValueError("source button definition is unavailable")
+    normal_source_id, pressed_source_id = button_background_ids(button_body)
+    normal_definition = definition_bodies.get(normal_source_id)
+    pressed_definition = definition_bodies.get(pressed_source_id)
+    if (
+        normal_definition is None
+        or normal_definition[0] != DEFINE_SHAPE
+        or pressed_definition is None
+        or pressed_definition[0] != DEFINE_SHAPE
+    ):
+        raise ValueError("source button background shapes are unavailable")
+    source_bitmap_id = bitmap_id_from_shape(normal_definition[1])
+    if bitmap_id_from_shape(pressed_definition[1]) != source_bitmap_id:
+        raise ValueError("source button states do not share one texture")
+    bitmap_definition = definition_bodies.get(source_bitmap_id)
+    if (
+        bitmap_definition is None
+        or bitmap_definition[0] != DEFINE_BITS_LOSSLESS_2
+    ):
+        raise ValueError("source button texture is unavailable")
+
+    paper_bitmap_character_id = max(existing_character_ids) + 1
+    normal_paper_shape_character_id = paper_bitmap_character_id + 1
+    pressed_paper_shape_character_id = paper_bitmap_character_id + 2
+    recommendation_row_character_id = paper_bitmap_character_id + 3
+    recommendation_text_character_id = paper_bitmap_character_id + 4
     if recommendation_text_character_id > 0xFFFF:
         raise ValueError("no SWF character id remains for recommendation rows")
 
@@ -485,10 +731,35 @@ def build(source: Path, destination: Path) -> None:
         ):
             output.extend(swf[tag_start:tag_end])
             output.extend(encode_tag(
+                DEFINE_BITS_LOSSLESS_2,
+                make_paper_bitmap(
+                    bitmap_definition[1],
+                    paper_bitmap_character_id,
+                ),
+            ))
+            output.extend(encode_tag(
+                DEFINE_SHAPE,
+                make_paper_shape(
+                    normal_definition[1],
+                    normal_paper_shape_character_id,
+                    paper_bitmap_character_id,
+                ),
+            ))
+            output.extend(encode_tag(
+                DEFINE_SHAPE,
+                make_paper_shape(
+                    pressed_definition[1],
+                    pressed_paper_shape_character_id,
+                    paper_bitmap_character_id,
+                ),
+            ))
+            output.extend(encode_tag(
                 DEFINE_SPRITE,
                 make_recommendation_row_sprite(
                     body,
                     recommendation_row_character_id,
+                    normal_paper_shape_character_id,
+                    pressed_paper_shape_character_id,
                 ),
             ))
             cloned_row_sprite = True

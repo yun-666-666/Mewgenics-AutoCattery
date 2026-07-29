@@ -91,13 +91,18 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
   相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
 - 稳定双射成立后即时复用 Stage 6 单猫评分，按 CatId 生成最多 8 条
-  `#排名 猫名 分数 ?`，界面只复用 4 个紧凑静态行。鼠标停在列表上
+  `排名 猫名 分数 ?`，界面只复用 4 个紧凑行。鼠标停在列表上
   滚轮可逐项向下/向上浏览；点击物理行时会换算为当前可见的真实排名。
   `?` 明示当前 reader 尚不能确认年龄、受伤和出战资格；不使用猫名
   做映射。
-- 四行不再创建游戏 Button 组件。每行由私有两帧 SWF 静态牌子和独立
-  文字组成：frame 0 为空，frame 1 只含木牌底图；垃圾桶图标、原始
-  label、完整绳子 placement 和后续按钮时间轴均未复制。
+- 四行不再创建游戏 Button 组件。每行由私有三帧 SWF 白纸和独立文字
+  组成：frame 0 为空，frame 1 为正常白纸，frame 2 为原生按钮 down
+  状态尺寸的按压白纸。生成器从固定 MIT 示例纹理中只保留白纸轮廓，
+  将其放大到原木牌边界；木板、垃圾桶、原始 label、完整绳子 placement
+  和后续按钮时间轴均未复制。
+- House UI 线程同时观察 `WM_LBUTTONDOWN/UP`。按下立即停在 frame 2，
+  松开后保持约 90ms 再恢复 frame 1 并打开对应猫详情；因此动画可见，
+  又不改变已验证的 CatId→原生详情链路。
 - 当前 EXE 的原生停帧调用序列已验证为：goto-frame 后清除 MovieClip
   `+0x09` 的 `0x02` 播放位。四行显示与隐藏均复用该序列，不再用
   `goto-and-play` 假装停帧；Mark 前、Clear 后和离开场景时保持 frame 0。
@@ -128,9 +133,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Stage gate
 
-`NativeDrawerInterfaceValidationRequired; native interface-pointer fix deployed`
+`Completed`
 
-Release DLL 与 UI 数据 MOD 已部署到真实目录。Stage 12 等待玩家确认
-四行只在 Mark 后静态显示、Clear 后完整隐藏、滚轮浏览、点击打开正确猫
-详情、场景退出无残留且冒险盒/出征队伍没有变化；确认前 Stage 13 继续
-blocked。
+玩家已确认四行点击会打开正确猫详情。最终 UI 收尾去掉木板和排名前
+符号，并增加与上方按钮一致的按压尺寸反馈；Debug/Release 构建和阶段
+测试通过，Release DLL 与 UI 数据 MOD 已部署。Stage 12 完成；未实施
+Stage 13。

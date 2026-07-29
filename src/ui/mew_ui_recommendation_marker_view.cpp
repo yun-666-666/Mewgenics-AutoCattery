@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <string>
 #include <utility>
 
@@ -33,6 +34,8 @@ constexpr double kRowXMax = 1210.0;
 constexpr double kRowY = 140.0;
 constexpr double kRowStep = 42.0;
 constexpr double kRowHeight = 42.0;
+constexpr auto kClickAnimationDuration =
+    std::chrono::milliseconds(90);
 constexpr std::size_t kMovieClipStateFlagsOffset = 0x09U;
 constexpr unsigned char kMovieClipPlayingBit = 0x02U;
 MewUiRecommendationMarkerView* g_wheel_view{};
@@ -165,9 +168,12 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
         item_nodes_.fill(nullptr);
     }
     active_ = false;
+    pending_press_row_.store(-1);
     pending_click_row_.store(-1);
     pending_wheel_delta_.store(0);
     wheel_delta_remainder_ = 0;
+    pressed_row_ = -1;
+    pending_activation_item_.reset();
     click_handler_ = {};
     item_click_handler_ = {};
 }
@@ -212,9 +218,12 @@ Result<void> MewUiRecommendationMarkerView::ShowItems(
 void MewUiRecommendationMarkerView::ClearSummary() noexcept {
     item_labels_.clear();
     first_visible_item_ = 0;
+    pending_press_row_.store(-1);
     pending_click_row_.store(-1);
     pending_wheel_delta_.store(0);
     wheel_delta_remainder_ = 0;
+    pressed_row_ = -1;
+    pending_activation_item_.reset();
     if (scene_manager_ == nullptr ||
         MewUI_IsSceneDestroying(scene_manager_) != 0) {
         return;
@@ -232,13 +241,46 @@ void MewUiRecommendationMarkerView::ClearSummary() noexcept {
 }
 
 void MewUiRecommendationMarkerView::Poll() {
+    const auto now = std::chrono::steady_clock::now();
+    const int pressed_row = pending_press_row_.exchange(-1);
     const int clicked_row = pending_click_row_.exchange(-1);
+
+    if (active_ && pressed_row >= 0 &&
+        static_cast<std::size_t>(pressed_row) < item_nodes_.size()) {
+        const auto item_index =
+            first_visible_item_ + static_cast<std::size_t>(pressed_row);
+        if (item_index < item_labels_.size() &&
+            HoldMovieClipFrame(item_nodes_[pressed_row], 2)) {
+            pressed_row_ = pressed_row;
+            pressed_until_ = now + kClickAnimationDuration;
+        }
+    }
+
     if (active_ && clicked_row >= 0 &&
         static_cast<std::size_t>(clicked_row) < item_nodes_.size()) {
         const auto item_index =
             first_visible_item_ + static_cast<std::size_t>(clicked_row);
         if (item_index < item_labels_.size() && item_click_handler_) {
-            item_click_handler_(item_index);
+            pending_activation_item_ = item_index;
+            HoldMovieClipFrame(item_nodes_[clicked_row], 2);
+            pressed_row_ = clicked_row;
+            pressed_until_ = now + kClickAnimationDuration;
+        }
+    }
+
+    if (active_ && pressed_row_ >= 0 &&
+        now >= pressed_until_) {
+        const auto row = static_cast<std::size_t>(pressed_row_);
+        const auto visible_index = first_visible_item_ + row;
+        if (visible_index < item_labels_.size()) {
+            HoldMovieClipFrame(item_nodes_[row], 1);
+        }
+        pressed_row_ = -1;
+        auto activation = std::exchange(
+            pending_activation_item_,
+            std::nullopt);
+        if (activation.has_value() && item_click_handler_) {
+            item_click_handler_(*activation);
         }
     }
 
@@ -267,6 +309,8 @@ void MewUiRecommendationMarkerView::Poll() {
                 ? max_first
                 : first_visible_item_ + down;
     }
+    pressed_row_ = -1;
+    pending_activation_item_.reset();
     RefreshVisibleItems();
 }
 
@@ -309,6 +353,9 @@ LRESULT CALLBACK MewUiRecommendationMarkerView::WheelMessageHook(
                 const auto delta =
                     GET_WHEEL_DELTA_WPARAM(message->wParam);
                 g_wheel_view->pending_wheel_delta_.fetch_add(delta);
+            } else if (row >= 0 &&
+                       message->message == WM_LBUTTONDOWN) {
+                g_wheel_view->pending_press_row_.store(row);
             } else if (row >= 0 &&
                        message->message == WM_LBUTTONUP) {
                 g_wheel_view->pending_click_row_.store(row);

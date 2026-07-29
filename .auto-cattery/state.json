@@ -52,11 +52,11 @@
       "stage_12_blocked": false
     },
     "12": {
-      "status": "native_drawer_interface_validation_required",
+      "status": "completed",
       "commit": null,
       "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "awaiting_native_drawer_interface_pointer_validation",
-      "stage_13_blocked": true
+      "real_highlight_status": "player_confirmed_matching_native_details",
+      "stage_13_blocked": false
     },
     "13": {
       "status": "pending",
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T23:06:00+08:00"
+  "updated_at": "2026-07-29T23:45:00+08:00"
 }

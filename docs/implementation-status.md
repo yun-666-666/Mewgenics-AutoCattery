@@ -342,7 +342,7 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage 12
 
-- Status: StaticRowsInputValidationRequired.
+- Status: Completed.
 - The existing Stage 4 button now makes an on-demand Stage 12 request. It
   reads only the MOD-owned `state/recommendations.json` boundary and displays
   `Probe Required`; it never shows a fabricated cat recommendation.
@@ -371,11 +371,15 @@ by the Unsupported Stage 10 adapter.
   showed and animated four `Clean Up!` signs before Mark, Clear removed only
   their text, and neither row clicks nor hover-gated wheel input arrived
   reliably.
-- The current replacement uses exactly four compact non-Button static rows
-  listing rank, display name, score, and `?` for unconfirmed eligibility.
-  Each row is a private two-frame SWF sign plus independent text: frame 0 is
-  empty and frame 1 contains only the sign base. The source trash icon, label,
-  full-rope placement, and later button timeline are not copied.
+- The final replacement uses exactly four compact non-Button rows listing
+  rank, display name, score, and `?` for unconfirmed eligibility. Rank remains
+  numeric, but the preceding `#`/star-like glyph is removed.
+- Each row is a private three-frame SWF paper sign plus independent text:
+  frame 0 is empty, frame 1 is normal paper, and frame 2 is the source
+  button's pressed-size paper. The generator masks the paper from the pinned
+  MIT texture and enlarges it to the old board bounds. The wooden board,
+  source trash icon, label, full-rope placement, and autonomous button
+  timeline are not copied.
 - The first static-row live test proved wheel scrolling and rank hit testing
   reached the MOD, but also proved that `MewUI_PlayMovieClipFrame` kept the
   two-frame row playing, so it flashed before Mark and after Clear. The current
@@ -386,6 +390,10 @@ by the Unsupported Stage 10 adapter.
   and mouse release maps the physical row to the current real rank. Messages
   are never swallowed or rewritten. Identity remains CatId-only; names are
   display labels, never match keys.
+- Mouse down stops the row on its pressed frame. Mouse up holds that frame for
+  about 90 ms, restores the normal frame, and then invokes the already
+  validated details callback, so the visual feedback remains visible before
+  the native drawer opens.
 - Clicking a recommendation row opens that exact HouseCat in the game's
   native details drawer and green focus outline. The build-specific adapter
   reuses the locally disassembled HouseCatClickManager path only after current
@@ -434,8 +442,7 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 has player confirmation that frozen-frame visibility works. It now
-awaits player-visible validation of the native drawer interface pointer:
-each row must open the matching cat details, labels must stay inside the sign,
-and the adventure box and expedition team must remain unchanged. Stage 13
-must not begin until that passes.
+Stage 12 is complete. The player confirmed that recommendation-row clicks open
+the matching native cat details. The final paper-only artwork, press feedback,
+and label cleanup pass Debug/Release builds and Stage 12 tests. Stage 13 has
+not begun.

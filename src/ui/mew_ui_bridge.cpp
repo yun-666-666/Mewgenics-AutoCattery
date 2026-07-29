@@ -732,7 +732,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
         }
         ++marked;
         std::ostringstream label;
-        label << '#' << marked << ' '
+        label << marked << ' '
               << SafeDisplayName(cat->display_name)
               << ' ' << std::fixed << std::setprecision(1)
               << score->score << " ?";

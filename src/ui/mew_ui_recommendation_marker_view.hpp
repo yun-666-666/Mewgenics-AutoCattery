@@ -2,6 +2,8 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <optional>
 #include <vector>
 
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
@@ -51,9 +53,13 @@ private:
     std::array<void*, 4> item_nodes_{};
     bool active_{};
     HHOOK wheel_hook_{};
+    std::atomic<int> pending_press_row_{-1};
     std::atomic<int> pending_click_row_{-1};
     std::atomic<int> pending_wheel_delta_{};
     int wheel_delta_remainder_{};
+    int pressed_row_{-1};
+    std::chrono::steady_clock::time_point pressed_until_{};
+    std::optional<std::size_t> pending_activation_item_;
     std::size_t first_visible_item_{};
     std::vector<std::string> item_labels_;
     ClickHandler click_handler_;

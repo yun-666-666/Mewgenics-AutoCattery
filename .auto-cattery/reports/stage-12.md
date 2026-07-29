@@ -1,5 +1,5 @@
 阶段：12
-状态：NativeDrawerInterfaceValidationRequired；原生接口指针待实机验收
+状态：Completed；玩家已确认推荐行可打开对应猫的原生详情
 
 实际能力：
 - 玩家点击 House 的 `Mark Combat Cats` 后才读取只读快照、验证当前
@@ -44,10 +44,15 @@
 - 同次截图证明文字框偏左且宽于木牌。当前按 SWF 实际 bounds 计算：
   木牌/文字框中心为 1124.35/1124.16，宽为 114.89/107.33；text field
   使用 `(1071, 152 + row*42, scale=0.25)`，保持 HTML 居中对齐。
-- 当前修复版不再创建推荐 Button 组件，只显示 4 个紧凑静态行：
-  `#排名 猫名 分数 ?`。每行是私有两帧 SWF 牌子和独立文字；frame 0
-  为空，frame 1 只保留木牌底图，垃圾桶图标、原 label、完整绳子
-  placement 和后续按钮时间轴均未复制。
+- 最终版不再创建推荐 Button 组件，只显示 4 个紧凑行：
+  `排名 猫名 分数 ?`，排名前不再显示 `#`/星号形符号。
+- 每行是私有三帧 SWF 白纸和独立文字：frame 0 为空，frame 1 是正常
+  白纸，frame 2 是原生按钮 down 状态尺寸的按压白纸。生成器从固定 MIT
+  示例纹理中遮罩出白纸并放大到原木牌边界；木板、垃圾桶、原 label、
+  完整绳子 placement 和自动播放时间轴均未复制。
+- `WM_LBUTTONDOWN` 立即切换并停在按压帧；`WM_LBUTTONUP` 后保持约
+  90ms，再恢复正常帧并调用已经实机验证的详情回调。消息仍继续传给
+  游戏，未改动 CatId→HouseCat→原生详情适配链。
 - Mark 前和 Clear 后显式清空文字并切回 frame 0，因此不会出现默认
   `Clean Up!`、空牌或游戏按钮动画。显隐不再调用纯
   `goto-and-play`：按当前 EXE 原生停帧序列，在跳帧后立即清除
@@ -88,24 +93,30 @@
 - `docs/implementation-status.md`
 - `.auto-cattery/state.json`
 - `.auto-cattery/reports/stage-12.md`
+- `assets/swfs/auto_cattery_house.swf`
+- `tools/build_house_ui_asset.py`
 - `src/ui/mew_ui_bridge.cpp`
-- `src/ui/mew_ui_house_detail_adapter.c/.h`
+- `src/ui/mew_ui_recommendation_marker_view.cpp/.hpp`
+- `tests/recommendation_marker_controller_tests.cpp`
 
 验证：
 - SWF 重新生成及结构检查：通过；包含且仅包含
   `recommend_row_1` 至 `recommend_row_4` 四个静态牌节点，以及
   `recommend_text_1` 至 `recommend_text_4` 四个独立文字节点。
-- 四行共同引用私有 character 147：frame 0 没有 placement；frame 1
-  仅含 `(depth=5, character=105)` 一个木牌底图 placement，没有垃圾桶
-  icon、rope depth 1、原始 label 或后续按钮时间轴。
-- 四个文字节点共同引用私有 character 148，初始 HTML 为空，不会在
+- 新增私有白纸 bitmap character 147（330×140），透明区排除木板；
+  character 148/149 分别是正常/按压白纸形状。
+- 四行共同引用私有 character 150：frame 0 没有 placement；frame 1
+  仅含 `(depth=5, character=148)`，frame 2 仅含
+  `(depth=5, character=149)`；没有垃圾桶、rope depth 1、原始 label
+  或自动播放时间轴。
+- 四个文字节点共同引用私有 character 151，初始 HTML 为空，不会在
   attach 前闪现 source `Test`。
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（5.15 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.10 秒）。
+- Debug `phase12_unit_tests`：通过（5.04 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.09 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.47 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
+- Release `phase12_unit_tests`：通过（0.46 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.05 秒）。
 - SWF 几何检查：通过；木牌/文字框中心差 0.19，文字框宽小于木牌宽。
 - 控制器测试覆盖 stale generation、两秒状态、最多 8 条数据、有效/
   越界项点击、详情回调 generation/rank、view poll、清除和不重复评分。
@@ -113,34 +124,23 @@
   `D:\steam\steam\steamapps\common\Mewgenics\Mods\AutoCattery.dll`
 - Mewtator UI 数据 MOD 已部署并启用：
   `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
-- 构建与安装 DLL 均为 724992 bytes，SHA-256 均为
-  `9390CC8D81EA6FD510FCF65424215ADC14F4654DBA91B2E55907CED77D62CE03`。
-- 源与安装 SWF 均为 725591 bytes，SHA-256 均为
-  `2F0B2A21AA0AA5F236E22792032BEA8A2756D816F0D4388237F9EA2A79C3E40E`。
+- 构建与安装 DLL 均为 726016 bytes，SHA-256 均为
+  `906472F42D5E56B87734627DC17A10C8954F5437494C1B62ED25DFEB9A04DEE9`。
+- 源与安装 SWF 均为 751211 bytes，SHA-256 均为
+  `6AF896C5E91EB2DAFFD92644F4F57BB8A1460D0731013A7914EFE17D47439EF5`。
 - 用户明确要求需要时允许联网；搜索了公开 Mewgenics/MOD 信息，但未
   找到可直接采用的 CatId→详情原始实现。实际接口证据来自当前本地 EXE
   与实机组件/日志。
 
 玩家最终验收：
-1. 通过 Mewtator 启动游戏，进入 House，点击 `Mark Combat Cats`。
-2. 已确认 Mark 前无推荐牌、Mark 后静态显示、Clear 后完整隐藏；复测时
-   只需确认该行为没有回归。
-3. 将鼠标停在任一推荐行上向下滚轮，确认可看到第 5～8 名；向上滚轮
-   可回到第 1～4 名，且列表不遮挡或误触原生“出发”。
-4. 点击例如第 3 名，确认左侧详情抽屉显示的名字与第 3 名完全一致，
-   House 中同一只猫出现原生绿色焦点轮廓。
-5. 滚动后点击例如第 6 名，确认打开的是当前第 6 名而非物理第 2 行。
-6. 确认点击名字没有把猫放入/移出冒险盒，也没有改变出征队伍。
-7. 点击 `Clear Recommendations`，确认 4 个牌子及文字同时完全消失；Mark
-   主按钮保留；离开再进入
-   House 后也无残留。
+1. 玩家确认推荐行已经可以点击，并打开对应猫的原生详情界面。
+2. 玩家此前已确认四行只在 Mark 后、Clear 前静态显示。
+3. 玩家指定最终视觉收尾：增加点击动画、只显示放大白纸、移除排名前
+   符号；本提交已按该范围完成并通过自动化/结构检查。
 
 剩余事项：
-- 第四版实机已确认停帧/Clear 隐藏通过，且点击 rank 正确到达；当前
-  第七版的原生 drawer 接口指针修复仍需玩家验收。通过前 Stage 12
-  不标记 completed，Stage 13 继续 blocked。
-- 若仍未打开，新的 `AC12109 failure/exception/exception_rva` 会直接给出
-  失败阶段和当前 EXE 指令位置，再按该证据做最小调整。
+- Stage 12 无剩余实现项。
+- Stage 13～16 未实施。
 
 本地 commit：本次实现提交见最终回复（报告与代码同一提交）
 是否 push：否

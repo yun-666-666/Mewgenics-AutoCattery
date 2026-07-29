@@ -215,7 +215,7 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(static_cast<bool>(
         probe_controller.ShowRecommendations(
             12,
-            {"#1 Mew 42.0 ?", "#2 Purr 40.0 ?"})));
+            {"1 Mew 42.0 ?", "2 Purr 40.0 ?"})));
     AC_CHECK(probe_controller.MarkerVisible());
     AC_CHECK(probe_view.probe_required);
     AC_CHECK(!probe_view.marker_visible);
