@@ -14,6 +14,7 @@
 
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
@@ -73,7 +74,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
     organize_workflow_ =
-        std::make_unique<workflow::OrganizeWorkflowFacade>();
+        std::make_unique<workflow::OrganizeWorkflowFacade>(
+            std::make_unique<snapshot::SaveSnapshotAdapter>());
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
         *organize_workflow_);

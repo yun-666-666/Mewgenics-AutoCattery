@@ -61,6 +61,7 @@ private:
     workflow::OrganizeWorkflowFacade& workflow_;
     Clock clock_;
     OrganizeButtonState state_{OrganizeButtonState::Hidden};
+    std::uint64_t scene_generation_{};
     std::chrono::steady_clock::time_point last_click_{};
 };
 

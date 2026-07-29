@@ -1,0 +1,39 @@
+#pragma once
+
+#include <filesystem>
+#include <span>
+#include <vector>
+
+#include "auto_cattery/snapshot/game_read_adapter.hpp"
+
+namespace autocattery::snapshot {
+
+struct HouseStateEntry {
+    CatId cat_id{};
+    RoomId room_id;
+    double position_x{};
+    double position_y{};
+    double position_z{};
+};
+
+Result<CatSnapshot> ParseCatBlob(
+    CatId cat_id,
+    std::span<const std::uint8_t> blob,
+    std::optional<std::int64_t> current_day);
+Result<std::vector<HouseStateEntry>> ParseHouseState(
+    std::span<const std::uint8_t> blob);
+
+class SaveSnapshotAdapter final : public IGameReadAdapter {
+public:
+    explicit SaveSnapshotAdapter(
+        std::filesystem::path save_root = {});
+
+    Result<HouseSnapshot> CaptureHouseSnapshot(
+        std::uint64_t scene_generation) override;
+
+private:
+    std::filesystem::path save_root_;
+    std::uint64_t next_snapshot_id_{1};
+};
+
+}  // namespace autocattery::snapshot

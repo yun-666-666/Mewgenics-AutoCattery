@@ -110,9 +110,31 @@
   - `tools/build_house_ui_asset.py` reproduces the derived asset without
     downloading or copying any new third-party material.
 
+## Stage 04
+
+- Status: complete; player-operated live acceptance passed on 2026-07-28.
+- Completion commit: `d83629c`.
+- The recommendation marker lifecycle and final compact layout were accepted.
+
+## Stage 05
+
+- Status: complete; player-operated House click acceptance passed on
+  2026-07-29.
+- A read-only save adapter now produces immutable cat and room snapshots.
+- Real local evidence replaced inaccurate reference-document assumptions:
+  stable IDs are 64-bit SQLite keys, room IDs are strings, and the game has
+  seven stats including Charisma.
+- Unverified class, age, relationship, room-capacity, and missing-room fields
+  remain unavailable.
+- Debug/Release unit tests and DLL load smoke pass.
+- A current-save read-only probe returned 30 cats, two represented rooms, eight
+  reliable room assignments, zero validation errors, and stable IDs across two
+  captures.
+- The accepted live session produced ten identical sanitized `AC5100`
+  snapshots and five recommendation-marker toggles, with zero warnings, zero
+  errors, one attach per control, and clean detach on leaving House.
+
 ## Stage gate
 
-Stage 03 gate passed on 2026-07-28. Player screenshots confirmed clean idle and
-completed layouts without raw localization keys or overlap. Runtime logs
-confirmed repeated House attach/detach cycles, debounced clicks, unsafe-scene
-handling, and no cat or save access. Stage 04 may begin.
+Stage 05 passed on 2026-07-29. Stage 06 may begin only when the player
+explicitly requests it.

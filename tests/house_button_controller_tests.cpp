@@ -56,15 +56,18 @@ public:
 
 class FakeWorkflow final : public workflow::OrganizeWorkflowFacade {
 public:
-    Result<void> RequestPreview() override {
+    Result<void> RequestPreview(
+        std::uint64_t scene_generation) override {
         ++preview_calls;
+        last_scene_generation = scene_generation;
         return {
-            ErrorCode::NotImplemented,
+            ErrorCode::Ok,
             "no cats were modified"
         };
     }
 
     int preview_calls{};
+    std::uint64_t last_scene_generation{};
 };
 
 ui::UiContextSnapshot HouseContext() {
@@ -108,6 +111,7 @@ void RunHouseButtonControllerTests() {
 
     view.Click();
     AC_CHECK(workflow.preview_calls == 1);
+    AC_CHECK(workflow.last_scene_generation == 1);
     AC_CHECK(view.placeholder_calls == 1);
     AC_CHECK(view.state == ui::OrganizeButtonState::Completed);
 

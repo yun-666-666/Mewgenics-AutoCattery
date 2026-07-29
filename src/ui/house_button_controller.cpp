@@ -47,6 +47,7 @@ Result<void> HouseButtonController::Attach(
         return result;
     }
 
+    scene_generation_ = context.scene_generation;
     SetState(OrganizeButtonState::Ready);
     Logger::Instance().Write(
         LogLevel::Info,
@@ -64,6 +65,7 @@ void HouseButtonController::Detach() noexcept {
     view_.SetState(OrganizeButtonState::Hidden, {});
     view_.Detach();
     state_ = OrganizeButtonState::Hidden;
+    scene_generation_ = 0;
     last_click_ = {};
     Logger::Instance().Write(
         LogLevel::Info,
@@ -103,14 +105,11 @@ void HouseButtonController::HandleClick() {
         LogLevel::Info,
         "HouseButton",
         "AC3102",
-        "Auto-organize preview clicked; no cat or save access will occur.");
+        "Auto-organize preview clicked; capturing a read-only snapshot.");
     SetState(OrganizeButtonState::Running);
-    const auto preview = workflow_.RequestPreview();
+    const auto preview =
+        workflow_.RequestPreview(scene_generation_);
     view_.ShowPlaceholder();
-    if (preview.code == ErrorCode::NotImplemented) {
-        SetState(OrganizeButtonState::Completed, preview.message);
-        return;
-    }
     SetState(
         preview ? OrganizeButtonState::Completed
                 : OrganizeButtonState::Failed,

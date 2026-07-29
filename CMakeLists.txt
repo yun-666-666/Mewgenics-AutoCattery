@@ -31,6 +31,15 @@ add_library(auto_cattery_core STATIC
     src/config.cpp
     src/logger.cpp
     src/module_registry.cpp
+    src/snapshot/cat_blob_parser.cpp
+    src/snapshot/domain.cpp
+    src/snapshot/house_state_parser.cpp
+    src/snapshot/lz4_block.cpp
+    src/snapshot/save_database.cpp
+    src/snapshot/save_locator.cpp
+    src/snapshot/save_snapshot_adapter.cpp
+    src/snapshot/snapshot_assembler.cpp
+    src/snapshot/win_sqlite_api.cpp
     src/workflow/organize_workflow_facade.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
@@ -78,22 +87,36 @@ if(AUTOCATTERY_BUILD_TESTS)
     enable_testing()
     add_executable(auto_cattery_tests
         tests/config_tests.cpp
+        tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
+        tests/organize_workflow_facade_tests.cpp
+        tests/lz4_block_tests.cpp
+        tests/snapshot_domain_tests.cpp
+        tests/snapshot_assembler_tests.cpp
+        tests/win_sqlite_api_tests.cpp
         tests/house_button_controller_tests.cpp
+        tests/house_state_parser_tests.cpp
         tests/recommendation_marker_controller_tests.cpp
+        tests/save_database_tests.cpp
+        tests/save_locator_tests.cpp
         tests/scene_context_tests.cpp
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase04_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase05_unit_tests COMMAND auto_cattery_tests)
+
+    add_executable(snapshot_probe tests/snapshot_probe.cpp)
+    target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
+    target_compile_features(snapshot_probe PRIVATE cxx_std_20)
+    autocattery_enable_warnings(snapshot_probe)
 
     add_executable(dll_smoke_tests tests/dll_smoke_tests.cpp)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase04_dll_load_smoke
+        NAME phase05_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()
