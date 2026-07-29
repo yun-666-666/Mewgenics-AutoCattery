@@ -2,6 +2,8 @@
 #include "auto_cattery/breeding/breeding_ranker.hpp"
 #include "auto_cattery/classification/classifier.hpp"
 #include "auto_cattery/classification/protection_adapter.hpp"
+#include "auto_cattery/room_planning/capability_adapter.hpp"
+#include "auto_cattery/room_planning/planner.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
 
 #include <algorithm>
@@ -75,6 +77,16 @@ int wmain(int argument_count, wchar_t** arguments) {
     autocattery::breeding::BreedingScoringConfig breeding_config;
     const auto breeding =
         autocattery::breeding::RankBreedingCats(snapshot, breeding_config);
+    const auto repeated_breeding = repeated
+        ? autocattery::breeding::RankBreedingCats(
+            repeated.value,
+            breeding_config)
+        : autocattery::Result<
+            autocattery::breeding::BreedingRanking>{
+                {},
+                autocattery::ErrorCode::SnapshotInvalid,
+                "repeated snapshot unavailable"
+            };
     autocattery::protection::ProtectionSidecar unavailable_sidecar;
     unavailable_sidecar.status =
         autocattery::protection::SidecarLoadStatus::Missing;
@@ -127,6 +139,64 @@ int wmain(int argument_count, wchar_t** arguments) {
                 autocattery::ErrorCode::SnapshotInvalid,
                 "ranking unavailable"
             };
+    const auto repeated_classification =
+        repeated && repeated_ranking && repeated_breeding
+        ? autocattery::classification::ClassifyCats(
+            repeated.value,
+            repeated_ranking.value,
+            repeated_breeding.value,
+            breeding_config,
+            autocattery::classification::ClassificationConfig{},
+            repeated_protection_facts)
+        : autocattery::Result<
+            autocattery::classification::ClassificationPlan>{
+                {},
+                autocattery::ErrorCode::SnapshotInvalid,
+                "repeated ranking unavailable"
+            };
+    const auto capabilities =
+        autocattery::room_planning::BuildConservativeRoomCapabilities(
+            snapshot);
+    const auto repeated_capabilities = repeated
+        ? autocattery::room_planning::BuildConservativeRoomCapabilities(
+            repeated.value)
+        : std::vector<autocattery::room_planning::RoomCapability>{};
+    const auto room_plan = classification
+        ? autocattery::room_planning::PlanRooms({
+            snapshot,
+            classification.value,
+            protection_decisions,
+            capabilities,
+            protection_digest,
+            protection_digest
+        }, {})
+        : autocattery::room_planning::RoomPlan{};
+    const auto repeated_room_plan =
+        repeated && repeated_classification
+        ? autocattery::room_planning::PlanRooms({
+            repeated.value,
+            repeated_classification.value,
+            repeated_protection_decisions,
+            repeated_capabilities,
+            repeated_protection_digest,
+            repeated_protection_digest
+        }, {})
+        : autocattery::room_planning::RoomPlan{};
+    const bool stable_room_plan =
+        classification && repeated_classification &&
+        room_plan.algorithm_version ==
+            repeated_room_plan.algorithm_version &&
+        room_plan.moves == repeated_room_plan.moves &&
+        room_plan.unplaced_cats == repeated_room_plan.unplaced_cats &&
+        room_plan.capacity_relief_suggestions ==
+            repeated_room_plan.capacity_relief_suggestions &&
+        room_plan.limitations == repeated_room_plan.limitations &&
+        room_plan.warnings == repeated_room_plan.warnings &&
+        room_plan.validation_errors ==
+            repeated_room_plan.validation_errors &&
+        room_plan.minimum_capacity_relief_required ==
+            repeated_room_plan.minimum_capacity_relief_required &&
+        room_plan.disposition == repeated_room_plan.disposition;
     std::cout
         << "house_cats=" << snapshot.cats.size()
         << " rooms=" << snapshot.rooms.size()
@@ -163,9 +233,22 @@ int wmain(int argument_count, wchar_t** arguments) {
                     return decision.destructive_action_allowed;
                 })
             : 0)
+        << " stable_room_plan=" << (stable_room_plan ? 1 : 0)
+        << " planned_moves=" << room_plan.moves.size()
+        << " executable_moves="
+        << std::count_if(
+            room_plan.moves.begin(),
+            room_plan.moves.end(),
+            [](const auto& move) { return move.executable; })
+        << " room_validation_errors="
+        << room_plan.validation_errors.size()
         << '\n';
     return validation.Valid() && stable_ids && stable_ranking &&
-        stable_protection &&
+        stable_protection && stable_room_plan &&
         breeding && classification &&
-        classification.value.quality_cull_candidates.empty() ? 0 : 2;
+        classification.value.quality_cull_candidates.empty() &&
+        room_plan.validation_errors.empty() &&
+        room_plan.moves.empty() &&
+        !room_plan.move_execution_allowed &&
+        !room_plan.cull_execution_allowed ? 0 : 2;
 }

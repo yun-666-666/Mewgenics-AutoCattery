@@ -12,7 +12,8 @@
     "combat_scoring",
     "breeding_scoring",
     "classification",
-    "protection"
+    "protection",
+    "room_planning"
   ],
   "properties": {
     "schema_version": {"type": "integer", "minimum": 1},
@@ -194,6 +195,34 @@
         },
         "protect_unknown_native_state": {"const": true},
         "require_stable_identity_for_sidecar": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "room_planning": {
+      "type": "object",
+      "required": [
+        "version",
+        "default_soft_capacity",
+        "allow_soft_overflow",
+        "max_soft_overflow_per_room",
+        "never_exceed_known_hard_capacity",
+        "prefer_single_combat_staging_room",
+        "keep_breeding_pairs_together",
+        "avoid_inbreeding_pairs",
+        "keep_kittens_separate_when_possible",
+        "allow_partial_plan"
+      ],
+      "properties": {
+        "version": {"const": 1},
+        "default_soft_capacity": {"type": "integer", "minimum": 1},
+        "allow_soft_overflow": {"type": "boolean"},
+        "max_soft_overflow_per_room": {"type": "integer", "minimum": 0},
+        "never_exceed_known_hard_capacity": {"const": true},
+        "prefer_single_combat_staging_room": {"type": "boolean"},
+        "keep_breeding_pairs_together": {"type": "boolean"},
+        "avoid_inbreeding_pairs": {"type": "boolean"},
+        "keep_kittens_separate_when_possible": {"type": "boolean"},
+        "allow_partial_plan": {"const": true}
       },
       "additionalProperties": false
     }

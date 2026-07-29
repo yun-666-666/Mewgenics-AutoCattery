@@ -34,5 +34,7 @@ engineered binary output is included.
 - License: MIT
 - Use: deterministic single-cat combat/breeding scoring, stable ranking,
   retained-pool classification, protection-level permission intersection, and
-  preview-only cull candidate flow adapted to the verified seven-stat and
-  string-ID snapshot model. Toolkit game-field examples were not reused.
+  preview-only cull candidate flow. Deterministic ordering, minimum movement,
+  partial success, and unplaced-result concepts informed Stage 09. All flows
+  were adapted to the verified seven-stat and string-ID snapshot model;
+  Toolkit game-field and capacity examples were not reused.

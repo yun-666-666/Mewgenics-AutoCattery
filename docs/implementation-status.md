@@ -228,3 +228,40 @@ explicitly requests it.
 
 Stage 08 passed on 2026-07-29. Stage 09 may begin only when the player
 explicitly requests it.
+
+## Stage 09
+
+- Status: complete; capacity-aware, protection-gated, read-only room planning.
+- A separate room-planning domain distinguishes confirmed game hard capacity,
+  MOD soft-layout preference, and Unknown room capability.
+- Validation fails closed on snapshot/classification/protection mismatches,
+  duplicate or missing cats/rooms/residents/capabilities, unknown IDs, and
+  non-canonical current protection digests.
+- ProtectionPolicy is a required independent input. NoMove, NoCullOrMove,
+  FullyUnmanaged, fail-closed, adventure-box, and unconfirmed source-room
+  states cannot produce moves.
+- The abstract fully evidenced planner is deterministic, minimizes moves,
+  never exceeds confirmed hard capacity, supports partial success, and emits
+  only non-executable minimum capacity-relief suggestions from the Stage 07/08
+  safe candidate order.
+- Unknown hard capacity is never replaced by `default_soft_capacity`; soft
+  capacity is only a layout preference after a target's hard safety boundary
+  is confirmed.
+- Current save/parser evidence still cannot prove hard capacities, room roles,
+  special/locked/forced-resident states, or receive/release permissions.
+  The real adapter therefore emits Unknown capabilities without inspecting
+  room names or resident counts.
+- Relationship and compatibility details remain unavailable. Breeding-core
+  cats remain in place and no breeding pair or fictitious breeding layout is
+  generated.
+- Debug/Release `phase09_unit_tests` and `phase09_dll_load_smoke` pass.
+- The current-save read-only probe returns eight conservatively protected
+  cats, zero validation errors, stable IDs/ranking/protection/room plan, zero
+  planned or executable moves, and zero executable culls.
+- No UI, DLL deployment, game movement, culling, executor, or save write was
+  added.
+
+## Stage gate
+
+Stage 09 passed on 2026-07-29. Stage 10 may begin only when the player
+explicitly requests it.

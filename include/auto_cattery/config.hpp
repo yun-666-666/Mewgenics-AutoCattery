@@ -7,6 +7,7 @@
 #include "auto_cattery/breeding/domain.hpp"
 #include "auto_cattery/classification/domain.hpp"
 #include "auto_cattery/error.hpp"
+#include "auto_cattery/room_planning/domain.hpp"
 #include "auto_cattery/scoring/domain.hpp"
 
 namespace autocattery {
@@ -42,6 +43,7 @@ struct Config {
     breeding::BreedingScoringConfig breeding_scoring;
     classification::ClassificationConfig classification;
     ProtectionConfig protection;
+    room_planning::RoomPlanningConfig room_planning;
     bool force_read_only{false};
 };
 

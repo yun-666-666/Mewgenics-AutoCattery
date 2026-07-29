@@ -95,6 +95,18 @@ Json SafeDefaults() {
             {"sidecar_file", "protection.json"},
             {"protect_unknown_native_state", true},
             {"require_stable_identity_for_sidecar", true}
+        }},
+        {"room_planning", {
+            {"version", 1},
+            {"default_soft_capacity", 4},
+            {"allow_soft_overflow", true},
+            {"max_soft_overflow_per_room", 2},
+            {"never_exceed_known_hard_capacity", true},
+            {"prefer_single_combat_staging_room", true},
+            {"keep_breeding_pairs_together", true},
+            {"avoid_inbreeding_pairs", true},
+            {"keep_kittens_separate_when_possible", true},
+            {"allow_partial_plan", true}
         }}
     };
 }
@@ -191,6 +203,18 @@ Result<void> Validate(const Json& value) {
             return {
                 ErrorCode::ConfigInvalid,
                 "protection fail-closed rules cannot be disabled"
+            };
+        }
+        if (!value.at("room_planning")
+                 .at("never_exceed_known_hard_capacity")
+                 .get<bool>() ||
+            !value.at("room_planning")
+                 .at("allow_partial_plan")
+                 .get<bool>()) {
+            return {
+                ErrorCode::ConfigInvalid,
+                "room planning hard-capacity and partial-plan safety rules "
+                "cannot be disabled"
             };
         }
     } catch (const Json::exception& error) {
@@ -406,6 +430,58 @@ Result<Config> LoadConfig(
                 ErrorCode::ConfigInvalid,
                 "protection configuration version or sidecar filename is "
                 "invalid"
+            };
+        }
+
+        const auto& room_planning = merged.at("room_planning");
+        AssignIfPresent(
+            room_planning,
+            "version",
+            result.room_planning.version);
+        AssignIfPresent(
+            room_planning,
+            "default_soft_capacity",
+            result.room_planning.default_soft_capacity);
+        AssignIfPresent(
+            room_planning,
+            "allow_soft_overflow",
+            result.room_planning.allow_soft_overflow);
+        AssignIfPresent(
+            room_planning,
+            "max_soft_overflow_per_room",
+            result.room_planning.max_soft_overflow_per_room);
+        AssignIfPresent(
+            room_planning,
+            "never_exceed_known_hard_capacity",
+            result.room_planning.never_exceed_known_hard_capacity);
+        AssignIfPresent(
+            room_planning,
+            "prefer_single_combat_staging_room",
+            result.room_planning.prefer_single_combat_staging_room);
+        AssignIfPresent(
+            room_planning,
+            "keep_breeding_pairs_together",
+            result.room_planning.keep_breeding_pairs_together);
+        AssignIfPresent(
+            room_planning,
+            "avoid_inbreeding_pairs",
+            result.room_planning.avoid_inbreeding_pairs);
+        AssignIfPresent(
+            room_planning,
+            "keep_kittens_separate_when_possible",
+            result.room_planning.keep_kittens_separate_when_possible);
+        AssignIfPresent(
+            room_planning,
+            "allow_partial_plan",
+            result.room_planning.allow_partial_plan);
+        if (result.room_planning.version != 1 ||
+            result.room_planning.default_soft_capacity == 0 ||
+            !result.room_planning.never_exceed_known_hard_capacity ||
+            !result.room_planning.allow_partial_plan) {
+            return {
+                {},
+                ErrorCode::ConfigInvalid,
+                "room planning configuration is invalid"
             };
         }
     } catch (const Json::exception& error) {

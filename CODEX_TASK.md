@@ -1,45 +1,47 @@
-# CODEX CURRENT TASK — STAGE 08
+# CODEX CURRENT TASK — STAGE 09
 
 ## Scope
 
-只实施阶段 08：在阶段 07 的只读分类器之前建立不可绕过的保护策略，
-支持 MOD sidecar 白名单/保护记录和仅用于安全候选排序的黑名单。
-禁止房间规划、移动、淘汰、执行器、存档写入或复杂 UI。
+只实施阶段 09：容量感知、保护不可绕过、确定性的只读房间规划与房间
+不足回退。禁止移动执行、淘汰执行、存档写入、执行器和复杂 UI。
 
-阶段 08 已完成。除非玩家明确要求，不得开始阶段 09。
+阶段 09 已完成。除非玩家明确要求，不得开始阶段 10。
 
 ## Evidence rules
 
-- 阶段文档和用户提供的 Toolkit 只作为 MIT 许可的流程与接口参考。
-- Toolkit 的六属性、原生锁定/收藏、mutation、性别、繁育资格、示例
-  ID 和其他游戏状态未复制到当前适配器。
-- 当前本地存档和解析器仍不能证明游戏原生锁定、收藏或特殊状态字段，
-  因而这些状态保持 Unknown，并由保护策略 fail closed。
-- Sidecar 只描述 MOD 自己的记录；本阶段只实现严格读取，不实现写入。
+- 阶段文档和用户提供的 MIT Toolkit 只作为流程、接口和算法思想参考。
+- Toolkit 的整数 RoomId、房间类型、容量、繁育/幼猫/特殊/锁房标志及
+  兼容关系示例均未复制。
+- 当前 RoomId 为字符串；现有快照只确认房间 ID、居民和当前房间关系。
+- 真实硬容量、房间角色、特殊状态、玩家锁定、强制居民和接收/移出权限
+  仍为 Unknown，不从名称、人数或软容量推断。
+- `default_soft_capacity` 只用于拥有已确认硬容量时的 MOD 布局偏好，
+  绝不授权移动或替代游戏硬容量。
 
 ## Implemented boundary
 
-- 独立 `ProtectionLevel`、`ProtectionPolicy`、精确摘要重检和权限结果。
-- 支持 None、NoCull、NoMove、NoCullOrMove、FullyUnmanaged 及保守合并。
-- 原生状态 Unknown、sidecar 缺失/损坏、稳定身份不足或身份冲突都会禁止
-  淘汰和移动。
-- 严格 sidecar schema 拒绝空文件、损坏 JSON、旧/未来 schema、重复
-  CatId、非法枚举、非法身份、非整数或越界期限。
-- 白名单/硬保护优先；黑名单只能重排已经通过阶段 07 全部安全门的预览
-  候选。
-- 分类器要求每只猫都有 ProtectionPolicy 决定；缺失决定不产生候选。
-- 所有 `destructive_action_allowed` 恒为 false。
+- 独立 RoomCapability、规划结果、输入验证、保守能力适配器和纯只读
+  RoomPlanner。
+- 快照、分类、ProtectionPolicy、保护摘要、房间与居民输入不一致时
+  fail closed。
+- Unknown 房间能力、特殊/锁定/强制居民状态、冒险箱、NoMove、
+  NoCullOrMove、FullyUnmanaged 和 fail_closed 都不能生成移动。
+- 繁育配对证据和真实繁育房能力未确认时，核心繁育猫保持原位，不生成
+  配对或虚构繁育布局。
+- 抽象完整证据夹具支持已知硬容量、确定性排序、最小移动、部分成功、
+  unplaced 和按 Stage 07/08 安全候选顺序的最小容量释放建议。
+- 所有移动和淘汰执行权限恒为 false；保护摘要变化仅返回
+  CancelAndRepreview。
+- 真实存档使用保守能力适配器，预期并验证为 0 planned moves。
 
 ## Required validation
 
-- Debug/Release `phase08_unit_tests`。
-- Debug/Release `phase08_dll_load_smoke`。
-- 保护级别/合并、白黑名单冲突、Unknown、最低池、低置信度、摘要变化、
-  sidecar 错误边界、身份冲突和 1000 条记录。
-- 当前真实存档只读探针必须 0 校验错误、保护摘要稳定、0 预览淘汰、
-  0 可执行淘汰。
-- 源码范围检查确认无阶段 09/10/11 功能。
+- Debug/Release `phase09_unit_tests`。
+- Debug/Release `phase09_dll_load_smoke`。
+- 真实存档只读探针：0 校验错误、稳定 ID/分类/保护/房间计划、0 planned
+  moves、0 executable moves、0 executable culls。
+- `git diff --check` 与源码范围检查。
 
 ## Stop condition
 
-阶段 08 已完成。阶段 09 只能在玩家明确要求后开始，永不自动 push。
+阶段 09 已完成。阶段 10 只能在玩家明确要求后开始，永不自动 push。
