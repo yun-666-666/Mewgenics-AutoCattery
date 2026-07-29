@@ -73,12 +73,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
-    organize_workflow_ =
-        std::make_unique<workflow::OrganizeWorkflowFacade>(
-            std::make_unique<snapshot::SaveSnapshotAdapter>());
-    house_button_controller_ = std::make_unique<HouseButtonController>(
-        *house_button_view_,
-        *organize_workflow_);
     recommendation_marker_view_ =
         std::make_unique<MewUiRecommendationMarkerView>();
     recommendation_marker_controller_ =
@@ -88,6 +82,13 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     const auto config = LoadConfig(
         context.mod_root / L"config" / L"default_config.json",
         context.mod_root / L"config" / L"user_config.json");
+    organize_workflow_ =
+        std::make_unique<workflow::OrganizeWorkflowFacade>(
+            std::make_unique<snapshot::SaveSnapshotAdapter>(),
+            config ? config.value : Config{});
+    house_button_controller_ = std::make_unique<HouseButtonController>(
+        *house_button_view_,
+        *organize_workflow_);
 #ifdef _DEBUG
     debug_probe_enabled_ = true;
 #else
@@ -225,6 +226,9 @@ void MewUiBridge::OnTick() {
         return;
     }
     last_tick_time_ = now;
+    if (house_button_controller_) {
+        house_button_controller_->Poll();
+    }
 
     if (!ready_logged_.exchange(true)) {
         Logger::Instance().Write(

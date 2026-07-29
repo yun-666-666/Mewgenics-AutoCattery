@@ -100,6 +100,10 @@ void RunExecutionPreconditionTests() {
     AC_CHECK(
         first_digest ==
         execution::DigestSnapshotContent(fixture.snapshot));
+    fixture.snapshot.cats.front().genetic_stats.values.front() = 1;
+    AC_CHECK(
+        first_digest !=
+        execution::DigestSnapshotContent(fixture.snapshot));
 
     ApprovalFixture changed_scene;
     changed_scene.snapshot.scene_generation = 21;

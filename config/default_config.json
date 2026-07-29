@@ -19,6 +19,9 @@
     "cull_enabled": false,
     "require_quiescent_backup": true
   },
+  "workflow": {
+    "preview_ttl_seconds": 120
+  },
   "combat_scoring": {
     "version": 1,
     "recommended_count": 8,

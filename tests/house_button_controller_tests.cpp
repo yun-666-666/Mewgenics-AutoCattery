@@ -1,6 +1,8 @@
 #include "auto_cattery/ui/house_button_controller.hpp"
 
+#include <atomic>
 #include <chrono>
+#include <thread>
 #include <utility>
 
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
@@ -66,8 +68,8 @@ public:
         };
     }
 
-    int preview_calls{};
-    std::uint64_t last_scene_generation{};
+    std::atomic<int> preview_calls{};
+    std::atomic<std::uint64_t> last_scene_generation{};
 };
 
 ui::UiContextSnapshot HouseContext() {
@@ -79,6 +81,19 @@ ui::UiContextSnapshot HouseContext() {
         false,
         {"scene:House"}
     };
+}
+
+void FinishPreview(
+    ui::HouseButtonController& controller,
+    const FakeHouseButtonView& view) {
+    for (int attempt = 0;
+         attempt < 10000 &&
+         view.state == ui::OrganizeButtonState::Running;
+         ++attempt) {
+        controller.Poll();
+        std::this_thread::yield();
+    }
+    controller.Poll();
 }
 
 }  // namespace
@@ -105,11 +120,13 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(controller.IsAttached());
     AC_CHECK(view.attach_calls == 1);
     AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
+    AC_CHECK(workflow.preview_calls == 0);
 
     AC_CHECK(static_cast<bool>(controller.Attach(HouseContext())));
     AC_CHECK(view.attach_calls == 1);
 
     view.Click();
+    FinishPreview(controller, view);
     AC_CHECK(workflow.preview_calls == 1);
     AC_CHECK(workflow.last_scene_generation == 1);
     AC_CHECK(view.placeholder_calls == 1);
@@ -121,12 +138,14 @@ void RunHouseButtonControllerTests() {
 
     now += 1ms;
     view.Click();
+    FinishPreview(controller, view);
     AC_CHECK(workflow.preview_calls == 2);
     AC_CHECK(view.placeholder_calls == 2);
 
     for (int click = 0; click < 18; ++click) {
         now += 500ms;
         view.Click();
+        FinishPreview(controller, view);
     }
     AC_CHECK(workflow.preview_calls == 20);
     AC_CHECK(view.placeholder_calls == 20);
@@ -138,6 +157,27 @@ void RunHouseButtonControllerTests() {
 
     controller.Detach();
     AC_CHECK(view.detach_calls == 1);
+
+    FakeHouseButtonView changed_view;
+    FakeWorkflow changed_workflow;
+    ui::HouseButtonController changed_controller(
+        changed_view,
+        changed_workflow,
+        [&now] { return now; });
+    auto first_house = HouseContext();
+    first_house.scene_generation = 10;
+    AC_CHECK(static_cast<bool>(changed_controller.Attach(first_house)));
+    changed_view.Click();
+    changed_controller.Detach();
+    auto next_house = HouseContext();
+    next_house.scene_generation = 11;
+    AC_CHECK(static_cast<bool>(changed_controller.Attach(next_house)));
+    for (int attempt = 0; attempt < 10000; ++attempt) {
+        changed_controller.Poll();
+        std::this_thread::yield();
+    }
+    AC_CHECK(changed_view.placeholder_calls == 0);
+    AC_CHECK(changed_view.state == ui::OrganizeButtonState::Ready);
 }
 
 }  // namespace autocattery::tests

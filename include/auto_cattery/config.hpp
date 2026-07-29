@@ -30,6 +30,10 @@ struct ExecutionConfig {
     bool require_quiescent_backup{true};
 };
 
+struct WorkflowConfig {
+    std::uint32_t preview_ttl_seconds{120};
+};
+
 struct ProtectionConfig {
     std::uint32_t version{1};
     std::string sidecar_file{"protection.json"};
@@ -46,6 +50,7 @@ struct Config {
     UiConfig ui;
     SafetyConfig safety;
     ExecutionConfig execution;
+    WorkflowConfig workflow;
     scoring::CombatScoringConfig combat_scoring;
     breeding::BreedingScoringConfig breeding_scoring;
     classification::ClassificationConfig classification;

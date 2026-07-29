@@ -48,15 +48,37 @@ void RunOrganizeWorkflowFacadeTests() {
     AC_CHECK(static_cast<bool>(preview));
     AC_CHECK(adapter_view->captured_generation == 44);
     AC_CHECK(
-        preview.message.find("house_cats=1") != std::string::npos);
+        preview.message.find("cats=2") != std::string::npos);
     AC_CHECK(
         preview.message.find("private-name") == std::string::npos);
     AC_CHECK(
         workflow.CurrentExecutionAvailability() ==
-        autocattery::workflow::ExecutionAvailability::PreviewOnly);
+        autocattery::workflow::WorkflowCapability::PreviewOnly);
+    AC_CHECK(
+        workflow.State() ==
+        autocattery::workflow::WorkflowState::AwaitingConfirmation);
     const auto execution = workflow.RequestExecution();
     AC_CHECK(!static_cast<bool>(execution));
     AC_CHECK(execution.code == ErrorCode::UnsupportedGameBuild);
+
+    const auto detailed = workflow.BuildPreview(44);
+    AC_CHECK(static_cast<bool>(detailed));
+    AC_CHECK(!detailed.value.id.empty());
+    AC_CHECK(detailed.value.game_data_modified == false);
+    const auto unavailable = workflow.Execute(
+        detailed.value.id,
+        workflow::ExecutionChoice::Execute,
+        detailed.value.bindings);
+    AC_CHECK(static_cast<bool>(unavailable));
+    AC_CHECK(
+        unavailable.value.failure_reason ==
+        workflow::WorkflowFailureReason::NotAvailable);
+    AC_CHECK(unavailable.value.game_data_modified == false);
+    AC_CHECK(static_cast<bool>(workflow.Cancel(detailed.value.id)));
+    AC_CHECK(!static_cast<bool>(workflow.Execute(
+        detailed.value.id,
+        workflow::ExecutionChoice::Execute,
+        detailed.value.bindings)));
 
     auto failing_adapter = std::make_unique<FakeReadAdapter>();
     failing_adapter->fail = true;

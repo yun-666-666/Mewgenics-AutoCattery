@@ -10,6 +10,7 @@
     "ui",
     "safety",
     "execution",
+    "workflow",
     "combat_scoring",
     "breeding_scoring",
     "classification",
@@ -49,6 +50,18 @@
         "real_write_adapter_enabled": {"const": false},
         "cull_enabled": {"const": false},
         "require_quiescent_backup": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["preview_ttl_seconds"],
+      "properties": {
+        "preview_ttl_seconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 600
+        }
       },
       "additionalProperties": false
     },

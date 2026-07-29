@@ -107,8 +107,26 @@ void HouseButtonController::HandleClick() {
         "AC3102",
         "Auto-organize preview clicked; capturing a read-only snapshot.");
     SetState(OrganizeButtonState::Running);
-    const auto preview =
-        workflow_.RequestPreview(scene_generation_);
+    const auto generation = scene_generation_;
+    preview_generation_ = generation;
+    preview_task_ = std::async(
+        std::launch::async,
+        [this, generation] {
+            return workflow_.RequestPreview(generation);
+        });
+}
+
+void HouseButtonController::Poll() {
+    if (!preview_task_.valid() ||
+        preview_task_.wait_for(std::chrono::milliseconds(0)) !=
+            std::future_status::ready) {
+        return;
+    }
+    const auto preview = preview_task_.get();
+    if (!view_.IsAttached() ||
+        preview_generation_ != scene_generation_) {
+        return;
+    }
     view_.ShowPlaceholder();
     SetState(
         preview ? OrganizeButtonState::Completed

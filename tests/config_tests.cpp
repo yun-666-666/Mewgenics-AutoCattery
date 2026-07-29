@@ -63,6 +63,7 @@ void RunConfigTests() {
     AC_CHECK(valid.value.room_planning.version == 1);
     AC_CHECK(valid.value.room_planning.default_soft_capacity == 4);
     AC_CHECK(valid.value.room_planning.never_exceed_known_hard_capacity);
+    AC_CHECK(valid.value.workflow.preview_ttl_seconds == 120);
 
     Write(user, R"({
         "combat_scoring": {
@@ -156,6 +157,11 @@ void RunConfigTests() {
     const auto unsafe_partial = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(unsafe_partial));
     AC_CHECK(unsafe_partial.code == ErrorCode::ConfigInvalid);
+
+    Write(user, R"({"workflow":{"preview_ttl_seconds":9}})");
+    const auto invalid_ttl = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(invalid_ttl));
+    AC_CHECK(invalid_ttl.code == ErrorCode::ConfigInvalid);
 
     Write(user, "{");
     const auto truncated = LoadConfig(defaults, user);

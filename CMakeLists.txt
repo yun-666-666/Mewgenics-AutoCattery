@@ -61,6 +61,12 @@ add_library(auto_cattery_core STATIC
     src/snapshot/snapshot_assembler.cpp
     src/snapshot/win_sqlite_api.cpp
     src/workflow/organize_workflow_facade.cpp
+    src/workflow/digests.cpp
+    src/workflow/execution_router.cpp
+    src/workflow/preview_builder.cpp
+    src/workflow/preview_store.cpp
+    src/workflow/recommendation_snapshot_writer.cpp
+    src/workflow/state_machine.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/recommendation_marker_controller.cpp
@@ -126,6 +132,13 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
         tests/organize_workflow_facade_tests.cpp
+        tests/workflow_state_machine_tests.cpp
+        tests/workflow_digest_tests.cpp
+        tests/workflow_preview_builder_tests.cpp
+        tests/workflow_preview_store_tests.cpp
+        tests/workflow_preview_binding_tests.cpp
+        tests/workflow_execution_router_tests.cpp
+        tests/workflow_recommendation_writer_tests.cpp
         tests/lz4_block_tests.cpp
         tests/snapshot_domain_tests.cpp
         tests/snapshot_assembler_tests.cpp
@@ -141,7 +154,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase10_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase11_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
@@ -152,7 +165,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase10_dll_load_smoke
+        NAME phase11_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()

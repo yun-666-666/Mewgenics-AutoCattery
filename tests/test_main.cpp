@@ -1,5 +1,11 @@
 #include "test_support.hpp"
 
+#include <cstdlib>
+#include <exception>
+#include <iostream>
+
+#include <windows.h>
+
 namespace autocattery::tests {
 
 void RunConfigTests();
@@ -32,10 +38,23 @@ void RunSceneContextTests();
 void RunSnapshotDomainTests();
 void RunSnapshotAssemblerTests();
 void RunWinSqliteApiTests();
+void RunWorkflowStateMachineTests();
+void RunWorkflowDigestTests();
+void RunWorkflowPreviewBuilderTests();
+void RunWorkflowPreviewStoreTests();
+void RunWorkflowPreviewBindingTests();
+void RunWorkflowExecutionRouterTests();
+void RunWorkflowRecommendationWriterTests();
 
 }  // namespace autocattery::tests
 
 int main() {
+    SetErrorMode(
+        SEM_FAILCRITICALERRORS |
+        SEM_NOGPFAULTERRORBOX |
+        SEM_NOOPENFILEERRORBOX);
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    try {
     autocattery::tests::RunBreedingRankerTests();
     autocattery::tests::RunBreedingScorerTests();
     autocattery::tests::RunClassifierTests();
@@ -66,6 +85,20 @@ int main() {
     autocattery::tests::RunSnapshotDomainTests();
     autocattery::tests::RunSnapshotAssemblerTests();
     autocattery::tests::RunWinSqliteApiTests();
+    autocattery::tests::RunWorkflowStateMachineTests();
+    autocattery::tests::RunWorkflowDigestTests();
+    autocattery::tests::RunWorkflowPreviewBuilderTests();
+    autocattery::tests::RunWorkflowPreviewStoreTests();
+    autocattery::tests::RunWorkflowPreviewBindingTests();
+    autocattery::tests::RunWorkflowExecutionRouterTests();
+    autocattery::tests::RunWorkflowRecommendationWriterTests();
+    } catch (const std::exception& error) {
+        std::cerr << "UNHANDLED TEST EXCEPTION: " << error.what() << '\n';
+        return 2;
+    } catch (...) {
+        std::cerr << "UNHANDLED NON-STANDARD TEST EXCEPTION\n";
+        return 3;
+    }
     if (autocattery::tests::failures != 0) {
         return 1;
     }

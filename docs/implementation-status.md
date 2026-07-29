@@ -298,3 +298,42 @@ explicitly requests it.
 Stage 10 safety infrastructure is complete, but Stage 11 remains blocked until
 a separately verified real write and restore mechanism exists. No player game
 test is requested for the Unsupported adapter.
+
+## Stage 11
+
+- Status: PreviewOnly complete; real execution blocked by Unsupported Stage 10
+  adapter.
+- The House button is the only trigger for immutable snapshot capture, combat
+  and breeding ranking, classification, protection evaluation, conservative
+  room planning, and an anonymous preview summary.
+- The explicit workflow state machine fails closed. Applying/Verifying cannot
+  be entered with PreviewOnly capability, and concurrent preview/execution
+  attempts are rejected.
+- Preview authorization is short-lived and binds HouseReady generation, game
+  day, snapshot/classification/protection/RoomPlan/config/candidate-order
+  digests, anonymous save identity, and build identity. Cancelled, expired,
+  changed, duplicate, or consumed previews cannot be claimed.
+- Preview output reports anonymous counts, Complete/Partial/Invalid
+  disposition, Unknown capability limitations, and that no game data changed.
+  It does not log cat names, CatIds, save names, or personal paths.
+- Unsupported execution returns NotAvailable before backup, journal, recovery,
+  or write-adapter access. Synthetic MoveOnly tests forbid cull routing and
+  prove that move failure does not fall back to culling.
+- The recommendation sidecar boundary uses a temporary file, checksum, and
+  atomic replacement under the MOD data directory. It is reachable only after
+  a synthetic committed outcome; PreviewOnly, Cancelled, Failed, RolledBack,
+  and ManualRecoveryRequired-equivalent outcomes do not write.
+- House preview work runs off the MewUI callback and completion is applied by
+  the existing UI tick. No background, House-entry, timed, rest, day-advance,
+  team-composition, or embark-selection automation was added.
+- Toolkit 1.0.0 was used only for the MIT-licensed workflow/order and
+  deterministic contract. Its integer RoomId, six-stat model, room metadata,
+  game fields, and write API assumptions were rejected.
+- No web research, DLL deployment, player-save read/write, or manual game test
+  was performed.
+
+## Stage gate
+
+Stage 11 PreviewOnly is complete. Stage 12 remains blocked until the player
+explicitly requests it; real organize execution remains independently blocked
+by the Unsupported Stage 10 adapter.

@@ -29,6 +29,16 @@ void Append(std::ostringstream& stream, const T& value) {
     stream << value << '|';
 }
 
+template<class T>
+void AppendOptional(
+    std::ostringstream& stream,
+    const std::optional<T>& value) {
+    Append(stream, value.has_value());
+    if (value) {
+        Append(stream, *value);
+    }
+}
+
 bool ByteLess(std::string_view left, std::string_view right) {
     return std::lexicographical_compare(
         left.begin(), left.end(), right.begin(), right.end(),
@@ -46,17 +56,46 @@ std::string DigestSnapshotContent(const snapshot::HouseSnapshot& snapshot) {
     Append(canonical, snapshot.game_day.value_or(-1));
     Append(canonical, snapshot.capabilities.stable_cat_id);
     Append(canonical, snapshot.capabilities.read_room_assignments);
+    Append(canonical, snapshot.capabilities.read_genetic_stats);
+    Append(canonical, snapshot.capabilities.read_heredity_bonus);
+    Append(canonical, snapshot.capabilities.read_equipment_bonus);
+    Append(canonical, snapshot.capabilities.read_raw_ability_slots);
+    Append(canonical, snapshot.capabilities.read_typed_abilities);
+    Append(canonical, snapshot.capabilities.read_class_id);
+    Append(canonical, snapshot.capabilities.read_age);
+    Append(canonical, snapshot.capabilities.read_breeding_eligibility);
+    Append(canonical, snapshot.capabilities.read_relationships);
+    Append(canonical, snapshot.capabilities.read_room_capacities);
 
-    std::vector<std::pair<snapshot::CatId, std::string>> cats;
-    cats.reserve(snapshot.cats.size());
-    for (const auto& cat : snapshot.cats) {
-        cats.emplace_back(cat.id, cat.room_id.value_or(""));
-    }
-    std::ranges::sort(cats);
-    for (const auto& [id, room] : cats) {
-        Append(canonical, id);
-        Append(canonical, room.size());
-        Append(canonical, room);
+    auto cats = snapshot.cats;
+    std::ranges::sort(cats, {}, &snapshot::CatSnapshot::id);
+    for (const auto& cat : cats) {
+        Append(canonical, cat.id);
+        Append(canonical, cat.breed_id);
+        Append(canonical, cat.voice_id);
+        Append(canonical, cat.stat_type_id);
+        Append(canonical, cat.class_id);
+        for (const auto& value : cat.genetic_stats.values) {
+            AppendOptional(canonical, value);
+        }
+        for (const auto& value : cat.heredity_bonus.values) {
+            AppendOptional(canonical, value);
+        }
+        for (const auto& value : cat.equipment_bonus.values) {
+            AppendOptional(canonical, value);
+        }
+        for (const auto& slot : cat.raw_ability_slots) {
+            Append(canonical, slot.size());
+            Append(canonical, slot);
+        }
+        AppendOptional(canonical, cat.birth_day);
+        AppendOptional(canonical, cat.age_days);
+        Append(canonical, cat.room_id.value_or(""));
+        Append(canonical, cat.in_adventure_box);
+        Append(canonical, static_cast<int>(cat.life_stage));
+        Append(canonical, static_cast<int>(cat.available_for_combat));
+        Append(canonical, static_cast<int>(cat.available_for_breeding));
+        Append(canonical, static_cast<int>(cat.injured));
     }
 
     std::vector<std::pair<std::string, std::vector<snapshot::CatId>>> rooms;

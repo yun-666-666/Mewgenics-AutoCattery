@@ -37,6 +37,9 @@ Json SafeDefaults() {
             {"cull_enabled", false},
             {"require_quiescent_backup", true}
         }},
+        {"workflow", {
+            {"preview_ttl_seconds", 120}
+        }},
         {"combat_scoring", {
             {"version", 1},
             {"recommended_count", 8},
@@ -212,6 +215,14 @@ Result<void> Validate(const Json& value) {
                 "backup cannot be disabled"
             };
         }
+        const auto preview_ttl =
+            value.at("workflow").at("preview_ttl_seconds").get<std::uint32_t>();
+        if (preview_ttl < 10 || preview_ttl > 600) {
+            return {
+                ErrorCode::ConfigInvalid,
+                "preview_ttl_seconds must be between 10 and 600"
+            };
+        }
         if (!value.at("protection")
                  .at("protect_unknown_native_state")
                  .get<bool>() ||
@@ -305,6 +316,12 @@ Result<Config> LoadConfig(
             execution,
             "require_quiescent_backup",
             result.execution.require_quiescent_backup);
+
+        const auto& workflow = merged.at("workflow");
+        AssignIfPresent(
+            workflow,
+            "preview_ttl_seconds",
+            result.workflow.preview_ttl_seconds);
 
         const auto& combat = merged.at("combat_scoring");
         AssignIfPresent(

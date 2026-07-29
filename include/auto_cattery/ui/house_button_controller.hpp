@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <functional>
+#include <future>
 #include <string_view>
 
 #include "auto_cattery/error.hpp"
@@ -55,6 +56,7 @@ public:
         std::string_view detail = {});
     [[nodiscard]] bool IsAttached() const noexcept;
     void HandleClick();
+    void Poll();
 
 private:
     HouseButtonView& view_;
@@ -63,6 +65,8 @@ private:
     OrganizeButtonState state_{OrganizeButtonState::Hidden};
     std::uint64_t scene_generation_{};
     std::chrono::steady_clock::time_point last_click_{};
+    std::future<Result<void>> preview_task_;
+    std::uint64_t preview_generation_{};
 };
 
 }  // namespace autocattery::ui

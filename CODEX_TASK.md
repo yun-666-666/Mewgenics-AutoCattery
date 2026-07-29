@@ -1,42 +1,45 @@
-# CODEX CURRENT TASK — STAGE 10
+# CODEX CURRENT TASK — STAGE 11
 
 ## Scope
 
-只实施阶段 10：密封执行计划、执行前重检、离线一致备份、匿名 journal、
-恢复包、注入式事务执行器和明确 Unsupported 的真实写适配器。
+只实施阶段 11：由 House 按钮明确触发的只读整理工作流编排、状态机、
+短期预览、取消/过期/幂等保护、能力路由、结果摘要和推荐快照写入边界。
 
-不实施阶段 11 流水线、复杂确认 UI、阶段 14 备份管理中心或任何自动组队、
-自动休息、自动推进日期、自动出征选择。
+不实施阶段 12～16、后台自动触发、自动组队、自动休息、日期推进、自动
+出征选择或任何未经验证的真实移动、淘汰、恢复和存档写入。
 
 ## Evidence result
 
-- 本地 SDK、已安装公开源码和当前仓库没有可验证的运行时移动、淘汰或
-  RestoreCat API。
-- 当前 SaveDatabase 只以 SQLite READONLY | NOMUTEX 打开，并持有
-  BEGIN DEFERRED 读事务。
-- 当前 SQLite 绑定没有 backup API；运行中只复制 `.sav` 主文件的一致性
-  未被证明，WAL/SHM 可能遗漏已提交数据。
-- 因此真实写适配器为 Unsupported，配置不能启用真实写入或淘汰。
-- 未联网：活动 AGENTS.md 明确禁止 web research。
+- Stage 5～9 的不可变快照、七项属性评分、分类、保护和保守房间规划直接
+  复用，没有复制 Toolkit 算法。
+- Stage 10 的真实写适配器仍为 Unsupported；当前没有验证过的 move、
+  cull、restore 或运行中一致备份接口。
+- 活动 `AGENTS.md` 禁止 web research，因此本阶段没有联网。
+- Toolkit 1.0.0 仅用于核对 MIT 许可、流水线顺序、保护优先级、确定性
+  排序、部分成功和输出契约；其整数 RoomId、六属性模型、房间角色/容量
+  和游戏接口假设均未进入实现。
 
 ## Implemented boundary
 
-- ApprovedExecutionPlan 与 ExecutionAuthorization 只能由重检器产生。
-- 内容、分类、RoomPlan、保护摘要、HouseReady generation、游戏日、存档
-  身份和 build 身份全部进入前置条件；snapshot_id 仅作捕获关联。
-- Stage 9 的 `executable=false`、移动/淘汰权限恒 false 不被修改。
-- 备份只接受游戏已确认静止且无 WAL/SHM 的离线 `.sav`，验证 SHA-256
-  与大小后原子发布；拒绝穿越、重解析点、覆盖源和覆盖现有备份。
-- journal 与恢复包使用临时文件和原子替换，不记录猫名或 CatId。
-- fake 驱动事务器按备份、Prepared、逐移动验证、逐淘汰验证、Committed
-  顺序执行；任一失败停止并反向恢复，恢复失败写
-  ManualRecoveryRequired。
-- 现有 UI 仍只生成预览；应用服务执行入口固定返回 PreviewOnly。
+- 显式状态机覆盖捕获、评分、规划、等待确认、执行、验证、完成、失败和
+  取消；PreviewOnly 不得进入 Applying。
+- 预览绑定 HouseReady generation、game day、快照/分类/保护/RoomPlan/
+  配置/候选顺序摘要、匿名 save identity 和 build identity。
+- preview ID 由全部绑定与本地序列共同生成，不以 snapshot_id 单独生成。
+- 短期预览支持过期、取消、重复 ID 拒绝、绑定变化重预览和一次性 claim。
+- 预览摘要只记录匿名计数、能力、partial/invalid/Unknown 警告以及
+  “未修改游戏数据”，不记录猫名、CatId、存档名或个人路径。
+- PreviewOnly 执行在 Stage 10 gateway 前返回 NotAvailable，保持 0
+  backup、journal、recovery package 和 write-adapter 调用。
+- MoveOnly 合成边界拒绝淘汰选择；移动失败不会自动尝试淘汰。
+- 推荐快照 writer 只接受 Committed/Completed 结果，写 MOD 自有 sidecar
+  临时文件、校验和和原子替换；Stage 11 不读取或显示该数据。
+- House 点击异步启动只读预览，由 UI tick 轮询完成；没有点击、进入 House
+  或后台 timer 时不会捕获、评分或规划。
 
 ## Stage gate
 
-阶段 10 的可测试安全基础设施已完成，但真实 adapter 仍为 Unsupported。
-不得操作真实存档，不需要玩家进游戏测试，也不得开始阶段 11。
+`PreviewOnly complete; real execution blocked by Unsupported Stage 10 adapter`
 
-只有取得许可清楚、签名明确且可重复的移动/淘汰/恢复证据，并通过专用复制
-测试存档的离线验证后，才能在新的明确任务中重新开启真实执行门。
+Stage 12 继续 blocked。未部署 DLL，未读取或写入玩家真实存档，不要求玩家
+手动测试。
