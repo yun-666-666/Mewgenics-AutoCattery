@@ -23,7 +23,8 @@ void AppendString(
     bytes.insert(bytes.end(), value.begin(), value.end());
 }
 
-std::vector<std::uint8_t> CatBlob() {
+std::vector<std::uint8_t> CatBlob(
+    std::string_view class_id = "Colorless") {
     std::vector<std::uint8_t> bytes(20, 0);
     const std::uint32_t magic = 19;
     const std::uint32_t name_length = 3;
@@ -49,13 +50,19 @@ std::vector<std::uint8_t> CatBlob() {
     }
     AppendString(bytes, "none");
     bytes.resize(bytes.size() + 14, 0);
-    for (int index = 0; index < 14; ++index) {
+    for (int index = 0; index < 10; ++index) {
         AppendString(bytes, index == 0 ? "DefaultMove" : "None");
     }
-    AppendString(bytes, "Colorless");
-    bytes.resize(bytes.size() + 12, 0);
-    Append(bytes, std::int32_t{4});
-    bytes.resize(bytes.size() + 24, 0);
+    for (int index = 0; index < 5; ++index) {
+        AppendString(bytes, "None");
+        Append(bytes, std::uint32_t{1});
+    }
+    for (int index = 0; index < 4; ++index) {
+        Append(bytes, std::uint8_t{5});
+        Append(bytes, std::uint32_t{5});
+    }
+    AppendString(bytes, class_id);
+    bytes.resize(bytes.size() + 115, 0);
     return bytes;
 }
 
@@ -66,7 +73,6 @@ void RunCatBlobParserTests() {
     AC_CHECK(static_cast<bool>(parsed));
     AC_CHECK(parsed.value.id == 42);
     AC_CHECK(parsed.value.display_name == "Mew");
-    AC_CHECK(parsed.value.class_id.empty());
     AC_CHECK(parsed.value.raw_ability_slots.size() == 10);
     AC_CHECK(parsed.value.genetic_stats.values[0] == 1);
     AC_CHECK(parsed.value.genetic_stats.values[6] == 7);
@@ -74,6 +80,18 @@ void RunCatBlobParserTests() {
     AC_CHECK(parsed.value.equipment_bonus.values[6] == 27);
     AC_CHECK(!parsed.value.birth_day.has_value());
     AC_CHECK(!parsed.value.age_days.has_value());
+    AC_CHECK(parsed.value.class_id == "Colorless");
+    AC_CHECK(
+        parsed.value.available_for_combat == snapshot::TriState::Yes);
+
+    const auto classed = snapshot::ParseCatBlob(
+        43,
+        CatBlob("Hunter"),
+        17);
+    AC_CHECK(static_cast<bool>(classed));
+    AC_CHECK(classed.value.class_id == "Hunter");
+    AC_CHECK(
+        classed.value.available_for_combat == snapshot::TriState::No);
 
     AC_CHECK(!static_cast<bool>(
         snapshot::ParseCatBlob(0, CatBlob(), 17)));

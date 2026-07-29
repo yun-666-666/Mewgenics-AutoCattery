@@ -342,7 +342,7 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage 12
 
-- Status: Completed.
+- Status: Player validation required.
 - The existing Stage 4 button now makes an on-demand Stage 12 request. It
   reads only the MOD-owned `state/recommendations.json` boundary and displays
   `Probe Required`; it never shows a fabricated cat recommendation.
@@ -386,7 +386,7 @@ by the Unsupported Stage 10 adapter.
   build follows the current EXE's native goto-and-stop sequence by clearing
   MovieClip state bit `+0x09 & ~0x02` immediately after the frame jump.
 - A House-thread Windows message observer hit-tests the visible row rectangles
-  directly. Mouse wheel scrolls through up to eight results one row at a time,
+  directly. Mouse wheel scrolls through all eligible results one row at a time,
   and mouse release maps the physical row to the current real rank. Messages
   are never swallowed or rewritten. Identity remains CatId-only; names are
   display labels, never match keys.
@@ -443,14 +443,23 @@ by the Unsupported Stage 10 adapter.
   pending operation with one-second read-only retries for at most 30 seconds,
   so the player does not need to click repeatedly while the selected save is
   settling.
-- A larger current save contains 23 verifiable assigned House cats plus two
-  records without a verifiable room assignment while the runtime has 28
-  rooted HouseCat components. Empty-room records are now parseable but
-  excluded from room assignment. The identity adapter can map the complete
-  validated snapshot to a rooted subset of runtime HouseCats; display requires
-  at least 75% runtime coverage. This accepts the evidenced 23/28 boundary
-  while rejecting a stale
-  8-cat snapshot against that House.
+- Save capture now parses every CatId in the current `house_state`, including
+  ordinary rooms, `AdventureBox`, and empty room IDs. An empty room means only
+  that no room assignment is known; it no longer removes the cat. Historical
+  rows present only in the `cats` table remain excluded.
+- The latest larger save has 25 current House cats: 16 `Colorless` cats are
+  combat-available and all 9 cats with an assigned combat class are already
+  spent and excluded. Recommendation output includes every available cat,
+  without the old limit of eight; the four physical rows remain a scrollable
+  window over the full result set.
+- Capture reads all save candidates in the active Steam profile and selects
+  the candidate with a complete stable CatId-to-rooted-HouseCat mapping. This
+  selects the current 8-cat or 25-cat save immediately and rejects a stale
+  snapshot from the other slot.
+- Recommendation row labels use direct UTF-8 text instead of a localization
+  numeric placeholder, so clearing a row cannot render `0` or `.`. The two
+  upper MOD buttons are reused by role and have their callbacks refreshed,
+  preventing duplicate button components across furniture/House reattachment.
 - At the 23:54:33 House exit, chainloader recorded repeated access violations
   in the same millisecond as UI detach. Both House controls now verify that the
   stored scene is still the current ready House before touching components or

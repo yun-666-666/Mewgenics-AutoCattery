@@ -84,7 +84,7 @@ private:
         mapping_snapshot_next_attempt_{};
     scoring::CombatScoringConfig recommendation_scoring_config_;
     std::vector<void*> recommendation_detail_targets_;
-    std::future<Result<snapshot::HouseSnapshot>>
+    std::future<Result<std::vector<snapshot::HouseSnapshot>>>
         mapping_snapshot_task_;
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;

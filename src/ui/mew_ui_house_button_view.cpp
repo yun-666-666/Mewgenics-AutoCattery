@@ -59,7 +59,11 @@ Result<void> MewUiHouseButtonView::Attach(
     create_info.interact_override = MEW_BUTTON_INTERACT_FORCE_ENABLED;
     create_info.callback = &ButtonCallback;
     create_info.user_data = this;
-    button_ = MewUI_CreateButtonFromNode(&create_info);
+    int created{};
+    button_ = MewUI_SetupButtonFromNode(
+        &create_info,
+        &button_,
+        &created);
     if (button_ == nullptr) {
         scene_manager_ = nullptr;
         click_handler_ = {};
@@ -68,6 +72,11 @@ Result<void> MewUiHouseButtonView::Attach(
             "the AutoCattery house button asset is unavailable"
         };
     }
+    MewUI_RegisterExistingButton(
+        button_,
+        kButtonRole,
+        &ButtonCallback,
+        this);
 
     active_ = true;
     MewUI_SetButtonEnabled(button_, 1);

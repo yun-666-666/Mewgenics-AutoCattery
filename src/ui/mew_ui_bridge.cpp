@@ -8,6 +8,7 @@
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -615,7 +616,7 @@ void MewUiBridge::StartMappingSnapshotAttempt() {
         std::launch::async,
         [generation] {
             snapshot::SaveSnapshotAdapter adapter;
-            return adapter.CaptureHouseSnapshot(generation);
+            return adapter.CaptureHouseSnapshotCandidates(generation);
         });
 }
 
@@ -673,10 +674,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
     message << "request=" << mapping_snapshot_request_sequence_
             << " attempt=" << mapping_snapshot_attempt_
             << " generation=" << mapping_snapshot_generation_;
-    if (!captured ||
-        !captured.value.capabilities.stable_cat_id ||
-        captured.value.scene_generation != mapping_snapshot_generation_) {
-        message << " snapshot_valid=0 house_cats=0 requested_ids=0"
+    if (!captured || captured.value.empty()) {
+        message << " snapshot_valid=0 candidates=0 house_cats=0 requested_ids=0"
                 << " layouts=0 stable_bijection=0 retry_pending="
                 << (retry_available ? 1 : 0);
         Logger::Instance().Write(
@@ -698,8 +697,9 @@ void MewUiBridge::ObserveHouseCatIdentity(
     if (scene == scenes.end() ||
         context.kind != UiContextKind::House ||
         context.scene_generation != mapping_snapshot_generation_) {
-        message << " snapshot_valid=1 house_cats=0 requested_ids="
-                << captured.value.cats.size()
+        message << " snapshot_valid=1 candidates="
+                << captured.value.size()
+                << " house_cats=0 requested_ids=0"
                 << " layouts=0 stable_bijection=0 retry_pending="
                 << (retry_available ? 1 : 0);
         Logger::Instance().Write(
@@ -711,27 +711,79 @@ void MewUiBridge::ObserveHouseCatIdentity(
         return;
     }
 
-    std::vector<std::int64_t> cat_ids;
-    cat_ids.reserve(captured.value.cats.size());
-    for (const auto& cat : captured.value.cats) {
-        cat_ids.push_back(cat.id);
+    const snapshot::HouseSnapshot* selected_snapshot{};
+    AcMewHouseCatIdentityProbe identity{};
+    std::ptrdiff_t roots{};
+    bool coverage_ready{};
+    bool selected_exact{};
+    bool diagnostic_available{};
+    std::size_t selected_match_count{};
+    for (const auto& candidate : captured.value) {
+        if (!candidate.capabilities.stable_cat_id ||
+            candidate.scene_generation != mapping_snapshot_generation_) {
+            continue;
+        }
+        std::vector<std::int64_t> cat_ids;
+        cat_ids.reserve(candidate.cats.size());
+        for (const auto& cat : candidate.cats) {
+            cat_ids.push_back(cat.id);
+        }
+        const auto candidate_identity = AcMewProbeHouseCatIdentity(
+            scene->manager,
+            cat_ids.data(),
+            cat_ids.size());
+        const auto candidate_roots = std::count_if(
+            candidate_identity.matches,
+            candidate_identity.matches + candidate_identity.match_count,
+            [](const AcMewHouseCatMatch& match) {
+                return match.root_node != nullptr;
+            });
+        const bool candidate_coverage =
+            candidate_identity.house_cat_count > 0 &&
+            candidate_identity.match_count *
+                    kMinimumMappedCoverageDenominator >=
+                static_cast<std::size_t>(
+                    candidate_identity.house_cat_count) *
+                    kMinimumMappedCoverageNumerator;
+        const bool candidate_ready =
+            candidate_identity.stable_bijection != 0 &&
+            candidate_identity.consistent_mapping != 0 &&
+            candidate_identity.match_count == candidate.cats.size() &&
+            candidate_roots == static_cast<std::ptrdiff_t>(
+                candidate_identity.match_count) &&
+            candidate_coverage;
+        const bool candidate_exact = candidate_ready &&
+            candidate_identity.match_count ==
+                candidate_identity.house_cat_count;
+        if (selected_snapshot == nullptr &&
+            (!diagnostic_available ||
+             candidate_identity.match_count > identity.match_count)) {
+            diagnostic_available = true;
+            identity = candidate_identity;
+            roots = candidate_roots;
+            coverage_ready = candidate_coverage;
+        }
+        if (!candidate_ready) {
+            continue;
+        }
+        if (selected_snapshot == nullptr ||
+            (candidate_exact && !selected_exact) ||
+            (candidate_exact == selected_exact &&
+             candidate_identity.match_count > selected_match_count)) {
+            selected_snapshot = &candidate;
+            identity = candidate_identity;
+            roots = candidate_roots;
+            coverage_ready = candidate_coverage;
+            selected_exact = candidate_exact;
+            selected_match_count = candidate_identity.match_count;
+        }
+        if (candidate_exact) {
+            break;
+        }
     }
-    const auto identity = AcMewProbeHouseCatIdentity(
-        scene->manager,
-        cat_ids.data(),
-        cat_ids.size());
-    const auto roots = std::count_if(
-        identity.matches,
-        identity.matches + identity.match_count,
-        [](const AcMewHouseCatMatch& match) {
-            return match.root_node != nullptr;
-        });
-    const bool coverage_ready =
-        identity.house_cat_count > 0 &&
-        identity.match_count * kMinimumMappedCoverageDenominator >=
-            static_cast<std::size_t>(identity.house_cat_count) *
-                kMinimumMappedCoverageNumerator;
-    message << " snapshot_valid=1 house_cats="
+    message << " snapshot_valid=1 candidates="
+            << captured.value.size()
+            << " house_cats="
             << identity.house_cat_count
             << " requested_ids=" << identity.requested_cat_count
             << " layouts=" << identity.valid_layout_count
@@ -743,6 +795,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
             << " matched=" << identity.match_count
             << " roots=" << roots
             << " coverage_ready=" << (coverage_ready ? 1 : 0)
+            << " selected_exact=" << (selected_exact ? 1 : 0)
             << " stable_bijection=" << static_cast<unsigned>(
                    identity.stable_bijection)
             << " visual_marker_boundary=0";
@@ -752,24 +805,27 @@ void MewUiBridge::ObserveHouseCatIdentity(
         "AC12105",
         message.str());
 
-    const bool identity_ready =
-        identity.stable_bijection != 0 &&
-        identity.consistent_mapping != 0 &&
-        identity.match_count == captured.value.cats.size() &&
-        roots == static_cast<std::ptrdiff_t>(identity.match_count) &&
-        coverage_ready;
-    if (!identity_ready) {
+    if (selected_snapshot == nullptr) {
         retry_or_complete();
         return;
     }
 
     auto scoring_config = recommendation_scoring_config_;
-    // This build's save reader does not expose life-stage, injury, or combat
-    // availability yet. Preserve all confirmed exclusions, but allow the
-    // Stage 6 scorer to produce explicitly low-confidence visual suggestions.
+    // Class identity now excludes cats already spent in a prior expedition.
+    // Life-stage and injury remain unavailable, so preserve those limitations
+    // without discarding the complete confirmed Colorless candidate pool.
     scoring_config.require_confirmed_eligibility = false;
+    scoring_config.recommended_count = selected_snapshot->cats.size();
+    scoring_config.minimum_score =
+        std::numeric_limits<double>::lowest();
+    const auto spent_cats = std::count_if(
+        selected_snapshot->cats.begin(),
+        selected_snapshot->cats.end(),
+        [](const snapshot::CatSnapshot& cat) {
+            return cat.available_for_combat == snapshot::TriState::No;
+        });
     const auto ranking =
-        scoring::RankCombatCats(captured.value, scoring_config);
+        scoring::RankCombatCats(*selected_snapshot, scoring_config);
     if (!ranking || ranking.value.recommended_cat_ids.empty()) {
         mapping_snapshot_request_active_ = false;
         mapping_identity_logged_ = true;
@@ -777,7 +833,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
             LogLevel::Info,
             "RecommendationMarker",
             "AC12106",
-            "marked=0 stable_cat_id_boundary=1 "
+            "marked=0 spent=" + std::to_string(spent_cats) +
+            " stable_cat_id_boundary=1 "
             "visual_fallback=clickable_list "
             "expedition_selection_changed=0");
         recommendation_marker_controller_->CompleteProbe(
@@ -792,8 +849,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
     std::size_t marked{};
     for (const auto cat_id : ranking.value.recommended_cat_ids) {
         const auto cat = std::find_if(
-            captured.value.cats.begin(),
-            captured.value.cats.end(),
+            selected_snapshot->cats.begin(),
+            selected_snapshot->cats.end(),
             [cat_id](const snapshot::CatSnapshot& candidate) {
                 return candidate.id == cat_id;
             });
@@ -810,7 +867,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
                 return candidate.cat_id == cat_id &&
                        candidate.root_node != nullptr;
             });
-        if (cat == captured.value.cats.end() ||
+        if (cat == selected_snapshot->cats.end() ||
             score == ranking.value.ranked.end() ||
             mapped == identity.matches + identity.match_count) {
             continue;
@@ -857,6 +914,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
         "RecommendationMarker",
         "AC12106",
         "marked=" + std::to_string(marked) +
+            " spent=" + std::to_string(spent_cats) +
             " mapped_house_cats=" + std::to_string(identity.match_count) +
             "/" + std::to_string(identity.house_cat_count) +
             " stable_cat_id_boundary=1 visual_fallback=clickable_list "

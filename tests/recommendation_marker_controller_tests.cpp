@@ -215,14 +215,19 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(!static_cast<bool>(
         probe_controller.ShowRecommendations(11, {"stale"})));
     AC_CHECK(probe_view.labels.empty());
+    std::vector<std::string> all_eligible_labels;
+    for (int rank = 1; rank <= 12; ++rank) {
+        all_eligible_labels.push_back(
+            std::to_string(rank) + " eligible ?");
+    }
     AC_CHECK(static_cast<bool>(
         probe_controller.ShowRecommendations(
             12,
-            {"1 Mew 42.0 ?", "2 Purr 40.0 ?"})));
+            all_eligible_labels)));
     AC_CHECK(probe_controller.MarkerVisible());
     AC_CHECK(probe_view.probe_required);
     AC_CHECK(!probe_view.marker_visible);
-    AC_CHECK(probe_view.labels.size() == 2);
+    AC_CHECK(probe_view.labels.size() == 12);
     now += 1999ms;
     probe_controller.Poll();
     AC_CHECK(probe_view.probe_required);
@@ -238,11 +243,11 @@ void RunRecommendationMarkerControllerTests() {
             detail_generation = generation;
             detail_index = index;
         });
-    probe_view.ClickItem(1);
+    probe_view.ClickItem(11);
     AC_CHECK(detail_generation == 12);
-    AC_CHECK(detail_index == 1);
-    probe_view.ClickItem(2);
-    AC_CHECK(detail_index == 1);
+    AC_CHECK(detail_index == 11);
+    probe_view.ClickItem(12);
+    AC_CHECK(detail_index == 11);
 
     probe_view.Click();
     AC_CHECK(!probe_controller.MarkerVisible());

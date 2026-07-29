@@ -14,7 +14,6 @@ constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
 constexpr auto kReadyText = "HOUSE.RECOMMEND_COMBAT_CATS";
 constexpr auto kMarkedText = "HOUSE.RECOMMEND_CLEAR";
-constexpr auto kRowText = "HOUSE.RECOMMEND_ROW";
 constexpr std::array<const char*, 4> kItemNodes{
     "recommend_row_1",
     "recommend_row_2",
@@ -130,7 +129,11 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     create_info.interact_override = MEW_BUTTON_INTERACT_FORCE_ENABLED;
     create_info.callback = &ButtonCallback;
     create_info.user_data = this;
-    button_ = MewUI_CreateButtonFromNode(&create_info);
+    int created{};
+    button_ = MewUI_SetupButtonFromNode(
+        &create_info,
+        &button_,
+        &created);
     if (button_ == nullptr) {
         scene_manager_ = nullptr;
         click_handler_ = {};
@@ -139,6 +142,11 @@ Result<void> MewUiRecommendationMarkerView::Attach(
             "the dedicated recommendation button asset is unavailable"
         };
     }
+    MewUI_RegisterExistingButton(
+        button_,
+        kButtonRole,
+        &ButtonCallback,
+        this);
 
     if (!ResolveItemNodes()) {
         Detach();
@@ -241,10 +249,9 @@ void MewUiRecommendationMarkerView::ClearSummary() noexcept {
     }
     for (std::size_t row = 0; row < item_nodes_.size(); ++row) {
         if (item_nodes_[row] != nullptr) {
-            MewUI_SetTextInSceneFromLocalizationKeyValue(
+            MewUI_SetTextInSceneText(
                 scene_manager_,
                 kItemTextNodes[row],
-                kRowText,
                 "");
             HoldMovieClipFrame(item_nodes_[row], 0);
         }
@@ -448,10 +455,9 @@ bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
         }
         const auto item_index = first_visible_item_ + row;
         const bool shown = item_index < item_labels_.size();
-        if (MewUI_SetTextInSceneFromLocalizationKeyValue(
+        if (MewUI_SetTextInSceneText(
                 scene_manager_,
                 kItemTextNodes[row],
-                kRowText,
                 shown ? item_labels_[item_index].c_str() : "") == 0) {
             return false;
         }

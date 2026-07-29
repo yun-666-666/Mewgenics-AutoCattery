@@ -22,6 +22,8 @@ constexpr std::size_t kPreAbilityMetadataSize = 14;
 // Core save order verified against the current save format:
 // move, basic attack, four active abilities, two passives, two disorders.
 constexpr std::size_t kAbilitySlotCount = 10;
+constexpr std::size_t kExtendedAbilitySlotCount = 4;
+constexpr std::size_t kPostClassMetadataSize = 115;
 
 template<class T>
 bool ReadAt(
@@ -115,6 +117,29 @@ bool ReadStats(
     return true;
 }
 
+bool ReadClassId(
+    std::span<const std::uint8_t> bytes,
+    std::size_t search_start,
+    std::string& class_id) {
+    if (bytes.size() < kPostClassMetadataSize + sizeof(std::uint64_t) ||
+        search_start >= bytes.size() - kPostClassMetadataSize) {
+        return false;
+    }
+    const auto search_end = bytes.size() - kPostClassMetadataSize;
+    for (auto offset = search_start;
+         offset + sizeof(std::uint64_t) <= search_end;
+         ++offset) {
+        auto cursor = offset;
+        std::string candidate;
+        if (ReadAsciiString(bytes, cursor, candidate) &&
+            cursor == search_end) {
+            class_id = std::move(candidate);
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 Result<CatSnapshot> ParseCatBlob(
@@ -188,6 +213,34 @@ Result<CatSnapshot> ParseCatBlob(
         }
         cat.raw_ability_slots.push_back(std::move(ability));
     }
+    for (std::size_t index = 0;
+         index < kExtendedAbilitySlotCount;
+         ++index) {
+        std::string ability;
+        std::uint32_t ability_level{};
+        if (!ReadAsciiString(bytes, cursor, ability, true) ||
+            !ReadAt(bytes, cursor, ability_level)) {
+            return {
+                {},
+                ErrorCode::CatDataUnavailable,
+                "cat extended ability slot " +
+                    std::to_string(index + 1) + " is invalid"
+            };
+        }
+        cursor += sizeof(ability_level);
+    }
+    if (!ReadClassId(bytes, cursor, cat.class_id)) {
+        return {
+            {},
+            ErrorCode::CatDataUnavailable,
+            "cat class is invalid"
+        };
+    }
+    // Current saves use Colorless for cats that have not been committed to a
+    // prior combat class. Player validation confirmed classed House cats are
+    // already spent and cannot be selected for another expedition.
+    cat.available_for_combat =
+        cat.class_id == "Colorless" ? TriState::Yes : TriState::No;
     (void)current_day;
     return {std::move(cat)};
 }

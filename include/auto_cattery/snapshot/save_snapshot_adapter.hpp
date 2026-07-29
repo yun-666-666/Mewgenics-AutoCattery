@@ -30,8 +30,13 @@ public:
 
     Result<HouseSnapshot> CaptureHouseSnapshot(
         std::uint64_t scene_generation) override;
+    Result<std::vector<HouseSnapshot>> CaptureHouseSnapshotCandidates(
+        std::uint64_t scene_generation);
 
 private:
+    Result<HouseSnapshot> CaptureHouseSnapshotFromPath(
+        const std::filesystem::path& save_path,
+        std::uint64_t scene_generation);
     std::filesystem::path save_root_;
     std::uint64_t next_snapshot_id_{1};
 };

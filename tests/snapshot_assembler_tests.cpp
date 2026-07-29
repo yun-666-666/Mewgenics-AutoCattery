@@ -16,7 +16,7 @@ void RunSnapshotAssemblerTests() {
     const std::vector<snapshot::HouseStateEntry> entries{
         {.cat_id = 11, .room_id = "Floor1_Large"},
         {.cat_id = 12, .room_id = "AdventureBox"},
-        {.cat_id = 999, .room_id = ""}
+        {.cat_id = 13, .room_id = ""}
     };
 
     const auto assembled = snapshot::detail::AssembleHouseSnapshot(
@@ -25,10 +25,11 @@ void RunSnapshotAssemblerTests() {
     AC_CHECK(assembled.value.snapshot_id == 5);
     AC_CHECK(assembled.value.scene_generation == 7);
     AC_CHECK(assembled.value.game_day == 17);
-    AC_CHECK(assembled.value.cats.size() == 2);
+    AC_CHECK(assembled.value.cats.size() == 3);
     AC_CHECK(assembled.value.rooms.size() == 2);
     AC_CHECK(assembled.value.cats[0].room_id == "Floor1_Large");
     AC_CHECK(assembled.value.cats[1].in_adventure_box);
+    AC_CHECK(!assembled.value.cats[2].room_id.has_value());
     AC_CHECK(assembled.value.capabilities.read_room_assignments);
     AC_CHECK(assembled.value.capabilities.read_typed_abilities);
     AC_CHECK(!assembled.value.capabilities.read_room_capacities);

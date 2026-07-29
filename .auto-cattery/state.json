@@ -55,7 +55,7 @@
       "status": "save_switch_validation_required",
       "commit": null,
       "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "awaiting_cross_save_retry_and_layout_validation",
+      "real_highlight_status": "awaiting_all_current_cats_spent_filter_and_ui_reuse_validation",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-30T00:24:56+08:00"
+  "updated_at": "2026-07-30T01:19:26+08:00"
 }

@@ -30,7 +30,12 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
         .read_equipment_bonus = true,
         .read_raw_ability_slots = true,
         .read_typed_abilities = true,
-        .read_class_id = false,
+        .read_class_id = !snapshot.cats.empty() &&
+            std::ranges::all_of(
+                snapshot.cats,
+                [](const CatSnapshot& cat) {
+                    return !cat.class_id.empty();
+                }),
         .read_age = false,
         .read_relationships = false,
         .read_room_assignments = true,
@@ -47,11 +52,6 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
     std::map<RoomId, std::vector<CatId>> room_residents;
     std::unordered_set<CatId> assigned_cats;
     for (const auto& entry : house_entries) {
-        if (entry.room_id.empty()) {
-            // An empty room carries no verifiable selectable-room assignment.
-            // Keep the record parseable, but exclude it from the House view.
-            continue;
-        }
         const auto cat = cat_index.find(entry.cat_id);
         if (cat == cat_index.end()) {
             return {
@@ -67,6 +67,12 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
                 "cat appears more than once in house state"
             };
         }
+        if (entry.room_id.empty()) {
+            // The cat is still part of the current House UI candidate set, but
+            // has no verifiable room assignment (for example, placed outside
+            // a room). Preserve the cat with room_id unset.
+            continue;
+        }
         snapshot.cats[cat->second].room_id = entry.room_id;
         snapshot.cats[cat->second].in_adventure_box =
             entry.room_id == "AdventureBox";
@@ -74,8 +80,8 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
     }
     std::erase_if(
         snapshot.cats,
-        [](const CatSnapshot& cat) {
-            return !cat.room_id.has_value();
+        [&assigned_cats](const CatSnapshot& cat) {
+            return !assigned_cats.contains(cat.id);
         });
 
     snapshot.rooms.reserve(room_residents.size());

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cwctype>
+#include <vector>
 
 namespace autocattery::snapshot::detail {
 namespace {
@@ -44,31 +45,32 @@ bool IsSaveFile(const std::filesystem::path& path) {
 
 }  // namespace
 
-std::optional<std::filesystem::path> FindMostRecentSave(
+std::vector<std::filesystem::path> FindSaveCandidates(
     const std::filesystem::path& configured_root,
     std::string& error) {
     const std::filesystem::path root =
         configured_root.empty() ? DefaultSaveRoot() : configured_root;
     if (root.empty()) {
         error = "Mewgenics save root is unavailable";
-        return std::nullopt;
+        return {};
     }
 
     std::error_code status_error;
     if (std::filesystem::is_regular_file(root, status_error)) {
         if (IsSaveFile(root)) {
-            return root;
+            return {root};
         }
         error = "configured save file is not a .sav file";
-        return std::nullopt;
+        return {};
     }
     if (!std::filesystem::is_directory(root, status_error)) {
         error = "Mewgenics save root does not exist";
-        return std::nullopt;
+        return {};
     }
 
-    std::optional<std::filesystem::path> newest;
-    std::filesystem::file_time_type newest_time{};
+    std::vector<std::pair<
+        std::filesystem::file_time_type,
+        std::filesystem::path>> candidates;
     std::error_code iteration_error;
     const auto options =
         std::filesystem::directory_options::skip_permission_denied;
@@ -91,17 +93,36 @@ std::optional<std::filesystem::path> FindMostRecentSave(
         if (file_error) {
             continue;
         }
-        if (!newest.has_value() || modified > newest_time ||
-            (modified == newest_time &&
-             iterator->path().wstring() > newest->wstring())) {
-            newest = iterator->path();
-            newest_time = modified;
-        }
+        candidates.emplace_back(modified, iterator->path());
     }
-    if (!newest.has_value()) {
+    if (candidates.empty()) {
         error = "no Mewgenics .sav file found";
     }
-    return newest;
+    std::sort(
+        candidates.begin(),
+        candidates.end(),
+        [](const auto& left, const auto& right) {
+            if (left.first != right.first) {
+                return left.first > right.first;
+            }
+            return left.second.wstring() > right.second.wstring();
+        });
+    std::vector<std::filesystem::path> paths;
+    paths.reserve(candidates.size());
+    for (auto& candidate : candidates) {
+        paths.push_back(std::move(candidate.second));
+    }
+    return paths;
+}
+
+std::optional<std::filesystem::path> FindMostRecentSave(
+    const std::filesystem::path& configured_root,
+    std::string& error) {
+    auto candidates = FindSaveCandidates(configured_root, error);
+    if (candidates.empty()) {
+        return std::nullopt;
+    }
+    return std::move(candidates.front());
 }
 
 }  // namespace autocattery::snapshot::detail

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <unordered_set>
 #include <utility>
 
 namespace autocattery::snapshot {
@@ -47,9 +48,56 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshot(
             "save discovery failed",
             error);
     }
+    return CaptureHouseSnapshotFromPath(*save_path, scene_generation);
+}
+
+Result<std::vector<HouseSnapshot>>
+SaveSnapshotAdapter::CaptureHouseSnapshotCandidates(
+    std::uint64_t scene_generation) {
+    std::string error;
+    const auto save_paths =
+        detail::FindSaveCandidates(save_root_, error);
+    if (save_paths.empty()) {
+        return {
+            {},
+            ErrorCode::CatDataUnavailable,
+            "save discovery failed: " + error
+        };
+    }
+
+    std::vector<HouseSnapshot> snapshots;
+    std::string first_failure;
+    const auto active_profile = save_paths.front().parent_path();
+    for (const auto& save_path : save_paths) {
+        if (save_path.parent_path() != active_profile) {
+            continue;
+        }
+        auto captured = CaptureHouseSnapshotFromPath(
+            save_path,
+            scene_generation);
+        if (captured) {
+            snapshots.push_back(std::move(captured.value));
+        } else if (first_failure.empty()) {
+            first_failure = captured.message;
+        }
+    }
+    if (snapshots.empty()) {
+        return {
+            {},
+            ErrorCode::CatDataUnavailable,
+            "no readable save candidate: " + first_failure
+        };
+    }
+    return {std::move(snapshots)};
+}
+
+Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
+    const std::filesystem::path& save_path,
+    std::uint64_t scene_generation) {
+    std::string error;
 
     auto database =
-        detail::SaveDatabase::OpenReadOnly(*save_path, error);
+        detail::SaveDatabase::OpenReadOnly(save_path, error);
     if (!database) {
         return Failure(
             ErrorCode::CatDataUnavailable,
@@ -75,14 +123,30 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshot(
             error);
     }
 
+    const auto house_entries =
+        ParseHouseState(AsBytes(*stored_house_state));
+    if (!house_entries) {
+        return Failure(
+            house_entries.code,
+            "house state parsing failed",
+            house_entries.message);
+    }
+    std::unordered_set<CatId> current_house_cat_ids;
+    for (const auto& entry : house_entries.value) {
+        current_house_cat_ids.insert(entry.cat_id);
+    }
+
     const std::optional<std::int64_t> day =
         current_day
             ? std::optional<std::int64_t>(*current_day)
             : std::nullopt;
     std::vector<CatSnapshot> cats;
-    cats.reserve(stored_cats.size());
+    cats.reserve(current_house_cat_ids.size());
     for (std::size_t index = 0; index < stored_cats.size(); ++index) {
         const auto& stored_cat = stored_cats[index];
+        if (!current_house_cat_ids.contains(stored_cat.id)) {
+            continue;
+        }
         auto parsed =
             ParseCatBlob(stored_cat.id, AsBytes(stored_cat.blob), day);
         if (!parsed) {
@@ -95,20 +159,11 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshot(
         cats.push_back(std::move(parsed.value));
     }
 
-    const auto house_entries =
-        ParseHouseState(AsBytes(*stored_house_state));
-    if (!house_entries) {
-        return Failure(
-            house_entries.code,
-            "house state parsing failed",
-            house_entries.message);
-    }
-
     auto snapshot = detail::AssembleHouseSnapshot(
         next_snapshot_id_,
         scene_generation,
         day,
-        save_path->filename().string(),
+        save_path.filename().string(),
         std::move(cats),
         house_entries.value);
     if (snapshot) {

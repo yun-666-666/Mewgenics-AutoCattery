@@ -51,11 +51,20 @@ void RunSaveLocatorTests() {
     const auto selected =
         snapshot::detail::FindMostRecentSave(root, error);
     AC_CHECK(selected == newer);
+    const auto candidates =
+        snapshot::detail::FindSaveCandidates(root, error);
+    AC_CHECK(candidates.size() == 2);
+    AC_CHECK(candidates[0] == newer);
+    AC_CHECK(candidates[1] == older);
 
     error.clear();
     const auto explicit_file =
         snapshot::detail::FindMostRecentSave(older, error);
     AC_CHECK(explicit_file == older);
+    const auto explicit_candidates =
+        snapshot::detail::FindSaveCandidates(older, error);
+    AC_CHECK(explicit_candidates.size() == 1);
+    AC_CHECK(explicit_candidates.front() == older);
 
     std::filesystem::remove_all(root);
 }

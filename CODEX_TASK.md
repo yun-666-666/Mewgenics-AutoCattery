@@ -62,9 +62,12 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   request 10～12 同样失败，request 13 才在存档文件变为当前数据后成功。
   原因是 Stage 12 每次只读取磁盘上“最后修改”的 `.sav`，切换存档后
   该文件短时间仍可能属于上一个存档。
-- 同轮另一个存档的当前 House 有 28 个 rooted HouseCat；其磁盘
-  `house_state` 可安全解析出 23 个有房间归属的猫，另有两个空房间记录。
-  旧 parser 将空房间直接判为损坏，因此该存档永远无法显示推荐。
+- 最新另一个存档的当前 House 有 25 个 rooted HouseCat；对应磁盘
+  `house_state` 也有 25 个当前 CatId。它们必须全部保留：普通房间、
+  `AdventureBox` 出战箱和空房间归属都属于当前 House 候选；只有不在
+  `house_state` 的历史 `cats` 表记录才排除。
+- 同一存档的 25 只当前猫中，16 只 class_id 为 `Colorless`，9 只已有
+  战斗 class。与玩家的已出战状态核对后，后者必须排除，不能再次推荐。
 - 23:54:33 离开 House 时，`AC4101` 同一毫秒在 chainloader 中出现大量
   旧 UI 地址访问异常。两个 MOD 按钮 view 都会在 scene 已卸载后继续调用
   旧组件/MovieClip，并在重进 House 时可能复用旧句柄；这与跨存档后的
@@ -102,10 +105,12 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 新增 `AC12105` HouseCat 身份 probe：在只读快照 CatId 集合与 HouseCat
   组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
   相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
-- 稳定双射成立后即时复用 Stage 6 单猫评分，按 CatId 生成最多 8 条
-  `排名 猫名 分数 ?`，界面只复用 4 个紧凑行。鼠标停在列表上
+- 稳定双射成立后即时复用 Stage 6 单猫评分，排除已有战斗 class 的猫，
+  并按 CatId 生成全部可出战猫的 `排名 猫名 分数 ?`；不再限制为 8 条，
+  界面仍只复用 4 个紧凑行。鼠标停在列表上
   滚轮可逐项向下/向上浏览；点击物理行时会换算为当前可见的真实排名。
-  `?` 明示当前 reader 尚不能确认年龄、受伤和出战资格；不使用猫名
+  `?` 明示当前 reader 尚不能确认年龄和受伤；出战资格由当前 class
+  状态筛选。不使用猫名
   做映射。
 - 四行不再创建游戏 Button 组件。每行由私有三帧 SWF 白纸和独立文字
   组成：frame 0 为空，frame 1 为正常白纸，frame 2 为原生按钮 down
@@ -141,9 +146,15 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   原生“出发”按钮分离。
 - Mark 现在是单个 pending 请求：一次点击后每秒自动重试当前只读存档，
   最长 30 秒，不需要玩家连续点击。只有当前 generation、稳定 CatId
-  映射和 rooted 组件仍一致才显示；较大存档允许把全部可验证的 23 个
-  候选映射到 28 个 HouseCat 的安全子集，但覆盖率必须至少 75%，因此会
-  拒绝跨存档时旧 8 猫快照对 28 猫 House 的假匹配。
+  映射和 rooted 组件仍一致才显示。每次同时只读同一活动 Steam profile
+  的存档候选，并用当前 rooted HouseCat 完整双射选择真实活动存档；因此
+  会拒绝跨存档时旧 8 猫快照对 25 猫 House 的假匹配。
+- `house_state` 的每个当前 CatId 都进入解析和映射：普通房间、
+  `AdventureBox` 与空 room_id 均保留。空 room_id 只表示没有可验证的
+  房间归属，不再把猫从候选集删除。
+- 四行文字改为直接 UTF-8 文本写入，不再把空值传入本地化数值占位符，
+  因此 Clear/隐藏不会留下 `0` 或 `.`。两个上方 MOD 按钮按 role 复用并
+  刷新回调，不再因家具界面 detach/attach 累积重复 Button 组件。
 - House/推荐 view 离场时先确认 `House` 仍是当前 ready scene；scene 已
   卸载时只解除消息 hook 并丢弃本地句柄，不再调用旧 UI 指针。重新进入
   新 generation 后强制解析新的按钮和四个 MovieClip，并立即停在隐藏帧。

@@ -30,6 +30,20 @@ int wmain(int argument_count, wchar_t** arguments) {
         snapshot.cats.begin(),
         snapshot.cats.end(),
         [](const auto& cat) { return cat.in_adventure_box; });
+    const auto combat_available = std::count_if(
+        snapshot.cats.begin(),
+        snapshot.cats.end(),
+        [](const auto& cat) {
+            return cat.available_for_combat ==
+                autocattery::snapshot::TriState::Yes;
+        });
+    const auto combat_spent = std::count_if(
+        snapshot.cats.begin(),
+        snapshot.cats.end(),
+        [](const auto& cat) {
+            return cat.available_for_combat ==
+                autocattery::snapshot::TriState::No;
+        });
     const auto validation = autocattery::snapshot::Validate(snapshot);
     const auto repeated = adapter.CaptureHouseSnapshot(1);
     std::vector<autocattery::snapshot::CatId> first_ids;
@@ -202,6 +216,8 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " rooms=" << snapshot.rooms.size()
         << " assigned=" << assigned
         << " adventure=" << adventure
+        << " combat_available=" << combat_available
+        << " combat_spent=" << combat_spent
         << " day=";
     if (snapshot.game_day) {
         std::cout << *snapshot.game_day;
