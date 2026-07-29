@@ -331,8 +331,8 @@ test is requested for the Unsupported adapter.
 - Toolkit 1.0.0 was used only for the MIT-licensed workflow/order and
   deterministic contract. Its integer RoomId, six-stat model, room metadata,
   game fields, and write API assumptions were rejected.
-- No web research, DLL deployment, player-save read/write, or manual game test
-  was performed.
+- Public-source research was allowed but not needed for that change; no DLL
+  deployment, player-save read/write, or manual game test was performed.
 
 ## Stage gate
 

@@ -1,189 +1,67 @@
-# CODEX CURRENT TASK — STAGE 12
+# CODEX CURRENT TASK - STAGE 13
 
-## Scope
+## Objective
 
-只实施阶段 12：玩家主动点击现有推荐按钮后，读取并验证 Stage 11 的
-MOD sidecar；历史数据不可安全使用时，只允许复用 Stage 6 单猫战斗评分；
-CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
+只实施第 13 步：配置系统、热加载和用户规则界面。先检查当前仓库的真实
+实现，再把已存在的评分、分类、保护、房间规划、安全和推荐设置接入一个
+可验证的配置边界。不得提前实施第 14～16 步。
 
-不实施阶段 13～16、自动组队、自动选择、自动确认、队伍槽位写入、自动
-休息、日期推进、出征导航、猫名模拟标记或任何游戏/存档写入。
+## Required reading
 
-## Evidence result
+1. `AGENTS.md`
+2. `AutoCatteryDocs/16_steps/13_配置系统与用户规则界面.md`
+3. `AutoCatteryDocs/contracts/自动化核心接口契约.md`
+4. `.auto-cattery/state.json` 与 Stage 01～12 报告中和配置有关的实际结论
+5. 当前代码、测试、构建文件和 `git status --short`
+6. 需要配置/选择算法契约时，检查
+   `Mewgenics_AutoCattery_Codex_Toolkit_v1.0.0` 及仓库已经导入的
+   `AutoCatteryReference/`；已有自动选择器只需按本阶段需要接入，不要
+   重新实现一套。
 
-- 2026-07-29 玩家实机日志 `AC12105` 已证明当前 build 的 8 个
-  HouseCat 与 8 个只读快照 CatId 存在完整、一致、稳定的双射：
-  `offset=128 width=8 matched=8 roots=8 stable_bijection=1`。
-- Stage 11 writer 的实际 schema 1 只有 checksum、创建 game day、源
-  snapshot ID、战斗算法版本、配置摘要及推荐 CatId/排名/分数/置信度。
-  它没有 build identity、save identity 或完整并发信息；PreviewOnly
-  生产流程也没有 Committed sidecar。
-- 玩家实机确认：挑猫和放入出征盒子发生在 `House`；点击游戏原生
-  `出发!` 后的 `ClassChooser` 只能查看已装盒的猫，不能选择或更换。
-  因此 ClassChooser 不是 Stage 12 推荐入口。
-- 玩家实机验收确认纯文字列表在猫多时难以定位，不满足“标记足够明显”。
-  第一版 8 个复制吊牌又暴露了真实 UI 缺陷：每个按钮复制了整条绳子，
-  后绘制的绳子/命中区域覆盖前面的按钮；禁用组件也没有隐藏空吊牌，
-  且 8 行遮挡原生“出发”按钮。该版验收失败。
-- 第二版 4 个原生 Button 组件同样实机失败：游戏在 Mark 前主动显示并
-  播放 `Clean Up!` 按钮时间轴；Clear 只清掉文字，无法隐藏按钮画面；
-  游戏 Button 的命中/hover 也没有可靠传给四行，因此点击和滚轮均无效。
-- 第三版已能滚动并正确上报被点击的 rank，但 2026-07-29 实机仍失败：
-  两帧推荐牌被 `goto-and-play` 持续循环而闪烁，Mark 前即出现且 Clear
-  后不能保持隐藏；`AC12109` 证明点击已到达、签名/scene/目标猫均有效，
-  但 `opened=0`，旧适配器把 `House` 错当成原生详情函数第一个参数。
-- 第四版实机确认牌子只在 Mark 后、Clear 前静态显示，停帧/显隐已通过；
-  但新日志仍为 `drawer=1 cat=1 opened=0`。重新沿原生调用点向前确认，
-  游戏还会先调用 `0xEFCB0`，把 HouseCat 转换为内部详情目标，再把转换
-  结果作为详情函数第二参数；第四版遗漏了该转换。截图同时证明文字框
-  中心比木牌中心偏左约 41 个 SWF 单位且宽于木牌。
-- 第五版最新实机日志对第 1～8 名均显示
-  `signature=scene=drawer=cat=target=1 opened=0`：按钮命中、rank、
-  HouseCat 转换结果都正确，异常仅剩最终详情调用。重新逐条复刻原生
-  `HouseCatClickManager` 路径发现，原生第一参数来自对 click manager
-  调用 RVA `0x1A93F0` 的返回值；第五版却从 scene 枚举同类型
-  `HouseDrawerUI`，没有证明它就是 click manager 实际持有的实例。
-- 第六版实机日志稳定显示 `manager=1 drawer=0 failure=0`，而同轮
-  `AC12103` 明确显示 `HouseDrawerUI components=1`。这证明 getter 已
-  正常返回，但返回的是最终原生调用使用的接口/子对象指针，不能当作
-  scene 组件基址调用 `GetObjectTypeSTR`；第六版的类型检查错误地提前
-  返回，因此 `cat/target` 也没有执行。
-- 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
-  组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
-  匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
-- 用户明确要求本任务可联网。已检索公开 Mewgenics/Mewtator/MewUI 资料；
-  未找到可直接复用的滚动推荐列表实现，实际修复仍基于本地 MIT MewUI
-  源码、FLA/SWF 结构、当前 EXE 和玩家截图。
-- Toolkit 1.0.0 只用于核对 MIT 许可、单猫评分、不自动组队/选择、稳定
-  CatId 决胜和确定性输出。其整数 RoomId、六属性、示例 ID、游戏 API、
-  UI 节点/卡片/marker 假设均未进入实现。
-- 2026-07-29 跨存档实机日志推翻了“计算只是慢”的猜测：generation 4
-  的 request 2～9 都立即完成但均为 `snapshot_valid=0`；generation 6 的
-  request 10～12 同样失败，request 13 才在存档文件变为当前数据后成功。
-  原因是 Stage 12 每次只读取磁盘上“最后修改”的 `.sav`，切换存档后
-  该文件短时间仍可能属于上一个存档。
-- 最新另一个存档的当前 House 有 25 个 rooted HouseCat；对应磁盘
-  `house_state` 也有 25 个当前 CatId。它们必须全部保留：普通房间、
-  `AdventureBox` 出战箱和空房间归属都属于当前 House 候选；只有不在
-  `house_state` 的历史 `cats` 表记录才排除。
-- 同一存档的 25 只当前猫中，16 只 class_id 为 `Colorless`，但其中 1 只
-  有持久化 death day；另 9 只已有战斗 class。真实可出战池是 15 只，
-  死猫与已有 class 的猫都必须排除，不能再次推荐。
-- 主存档当前 `house_state` 有 79 只猫。旧 reader 把 breed 前的变长
-  stat-affinity 描述误当固定 24 bytes，遇到 `dex` 后记录错位；运行时
-  HouseCat、匿名 mapping 和详情 probe 又固定拒绝超过 4096 个场景组件，
-  直接返回 0 个匹配。这些均是存档/场景规模相关缺陷，不是评分耗时。
-- 23:54:33 离开 House 时，`AC4101` 同一毫秒在 chainloader 中出现大量
-  旧 UI 地址访问异常。两个 MOD 按钮 view 都会在 scene 已卸载后继续调用
-  旧组件/MovieClip，并在重进 House 时可能复用旧句柄；这与跨存档后的
-  四行闪烁和上方按钮失效完全一致。
+## Evidence and research rules
 
-## Implemented boundary
+- 阶段文档、Toolkit、示例配置和在线资料都只能参考，不能照搬。它们
+  可能包含错误、示例值或并非当前游戏 build 的字段。
+- 可以联网查找相关公开信息，并应在有助于核实事实时使用；记录实际采用
+  的来源和结论。公开资料不能替代当前仓库、当前游戏 build、真实日志、
+  本地只读探针和玩家证据。
+- 必须使用真实且已验证的游戏数据值。不得发明或从示例推断函数名、偏移、
+  场景名、UI 节点名、ID、存档字段或 API 签名。未知项放进 adapter/probe
+  并安全失败。
+- 不复制许可证不明的代码或资源，不改变既定 Windows x64 DLL + MewUI
+  技术路线。
 
-- sidecar reader 与 Stage 11 writer 共用同一 checksum 实现；文件缺失为
-  正常状态，损坏、旧/未来 schema、字段错误或重复身份 fail closed。
-- compatibility validator 覆盖 Unknown day、N+1、N+2、配置/算法变化、
-  build/save identity 缺失及当前候选交集。
-- 即时 provider 只接收 House 当前 generation 下显式验证的候选只读
-  source，并直接调用 Stage 6 `RankCombatCats`；没有点击时 0 source/
-  0 评分。
-- 生产 source 返回 Unsupported，不读取玩家真实存档，也不把存档中的
-  House 记录直接冒充当前可见、可装盒的候选视图。
-- 复用 Stage 4 按钮。玩家点击后读取 MOD 自有
-  `state/recommendations.json` 并武装匿名 mapping probe；按钮显示
-  `Probe Required`，不会显示虚假推荐。
-- 玩家点击后留在 House，probe 才采集三次稳定匿名样本：generation、
-  组件/类型/Button 数量及匿名 type/role digest。重复点击可对比未装盒、
-  装入和移出猫时的结构变化。日志不含猫名、CatId、指针、存档名或路径。
-- 实机发现 `Probe Required` 只在 ESC 引发 detach/attach 后恢复；原因是
-  probe 完成后控制器没有主动恢复按钮状态。现在 `AC12102` 完成后按
-  相同 scene generation 保持 `Probe Required` 两秒，再恢复为
-  `Mark Combat Cats`。
-- 左侧整理按钮的 Completed/Failed 反馈同样保持两秒后恢复 Ready；反馈
-  期间不接受重复点击。
-- 匿名总数组无法区分 604→606 的具体来源。当前只读探针追加 `AC12103`
-  技术组件类型/数量/根节点数量，以及 `AC12104` Button role/数量；不
-  输出猫名、CatId、指针或存档身份。需要用装盒前后差异确定真实类型。
-- 2026-07-29 类型日志证明 House 中有 8 个 `HouseCat` 且全部有根节点，
-  与只读快照的 8 只猫数量一致。`Ragdoll` 根节点随装盒从 0→1→2，但
-  移出后仍为 2，属于缓存状态，不能作为身份边界。
-- 新增 `AC12105` HouseCat 身份 probe：在只读快照 CatId 集合与 HouseCat
-  组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
-  相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
-- 稳定双射成立后即时复用 Stage 6 单猫评分，排除持久化 dead 猫和已有
-  战斗 class 的猫，
-  并按 CatId 生成全部可出战猫的 `排名 猫名 分数 ?`；不再限制为 8 条，
-  界面仍只复用 4 个紧凑行。鼠标停在列表上
-  滚轮可逐项向下/向上浏览；点击物理行时会换算为当前可见的真实排名。
-  `?` 明示当前 reader 尚不能确认其余 life-stage 阈值和受伤；出战资格
-  由 death day 与当前 class 状态筛选。不使用猫名
-  做映射。
-- 四行不再创建游戏 Button 组件。每行由私有三帧 SWF 白纸和独立文字
-  组成：frame 0 为空，frame 1 为正常白纸，frame 2 为原生按钮 down
-  状态尺寸的按压白纸。生成器从固定 MIT 示例纹理中只保留白纸轮廓，
-  将其放大到原木牌边界；木板、垃圾桶、原始 label、完整绳子 placement
-  和后续按钮时间轴均未复制。
-- House UI 线程同时观察 `WM_LBUTTONDOWN/UP`。按下立即停在 frame 2，
-  松开后保持约 90ms 再恢复 frame 1 并打开对应猫详情；因此动画可见，
-  又不改变已验证的 CatId→原生详情链路。
-- 当前 EXE 的原生停帧调用序列已验证为：goto-frame 后清除 MovieClip
-  `+0x09` 的 `0x02` 播放位。四行显示与隐藏均复用该序列，不再用
-  `goto-and-play` 假装停帧；Mark 前、Clear 后和离开场景时保持 frame 0。
-- House UI 线程只观察四行的实际屏幕区域：`WM_LBUTTONUP` 产生玩家
-  主动详情点击，`WM_MOUSEWHEEL` 产生逐项滚动；消息始终继续传给游戏，
-  不依赖失效的原生推荐 Button hover/click，也不吞掉游戏输入。
-- 当前 EXE 本地反汇编验证了 HouseCatClickManager 的原生点击路径：
-  对唯一 `HouseCatClickManager` 调用 `0x1A93F0` 取得它实际持有的
-  `HouseDrawerUI`，再以 HouseCat 调用 `0xEFCB0` 取得内部详情目标，
-  最终以该 drawer、详情目标和 `show_drawer=1` 进入详情函数。当前
-  adapter 验证 drawer getter、drawer 调用点、目标转换函数、目标转换
-  调用点、详情函数和详情调用点六段当前 EXE 签名，并验证 manager、
-  scene 中唯一 `HouseDrawerUI`、getter 返回指针的原生 `+0x38/+0x60`
-  必需布局、HouseCat 与转换结果类型后才调用；不再把接口指针误当组件
-  基址调用类型虚函数。
-- `AC12109` 现在额外记录 `manager`、scene 枚举 drawer 是否存在及是否
-  与 getter 结果相同，并在 SEH 时记录失败阶段、异常码和模块内异常
-  RVA；不记录指针或身份。即使实机仍失败，也能由一条日志定位准确阶段
-  和指令，不再盲改。
-- 推荐文字沿用 `align=center` 的私有 text field；按真实边界计算后，
-  scale 保持 0.25；四项改为左上、右上、左下、右下两列两行。纸牌
-  placement 为 `(1025/1160, 175/235, 0.42)`，文字相对偏移仍为
-  `(-39,+12)`；命中矩形之间留空，整体与上方两个 MOD 按钮及下方
-  原生“出发”按钮分离。
-- Mark 现在是单个 pending 请求：一次点击后每秒自动重试当前只读存档，
-  最长 30 秒，不需要玩家连续点击。只有当前 generation、稳定 CatId
-  映射和 rooted 组件仍一致才显示。每次同时只读同一活动 Steam profile
-  的存档候选，并用当前 rooted HouseCat 完整双射选择真实活动存档；因此
-  会拒绝跨存档时旧 8 猫快照对 25 猫 House 的假匹配。
-- `house_state` 的每个当前 CatId 都进入解析和映射：普通房间、
-  `AdventureBox` 与空 room_id 均保留。空 room_id 只表示没有可验证的
-  房间归属，不再把猫从候选集删除。
-- Cat blob 的 breed 前 metadata 按真实的长度前缀 descriptor 加固定字段
-  解析，不再假定每个存档都为固定 24 bytes；post-class 的 birth/death day
-  已读取。HouseCat 组件、映射和去重表按当前数量动态分配，不再存在
-  64 只猫的业务上限。
-- 场景组件列表现在统一验证 `size <= capacity`、列表元数据和完整指针数组
-  的可读内存范围，不再用 4096 个总组件的固定上限；HouseCat 映射、匿名
-  probe 和详情目标查找共享这条 fail-closed 规则。
-- 四行文字改为直接 UTF-8 文本写入，不再把空值传入本地化数值占位符，
-  因此 Clear/隐藏不会留下 `0` 或 `.`。两个上方 MOD 按钮按 role 复用并
-  刷新回调，不再因家具界面 detach/attach 累积重复 Button 组件。
-- House/推荐 view 离场时先确认 `House` 仍是当前 ready scene；scene 已
-  卸载时只解除消息 hook 并丢弃本地句柄，不再调用旧 UI 指针。重新进入
-  新 generation 后强制解析新的按钮和四个 MovieClip，并立即停在隐藏帧。
-- 详情点击是玩家主动操作，只改变 House 当前查看/绿色焦点猫；不调用
-  冒险盒、出征队伍、确认或存档接口。
-- `Probe Required` 保持两秒后变为 `Clear Recommendations`；再次点击
-  清除列表。generation/UnsafeTransition/离开 House 会清除结果。
-- 任何快照、generation、双射、root、评分或文本节点异常均 fail closed。
+## Small-file implementation rule
 
-## Stage gate
+- 禁止出现包揽本阶段的大文件，严禁把 schema/model、默认值、解析、验证、
+  迁移、热加载、应用服务、UI 适配和测试全部塞进一个文件。
+- 先按现有架构确定小而清晰的模块边界，再分小批次实现和验证；每个文件
+  只承担一个明确职责，优先复用已有模块。
+- 测试也按配置解析/边界验证/热加载状态/安全约束/UI 适配拆分，避免单个
+  巨型测试文件。不要为了拆分制造无意义抽象。
+- 一次只完成一个可编译的小块；失败时从该小块继续，不要整阶段推倒重做。
 
-`EligibilityAndLargeSaveValidationRequired`
+## Stage boundary
 
-此前玩家已确认四行点击会打开正确猫详情；但最新跨存档实机验收发现
-旧 UI 句柄、错误磁盘存档选择和较大存档空房间记录三个缺陷。当前修复
-需重新验证：同一进程依次切换 8/25/79 猫存档不闪烁、上方按钮持续
-可点击；25 猫档只显示 15 只并排除 1 只死猫和 9 只已有 class 的猫；
-79 猫档能完整映射并显示全部 74 只可用猫；两列两行布局无误触。通过前
-Stage 13 继续 blocked。
+- 配置加载必须分层：编译期安全默认值、发布默认配置、用户覆盖、会话级
+  设置。缺失或损坏配置不得关闭硬安全约束。
+- 解析、迁移和验证必须先构造新不可变对象，成功后才能原子替换。
+- 热加载仅在工作流 Idle 时生效；忙碌时延迟。配置生效后使相关缓存和旧
+  推荐失效，但不得自动运行整理、选择、休息、日期推进或出征。
+- `never_auto_select` 必须恒为 true。关闭备份不得让淘汰变得可执行。
+- UI 必须通过应用服务修改配置，不直接写游戏状态；不影响原生 UI。
+- 不实现自动组队、自动选猫、自动确认、自动休息、日期推进或自动出征。
+- 不实施第 14 步的真实存档写入/恢复工具。本阶段只定义和消费自身需要的
+  配置安全边界。
+
+## Acceptance and completion
+
+- 覆盖有效配置、缺失/非法/截断 JSON、边界值、未知枚举、非有限数、旧版
+  迁移、忙碌时延迟热加载、缓存失效和安全约束不可绕过。
+- 构建并运行相关 Debug/Release 测试。能够自动验证的项目不得留给玩家。
+- 如设置界面的最终可用性确实需要进入游戏验证，停止在 Stage 13，明确给出
+  最短验证步骤；不要开始 Stage 14。
+- 若全部验收可由自动化和现有证据完成，则更新 Stage 13 报告与状态，创建
+  一个仅包含本阶段文件的本地 commit，不 push，并明确说明可以准备 Stage 14。
+- 报告必须列出实际文件、命令、构建/测试结果、游戏验证状态、风险、留给
+  后续阶段的内容、本地 commit 和 `是否 push：否`。

@@ -1,6 +1,6 @@
 ---
 name: mewgenics-auto-cattery
-summary: Implement the Mewgenics Auto Cattery MOD one verified stage at a time without web research or speculative game APIs.
+summary: Implement the Mewgenics Auto Cattery MOD one verified stage at a time, using public research only as supporting evidence and never inventing game APIs.
 ---
 
 # Mewgenics Auto Cattery Stage Skill
@@ -18,4 +18,10 @@ Use this skill when the repository contains `AutoCatteryDocs/16_steps` and the u
 9. Create one local commit. Never push.
 10. Stop if acceptance criteria fail.
 
-Hard constraints: no web research; no automatic team composition; no automatic rest/day advance; no automatic embark selection; no destructive action without preview, stable IDs, protection recheck, compatible build, and backup.
+Public research is allowed to verify relevant facts, but documents and online
+material are references only. Current-repository, current-build, probe, log, and
+player evidence control game-specific values and interfaces.
+
+Hard constraints: no automatic team composition; no automatic rest/day advance;
+no automatic embark selection; no destructive action without preview, stable
+IDs, protection recheck, compatible build, and backup.

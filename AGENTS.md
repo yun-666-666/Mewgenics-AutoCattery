@@ -1,12 +1,19 @@
 # AutoCattery Codex Repository Rules
 
 ## Mission
-Implement the Mewgenics Auto Cattery MOD strictly from `AutoCatteryDocs/16_steps/`. This repository uses a staged delivery process. Do not redesign the product and do not perform web research.
+Implement the Mewgenics Auto Cattery MOD one stage at a time, using
+`AutoCatteryDocs/16_steps/` as scope and design guidance rather than a source
+of authoritative game values. Validate technical details against the current
+repository, current game build, runtime evidence, and reliable public sources.
 
 ## Non-negotiable behavior
 - Read `CODEX_TASK.md` before modifying files.
 - Implement only the current stage. Never pre-implement later stages.
-- Do not browse the web, search for new mods, or change the fixed technical route.
+- Web research is allowed when it helps verify relevant facts or locate public
+  technical information. Treat documentation and online material as references
+  only: never copy unverified game values, APIs, offsets, scene/UI names, save
+  fields, code, or assets, and do not change the fixed technical route without
+  explicit user approval.
 - Inspect the current repository and reuse existing code.
 - Never invent game function names, offsets, scene names, UI node names, IDs, save fields, or API signatures.
 - Unknown game details must be isolated behind probes/adapters and safe failure paths.
