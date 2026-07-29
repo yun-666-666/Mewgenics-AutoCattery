@@ -120,5 +120,6 @@
 - Stage 10 真实写 adapter 仍不支持，因此关闭只读或开启单击模式也不会让
   真实移动/淘汰变得可执行。
 
-本地 commit：将在本轮 Stage 13 实现提交创建后回填其哈希
+本地实现 commit：3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc
+提交信息：`feat: add validated hot-reloadable configuration and settings UI`
 是否 push：否

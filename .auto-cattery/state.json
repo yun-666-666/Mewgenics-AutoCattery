@@ -61,6 +61,7 @@
     "13": {
       "status": "settings_ui_validation_required",
       "commit": null,
+      "implementation_commit": "3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc",
       "capability": "ValidatedHotReloadableConfigAndSessionSettingsPanel",
       "game_validation_status": "awaiting_player_house_settings_panel_validation",
       "stage_14_blocked": true
