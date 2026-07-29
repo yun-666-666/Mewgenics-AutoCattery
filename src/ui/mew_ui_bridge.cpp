@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -32,9 +33,24 @@ namespace autocattery::ui {
 namespace {
 
 constexpr std::size_t kSceneProbeCapacity = 64;
+constexpr std::size_t kMappingRecordCapacity = 128;
 
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
+}
+
+std::string SafeTechnicalName(std::string_view value) {
+    std::string output;
+    output.reserve(value.size());
+    for (const unsigned char character : value) {
+        const bool safe =
+            std::isalnum(character) != 0 ||
+            character == '_' || character == '-' ||
+            character == '.' || character == ':' ||
+            character == '/';
+        output.push_back(safe ? static_cast<char>(character) : '?');
+    }
+    return output;
 }
 
 std::string TimestampForFilename() {
@@ -434,6 +450,57 @@ void MewUiBridge::ObserveMappingProbe(
             "RecommendationProbe",
             "AC12102",
             message.str());
+        const auto scene = std::find_if(
+            scenes.begin(),
+            scenes.end(),
+            [&context](const RuntimeScene& candidate) {
+                return candidate.ready &&
+                       candidate.name == context.scene_name;
+            });
+        if (scene != scenes.end()) {
+            std::array<
+                AcMewMappingTypeRecord,
+                kMappingRecordCapacity> types{};
+            const auto type_count = AcMewEnumerateMappingTypes(
+                scene->manager,
+                types.data(),
+                types.size());
+            for (std::size_t index = 0; index < type_count; ++index) {
+                std::ostringstream detail;
+                detail << "request=" << mapping_probe_request_sequence_
+                       << " generation=" << summary.scene_generation
+                       << " type="
+                       << SafeTechnicalName(types[index].type_name)
+                       << " components=" << types[index].component_count
+                       << " roots=" << types[index].root_node_count;
+                Logger::Instance().Write(
+                    LogLevel::Info,
+                    "RecommendationProbe",
+                    "AC12103",
+                    detail.str());
+            }
+
+            std::array<
+                AcMewMappingRoleRecord,
+                kMappingRecordCapacity> roles{};
+            const auto role_count = AcMewEnumerateButtonRoles(
+                scene->manager,
+                roles.data(),
+                roles.size());
+            for (std::size_t index = 0; index < role_count; ++index) {
+                std::ostringstream detail;
+                detail << "request=" << mapping_probe_request_sequence_
+                       << " generation=" << summary.scene_generation
+                       << " role="
+                       << SafeTechnicalName(roles[index].role_name)
+                       << " buttons=" << roles[index].button_count;
+                Logger::Instance().Write(
+                    LogLevel::Info,
+                    "RecommendationProbe",
+                    "AC12104",
+                    detail.str());
+            }
+        }
         recommendation_marker_controller_->CompleteProbe(
             summary.scene_generation);
     }

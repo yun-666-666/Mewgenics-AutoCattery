@@ -53,6 +53,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   `Mark Combat Cats`。
 - 左侧整理按钮的 Completed/Failed 反馈同样保持两秒后恢复 Ready；反馈
   期间不接受重复点击。
+- 匿名总数组无法区分 604→606 的具体来源。当前只读探针追加 `AC12103`
+  技术组件类型/数量/根节点数量，以及 `AC12104` Button role/数量；不
+  输出猫名、CatId、指针或存档身份。需要用装盒前后差异确定真实类型。
 - generation/UnsafeTransition 会重置或清除 probe。没有稳定 CatId、
   view identity、视觉 marker 与 recycle 证据时始终不映射、不标记。
 
