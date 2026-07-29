@@ -63,6 +63,7 @@ private:
     std::atomic_bool ready_logged_{false};
     recommendation::MappingProbeSession mapping_probe_session_;
     bool mapping_probe_logged_{};
+    std::uint32_t mapping_probe_request_sequence_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<HouseButtonController> house_button_controller_;

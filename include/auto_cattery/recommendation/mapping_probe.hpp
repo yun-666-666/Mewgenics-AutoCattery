@@ -9,8 +9,10 @@ namespace autocattery::recommendation {
 struct AnonymousMappingObservation {
     std::uint32_t component_count{};
     std::uint32_t typed_component_count{};
+    std::uint32_t type_name_count{};
     std::uint32_t button_count{};
     std::uint32_t role_count{};
+    std::uint64_t type_digest{};
     std::uint64_t role_digest{};
 
     bool operator==(const AnonymousMappingObservation&) const = default;

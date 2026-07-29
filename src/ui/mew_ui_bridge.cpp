@@ -76,6 +76,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         recommendation::RecommendationSidecarPath(context.mod_root);
     mapping_probe_session_.Clear();
     mapping_probe_logged_ = false;
+    mapping_probe_request_sequence_ = 0;
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
@@ -105,7 +106,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                 LogLevel::Info,
                 "RecommendationProbe",
                 "AC12101",
-                message);
+                "request=" +
+                    std::to_string(++mapping_probe_request_sequence_) +
+                    " " + message);
             mapping_probe_session_.Arm();
             mapping_probe_logged_ = false;
         });
@@ -225,6 +228,7 @@ void MewUiBridge::Shutdown() noexcept {
     recommendation_sidecar_path_.clear();
     mapping_probe_session_.Clear();
     mapping_probe_logged_ = false;
+    mapping_probe_request_sequence_ = 0;
     ready_logged_.store(false);
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
@@ -389,8 +393,10 @@ void MewUiBridge::ObserveMappingProbe(
             {
                 native.component_count,
                 native.typed_component_count,
+                native.type_name_count,
                 native.button_count,
                 native.role_count,
+                native.type_digest,
                 native.role_digest
             });
     } else if (mapping_probe_session_.Armed() &&
@@ -402,15 +408,23 @@ void MewUiBridge::ObserveMappingProbe(
         mapping_probe_logged_ = true;
         const auto& summary = mapping_probe_session_.Summary();
         std::ostringstream message;
-        message << "MappingUnavailable generation="
+        message << "MappingUnavailable request="
+                << mapping_probe_request_sequence_
+                << " generation="
                 << summary.scene_generation
                 << " anonymous_components="
                 << summary.observation.component_count
                 << " typed_components="
                 << summary.observation.typed_component_count
+                << " type_names="
+                << summary.observation.type_name_count
                 << " buttons=" << summary.observation.button_count
                 << " stable_roles="
                 << (summary.stable_component_roles ? 1 : 0)
+                << " type_digest=" << std::hex
+                << summary.observation.type_digest
+                << " role_digest="
+                << summary.observation.role_digest << std::dec
                 << " stable_cat_id_boundary=0 visual_marker_boundary=0";
         Logger::Instance().Write(
             LogLevel::Info,

@@ -16,11 +16,12 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   snapshot ID、战斗算法版本、配置摘要及推荐 CatId/排名/分数/置信度。
   它没有 build identity、save identity 或完整并发信息；PreviewOnly
   生产流程也没有 Committed sidecar。
-- 当前 `ClassChooser` 证据只证明安全业务场景和匿名组件边界，不能证明
-  当前候选 CatId、CatId→猫卡映射、纯视觉 marker API 或卡片复用生命
-  周期。
-- House 存档快照不能冒充 ClassChooser 当前候选集合。生产候选 source
-  因而保持 Unsupported；Unknown 资格仍由 Stage 6 fail closed。
+- 玩家实机确认：挑猫和放入出征盒子发生在 `House`；点击游戏原生
+  `出发!` 后的 `ClassChooser` 只能查看已装盒的猫，不能选择或更换。
+  因此 ClassChooser 不是 Stage 12 推荐入口。
+- 当前 House 证据仍不能证明候选 CatId、CatId→可见猫视图、纯视觉
+  marker API 或猫移动/装盒生命周期。生产候选 source 因而保持
+  Unsupported；Unknown 资格仍由 Stage 6 fail closed。
 - 活动 `AGENTS.md` 禁止 web research；用户虽允许联网，本阶段未联网。
 - Toolkit 1.0.0 只用于核对 MIT 许可、单猫评分、不自动组队/选择、稳定
   CatId 决胜和确定性输出。其整数 RoomId、六属性、示例 ID、游戏 API、
@@ -32,22 +33,24 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   正常状态，损坏、旧/未来 schema、字段错误或重复身份 fail closed。
 - compatibility validator 覆盖 Unknown day、N+1、N+2、配置/算法变化、
   build/save identity 缺失及当前候选交集。
-- 即时 provider 只接收显式的“当前已确认出征候选”只读 source，并直接
-  调用 Stage 6 `RankCombatCats`；没有点击时 0 source/0 评分。
-- 生产 source 返回 Unsupported，不读取玩家真实存档，也不把 House 猫
-  当作 ClassChooser 候选。
+- 即时 provider 只接收 House 当前 generation 下显式验证的候选只读
+  source，并直接调用 Stage 6 `RankCombatCats`；没有点击时 0 source/
+  0 评分。
+- 生产 source 返回 Unsupported，不读取玩家真实存档，也不把存档中的
+  House 记录直接冒充当前可见、可装盒的候选视图。
 - 复用 Stage 4 按钮。玩家点击后读取 MOD 自有
   `state/recommendations.json` 并武装匿名 mapping probe；按钮显示
   `Probe Required`，不会显示虚假推荐。
-- 只有玩家点击后又进入 ClassChooser，probe 才采集三次稳定匿名样本：
-  generation、组件/类型/Button 数量和角色稳定性。日志不含猫名、CatId、
-  指针、存档名或个人路径。
+- 玩家点击后留在 House，probe 才采集三次稳定匿名样本：generation、
+  组件/类型/Button 数量及匿名 type/role digest。重复点击可对比未装盒、
+  装入和移出猫时的结构变化。日志不含猫名、CatId、指针、存档名或路径。
 - generation/UnsafeTransition 会重置或清除 probe。没有稳定 CatId、
   view identity、视觉 marker 与 recycle 证据时始终不映射、不标记。
 
 ## Stage gate
 
-`ProbeRequired; real highlight blocked by unverified ClassChooser CatId-to-view and visual marker lifecycle`
+`ProbeRequired; real highlight blocked by unverified House CatId-to-view and visual marker lifecycle`
 
-Stage 12 未完成真实高亮验收，Stage 13 继续 blocked。未部署 DLL，未读取
-或写入玩家真实存档。需要玩家按阶段报告中的最小步骤采集只读证据。
+Stage 12 未完成真实高亮验收，Stage 13 继续 blocked。用户明确授权后，
+只读探针 DLL 已部署到真实 MOD 目录；未读取或写入玩家真实存档。需要
+玩家按阶段报告中的最小步骤采集只读证据。

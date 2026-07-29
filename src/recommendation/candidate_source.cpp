@@ -8,7 +8,7 @@ UnsupportedCombatCandidateSource::CaptureConfirmedCandidates(
     return {
         {},
         ErrorCode::CatDataUnavailable,
-        "current ClassChooser candidate identity boundary is unverified"
+        "current House candidate identity boundary is unverified"
     };
 }
 

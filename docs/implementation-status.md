@@ -72,8 +72,10 @@
     positions; detection does not depend on cat layout.
   - Five player-operated diagnostic captures distinguish `House` from the
     embark-selection scene.
-  - `ClassChooser` is the only ready business scene introduced on the
-    embark-selection screen (component count stabilized from 79 to 81).
+  - `ClassChooser` is the ready business scene after the game-owned departure
+    sign (component count stabilized from 79 to 81). Player live evidence on
+    2026-07-29 corrected its meaning: it only displays cats already placed in
+    the House expedition box and does not allow selecting or changing cats.
   - House lifecycle generations progressed through 18 across repeated
     leave/return cycles without duplicate ready events or errors.
 - Operational rule:
@@ -350,13 +352,17 @@ by the Unsupported Stage 10 adapter.
 - Historical use fails closed because schema 1 lacks build and save identity.
   Unknown/current-day mismatch, config changes, algorithm changes, and
   unverified current candidates also require a current recomputation.
+- Player live evidence corrected the active surface: cats are chosen and put
+  into the expedition box in House; ClassChooser only displays the boxed
+  subset and cannot change it.
 - The recomputation provider directly reuses Stage 6 `RankCombatCats` and
-  requires an independently verified current ClassChooser candidate source.
-  No such production source exists, and House save cats are not substituted.
-- An explicitly armed, read-only ClassChooser mapping probe records only scene
-  generation, anonymous component/type/Button counts, and stable role
-  availability. It never records cat names, CatIds, pointers, save names, or
-  paths.
+  requires an independently verified current House candidate source. No such
+  production source exists, and stored House records are not substituted for
+  currently visible/selectable House views.
+- An explicitly armed, read-only House mapping probe records only generation,
+  anonymous component/type/Button counts, and anonymous type/role digests.
+  Repeated clicks allow before/after box-state comparison without cat names,
+  CatIds, pointers, save names, or paths.
 - Local MewUI/source evidence still does not prove CatId-to-card identity,
   marker add/remove, selection-state independence, or virtual-card recycle
   handling. Capability therefore remains ProbeRequired and no visual marker,
@@ -366,5 +372,5 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 is blocked at ProbeRequired pending player-assisted anonymous
-ClassChooser evidence. Stage 13 must not begin.
+Stage 12 is blocked at ProbeRequired pending player-assisted anonymous House
+evidence. Stage 13 must not begin.

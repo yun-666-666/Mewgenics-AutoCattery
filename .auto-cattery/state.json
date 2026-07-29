@@ -55,7 +55,7 @@
       "status": "probe_required",
       "commit": null,
       "capability": "ProbeRequired",
-      "real_highlight_status": "blocked_by_unverified_cat_id_to_view_mapping",
+      "real_highlight_status": "blocked_by_unverified_house_cat_id_to_view_mapping",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T18:05:38+08:00"
+  "updated_at": "2026-07-29T18:40:33+08:00"
 }

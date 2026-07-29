@@ -14,13 +14,13 @@ InstantRankingProvider::InstantRankingProvider(
 
 Result<InstantRecommendationResult> InstantRankingProvider::Recompute(
     const ui::UiContextSnapshot& context) {
-    if (context.kind != ui::UiContextKind::EmbarkSelection ||
+    if (context.kind != ui::UiContextKind::House ||
         !context.input_enabled || context.save_in_progress ||
         context.scene_generation == 0) {
         return {
             {},
             ErrorCode::SceneUnavailable,
-            "instant combat ranking requires a safe embark-selection context"
+            "instant combat ranking requires a safe House context"
         };
     }
 

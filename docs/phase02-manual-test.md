@@ -37,15 +37,19 @@ performs all save selection and gameplay navigation.
 Cat count, position, animation, and rest state must not create a context event
 unless the game actually unloads/reloads the `House` scene.
 
-## Embark-selection regression test
+## Post-departure boxed-cat review regression test
 
-1. Navigate to the screen where cats can be selected for the next expedition.
-2. Wait two seconds.
-3. Return to the house and close the game normally.
-4. Confirm the log contains
+1. In House, place cats into the expedition box and press the game-owned
+   departure sign.
+2. Observe the next screen. Player live evidence confirms that cats cannot be
+   selected or changed there; it only displays the already boxed subset.
+3. Wait two seconds.
+4. Return to the house and close the game normally.
+5. Confirm the log contains
    `Context=EmbarkSelectionReady scene='ClassChooser'`, followed by an
    `UnsafeTransition` or `HouseReady` event when leaving.
 
-The player capture on 2026-07-28 identified `ClassChooser` as the real
-embark-selection scene. F8 export is only needed again after a game update or
-if the context event stops appearing.
+The player capture identified the internal scene name `ClassChooser`; the
+2026-07-29 live correction establishes that it is not the interactive cat
+selection surface. F8 export is only needed again after a game update or if
+the context event stops appearing.

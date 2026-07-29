@@ -7,9 +7,12 @@
 #endif
 #include "mew_ui_api.h"
 
-static uint64_t AcHashRole(uint64_t value, const char* role) {
+static uint64_t AcHashText(uint64_t value, const char* text, size_t size) {
     const unsigned char* current;
-    for (current = (const unsigned char*)role; *current; ++current) {
+    const unsigned char* end;
+    current = (const unsigned char*)text;
+    end = current + size;
+    for (; current < end; ++current) {
         value = (value ^ *current) * 1099511628211ULL;
     }
     return (value ^ 0xFFU) * 1099511628211ULL;
@@ -53,6 +56,7 @@ AcMewAnonymousMappingObservation AcMewInspectAnonymousMapping(
     MewPodVectorPtr* components;
     uint32_t index;
     memset(&result, 0, sizeof(result));
+    result.type_digest = 14695981039346656037ULL;
     result.role_digest = 14695981039346656037ULL;
     if (!scene_manager) {
         return result;
@@ -69,19 +73,29 @@ AcMewAnonymousMappingObservation AcMewInspectAnonymousMapping(
         for (index = 0; index < components->size; ++index) {
             void* component;
             MewNarrowString type_name;
+            const char* type_data;
+            size_t type_size;
             char role[256];
             component = components->data[index];
             if (!AcGetTypeName(component, &type_name)) {
                 continue;
             }
             ++result.typed_component_count;
+            type_data = MewUI_GetNarrowStringData(&type_name);
+            type_size = MewUI_GetNarrowStringSize(&type_name);
+            if (type_data && type_size > 0U && type_size < 256U) {
+                ++result.type_name_count;
+                result.type_digest =
+                    AcHashText(result.type_digest, type_data, type_size);
+            }
             if (!AcTypeEquals(&type_name, "Button")) {
                 continue;
             }
             ++result.button_count;
             if (MewUI_GetButtonRoleName(component, role, sizeof(role))) {
                 ++result.role_count;
-                result.role_digest = AcHashRole(result.role_digest, role);
+                result.role_digest =
+                    AcHashText(result.role_digest, role, strlen(role));
             }
         }
     }

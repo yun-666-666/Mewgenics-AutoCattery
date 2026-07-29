@@ -18,8 +18,10 @@ void RunRecommendationMappingProbeTests() {
     const recommendation::AnonymousMappingObservation observation{
         .component_count = 81,
         .typed_component_count = 70,
+        .type_name_count = 70,
         .button_count = 12,
         .role_count = 8,
+        .type_digest = 4321,
         .role_digest = 1234
     };
 
@@ -27,17 +29,17 @@ void RunRecommendationMappingProbeTests() {
         Context(ui::UiContextKind::EmbarkSelection)));
     session.Arm();
     AC_CHECK(session.Armed());
-    AC_CHECK(!session.ShouldSample(Context(ui::UiContextKind::House)));
-    AC_CHECK(session.ShouldSample(
+    AC_CHECK(session.ShouldSample(Context(ui::UiContextKind::House)));
+    AC_CHECK(!session.ShouldSample(
         Context(ui::UiContextKind::EmbarkSelection)));
 
     session.Observe(
-        Context(ui::UiContextKind::EmbarkSelection), observation);
+        Context(ui::UiContextKind::House), observation);
     session.Observe(
-        Context(ui::UiContextKind::EmbarkSelection), observation);
+        Context(ui::UiContextKind::House), observation);
     AC_CHECK(!session.Complete());
     session.Observe(
-        Context(ui::UiContextKind::EmbarkSelection), observation);
+        Context(ui::UiContextKind::House), observation);
     AC_CHECK(session.Complete());
     AC_CHECK(session.Summary().stable_component_roles);
     AC_CHECK(!session.Summary().stable_cat_id_boundary);
@@ -46,11 +48,11 @@ void RunRecommendationMappingProbeTests() {
 
     session.Arm();
     session.Observe(
-        Context(ui::UiContextKind::EmbarkSelection), observation);
+        Context(ui::UiContextKind::House), observation);
     auto changed = observation;
     ++changed.component_count;
     session.Observe(
-        Context(ui::UiContextKind::EmbarkSelection), changed);
+        Context(ui::UiContextKind::House), changed);
     AC_CHECK(session.Summary().stable_samples == 1);
 
     session.Observe(

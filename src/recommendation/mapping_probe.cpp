@@ -22,7 +22,7 @@ void MappingProbeSession::Clear() noexcept {
 bool MappingProbeSession::ShouldSample(
     const ui::UiContextSnapshot& context) const noexcept {
     return armed_ && !complete_ &&
-           context.kind == ui::UiContextKind::EmbarkSelection &&
+           context.kind == ui::UiContextKind::House &&
            context.input_enabled && !context.save_in_progress &&
            context.scene_generation != 0;
 }

@@ -34,10 +34,10 @@ public:
     snapshot::HouseSnapshot house;
 };
 
-ui::UiContextSnapshot EmbarkContext(std::uint64_t generation = 7) {
+ui::UiContextSnapshot HouseContext(std::uint64_t generation = 7) {
     return {
-        ui::UiContextKind::EmbarkSelection,
-        "fixture-embark",
+        ui::UiContextKind::House,
+        "fixture-house",
         generation,
         true,
         false,
@@ -72,7 +72,7 @@ void RunRecommendationRankingProviderTests() {
 
     AC_CHECK(provider.ComputationCount() == 0);
     AC_CHECK(source.calls == 0);
-    const auto ranked = provider.Recompute(EmbarkContext());
+    const auto ranked = provider.Recompute(HouseContext());
     AC_CHECK(static_cast<bool>(ranked));
     AC_CHECK(ranked.value.candidate_count == 3);
     AC_CHECK(ranked.value.ranking.recommended_cat_ids ==
@@ -82,32 +82,32 @@ void RunRecommendationRankingProviderTests() {
     source.house = CandidateHouse(1);
     source.house.cats.front().available_for_combat =
         snapshot::TriState::Unknown;
-    const auto unknown = provider.Recompute(EmbarkContext());
+    const auto unknown = provider.Recompute(HouseContext());
     AC_CHECK(static_cast<bool>(unknown));
     AC_CHECK(unknown.value.ranking.recommended_cat_ids.empty());
 
     source.house = CandidateHouse(0);
-    const auto empty = provider.Recompute(EmbarkContext());
+    const auto empty = provider.Recompute(HouseContext());
     AC_CHECK(static_cast<bool>(empty));
     AC_CHECK(empty.value.ranking.ranked.empty());
 
-    auto unsafe = EmbarkContext();
-    unsafe.kind = ui::UiContextKind::House;
+    auto unsafe = HouseContext();
+    unsafe.kind = ui::UiContextKind::EmbarkSelection;
     AC_CHECK(!static_cast<bool>(provider.Recompute(unsafe)));
     AC_CHECK(source.calls == 3);
 
     source.house = CandidateHouse(100);
-    const auto hundred = provider.Recompute(EmbarkContext());
+    const auto hundred = provider.Recompute(HouseContext());
     AC_CHECK(static_cast<bool>(hundred));
     AC_CHECK(hundred.value.ranking.ranked.front().cat_id == 1);
     source.house = CandidateHouse(1'000);
-    const auto thousand = provider.Recompute(EmbarkContext());
+    const auto thousand = provider.Recompute(HouseContext());
     AC_CHECK(static_cast<bool>(thousand));
     AC_CHECK(thousand.value.ranking.ranked.front().cat_id == 1);
 
     recommendation::UnsupportedCombatCandidateSource unsupported;
     recommendation::InstantRankingProvider blocked(unsupported, config);
-    AC_CHECK(!static_cast<bool>(blocked.Recompute(EmbarkContext())));
+    AC_CHECK(!static_cast<bool>(blocked.Recompute(HouseContext())));
     AC_CHECK(blocked.ComputationCount() == 0);
 }
 

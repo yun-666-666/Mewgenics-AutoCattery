@@ -9,8 +9,10 @@ extern "C" {
 typedef struct AcMewAnonymousMappingObservation {
     uint32_t component_count;
     uint32_t typed_component_count;
+    uint32_t type_name_count;
     uint32_t button_count;
     uint32_t role_count;
+    uint64_t type_digest;
     uint64_t role_digest;
 } AcMewAnonymousMappingObservation;
 

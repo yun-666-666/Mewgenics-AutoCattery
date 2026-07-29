@@ -6,7 +6,7 @@
 - 玩家点击前：0 sidecar 读取、0 候选枚举、0 评分、0 mapping、0 marker。
 - 点击后只读取 MOD 自有 `state/recommendations.json`；缺失是正常状态。
 - 按钮明确显示 `Probe Required`，不会把 demo 或任意猫伪装成推荐。
-- 玩家随后进入 ClassChooser 时，已武装 probe 才采三次匿名稳定样本。
+- 玩家点击后留在 House，已武装 probe 才采三次匿名稳定样本。
 - 当前能力不是 VerifiedHighlight，也不是可产出真实推荐 CatId 的
   ReadOnlyRecommendation。
 
@@ -21,21 +21,23 @@
 - Stage 11 PreviewOnly 没有 Committed，因此生产环境默认没有 sidecar。
 
 即时重算：
-- `InstantRankingProvider` 只接受显式的、当前 generation 的已确认
-  ClassChooser 候选 source，并直接调用 Stage 6 `RankCombatCats`。
+- `InstantRankingProvider` 只接受显式的、当前 House generation 的已
+  确认候选 source，并直接调用 Stage 6 `RankCombatCats`。
 - Unknown 资格仍由默认 `require_confirmed_eligibility=true` 排除。
-- House 存档快照没有被当作当前 ClassChooser 候选。
+- 存档中的 House 记录没有被当作当前可见、可装盒候选视图。
 - 生产 `UnsupportedCombatCandidateSource` fail closed，因此本次推荐来源
   为“不可用”；没有读取玩家真实存档。
 
 CatId→猫卡证据与 probe：
-- 已证实的只有 `ClassChooser` 场景、scene generation、MewUI 组件列表、
-  组件类型调用和 Button role 读取边界。
+- 玩家实机确认挑猫/装盒发生在 House；ClassChooser 只展示已装盒子集，
+  不能选择或更换猫。
+- 已证实的只有 House 场景、scene generation、MewUI 组件列表、组件
+  类型调用和 Button role 读取边界。
 - 未证实当前候选 CatId、CatId→view、纯视觉 marker API、选择状态独立、
   卡片复用/滚动/分页/筛选生命周期。
-- 新 probe 只输出 generation、匿名 component/type/Button 数量和
-  stable role 布尔结果；不输出角色文本、猫名、CatId、指针、Steam ID、
-  存档名或个人路径。
+- 新 probe 只输出 request、generation、匿名 component/type/Button
+  数量、stable role 布尔结果及匿名 type/role digest；不输出角色文本、
+  猫名、CatId、指针、Steam ID、存档名或个人路径。
 - generation 变化重新取稳定样本；UnsafeTransition/退出清除。
 - `stable_cat_id_boundary=0`、`visual_marker_boundary=0` 时永远不标记。
 
@@ -75,11 +77,11 @@ Toolkit：
 
 验证：
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（5.19 秒）。
+- Debug `phase12_unit_tests`：通过（6.42 秒）。
 - Debug `phase12_dll_load_smoke`：通过（0.11 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.61 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.08 秒）。
+- Release `phase12_unit_tests`：通过（0.50 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
 - `git diff --check`：通过（仅 Git 的预期 LF→CRLF 提示）。
 - 禁止行为、Stage 13～16、隐私/密钥、存档/WAL/SHM、日志、二进制和
   个人路径扫描：通过。
@@ -93,21 +95,26 @@ Toolkit：
 - 自动选择、确认、队伍槽位写入、自动休息、日期推进、自动导航：0。
 - 未读取或写入玩家真实存档。
 - 未修改猫名、猫数据、游戏存档或原始游戏文件。
-- 未部署 DLL。
+- 用户明确授权后，本次 Release DLL 已部署到真实 MOD 目录；Mewtator
+  数据 MOD 已部署并启用，安装校验通过。
+- 构建 DLL 与已安装 DLL 的 SHA-256 均为
+  `936ADEE7CAD8E5CF3F4967A86A7C545BD1D875E5B4CA194603425A43AF0CE8DE`，
+  大小均为 683520 bytes。
 - 用户允许联网，但活动 `AGENTS.md` 禁止 web research；本次未联网。
 
 玩家最小只读测试：
-1. 不替换或部署 DLL；由玩家自行决定何时使用已构建候选 DLL。
-2. 如测试，先退出到可安全关闭游戏的位置，并保留当前已安装 MOD。
-3. 新一天 House 主动点击现有 `Mark Combat Cats`，确认文字变为
-   `Probe Required`，不要点击任何猫卡。
-4. 由玩家正常进入 ClassChooser，停留数秒，不选择、不确认出征。
-5. 正常退出 ClassChooser/游戏，提供本次 AutoCattery 日志中
-   `AC12101`、`AC12102` 行。
-6. 回滚只需恢复原已安装 DLL；本阶段没有存档或游戏数据需要恢复。
+1. 通过 Mewtator 启动游戏，使已启用的 AutoCattery 数据 MOD 路径传入
+   Mewgenics。
+2. 新一天 House 尚未放猫入盒时，点击 `Mark Combat Cats`，确认文字变
+   为 `Probe Required`，留在 House 等待三秒。
+3. 玩家手动放一只猫入盒，再点同一按钮并等待三秒。
+4. 再手动放一只猫入盒，重复点击和等待。
+5. 手动移出一只猫，再重复点击和等待；不要点击游戏原生 `出发!`。
+6. 正常退出游戏，提供日志中四组 `AC12101`、`AC12102` 行。
+7. 回滚只需恢复原已安装 DLL；本阶段没有存档或游戏数据需要恢复。
 
 剩余 blocker：
-- 缺少当前 ClassChooser 候选 CatId 的许可清楚、可重复验证只读边界。
+- 缺少当前 House 可见/可装盒候选 CatId 的可重复验证只读边界。
 - 缺少稳定 CatId→view 绑定、纯视觉 marker add/remove、选择状态独立及
   view recycle/滚动/分页/筛选生命周期证据。
 - schema 1 缺少 build/save identity，Stage 11 writer 也未接入真实
