@@ -52,10 +52,10 @@
       "stage_12_blocked": false
     },
     "12": {
-      "status": "clickable_details_validation_required",
+      "status": "scrollable_details_validation_required",
       "commit": null,
       "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "awaiting_click_to_details_validation",
+      "real_highlight_status": "awaiting_four_row_scroll_validation",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T20:36:00+08:00"
+  "updated_at": "2026-07-29T21:35:00+08:00"
 }

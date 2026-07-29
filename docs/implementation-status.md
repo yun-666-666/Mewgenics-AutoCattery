@@ -363,9 +363,16 @@ by the Unsupported Stage 10 adapter.
   Repeated clicks allow before/after box-state comparison without cat names,
   CatIds, pointers, save names, or paths.
 - Player validation found the plain text summary too difficult to use with
-  many cats. It is replaced by up to eight independent recommendation buttons
-  listing rank, display name, score, and `?` for unconfirmed eligibility.
-  Identity remains CatId-only; names are display labels, never match keys.
+  many cats. The first eight-button replacement also failed live validation:
+  every cloned sign retained a full rope whose visual/input area covered
+  earlier rows, disabled rows remained visible, and the column obstructed the
+  native depart control.
+- The replacement uses exactly four reusable rope-free rows listing rank,
+  display name, score, and `?` for unconfirmed eligibility. Hovering the list
+  and using the mouse wheel scrolls through up to eight ranked results one row
+  at a time. Disabled rows use an empty stopped SWF frame, so pre-mark and
+  cleared states have no residual blank signs. Identity remains CatId-only;
+  names are display labels, never match keys.
 - Clicking a recommendation button opens that exact HouseCat in the game's
   native details drawer and green focus outline. The build-specific adapter
   reuses the locally disassembled HouseCatClickManager path only after current
@@ -383,6 +390,7 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 awaits player-visible validation that each recommendation button opens
+Stage 12 awaits player-visible validation that exactly four rope-free rows
+appear only after marking, wheel scrolling reaches later ranks, each row opens
 the matching cat details, clear/scene-exit cleanup works, and the adventure box
 and expedition team remain unchanged. Stage 13 must not begin until that passes.

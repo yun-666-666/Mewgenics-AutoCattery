@@ -56,6 +56,10 @@ public:
         events.push_back("summary-off");
     }
 
+    void Poll() override {
+        ++poll_calls;
+    }
+
     [[nodiscard]] bool IsAttached() const noexcept override {
         return attached;
     }
@@ -78,6 +82,7 @@ public:
     std::vector<std::string> labels;
     int attach_calls{};
     int detach_calls{};
+    int poll_calls{};
     std::vector<std::string> events;
     ClickHandler click_handler;
     ItemClickHandler item_click_handler;
@@ -193,11 +198,13 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(probe_view.probe_required);
     now += 1999ms;
     probe_controller.Poll();
+    AC_CHECK(probe_view.poll_calls == 1);
     AC_CHECK(probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 1);
     now += 1ms;
     probe_controller.Poll();
+    AC_CHECK(probe_view.poll_calls == 2);
     AC_CHECK(!probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 2);

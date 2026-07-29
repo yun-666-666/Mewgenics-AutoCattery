@@ -3,8 +3,10 @@
 The source SWF contains a test button, three text fields, navigation controls,
 and a toggle. AutoCattery keeps the Stage 03 button, places one independently
 named copy of its known-good artwork for the Stage 04 new-day control, adds
-eight independently named Stage 12 recommendation-row buttons, and removes
-the unused example fields. All other SWF definitions remain
+four independently named Stage 12 recommendation-row buttons, and removes
+the unused example fields. Recommendation rows use a private clone of the
+button symbol with its rope removed and an empty disabled frame, so disabling
+the four reusable rows actually hides them. All other SWF definitions remain
 byte-for-byte intact so the known-good artwork and its transitive dependencies
 are preserved.
 """
@@ -18,6 +20,8 @@ import struct
 
 DEFINE_SPRITE = 39
 PLACE_OBJECT_2 = 26
+SHOW_FRAME = 1
+DO_ACTION = 12
 END = 0
 TARGET_MARKER = b"test_button\x00"
 RECOMMENDATION_MARKER = b"recommend_button\x00"
@@ -25,7 +29,13 @@ RECOMMENDATION_MARKER = b"recommend_button\x00"
 # native House HUD layers must remain in front of both buttons' hanging ropes.
 RECOMMENDATION_DEPTH = 19
 RECOMMENDATION_ITEM_DEPTH = 40
-RECOMMENDATION_ITEM_COUNT = 8
+RECOMMENDATION_ITEM_COUNT = 4
+BUTTON_ROPE_DEPTH = 1
+BUTTON_DISABLED_FRAME = 59
+DEFINITION_TAGS = frozenset({
+    2, 6, 7, 10, 11, 20, 21, 22, 32, 33, 34, 35, 36, 37,
+    39, 46, 48, 60, 73, 75, 83, 84, 87, 88, 90, 91,
+})
 REMOVED_NAMES = (
     b"test_nav_value\x00",
     b"test_nav_left\x00",
@@ -40,7 +50,7 @@ RELOCATED_TRANSFORMS = {
 }
 RECOMMENDATION_TRANSFORM = (1175.0, 85.0, 0.65)
 RECOMMENDATION_ITEM_TRANSFORMS = tuple(
-    (1110.0, 140.0 + index * 42.0, 0.48)
+    (1110.0, 140.0 + index * 46.0, 0.48)
     for index in range(RECOMMENDATION_ITEM_COUNT)
 )
 
@@ -201,8 +211,69 @@ def encode_tag(code: int, body: bytes) -> bytes:
     )
 
 
+def placed_character_id(body: bytes) -> int:
+    if len(body) < 5 or not body[0] & 0x02:
+        raise ValueError("button placement has no character id")
+    return struct.unpack_from("<H", body, 3)[0]
+
+
+def with_character_id(body: bytes, character_id: int) -> bytes:
+    placed_character_id(body)
+    output = bytearray(body)
+    struct.pack_into("<H", output, 3, character_id)
+    return bytes(output)
+
+
+def make_recommendation_item_sprite(
+    body: bytes,
+    character_id: int,
+) -> bytes:
+    output = bytearray(struct.pack(
+        "<HH",
+        character_id,
+        struct.unpack_from("<H", body, 2)[0],
+    ))
+    frame = 0
+    removed_rope = 0
+    removed_disabled = 0
+    inserted_disabled_stop = 0
+    for code, tag_start, body_start, tag_end in read_tags(
+        body,
+        4,
+        len(body),
+    ):
+        raw_tag = body[tag_start:tag_end]
+        if code == PLACE_OBJECT_2:
+            depth = struct.unpack_from("<H", body, body_start + 1)[0]
+            if frame == 0 and depth == BUTTON_ROPE_DEPTH:
+                removed_rope += 1
+                continue
+            if frame >= BUTTON_DISABLED_FRAME:
+                removed_disabled += 1
+                continue
+        if code == SHOW_FRAME and frame == BUTTON_DISABLED_FRAME:
+            output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
+            inserted_disabled_stop += 1
+        output.extend(raw_tag)
+        if code == SHOW_FRAME:
+            frame += 1
+    if (
+        removed_rope != 1
+        or removed_disabled != 3
+        or inserted_disabled_stop != 1
+    ):
+        raise ValueError(
+            "unexpected source button timeline while removing "
+            f"rope/disabled artwork: rope={removed_rope} "
+            f"disabled={removed_disabled} "
+            f"stop={inserted_disabled_stop}"
+        )
+    return bytes(output)
+
+
 def filter_overlay_sprite(
     body: bytes,
+    recommendation_item_character_id: int,
 ) -> tuple[bytes, int, int, int]:
     sprite_header = body[:4]
     kept = bytearray(sprite_header)
@@ -261,7 +332,10 @@ def filter_overlay_sprite(
             for item_index, transform in enumerate(
                 RECOMMENDATION_ITEM_TRANSFORMS
             ):
-                item_body = bytearray(source_body)
+                item_body = bytearray(with_character_id(
+                    source_body,
+                    recommendation_item_character_id,
+                ))
                 struct.pack_into(
                     "<H",
                     item_body,
@@ -288,21 +362,65 @@ def filter_overlay_sprite(
 def build(source: Path, destination: Path) -> None:
     swf = source.read_bytes()
     start = tag_stream_start(swf)
+    tags = list(read_tags(swf, start, len(swf)))
+    overlay_button_character_id = None
+    existing_character_ids = set()
+    for code, _, body_start, tag_end in tags:
+        body = swf[body_start:tag_end]
+        if code in DEFINITION_TAGS and len(body) >= 2:
+            existing_character_ids.add(struct.unpack_from("<H", body, 0)[0])
+        if code == DEFINE_SPRITE and TARGET_MARKER in body:
+            for (
+                child_code,
+                _,
+                child_body_start,
+                child_tag_end,
+            ) in read_tags(body, 4, len(body)):
+                child = body[child_body_start:child_tag_end]
+                if (
+                    child_code == PLACE_OBJECT_2
+                    and TARGET_MARKER in child
+                ):
+                    overlay_button_character_id = placed_character_id(child)
+                    break
+    if overlay_button_character_id is None or not existing_character_ids:
+        raise ValueError("source button character could not be resolved")
+    recommendation_item_character_id = max(existing_character_ids) + 1
+    if recommendation_item_character_id > 0xFFFF:
+        raise ValueError("no SWF character id remains for recommendation rows")
+
     output = bytearray(swf[:start])
     found = False
+    cloned_button_sprite = False
     removed = 0
     relocated = 0
     cloned = 0
 
-    for code, tag_start, body_start, tag_end in read_tags(
-        swf, start, len(swf)
-    ):
+    for code, tag_start, body_start, tag_end in tags:
         body = swf[body_start:tag_end]
+        if (
+            code == DEFINE_SPRITE
+            and struct.unpack_from("<H", body, 0)[0] ==
+                overlay_button_character_id
+        ):
+            output.extend(swf[tag_start:tag_end])
+            output.extend(encode_tag(
+                DEFINE_SPRITE,
+                make_recommendation_item_sprite(
+                    body,
+                    recommendation_item_character_id,
+                ),
+            ))
+            cloned_button_sprite = True
+            continue
         if code == DEFINE_SPRITE and TARGET_MARKER in body:
             if found:
                 raise ValueError("more than one overlay sprite was found")
             body, removed, relocated, cloned = (
-                filter_overlay_sprite(body)
+                filter_overlay_sprite(
+                    body,
+                    recommendation_item_character_id,
+                )
             )
             output.extend(encode_tag(code, body))
             found = True
@@ -311,13 +429,15 @@ def build(source: Path, destination: Path) -> None:
 
     if (
         not found
+        or not cloned_button_sprite
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
         or cloned != 1 + RECOMMENDATION_ITEM_COUNT
     ):
         raise ValueError(
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "
-            f"found={found} removed={removed} "
+            f"found={found} button_clone={cloned_button_sprite} "
+            f"removed={removed} "
             f"relocated={relocated} cloned={cloned}"
         )
 

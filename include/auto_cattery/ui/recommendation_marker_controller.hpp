@@ -31,6 +31,7 @@ public:
     virtual Result<void> ShowItems(
         const std::vector<std::string>& labels) = 0;
     virtual void ClearSummary() noexcept = 0;
+    virtual void Poll() = 0;
     [[nodiscard]] virtual bool IsAttached() const noexcept = 0;
 };
 

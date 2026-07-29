@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <vector>
 
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
@@ -13,6 +15,8 @@ namespace autocattery::ui {
 class MewUiRecommendationMarkerView final
     : public RecommendationMarkerView {
 public:
+    ~MewUiRecommendationMarkerView() override;
+
     Result<void> Attach(
         const UiContextSnapshot& context,
         ClickHandler click_handler,
@@ -22,6 +26,7 @@ public:
     Result<void> ShowItems(
         const std::vector<std::string>& labels) override;
     void ClearSummary() noexcept override;
+    void Poll() override;
     [[nodiscard]] bool IsAttached() const noexcept override;
 
 private:
@@ -31,11 +36,26 @@ private:
         MewButtonState old_state,
         MewButtonState new_state,
         void* user_data);
+    static LRESULT CALLBACK WheelMessageHook(
+        int code,
+        WPARAM remove_message,
+        LPARAM message_pointer);
+
+    bool InstallWheelHook() noexcept;
+    void RemoveWheelHook() noexcept;
+    bool RefreshVisibleItems() noexcept;
 
     void* scene_manager_{};
     void* button_{};
-    std::array<void*, 8> item_buttons_{};
+    std::array<void*, 4> item_nodes_{};
+    std::array<void*, 4> item_buttons_{};
     bool active_{};
+    HHOOK wheel_hook_{};
+    std::atomic<int> hovered_item_{-1};
+    std::atomic<int> pending_wheel_delta_{};
+    int wheel_delta_remainder_{};
+    std::size_t first_visible_item_{};
+    std::vector<std::string> item_labels_;
     ClickHandler click_handler_;
     ItemClickHandler item_click_handler_;
 };

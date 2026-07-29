@@ -205,6 +205,7 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
 }
 
 void RecommendationMarkerController::Poll() {
+    view_.Poll();
     if (ready_after_.time_since_epoch().count() == 0 ||
         clock_() < ready_after_) {
         return;
