@@ -38,6 +38,10 @@ namespace {
 
 constexpr std::size_t kSceneProbeCapacity = 64;
 constexpr std::size_t kMappingRecordCapacity = 128;
+constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
+constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
+constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
+constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
 
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
@@ -110,7 +114,13 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     mapping_identity_logged_ = false;
     mapping_probe_request_sequence_ = 0;
     mapping_snapshot_request_sequence_ = 0;
+    mapping_snapshot_task_sequence_ = 0;
+    mapping_snapshot_attempt_ = 0;
     mapping_snapshot_generation_ = 0;
+    mapping_snapshot_task_generation_ = 0;
+    mapping_snapshot_request_active_ = false;
+    mapping_snapshot_retry_deadline_ = {};
+    mapping_snapshot_next_attempt_ = {};
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
@@ -150,12 +160,13 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             mapping_snapshot_request_sequence_ =
                 mapping_probe_request_sequence_;
             mapping_snapshot_generation_ = generation;
-            mapping_snapshot_task_ = std::async(
-                std::launch::async,
-                [generation] {
-                    snapshot::SaveSnapshotAdapter adapter;
-                    return adapter.CaptureHouseSnapshot(generation);
-                });
+            mapping_snapshot_attempt_ = 0;
+            mapping_snapshot_request_active_ = true;
+            mapping_snapshot_retry_deadline_ =
+                std::chrono::steady_clock::now() +
+                kMappingSnapshotRetryWindow;
+            mapping_snapshot_next_attempt_ = {};
+            StartMappingSnapshotAttempt();
         });
     recommendation_marker_controller_->SetDetailsHandler(
         [this](std::uint64_t generation, std::size_t index) {
@@ -254,6 +265,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             !snapshot.input_enabled ||
             snapshot.save_in_progress) {
             recommendation_detail_targets_.clear();
+            mapping_snapshot_request_active_ = false;
+            mapping_snapshot_retry_deadline_ = {};
+            mapping_snapshot_next_attempt_ = {};
             house_button_controller_->Detach();
             recommendation_marker_controller_->Detach();
             next_house_attach_retry_ = {};
@@ -320,7 +334,13 @@ void MewUiBridge::Shutdown() noexcept {
     mapping_identity_logged_ = false;
     mapping_probe_request_sequence_ = 0;
     mapping_snapshot_request_sequence_ = 0;
+    mapping_snapshot_task_sequence_ = 0;
+    mapping_snapshot_attempt_ = 0;
     mapping_snapshot_generation_ = 0;
+    mapping_snapshot_task_generation_ = 0;
+    mapping_snapshot_request_active_ = false;
+    mapping_snapshot_retry_deadline_ = {};
+    mapping_snapshot_next_attempt_ = {};
     recommendation_detail_targets_.clear();
     ready_logged_.store(false);
     house_button_controller_.reset();
@@ -582,35 +602,92 @@ void MewUiBridge::ObserveMappingProbe(
     }
 }
 
+void MewUiBridge::StartMappingSnapshotAttempt() {
+    if (!mapping_snapshot_request_active_ ||
+        mapping_snapshot_task_.valid()) {
+        return;
+    }
+    mapping_snapshot_task_sequence_ = mapping_snapshot_request_sequence_;
+    mapping_snapshot_task_generation_ = mapping_snapshot_generation_;
+    ++mapping_snapshot_attempt_;
+    const auto generation = mapping_snapshot_task_generation_;
+    mapping_snapshot_task_ = std::async(
+        std::launch::async,
+        [generation] {
+            snapshot::SaveSnapshotAdapter adapter;
+            return adapter.CaptureHouseSnapshot(generation);
+        });
+}
+
 void MewUiBridge::ObserveHouseCatIdentity(
     const UiContextSnapshot& context,
     const std::vector<RuntimeScene>& scenes) {
     if (mapping_identity_logged_ ||
-        !mapping_probe_session_.Complete() ||
-        !mapping_snapshot_task_.valid() ||
-        mapping_snapshot_task_.wait_for(std::chrono::milliseconds(0)) !=
-            std::future_status::ready) {
+        !mapping_snapshot_request_active_ ||
+        !mapping_probe_session_.Complete()) {
         return;
     }
-    mapping_identity_logged_ = true;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (!mapping_snapshot_task_.valid()) {
+        if (mapping_snapshot_next_attempt_.time_since_epoch().count() == 0 ||
+            now >= mapping_snapshot_next_attempt_) {
+            StartMappingSnapshotAttempt();
+        }
+        return;
+    }
+    if (mapping_snapshot_task_.wait_for(std::chrono::milliseconds(0)) !=
+        std::future_status::ready) {
+        return;
+    }
+
+    const auto task_sequence = mapping_snapshot_task_sequence_;
+    const auto task_generation = mapping_snapshot_task_generation_;
     const auto captured = mapping_snapshot_task_.get();
+    if (task_sequence != mapping_snapshot_request_sequence_ ||
+        task_generation != mapping_snapshot_generation_) {
+        mapping_snapshot_next_attempt_ = {};
+        return;
+    }
+
+    const bool retry_available =
+        context.kind == UiContextKind::House &&
+        context.input_enabled &&
+        !context.save_in_progress &&
+        context.scene_generation == mapping_snapshot_generation_ &&
+        now < mapping_snapshot_retry_deadline_;
+    const auto retry_or_complete = [&] {
+        if (retry_available) {
+            mapping_snapshot_next_attempt_ =
+                now + kMappingSnapshotRetryDelay;
+            return;
+        }
+        mapping_snapshot_request_active_ = false;
+        mapping_identity_logged_ = true;
+        mapping_snapshot_next_attempt_ = {};
+        recommendation_marker_controller_->CompleteProbe(
+            mapping_snapshot_generation_);
+    };
+
     std::ostringstream message;
     message << "request=" << mapping_snapshot_request_sequence_
+            << " attempt=" << mapping_snapshot_attempt_
             << " generation=" << mapping_snapshot_generation_;
     if (!captured ||
         !captured.value.capabilities.stable_cat_id ||
         captured.value.scene_generation != mapping_snapshot_generation_) {
         message << " snapshot_valid=0 house_cats=0 requested_ids=0"
-                << " layouts=0 stable_bijection=0";
+                << " layouts=0 stable_bijection=0 retry_pending="
+                << (retry_available ? 1 : 0);
         Logger::Instance().Write(
             LogLevel::Info,
             "RecommendationProbe",
             "AC12105",
             message.str());
-        recommendation_marker_controller_->CompleteProbe(
-            mapping_snapshot_generation_);
+        retry_or_complete();
         return;
     }
+
     const auto scene = std::find_if(
         scenes.begin(),
         scenes.end(),
@@ -623,14 +700,14 @@ void MewUiBridge::ObserveHouseCatIdentity(
         context.scene_generation != mapping_snapshot_generation_) {
         message << " snapshot_valid=1 house_cats=0 requested_ids="
                 << captured.value.cats.size()
-                << " layouts=0 stable_bijection=0";
+                << " layouts=0 stable_bijection=0 retry_pending="
+                << (retry_available ? 1 : 0);
         Logger::Instance().Write(
             LogLevel::Info,
             "RecommendationProbe",
             "AC12105",
             message.str());
-        recommendation_marker_controller_->CompleteProbe(
-            mapping_snapshot_generation_);
+        retry_or_complete();
         return;
     }
 
@@ -649,6 +726,11 @@ void MewUiBridge::ObserveHouseCatIdentity(
         [](const AcMewHouseCatMatch& match) {
             return match.root_node != nullptr;
         });
+    const bool coverage_ready =
+        identity.house_cat_count > 0 &&
+        identity.match_count * kMinimumMappedCoverageDenominator >=
+            static_cast<std::size_t>(identity.house_cat_count) *
+                kMinimumMappedCoverageNumerator;
     message << " snapshot_valid=1 house_cats="
             << identity.house_cat_count
             << " requested_ids=" << identity.requested_cat_count
@@ -660,6 +742,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
                    identity.consistent_mapping)
             << " matched=" << identity.match_count
             << " roots=" << roots
+            << " coverage_ready=" << (coverage_ready ? 1 : 0)
             << " stable_bijection=" << static_cast<unsigned>(
                    identity.stable_bijection)
             << " visual_marker_boundary=0";
@@ -673,10 +756,10 @@ void MewUiBridge::ObserveHouseCatIdentity(
         identity.stable_bijection != 0 &&
         identity.consistent_mapping != 0 &&
         identity.match_count == captured.value.cats.size() &&
-        roots == static_cast<std::ptrdiff_t>(identity.match_count);
+        roots == static_cast<std::ptrdiff_t>(identity.match_count) &&
+        coverage_ready;
     if (!identity_ready) {
-        recommendation_marker_controller_->CompleteProbe(
-            mapping_snapshot_generation_);
+        retry_or_complete();
         return;
     }
 
@@ -688,6 +771,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
     const auto ranking =
         scoring::RankCombatCats(captured.value, scoring_config);
     if (!ranking || ranking.value.recommended_cat_ids.empty()) {
+        mapping_snapshot_request_active_ = false;
+        mapping_identity_logged_ = true;
         Logger::Instance().Write(
             LogLevel::Info,
             "RecommendationMarker",
@@ -741,6 +826,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
     }
 
     if (marked == 0) {
+        mapping_snapshot_request_active_ = false;
+        mapping_identity_logged_ = true;
         recommendation_marker_controller_->CompleteProbe(
             mapping_snapshot_generation_);
         return;
@@ -750,6 +837,8 @@ void MewUiBridge::ObserveHouseCatIdentity(
             mapping_snapshot_generation_,
             labels);
     if (!shown) {
+        mapping_snapshot_request_active_ = false;
+        mapping_identity_logged_ = true;
         Logger::Instance().Write(
             LogLevel::Warn,
             "RecommendationMarker",
@@ -760,12 +849,16 @@ void MewUiBridge::ObserveHouseCatIdentity(
             mapping_snapshot_generation_);
         return;
     }
+    mapping_snapshot_request_active_ = false;
+    mapping_identity_logged_ = true;
     recommendation_detail_targets_ = std::move(detail_targets);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
         "AC12106",
         "marked=" + std::to_string(marked) +
+            " mapped_house_cats=" + std::to_string(identity.match_count) +
+            "/" + std::to_string(identity.house_cat_count) +
             " stable_cat_id_boundary=1 visual_fallback=clickable_list "
             "expedition_selection_changed=0");
 }

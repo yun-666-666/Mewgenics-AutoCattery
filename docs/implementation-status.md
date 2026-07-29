@@ -436,13 +436,38 @@ by the Unsupported Stage 10 adapter.
   snapshot/generation/bijection validation. The second click clears the list.
   Leaving House also clears it. No selection, box, party, confirmation, or
   game-save write API exists in this path.
+- Cross-save live logs exposed two lifecycle defects after the earlier
+  acceptance. Requests 2-9 in House generation 4 completed immediately with
+  `snapshot_valid=0`; generation 6 likewise failed until request 13, after the
+  selected save finally became the newest modified `.sav`. Mark is now one
+  pending operation with one-second read-only retries for at most 30 seconds,
+  so the player does not need to click repeatedly while the selected save is
+  settling.
+- A larger current save contains 23 verifiable assigned House cats plus two
+  records without a verifiable room assignment while the runtime has 28
+  rooted HouseCat components. Empty-room records are now parseable but
+  excluded from room assignment. The identity adapter can map the complete
+  validated snapshot to a rooted subset of runtime HouseCats; display requires
+  at least 75% runtime coverage. This accepts the evidenced 23/28 boundary
+  while rejecting a stale
+  8-cat snapshot against that House.
+- At the 23:54:33 House exit, chainloader recorded repeated access violations
+  in the same millisecond as UI detach. Both House controls now verify that the
+  stored scene is still the current ready House before touching components or
+  MovieClips. An unloaded scene only causes hook removal and local-handle
+  invalidation; a new generation re-resolves all UI nodes and stops the four
+  recommendation clips on the hidden frame.
+- The four recommendation items are now a two-column, two-row grid ordered
+  top-left, top-right, bottom-left, bottom-right. Separate hit rectangles leave
+  gaps between items and keep the grid away from the two upper MOD controls
+  and the native depart sign.
 - Debug/Release `phase12_unit_tests` and `phase12_dll_load_smoke` are the
   required validation targets and pass. The Release DLL and Mewtator UI data
   MOD are deployed for player-visible validation.
 
 ## Stage gate
 
-Stage 12 is complete. The player confirmed that recommendation-row clicks open
-the matching native cat details. The final paper-only artwork, press feedback,
-and label cleanup pass Debug/Release builds and Stage 12 tests. Stage 13 has
-not begun.
+Stage 12 is reopened for player-visible save-switch validation. The native cat
+detail path remains player-confirmed, but the retry/lifecycle/grid repair must
+now pass in one process across both the 8-cat and larger save. Stage 13 remains
+blocked.

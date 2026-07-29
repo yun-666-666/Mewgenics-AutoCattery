@@ -22,10 +22,11 @@ bool Read(
 bool ReadString(
     std::span<const std::uint8_t> bytes,
     std::size_t& cursor,
-    std::string& value) {
+    std::string& value,
+    bool allow_empty = false) {
     std::uint64_t length{};
     if (!Read(bytes, cursor, length) ||
-        length == 0 ||
+        (!allow_empty && length == 0) ||
         length > 128 ||
         length > bytes.size() - cursor) {
         return false;
@@ -61,7 +62,7 @@ Result<std::vector<HouseStateEntry>> ParseHouseState(
         HouseStateEntry entry;
         if (!Read(blob, cursor, entry.cat_id) ||
             entry.cat_id <= 0 ||
-            !ReadString(blob, cursor, entry.room_id) ||
+            !ReadString(blob, cursor, entry.room_id, true) ||
             !Read(blob, cursor, entry.position_x) ||
             !Read(blob, cursor, entry.position_y) ||
             !Read(blob, cursor, entry.position_z) ||

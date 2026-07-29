@@ -29,11 +29,18 @@ constexpr std::array<const char*, 4> kItemTextNodes{
 };
 constexpr double kVirtualWidth = 1280.0;
 constexpr double kVirtualHeight = 720.0;
-constexpr double kRowXMin = 995.0;
-constexpr double kRowXMax = 1210.0;
-constexpr double kRowY = 140.0;
-constexpr double kRowStep = 42.0;
-constexpr double kRowHeight = 42.0;
+struct HitRectangle {
+    double left;
+    double top;
+    double right;
+    double bottom;
+};
+constexpr std::array<HitRectangle, 4> kItemHitRectangles{{
+    {975.0, 170.0, 1110.0, 220.0},
+    {1115.0, 170.0, 1250.0, 220.0},
+    {975.0, 230.0, 1110.0, 280.0},
+    {1115.0, 230.0, 1250.0, 280.0}
+}};
 constexpr auto kClickAnimationDuration =
     std::chrono::milliseconds(90);
 constexpr std::size_t kMovieClipStateFlagsOffset = 0x09U;
@@ -80,6 +87,13 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     if (scene_manager_ == scene &&
         button_ != nullptr &&
         MewUI_IsComponentInScene(scene, button_) != 0) {
+        attached_generation_ = context.scene_generation;
+        if (!ResolveItemNodes()) {
+            return {
+                ErrorCode::UiNodeNotFound,
+                "a recommendation row from the current House is unavailable"
+            };
+        }
         if (!InstallWheelHook()) {
             return {
                 ErrorCode::InternalError,
@@ -91,11 +105,14 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         active_ = true;
         MewUI_SetButtonEnabled(button_, 1);
         MewUI_SetButtonInteractable(button_, 1);
+        ClearSummary();
         return {};
     }
 
     scene_manager_ = scene;
     button_ = nullptr;
+    attached_generation_ = context.scene_generation;
+    item_nodes_.fill(nullptr);
     active_ = false;
     click_handler_ = std::move(click_handler);
     item_click_handler_ = std::move(item_click_handler);
@@ -123,20 +140,12 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         };
     }
 
-    for (std::size_t index = 0; index < item_nodes_.size(); ++index) {
-        auto* item_node =
-            MewUI_FindNodeInSceneByName(scene_manager_, kItemNodes[index]);
-        item_nodes_[index] = item_node;
-        auto* text_node = MewUI_FindNodeInSceneByName(
-            scene_manager_,
-            kItemTextNodes[index]);
-        if (item_node == nullptr || text_node == nullptr) {
-            Detach();
-            return {
-                ErrorCode::UiNodeNotFound,
-                "a static recommendation row asset is unavailable"
-            };
-        }
+    if (!ResolveItemNodes()) {
+        Detach();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "a static recommendation row asset is unavailable"
+        };
     }
 
     if (!InstallWheelHook()) {
@@ -154,17 +163,20 @@ Result<void> MewUiRecommendationMarkerView::Attach(
 }
 
 void MewUiRecommendationMarkerView::Detach() noexcept {
-    ClearSummary();
     RemoveWheelHook();
-    if (scene_manager_ != nullptr &&
-        button_ != nullptr &&
-        MewUI_IsSceneDestroying(scene_manager_) == 0 &&
+    const bool can_touch_scene = CanTouchScene();
+    if (can_touch_scene) {
+        ClearSummary();
+    }
+    if (can_touch_scene && button_ != nullptr &&
         MewUI_IsComponentInScene(scene_manager_, button_) != 0) {
         MewUI_SetButtonInteractable(button_, 0);
         MewUI_SetButtonEnabled(button_, 0);
-    } else {
+    }
+    if (!can_touch_scene) {
         scene_manager_ = nullptr;
         button_ = nullptr;
+        attached_generation_ = 0;
         item_nodes_.fill(nullptr);
     }
     active_ = false;
@@ -224,8 +236,7 @@ void MewUiRecommendationMarkerView::ClearSummary() noexcept {
     wheel_delta_remainder_ = 0;
     pressed_row_ = -1;
     pending_activation_item_.reset();
-    if (scene_manager_ == nullptr ||
-        MewUI_IsSceneDestroying(scene_manager_) != 0) {
+    if (!CanTouchScene()) {
         return;
     }
     for (std::size_t row = 0; row < item_nodes_.size(); ++row) {
@@ -389,6 +400,34 @@ bool MewUiRecommendationMarkerView::InstallWheelHook() noexcept {
     return true;
 }
 
+bool MewUiRecommendationMarkerView::ResolveItemNodes() noexcept {
+    if (!CanTouchScene()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < item_nodes_.size(); ++index) {
+        item_nodes_[index] = MewUI_FindNodeInSceneByName(
+            scene_manager_,
+            kItemNodes[index]);
+        if (item_nodes_[index] == nullptr ||
+            MewUI_FindNodeInSceneByName(
+                scene_manager_,
+                kItemTextNodes[index]) == nullptr) {
+            item_nodes_.fill(nullptr);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MewUiRecommendationMarkerView::CanTouchScene() const noexcept {
+    if (scene_manager_ == nullptr ||
+        MewUI_GetSceneByName("House") != scene_manager_) {
+        return false;
+    }
+    return MewUI_IsSceneReadyForUITick(scene_manager_) != 0 &&
+           MewUI_IsSceneDestroying(scene_manager_) == 0;
+}
+
 void MewUiRecommendationMarkerView::RemoveWheelHook() noexcept {
     if (wheel_hook_ != nullptr) {
         UnhookWindowsHookEx(wheel_hook_);
@@ -400,8 +439,7 @@ void MewUiRecommendationMarkerView::RemoveWheelHook() noexcept {
 }
 
 bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
-    if (scene_manager_ == nullptr ||
-        MewUI_IsSceneDestroying(scene_manager_) != 0) {
+    if (!CanTouchScene()) {
         return false;
     }
     for (std::size_t row = 0; row < item_nodes_.size(); ++row) {
@@ -453,16 +491,14 @@ int MewUiRecommendationMarkerView::HitTestRow(
     const double virtual_y =
         static_cast<double>(cursor.y) *
         kVirtualHeight / client_height;
-    if (virtual_x < kRowXMin || virtual_x > kRowXMax) {
-        return -1;
-    }
-
     const auto visible_rows =
         std::min(item_nodes_.size(), item_labels_.size());
     for (std::size_t row = 0; row < visible_rows; ++row) {
-        const double row_y = kRowY + kRowStep * row;
-        if (virtual_y >= row_y &&
-            virtual_y <= row_y + kRowHeight) {
+        const auto& rectangle = kItemHitRectangles[row];
+        if (virtual_x >= rectangle.left &&
+            virtual_x <= rectangle.right &&
+            virtual_y >= rectangle.top &&
+            virtual_y <= rectangle.bottom) {
             return static_cast<int>(row);
         }
     }

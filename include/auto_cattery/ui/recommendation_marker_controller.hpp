@@ -71,6 +71,7 @@ private:
     bool available_this_day_{true};
     bool next_day_pending_{};
     bool marker_visible_{};
+    bool request_pending_{};
     std::uint64_t attached_generation_{};
     RequestHandler request_handler_;
     DetailsHandler details_handler_;

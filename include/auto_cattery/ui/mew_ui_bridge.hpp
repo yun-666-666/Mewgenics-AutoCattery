@@ -49,6 +49,7 @@ private:
     void ObserveHouseCatIdentity(
         const UiContextSnapshot& context,
         const std::vector<RuntimeScene>& scenes);
+    void StartMappingSnapshotAttempt();
     void LogSceneSummary(const std::vector<RuntimeScene>& scenes);
     void ExportSceneSummary(const std::vector<RuntimeScene>& scenes) const;
 
@@ -72,7 +73,15 @@ private:
     bool mapping_identity_logged_{};
     std::uint32_t mapping_probe_request_sequence_{};
     std::uint32_t mapping_snapshot_request_sequence_{};
+    std::uint32_t mapping_snapshot_task_sequence_{};
+    std::uint32_t mapping_snapshot_attempt_{};
     std::uint64_t mapping_snapshot_generation_{};
+    std::uint64_t mapping_snapshot_task_generation_{};
+    bool mapping_snapshot_request_active_{};
+    std::chrono::steady_clock::time_point
+        mapping_snapshot_retry_deadline_{};
+    std::chrono::steady_clock::time_point
+        mapping_snapshot_next_attempt_{};
     scoring::CombatScoringConfig recommendation_scoring_config_;
     std::vector<void*> recommendation_detail_targets_;
     std::future<Result<snapshot::HouseSnapshot>>

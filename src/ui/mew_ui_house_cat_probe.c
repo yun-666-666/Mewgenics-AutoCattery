@@ -150,7 +150,9 @@ static int AcEvaluateLayout(
     uint8_t* mapping) {
     uint8_t seen[AC_MEW_HOUSE_CAT_MATCH_CAPACITY];
     size_t component_index;
+    size_t matched;
     memset(seen, 0, sizeof(seen));
+    matched = 0U;
     for (component_index = 0U;
          component_index < component_count;
          ++component_index) {
@@ -164,13 +166,17 @@ static int AcEvaluateLayout(
             return 0;
         }
         cat_index = AcCatIndex(cat_ids, cat_count, value);
-        if (cat_index < 0 || seen[cat_index]) {
+        if (cat_index < 0) {
+            continue;
+        }
+        if (seen[cat_index]) {
             return 0;
         }
         seen[cat_index] = 1U;
         mapping[cat_index] = (uint8_t)component_index;
+        ++matched;
     }
-    return 1;
+    return matched == cat_count;
 }
 AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
     void* scene_manager,
@@ -194,7 +200,8 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
         scene_manager,
         components,
         AC_MEW_HOUSE_CAT_MATCH_CAPACITY);
-    if (result.house_cat_count != cat_id_count) {
+    if (result.house_cat_count < cat_id_count ||
+        result.house_cat_count > AC_MEW_HOUSE_CAT_MATCH_CAPACITY) {
         return result;
     }
 
@@ -225,7 +232,7 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
                 result.consistent_mapping = 0U;
             }
             for (index = 0U; index < cat_id_count; ++index) {
-                if (mapping[index] >= cat_id_count) {
+                if (mapping[index] >= result.house_cat_count) {
                     result.consistent_mapping = 0U;
                 }
             }

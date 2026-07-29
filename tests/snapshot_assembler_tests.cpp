@@ -15,7 +15,8 @@ void RunSnapshotAssemblerTests() {
     };
     const std::vector<snapshot::HouseStateEntry> entries{
         {.cat_id = 11, .room_id = "Floor1_Large"},
-        {.cat_id = 12, .room_id = "AdventureBox"}
+        {.cat_id = 12, .room_id = "AdventureBox"},
+        {.cat_id = 999, .room_id = ""}
     };
 
     const auto assembled = snapshot::detail::AssembleHouseSnapshot(

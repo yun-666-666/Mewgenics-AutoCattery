@@ -90,6 +90,7 @@ Result<void> RecommendationMarkerController::Attach(
     }
 
     marker_visible_ = false;
+    request_pending_ = false;
     item_count_ = 0;
     attached_generation_ = context.scene_generation;
     ready_after_ = {};
@@ -106,6 +107,7 @@ Result<void> RecommendationMarkerController::Attach(
 
 void RecommendationMarkerController::Detach() noexcept {
     marker_visible_ = false;
+    request_pending_ = false;
     item_count_ = 0;
     attached_generation_ = 0;
     last_click_ = {};
@@ -127,6 +129,7 @@ void RecommendationMarkerController::Detach() noexcept {
 void RecommendationMarkerController::HandleClick() {
     if (!view_.IsAttached() ||
         !available_this_day_ ||
+        request_pending_ ||
         ready_after_.time_since_epoch().count() != 0) {
         return;
     }
@@ -154,6 +157,7 @@ void RecommendationMarkerController::HandleClick() {
     }
 
     marker_visible_ = false;
+    request_pending_ = true;
     if (request_handler_) {
         request_handler_(attached_generation_);
     }
@@ -172,6 +176,7 @@ void RecommendationMarkerController::CompleteProbe(
         scene_generation != attached_generation_) {
         return;
     }
+    request_pending_ = false;
     status_after_hold_ = RecommendationUiStatus::Ready;
     ready_after_ = clock_() + kStatusHold;
 }
@@ -186,6 +191,7 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
             "recommendation result belongs to a stale House scene"
         };
     }
+    request_pending_ = false;
 
     if (labels.empty()) {
         return {

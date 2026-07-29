@@ -52,11 +52,11 @@
       "stage_12_blocked": false
     },
     "12": {
-      "status": "completed",
+      "status": "save_switch_validation_required",
       "commit": null,
       "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "player_confirmed_matching_native_details",
-      "stage_13_blocked": false
+      "real_highlight_status": "awaiting_cross_save_retry_and_layout_validation",
+      "stage_13_blocked": true
     },
     "13": {
       "status": "pending",
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T23:45:00+08:00"
+  "updated_at": "2026-07-30T00:24:56+08:00"
 }

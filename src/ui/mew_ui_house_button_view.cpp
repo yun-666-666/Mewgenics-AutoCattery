@@ -32,6 +32,7 @@ Result<void> MewUiHouseButtonView::Attach(
     if (scene_manager_ == scene &&
         button_ != nullptr &&
         MewUI_IsComponentInScene(scene, button_) != 0) {
+        attached_generation_ = context.scene_generation;
         click_handler_ = std::move(click_handler);
         active_ = true;
         MewUI_SetButtonEnabled(button_, 1);
@@ -41,6 +42,7 @@ Result<void> MewUiHouseButtonView::Attach(
 
     scene_manager_ = scene;
     button_ = nullptr;
+    attached_generation_ = context.scene_generation;
     active_ = false;
     click_handler_ = std::move(click_handler);
     auto* button_node =
@@ -74,15 +76,16 @@ Result<void> MewUiHouseButtonView::Attach(
 }
 
 void MewUiHouseButtonView::Detach() noexcept {
-    if (scene_manager_ != nullptr &&
-        button_ != nullptr &&
-        MewUI_IsSceneDestroying(scene_manager_) == 0 &&
+    const bool can_touch_scene = CanTouchScene();
+    if (can_touch_scene && button_ != nullptr &&
         MewUI_IsComponentInScene(scene_manager_, button_) != 0) {
         MewUI_SetButtonInteractable(button_, 0);
         MewUI_SetButtonEnabled(button_, 0);
-    } else {
+    }
+    if (!can_touch_scene) {
         scene_manager_ = nullptr;
         button_ = nullptr;
+        attached_generation_ = 0;
     }
     active_ = false;
     click_handler_ = {};
@@ -92,7 +95,7 @@ void MewUiHouseButtonView::SetState(
     OrganizeButtonState state,
     std::string_view detail) {
     (void)detail;
-    if (button_ == nullptr) {
+    if (button_ == nullptr || !CanTouchScene()) {
         return;
     }
 
@@ -137,6 +140,15 @@ void MewUiHouseButtonView::ShowPlaceholder() {
 
 bool MewUiHouseButtonView::IsAttached() const noexcept {
     return active_ && scene_manager_ != nullptr && button_ != nullptr;
+}
+
+bool MewUiHouseButtonView::CanTouchScene() const noexcept {
+    if (scene_manager_ == nullptr ||
+        MewUI_GetSceneByName("House") != scene_manager_) {
+        return false;
+    }
+    return MewUI_IsSceneReadyForUITick(scene_manager_) != 0 &&
+           MewUI_IsSceneDestroying(scene_manager_) == 0;
 }
 
 void __cdecl MewUiHouseButtonView::ButtonCallback(

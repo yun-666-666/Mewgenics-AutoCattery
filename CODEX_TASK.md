@@ -57,6 +57,18 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - Toolkit 1.0.0 只用于核对 MIT 许可、单猫评分、不自动组队/选择、稳定
   CatId 决胜和确定性输出。其整数 RoomId、六属性、示例 ID、游戏 API、
   UI 节点/卡片/marker 假设均未进入实现。
+- 2026-07-29 跨存档实机日志推翻了“计算只是慢”的猜测：generation 4
+  的 request 2～9 都立即完成但均为 `snapshot_valid=0`；generation 6 的
+  request 10～12 同样失败，request 13 才在存档文件变为当前数据后成功。
+  原因是 Stage 12 每次只读取磁盘上“最后修改”的 `.sav`，切换存档后
+  该文件短时间仍可能属于上一个存档。
+- 同轮另一个存档的当前 House 有 28 个 rooted HouseCat；其磁盘
+  `house_state` 可安全解析出 23 个有房间归属的猫，另有两个空房间记录。
+  旧 parser 将空房间直接判为损坏，因此该存档永远无法显示推荐。
+- 23:54:33 离开 House 时，`AC4101` 同一毫秒在 chainloader 中出现大量
+  旧 UI 地址访问异常。两个 MOD 按钮 view 都会在 scene 已卸载后继续调用
+  旧组件/MovieClip，并在重进 House 时可能复用旧句柄；这与跨存档后的
+  四行闪烁和上方按钮失效完全一致。
 
 ## Implemented boundary
 
@@ -123,8 +135,18 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   RVA；不记录指针或身份。即使实机仍失败，也能由一条日志定位准确阶段
   和指令，不再盲改。
 - 推荐文字沿用 `align=center` 的私有 text field；按真实边界计算后，
-  scale 从 0.32 改为 0.25，平移到 `(1071, 152 + row*42)`。木牌中心
-  1124.35、文字框中心 1124.16，文字框宽 107.33，小于木牌宽 114.89。
+  scale 保持 0.25；四项改为左上、右上、左下、右下两列两行。纸牌
+  placement 为 `(1025/1160, 175/235, 0.42)`，文字相对偏移仍为
+  `(-39,+12)`；命中矩形之间留空，整体与上方两个 MOD 按钮及下方
+  原生“出发”按钮分离。
+- Mark 现在是单个 pending 请求：一次点击后每秒自动重试当前只读存档，
+  最长 30 秒，不需要玩家连续点击。只有当前 generation、稳定 CatId
+  映射和 rooted 组件仍一致才显示；较大存档允许把全部可验证的 23 个
+  候选映射到 28 个 HouseCat 的安全子集，但覆盖率必须至少 75%，因此会
+  拒绝跨存档时旧 8 猫快照对 28 猫 House 的假匹配。
+- House/推荐 view 离场时先确认 `House` 仍是当前 ready scene；scene 已
+  卸载时只解除消息 hook 并丢弃本地句柄，不再调用旧 UI 指针。重新进入
+  新 generation 后强制解析新的按钮和四个 MovieClip，并立即停在隐藏帧。
 - 详情点击是玩家主动操作，只改变 House 当前查看/绿色焦点猫；不调用
   冒险盒、出征队伍、确认或存档接口。
 - `Probe Required` 保持两秒后变为 `Clear Recommendations`；再次点击
@@ -133,9 +155,10 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Stage gate
 
-`Completed`
+`SaveSwitchValidationRequired`
 
-玩家已确认四行点击会打开正确猫详情。最终 UI 收尾去掉木板和排名前
-符号，并增加与上方按钮一致的按压尺寸反馈；Debug/Release 构建和阶段
-测试通过，Release DLL 与 UI 数据 MOD 已部署。Stage 12 完成；未实施
-Stage 13。
+此前玩家已确认四行点击会打开正确猫详情；但最新跨存档实机验收发现
+旧 UI 句柄、错误磁盘存档选择和较大存档空房间记录三个缺陷。当前修复
+需重新验证：同一进程切换两个存档不闪烁、上方按钮持续可点击、一次
+Mark 能在有界等待后显示，以及两列两行布局无误触。通过前 Stage 13
+继续 blocked。

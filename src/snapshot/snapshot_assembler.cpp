@@ -48,7 +48,9 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
     std::unordered_set<CatId> assigned_cats;
     for (const auto& entry : house_entries) {
         if (entry.room_id.empty()) {
-            return {{}, ErrorCode::SnapshotInvalid, "empty room ID"};
+            // An empty room carries no verifiable selectable-room assignment.
+            // Keep the record parseable, but exclude it from the House view.
+            continue;
         }
         const auto cat = cat_index.find(entry.cat_id);
         if (cat == cat_index.end()) {

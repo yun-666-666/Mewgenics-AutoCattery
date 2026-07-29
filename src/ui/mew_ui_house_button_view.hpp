@@ -27,9 +27,11 @@ private:
         MewButtonState old_state,
         MewButtonState new_state,
         void* user_data);
+    [[nodiscard]] bool CanTouchScene() const noexcept;
 
     void* scene_manager_{};
     void* button_{};
+    std::uint64_t attached_generation_{};
     bool active_{};
     ClickHandler click_handler_;
 };

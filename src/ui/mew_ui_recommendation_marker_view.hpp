@@ -45,11 +45,14 @@ private:
 
     bool InstallWheelHook() noexcept;
     void RemoveWheelHook() noexcept;
+    bool ResolveItemNodes() noexcept;
+    [[nodiscard]] bool CanTouchScene() const noexcept;
     bool RefreshVisibleItems() noexcept;
     [[nodiscard]] int HitTestRow(HWND window) const noexcept;
 
     void* scene_manager_{};
     void* button_{};
+    std::uint64_t attached_generation_{};
     std::array<void*, 4> item_nodes_{};
     bool active_{};
     HHOOK wheel_hook_{};

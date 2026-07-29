@@ -58,13 +58,17 @@ RELOCATED_TRANSFORMS = {
     TARGET_MARKER: (1010.0, 85.0, 0.65),
 }
 RECOMMENDATION_TRANSFORM = (1175.0, 85.0, 0.65)
-RECOMMENDATION_ITEM_TRANSFORMS = tuple(
-    (1110.0, 140.0 + index * 42.0, 0.42)
-    for index in range(RECOMMENDATION_ITEM_COUNT)
+RECOMMENDATION_ITEM_TRANSFORMS = (
+    (1025.0, 175.0, 0.42),
+    (1160.0, 175.0, 0.42),
+    (1025.0, 235.0, 0.42),
+    (1160.0, 235.0, 0.42),
 )
-RECOMMENDATION_TEXT_TRANSFORMS = tuple(
-    (1071.0, 152.0 + index * 42.0, 0.25)
-    for index in range(RECOMMENDATION_ITEM_COUNT)
+RECOMMENDATION_TEXT_TRANSFORMS = (
+    (986.0, 187.0, 0.25),
+    (1121.0, 187.0, 0.25),
+    (986.0, 247.0, 0.25),
+    (1121.0, 247.0, 0.25),
 )
 # Pixel coordinates in the pinned source bitmap. The polygon follows the
 # jagged white-paper silhouette and excludes the surrounding wooden board.

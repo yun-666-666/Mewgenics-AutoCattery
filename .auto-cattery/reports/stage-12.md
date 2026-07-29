@@ -1,5 +1,5 @@
 阶段：12
-状态：Completed；玩家已确认推荐行可打开对应猫的原生详情
+状态：SaveSwitchValidationRequired；跨存档生命周期/重试/布局修复待实机验收
 
 实际能力：
 - 玩家点击 House 的 `Mark Combat Cats` 后才读取只读快照、验证当前
@@ -41,9 +41,19 @@
 - 当前第七版保留唯一 scene 组件证据，但不再对接口指针调用
   `GetObjectTypeSTR`；改为验证签名所对应详情函数实际读取的
   `drawer+0x38` 与 `drawer+0x60` 均有效，再使用游戏 getter 原值调用。
-- 同次截图证明文字框偏左且宽于木牌。当前按 SWF 实际 bounds 计算：
-  木牌/文字框中心为 1124.35/1124.16，宽为 114.89/107.33；text field
-  使用 `(1071, 152 + row*42, scale=0.25)`，保持 HTML 居中对齐。
+- 最新跨存档日志证明“不显示”不是一次评分耗时过长：generation 4 的
+  request 2～9 均立即返回 `snapshot_valid=0`；generation 6 的 request
+  10～12 也立即失败，直到 request 13 时磁盘最新 `.sav` 才与当前 8 个
+  HouseCat 一致并成功显示。旧实现把“最近修改存档”等同于“当前存档”。
+- 同轮另一个存档运行时有 28 个 rooted HouseCat；对应只读存档可解析出
+  23 个有明确房间归属的猫，另有两个空房间记录。旧 parser 把空房间判
+  为整个快照损坏，因此该存档无论等待多久都不会显示。
+- 23:54:33 离开 House 时，chainloader 在 `AC4101` 同一毫秒记录大量旧
+  UI 地址访问异常。两个 view 在 scene 已卸载后仍触碰旧按钮/MovieClip，
+  且重进 House 可能复用句柄，解释了闪烁、Clear 失效和上方按钮无反馈。
+- 同次截图证明文字框偏左且宽于木牌。当前保持已验证的相对居中变换，
+  但把四项改为两列两行：纸牌为 `(1025/1160, 175/235, 0.42)`，文字
+  为 `(986/1121, 187/247, 0.25)`，顺序是左上、右上、左下、右下。
 - 最终版不再创建推荐 Button 组件，只显示 4 个紧凑行：
   `排名 猫名 分数 ?`，排名前不再显示 `#`/星号形符号。
 - 每行是私有三帧 SWF 白纸和独立文字：frame 0 为空，frame 1 是正常
@@ -62,6 +72,15 @@
   轮廓，效果与玩家直接点击 House 中该猫一致。
 - `?` 表示当前 reader 尚不能确认年龄、受伤和出战资格。
 - 主按钮第二次点击清除推荐按钮；退出 House 或 generation 变化也清除。
+- 第一次点击现在会锁定为一个 pending 请求，每秒只读重试一次、最多
+  30 秒；重复点击不会再创建并发请求。只有当前 generation 的快照、
+  CatId 映射和 root 仍有效才显示。
+- 较大存档允许把快照中的全部 23 个候选稳定映射到 28 个 HouseCat 的
+  子集，但要求覆盖至少 75%；因此旧 8 猫快照对 28 猫 House 的覆盖不足
+  会继续 fail closed，而不是错误显示另一个存档的猫名/分数。
+- 离场时先核对保存的 scene 仍是当前 ready House；已卸载时不再调用旧
+  UI 指针，只解除 hook 并丢弃句柄。新 generation 强制重新解析两个
+  MOD 按钮与四个 MovieClip，并立即清空文字、停在隐藏帧。
 - 输入观察使用 House UI 线程的 `WH_GETMESSAGE` hook，按当前窗口尺寸把
   鼠标映射到四个可见行的实际矩形；`WM_LBUTTONUP` 产生主动详情点击，
   `WM_MOUSEWHEEL` 逐项滚动。始终继续调用下一个 hook，不吞掉或改写
@@ -96,7 +115,16 @@
 - `assets/swfs/auto_cattery_house.swf`
 - `tools/build_house_ui_asset.py`
 - `src/ui/mew_ui_bridge.cpp`
+- `src/ui/mew_ui_house_button_view.cpp/.hpp`
+- `src/ui/mew_ui_house_cat_probe.c`
 - `src/ui/mew_ui_recommendation_marker_view.cpp/.hpp`
+- `src/ui/recommendation_marker_controller.cpp`
+- `include/auto_cattery/ui/mew_ui_bridge.hpp`
+- `include/auto_cattery/ui/recommendation_marker_controller.hpp`
+- `src/snapshot/house_state_parser.cpp`
+- `src/snapshot/snapshot_assembler.cpp`
+- `tests/house_state_parser_tests.cpp`
+- `tests/snapshot_assembler_tests.cpp`
 - `tests/recommendation_marker_controller_tests.cpp`
 
 验证：
@@ -112,34 +140,44 @@
 - 四个文字节点共同引用私有 character 151，初始 HTML 为空，不会在
   attach 前闪现 source `Test`。
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（5.04 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.09 秒）。
+- Debug `phase12_unit_tests`：通过（4.10 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.06 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.46 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.05 秒）。
-- SWF 几何检查：通过；木牌/文字框中心差 0.19，文字框宽小于木牌宽。
+- Release `phase12_unit_tests`：通过（0.38 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.02 秒）。
+- SWF 两列两行生成检查：通过；四个纸牌/文字 placement 与四个独立
+  命中矩形按左上、右上、左下、右下对应。
 - 控制器测试覆盖 stale generation、两秒状态、最多 8 条数据、有效/
-  越界项点击、详情回调 generation/rank、view poll、清除和不重复评分。
+  越界项点击、详情回调 generation/rank、view poll、清除，以及 pending
+  期间重复点击不会启动第二个请求。
+- 当前较大存档只读 `snapshot_probe`：从旧版 `house_state entry is
+  invalid` 修复为通过；`house_cats=23`、`rooms=1`、`stable_ids=1`、
+  `stable_ranking=1`，未写入存档。
 - Release DLL 已部署：
   `D:\steam\steam\steamapps\common\Mewgenics\Mods\AutoCattery.dll`
 - Mewtator UI 数据 MOD 已部署并启用：
   `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
-- 构建与安装 DLL 均为 726016 bytes，SHA-256 均为
-  `906472F42D5E56B87734627DC17A10C8954F5437494C1B62ED25DFEB9A04DEE9`。
+- 构建与安装 DLL 均为 728064 bytes，SHA-256 均为
+  `D9457B76432CBF3F00348563F81CD2141DEC3F3FFBBCC957CC5AC830497E74B4`。
 - 源与安装 SWF 均为 751211 bytes，SHA-256 均为
-  `6AF896C5E91EB2DAFFD92644F4F57BB8A1460D0731013A7914EFE17D47439EF5`。
+  `308D1185DAA03BA929E9156733AD6A50E823F7BE7C08EFCEAFD52753A90894AD`。
 - 用户明确要求需要时允许联网；搜索了公开 Mewgenics/MOD 信息，但未
   找到可直接采用的 CatId→详情原始实现。实际接口证据来自当前本地 EXE
   与实机组件/日志。
 
-玩家最终验收：
+玩家验收状态：
 1. 玩家确认推荐行已经可以点击，并打开对应猫的原生详情界面。
 2. 玩家此前已确认四行只在 Mark 后、Clear 前静态显示。
 3. 玩家指定最终视觉收尾：增加点击动画、只显示放大白纸、移除排名前
-   符号；本提交已按该范围完成并通过自动化/结构检查。
+   符号；此前实现已通过自动化/结构检查。
+4. 最新跨存档验收失败；当前生命周期、自动重试、较大存档兼容和两列
+   两行布局修复仍需玩家在同一进程依次测试两个存档。
 
 剩余事项：
-- Stage 12 无剩余实现项。
+- 验证 8 猫存档一次 Mark 能显示；切换到较大存档后无需重复点击也能在
+  30 秒内显示；切回后不闪烁、不残留、两个上方按钮仍可点击。
+- 验证两列两行与上方按钮、下方“出发”均有安全间距，四项点击对应
+  正确猫详情。通过前 Stage 12 不恢复 Completed，Stage 13 继续 blocked。
 - Stage 13～16 未实施。
 
 本地 commit：本次实现提交见最终回复（报告与代码同一提交）

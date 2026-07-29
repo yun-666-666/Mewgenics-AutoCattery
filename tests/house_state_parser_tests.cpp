@@ -44,6 +44,15 @@ void RunHouseStateParserTests() {
     AC_CHECK(parsed.value[0].room_id == "Floor1_Large");
     AC_CHECK(parsed.value[1].room_id == "AdventureBox");
 
+    std::vector<std::uint8_t> with_empty_room;
+    Append(with_empty_room, std::uint32_t{0});
+    Append(with_empty_room, std::uint32_t{1});
+    AppendEntry(with_empty_room, 13, "");
+    const auto empty_room = snapshot::ParseHouseState(with_empty_room);
+    AC_CHECK(static_cast<bool>(empty_room));
+    AC_CHECK(empty_room.value.size() == 1);
+    AC_CHECK(empty_room.value.front().room_id.empty());
+
     auto trailing = blob;
     trailing.push_back(0);
     AC_CHECK(!static_cast<bool>(snapshot::ParseHouseState(trailing)));
