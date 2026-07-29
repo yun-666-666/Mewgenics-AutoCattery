@@ -24,6 +24,7 @@
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
 #include "mew_ui_house_cat_probe.h"
+#include "mew_ui_house_detail_adapter.h"
 #include "mew_ui_mapping_probe.h"
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
@@ -120,6 +121,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             *recommendation_marker_view_);
     recommendation_marker_controller_->SetRequestHandler(
         [this](std::uint64_t generation) {
+            recommendation_detail_targets_.clear();
             const auto historical =
                 recommendation::ReadRecommendationSnapshot(
                     recommendation_sidecar_path_);
@@ -154,6 +156,35 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                     snapshot::SaveSnapshotAdapter adapter;
                     return adapter.CaptureHouseSnapshot(generation);
                 });
+        });
+    recommendation_marker_controller_->SetDetailsHandler(
+        [this](std::uint64_t generation, std::size_t index) {
+            const auto context = scene_context_.Current();
+            if (context.kind != UiContextKind::House ||
+                !context.input_enabled ||
+                context.save_in_progress ||
+                context.scene_generation != generation ||
+                index >= recommendation_detail_targets_.size()) {
+                return;
+            }
+            auto* scene =
+                MewUI_GetSceneByName(context.scene_name.c_str());
+            const auto opened = AcMewOpenHouseCatDetails(
+                scene,
+                recommendation_detail_targets_[index]);
+            std::ostringstream message;
+            message << "rank=" << (index + 1)
+                    << " signature=" << (unsigned)opened.signature_valid
+                    << " scene=" << (unsigned)opened.scene_valid
+                    << " house=" << (unsigned)opened.house_unique
+                    << " cat=" << (unsigned)opened.cat_valid
+                    << " opened=" << (unsigned)opened.invoked
+                    << " box_changed=0 expedition_selection_changed=0";
+            Logger::Instance().Write(
+                opened.invoked ? LogLevel::Info : LogLevel::Warn,
+                "RecommendationMarker",
+                "AC12109",
+                message.str());
         });
 
     const auto config = LoadConfig(
@@ -211,6 +242,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         if (snapshot.kind != UiContextKind::House ||
             !snapshot.input_enabled ||
             snapshot.save_in_progress) {
+            recommendation_detail_targets_.clear();
             house_button_controller_->Detach();
             recommendation_marker_controller_->Detach();
             next_house_attach_retry_ = {};
@@ -278,6 +310,7 @@ void MewUiBridge::Shutdown() noexcept {
     mapping_probe_request_sequence_ = 0;
     mapping_snapshot_request_sequence_ = 0;
     mapping_snapshot_generation_ = 0;
+    recommendation_detail_targets_.clear();
     ready_logged_.store(false);
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
@@ -649,14 +682,17 @@ void MewUiBridge::ObserveHouseCatIdentity(
             "RecommendationMarker",
             "AC12106",
             "marked=0 stable_cat_id_boundary=1 "
-            "visual_fallback=summary selection_changed=0");
+            "visual_fallback=clickable_list "
+            "expedition_selection_changed=0");
         recommendation_marker_controller_->CompleteProbe(
             mapping_snapshot_generation_);
         return;
     }
 
-    std::ostringstream summary;
-    summary << std::fixed << std::setprecision(1);
+    std::vector<std::string> labels;
+    std::vector<void*> detail_targets;
+    labels.reserve(ranking.value.recommended_cat_ids.size());
+    detail_targets.reserve(ranking.value.recommended_cat_ids.size());
     std::size_t marked{};
     for (const auto cat_id : ranking.value.recommended_cat_ids) {
         const auto cat = std::find_if(
@@ -684,9 +720,13 @@ void MewUiBridge::ObserveHouseCatIdentity(
             continue;
         }
         ++marked;
-        summary << "* #" << marked << ' '
-                << SafeDisplayName(cat->display_name)
-                << "  " << score->score << "  ?\n";
+        std::ostringstream label;
+        label << '#' << marked << ' '
+              << SafeDisplayName(cat->display_name)
+              << ' ' << std::fixed << std::setprecision(1)
+              << score->score << " ?";
+        labels.push_back(label.str());
+        detail_targets.push_back(mapped->component);
     }
 
     if (marked == 0) {
@@ -697,7 +737,7 @@ void MewUiBridge::ObserveHouseCatIdentity(
     const auto shown =
         recommendation_marker_controller_->ShowRecommendations(
             mapping_snapshot_generation_,
-            summary.str());
+            labels);
     if (!shown) {
         Logger::Instance().Write(
             LogLevel::Warn,
@@ -709,13 +749,14 @@ void MewUiBridge::ObserveHouseCatIdentity(
             mapping_snapshot_generation_);
         return;
     }
+    recommendation_detail_targets_ = std::move(detail_targets);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
         "AC12106",
         "marked=" + std::to_string(marked) +
-            " stable_cat_id_boundary=1 visual_fallback=summary "
-            "selection_changed=0");
+            " stable_cat_id_boundary=1 visual_fallback=clickable_list "
+            "expedition_selection_changed=0");
 }
 
 SceneObservation MewUiBridge::ObserveScenes(

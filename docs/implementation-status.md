@@ -362,10 +362,17 @@ by the Unsupported Stage 10 adapter.
   anonymous component/type/Button counts, and anonymous type/role digests.
   Repeated clicks allow before/after box-state comparison without cat names,
   CatIds, pointers, save names, or paths.
-- Local MewUI has no verified per-entity outline/star API. The implementation
-  therefore uses the Stage 12 safe visual fallback: a MOD-owned House summary
-  listing rank, display name, score, and `?` for unconfirmed eligibility data.
-  Identity is still CatId-only; names are display labels, never match keys.
+- Player validation found the plain text summary too difficult to use with
+  many cats. It is replaced by up to eight independent recommendation buttons
+  listing rank, display name, score, and `?` for unconfirmed eligibility.
+  Identity remains CatId-only; names are display labels, never match keys.
+- Clicking a recommendation button opens that exact HouseCat in the game's
+  native details drawer and green focus outline. The build-specific adapter
+  reuses the locally disassembled HouseCatClickManager path only after current
+  EXE instruction signatures, scene generation, component ownership/type, and
+  unique House validation pass.
+- This player-triggered action changes only the House detail focus. It has no
+  adventure-box, expedition-team, confirmation, or save-write API.
 - The first click recomputes with the Stage 6 independent-cat scorer after
   snapshot/generation/bijection validation. The second click clears the list.
   Leaving House also clears it. No selection, box, party, confirmation, or
@@ -376,6 +383,6 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 awaits player-visible validation of summary display, clear behavior,
-scene-exit cleanup, and unchanged native selection/box state. Stage 13 must not
-begin until that validation passes.
+Stage 12 awaits player-visible validation that each recommendation button opens
+the matching cat details, clear/scene-exit cleanup works, and the adventure box
+and expedition team remain unchanged. Stage 13 must not begin until that passes.

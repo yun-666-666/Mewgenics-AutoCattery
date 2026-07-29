@@ -21,9 +21,9 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 玩家实机确认：挑猫和放入出征盒子发生在 `House`；点击游戏原生
   `出发!` 后的 `ClassChooser` 只能查看已装盒的猫，不能选择或更换。
   因此 ClassChooser 不是 Stage 12 推荐入口。
-- 本地 MewUI 没有已验证的猫实体描边/星标 API。按照阶段停止条件，
-  采用 MOD 自有 House 文本列表作为更安全的视觉回退，不触碰原生
-  HouseCat renderer、选择状态、猫名或存档。
+- 玩家实机验收确认纯文字列表在猫多时难以定位，不满足“标记足够明显”。
+  推荐结果现改为 8 个独立可点击按钮；点击猫名会打开该 CatId 对应的
+  游戏原生 House 猫详情抽屉和绿色焦点轮廓。
 - 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
   组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
   匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
@@ -64,17 +64,23 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 - 新增 `AC12105` HouseCat 身份 probe：在只读快照 CatId 集合与 HouseCat
   组件之间寻找完整、唯一、一致的内存布局双射；日志只输出计数、宽度、
   相对偏移和稳定布尔值，不输出 CatId、指针或存档身份。
-- 稳定双射成立后即时复用 Stage 6 单猫评分，按 CatId 生成最多 8 条
-  `* #排名 猫名 分数 ?`。`?` 明示当前 reader 尚不能确认年龄、受伤和
-  出战资格；不使用猫名做映射。
+- 稳定双射成立后即时复用 Stage 6 单猫评分，按 CatId 生成最多 8 个
+  `#排名 猫名 分数 ?` 按钮。`?` 明示当前 reader 尚不能确认年龄、
+  受伤和出战资格；不使用猫名做映射。
+- 当前 EXE 本地反汇编验证了 HouseCatClickManager 的原生点击路径：
+  House 组件、HouseCat 组件和 `show_drawer=1` 进入详情函数。该调用被
+  隔离在 build-specific adapter，调用前验证两段当前 EXE 指令签名、
+  House 唯一性、组件类型/归属、House scene 和 generation。
+- 详情点击是玩家主动操作，只改变 House 当前查看/绿色焦点猫；不调用
+  冒险盒、出征队伍、确认或存档接口。
 - `Probe Required` 保持两秒后变为 `Clear Recommendations`；再次点击
   清除列表。generation/UnsafeTransition/离开 House 会清除结果。
 - 任何快照、generation、双射、root、评分或文本节点异常均 fail closed。
 
 ## Stage gate
 
-`VisualValidationRequired; stable CatId mapping and safe House summary fallback implemented`
+`ClickableDetailsValidationRequired; CatId recommendation buttons and native House details implemented`
 
 Release DLL 与 UI 数据 MOD 已部署到真实目录。Stage 12 等待玩家确认
-列表显示、清除、场景退出无残留且猫的装盒/选择状态没有变化；确认前
-Stage 13 继续 blocked。
+按钮显示、点击打开正确猫详情、清除、场景退出无残留且冒险盒/出征队伍
+没有变化；确认前 Stage 13 继续 blocked。

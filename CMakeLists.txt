@@ -75,6 +75,7 @@ add_library(auto_cattery_core STATIC
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/mew_ui_house_cat_probe.c
+    src/ui/mew_ui_house_detail_adapter.c
     src/ui/mew_ui_mapping_probe.c
     src/ui/recommendation_marker_controller.cpp
     src/ui/mew_ui_recommendation_marker_view.cpp

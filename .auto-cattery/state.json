@@ -52,10 +52,10 @@
       "stage_12_blocked": false
     },
     "12": {
-      "status": "visual_validation_required",
+      "status": "clickable_details_validation_required",
       "commit": null,
-      "capability": "SafeHouseSummaryFallback",
-      "real_highlight_status": "awaiting_player_visible_validation",
+      "capability": "ClickableHouseRecommendationDetails",
+      "real_highlight_status": "awaiting_click_to_details_validation",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T19:48:00+08:00"
+  "updated_at": "2026-07-29T20:36:00+08:00"
 }

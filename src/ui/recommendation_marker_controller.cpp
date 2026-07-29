@@ -73,14 +73,24 @@ Result<void> RecommendationMarkerController::Attach(
         return {};
     }
 
-    auto result = view_.Attach(context, [this] {
-        HandleClick();
-    });
+    auto result = view_.Attach(
+        context,
+        [this] {
+            HandleClick();
+        },
+        [this](std::size_t index) {
+            if (marker_visible_ &&
+                index < item_count_ &&
+                details_handler_) {
+                details_handler_(attached_generation_, index);
+            }
+        });
     if (!result) {
         return result;
     }
 
     marker_visible_ = false;
+    item_count_ = 0;
     attached_generation_ = context.scene_generation;
     ready_after_ = {};
     status_after_hold_ = RecommendationUiStatus::Ready;
@@ -96,6 +106,7 @@ Result<void> RecommendationMarkerController::Attach(
 
 void RecommendationMarkerController::Detach() noexcept {
     marker_visible_ = false;
+    item_count_ = 0;
     attached_generation_ = 0;
     last_click_ = {};
     ready_after_ = {};
@@ -129,6 +140,7 @@ void RecommendationMarkerController::HandleClick() {
 
     if (marker_visible_) {
         marker_visible_ = false;
+        item_count_ = 0;
         status_after_hold_ = RecommendationUiStatus::Ready;
         view_.ClearSummary();
         view_.SetStatus(RecommendationUiStatus::Ready);
@@ -136,8 +148,8 @@ void RecommendationMarkerController::HandleClick() {
             LogLevel::Info,
             "RecommendationMarker",
             "AC12107",
-            "Player cleared the read-only House recommendation summary; "
-            "selection_changed=0.");
+            "Player cleared the read-only House recommendation items; "
+            "expedition_selection_changed=0.");
         return;
     }
 
@@ -150,8 +162,8 @@ void RecommendationMarkerController::HandleClick() {
         LogLevel::Info,
         "RecommendationMarker",
         "AC12100",
-        "Recommendation request stopped at ProbeRequired; no cat card "
-        "mapping or visual marker was attempted.");
+        "Recommendation request entered read-only validation; no House "
+        "cat details were opened.");
 }
 
 void RecommendationMarkerController::CompleteProbe(
@@ -166,7 +178,7 @@ void RecommendationMarkerController::CompleteProbe(
 
 Result<void> RecommendationMarkerController::ShowRecommendations(
     std::uint64_t scene_generation,
-    std::string_view summary) {
+    const std::vector<std::string>& labels) {
     if (!view_.IsAttached() ||
         scene_generation != attached_generation_) {
         return {
@@ -175,11 +187,18 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
         };
     }
 
-    const auto shown = view_.ShowSummary(summary);
+    if (labels.empty()) {
+        return {
+            ErrorCode::CatDataUnavailable,
+            "recommendation result has no display items"
+        };
+    }
+    const auto shown = view_.ShowItems(labels);
     if (!shown) {
         return shown;
     }
     marker_visible_ = true;
+    item_count_ = labels.size();
     status_after_hold_ = RecommendationUiStatus::Marked;
     ready_after_ = clock_() + kStatusHold;
     return {};
@@ -199,6 +218,11 @@ void RecommendationMarkerController::Poll() {
 void RecommendationMarkerController::SetRequestHandler(
     RequestHandler handler) {
     request_handler_ = std::move(handler);
+}
+
+void RecommendationMarkerController::SetDetailsHandler(
+    DetailsHandler handler) {
+    details_handler_ = std::move(handler);
 }
 
 bool RecommendationMarkerController::ShouldShow() const noexcept {

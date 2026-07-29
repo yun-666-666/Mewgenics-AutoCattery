@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -13,10 +15,12 @@ class MewUiRecommendationMarkerView final
 public:
     Result<void> Attach(
         const UiContextSnapshot& context,
-        ClickHandler click_handler) override;
+        ClickHandler click_handler,
+        ItemClickHandler item_click_handler) override;
     void Detach() noexcept override;
     void SetStatus(RecommendationUiStatus status) override;
-    Result<void> ShowSummary(std::string_view summary) override;
+    Result<void> ShowItems(
+        const std::vector<std::string>& labels) override;
     void ClearSummary() noexcept override;
     [[nodiscard]] bool IsAttached() const noexcept override;
 
@@ -30,8 +34,10 @@ private:
 
     void* scene_manager_{};
     void* button_{};
+    std::array<void*, 8> item_buttons_{};
     bool active_{};
     ClickHandler click_handler_;
+    ItemClickHandler item_click_handler_;
 };
 
 }  // namespace autocattery::ui

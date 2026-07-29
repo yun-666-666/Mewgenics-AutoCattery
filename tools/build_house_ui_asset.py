@@ -2,9 +2,9 @@
 
 The source SWF contains a test button, three text fields, navigation controls,
 and a toggle. AutoCattery keeps the Stage 03 button, places one independently
-named copy of its known-good artwork for the Stage 04 new-day control, retains
-one independently named text field for the Stage 12 recommendation summary,
-and removes the unused example fields. All other SWF definitions remain
+named copy of its known-good artwork for the Stage 04 new-day control, adds
+eight independently named Stage 12 recommendation-row buttons, and removes
+the unused example fields. All other SWF definitions remain
 byte-for-byte intact so the known-good artwork and its transitive dependencies
 are preserved.
 """
@@ -21,16 +21,17 @@ PLACE_OBJECT_2 = 26
 END = 0
 TARGET_MARKER = b"test_button\x00"
 RECOMMENDATION_MARKER = b"recommend_button\x00"
-SUMMARY_SOURCE_MARKER = b"test_text\x00"
-SUMMARY_MARKER = b"recommend_summary\x00"
 # Keep the cloned button beside the original button at depth 18.  Higher
 # native House HUD layers must remain in front of both buttons' hanging ropes.
 RECOMMENDATION_DEPTH = 19
+RECOMMENDATION_ITEM_DEPTH = 40
+RECOMMENDATION_ITEM_COUNT = 8
 REMOVED_NAMES = (
     b"test_nav_value\x00",
     b"test_nav_left\x00",
     b"test_nav_right\x00",
     b"test_toggle\x00",
+    b"test_text\x00",
     b"test_text_2\x00",
     b"test_text_3\x00",
 )
@@ -38,7 +39,10 @@ RELOCATED_TRANSFORMS = {
     TARGET_MARKER: (1010.0, 85.0, 0.65),
 }
 RECOMMENDATION_TRANSFORM = (1175.0, 85.0, 0.65)
-SUMMARY_TRANSFORM = (940.0, 145.0, 0.75)
+RECOMMENDATION_ITEM_TRANSFORMS = tuple(
+    (1110.0, 140.0 + index * 42.0, 0.48)
+    for index in range(RECOMMENDATION_ITEM_COUNT)
+)
 
 
 class BitReader:
@@ -199,20 +203,26 @@ def encode_tag(code: int, body: bytes) -> bytes:
 
 def filter_overlay_sprite(
     body: bytes,
-) -> tuple[bytes, int, int, int, int]:
+) -> tuple[bytes, int, int, int]:
     sprite_header = body[:4]
     kept = bytearray(sprite_header)
     removed = 0
     relocated = 0
     cloned = 0
-    summary = 0
     tags = list(read_tags(body, 4, len(body)))
     used_depths = {
         struct.unpack_from("<H", body, body_start + 1)[0]
         for code, _, body_start, tag_end in tags
         if code == PLACE_OBJECT_2 and tag_end - body_start >= 3
     }
-    if RECOMMENDATION_DEPTH in used_depths:
+    reserved_depths = {
+        RECOMMENDATION_DEPTH,
+        *range(
+            RECOMMENDATION_ITEM_DEPTH,
+            RECOMMENDATION_ITEM_DEPTH + RECOMMENDATION_ITEM_COUNT,
+        ),
+    }
+    if used_depths & reserved_depths:
         raise ValueError("recommendation depth is already occupied")
 
     for code, tag_start, body_start, tag_end in tags:
@@ -222,15 +232,6 @@ def filter_overlay_sprite(
         ):
             removed += 1
             continue
-        if code == PLACE_OBJECT_2 and SUMMARY_SOURCE_MARKER in raw_tag:
-            tag_body = body[body_start:tag_end].replace(
-                SUMMARY_SOURCE_MARKER,
-                SUMMARY_MARKER,
-                1,
-            )
-            tag_body = relocate_matrix(tag_body, *SUMMARY_TRANSFORM)
-            raw_tag = encode_tag(code, tag_body)
-            summary += 1
         if code == PLACE_OBJECT_2:
             for name, transform in RELOCATED_TRANSFORMS.items():
                 if name in raw_tag:
@@ -243,24 +244,45 @@ def filter_overlay_sprite(
                     break
         kept.extend(raw_tag)
         if code == PLACE_OBJECT_2 and TARGET_MARKER in raw_tag:
-            clone_body = bytearray(body[body_start:tag_end])
+            source_body = body[body_start:tag_end]
+            clone_body = bytearray(source_body)
             struct.pack_into("<H", clone_body, 1, RECOMMENDATION_DEPTH)
-            clone_body = bytearray(
-                bytes(clone_body).replace(
+            clone_body = bytearray(bytes(clone_body).replace(
                     TARGET_MARKER,
                     RECOMMENDATION_MARKER,
                     1,
-                )
-            )
-            clone_body = bytearray(
-                relocate_matrix(
+                ))
+            clone_body = bytearray(relocate_matrix(
                     bytes(clone_body),
                     *RECOMMENDATION_TRANSFORM,
-                )
-            )
+                ))
             kept.extend(encode_tag(code, bytes(clone_body)))
             cloned += 1
-    return bytes(kept), removed, relocated, cloned, summary
+            for item_index, transform in enumerate(
+                RECOMMENDATION_ITEM_TRANSFORMS
+            ):
+                item_body = bytearray(source_body)
+                struct.pack_into(
+                    "<H",
+                    item_body,
+                    1,
+                    RECOMMENDATION_ITEM_DEPTH + item_index,
+                )
+                item_marker = (
+                    f"recommend_cat_{item_index + 1}".encode() + b"\x00"
+                )
+                item_body = bytearray(bytes(item_body).replace(
+                    TARGET_MARKER,
+                    item_marker,
+                    1,
+                ))
+                item_body = bytearray(relocate_matrix(
+                    bytes(item_body),
+                    *transform,
+                ))
+                kept.extend(encode_tag(code, bytes(item_body)))
+                cloned += 1
+    return bytes(kept), removed, relocated, cloned
 
 
 def build(source: Path, destination: Path) -> None:
@@ -271,7 +293,6 @@ def build(source: Path, destination: Path) -> None:
     removed = 0
     relocated = 0
     cloned = 0
-    summary = 0
 
     for code, tag_start, body_start, tag_end in read_tags(
         swf, start, len(swf)
@@ -280,7 +301,7 @@ def build(source: Path, destination: Path) -> None:
         if code == DEFINE_SPRITE and TARGET_MARKER in body:
             if found:
                 raise ValueError("more than one overlay sprite was found")
-            body, removed, relocated, cloned, summary = (
+            body, removed, relocated, cloned = (
                 filter_overlay_sprite(body)
             )
             output.extend(encode_tag(code, body))
@@ -292,13 +313,12 @@ def build(source: Path, destination: Path) -> None:
         not found
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
-        or cloned != 1
-        or summary != 1
+        or cloned != 1 + RECOMMENDATION_ITEM_COUNT
     ):
         raise ValueError(
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "
             f"found={found} removed={removed} "
-            f"relocated={relocated} cloned={cloned} summary={summary}"
+            f"relocated={relocated} cloned={cloned}"
         )
 
     struct.pack_into("<I", output, 4, len(output))

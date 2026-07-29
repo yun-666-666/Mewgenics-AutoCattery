@@ -74,6 +74,7 @@ private:
     std::uint32_t mapping_snapshot_request_sequence_{};
     std::uint64_t mapping_snapshot_generation_{};
     scoring::CombatScoringConfig recommendation_scoring_config_;
+    std::vector<void*> recommendation_detail_targets_;
     std::future<Result<snapshot::HouseSnapshot>>
         mapping_snapshot_task_;
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;

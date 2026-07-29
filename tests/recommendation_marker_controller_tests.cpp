@@ -15,10 +15,12 @@ class FakeRecommendationMarkerView final
 public:
     Result<void> Attach(
         const ui::UiContextSnapshot&,
-        ClickHandler handler) override {
+        ClickHandler handler,
+        ItemClickHandler item_handler) override {
         ++attach_calls;
         attached = true;
         click_handler = std::move(handler);
+        item_click_handler = std::move(item_handler);
         events.push_back("attach");
         return {};
     }
@@ -27,6 +29,7 @@ public:
         ++detach_calls;
         attached = false;
         click_handler = {};
+        item_click_handler = {};
         events.push_back("detach");
     }
 
@@ -41,14 +44,15 @@ public:
                 : (marker_visible ? "marked" : "marker-off"));
     }
 
-    Result<void> ShowSummary(std::string_view value) override {
-        summary = value;
+    Result<void> ShowItems(
+        const std::vector<std::string>& values) override {
+        labels = values;
         events.push_back("summary-on");
         return {};
     }
 
     void ClearSummary() noexcept override {
-        summary.clear();
+        labels.clear();
         events.push_back("summary-off");
     }
 
@@ -62,14 +66,21 @@ public:
         }
     }
 
+    void ClickItem(std::size_t index) {
+        if (item_click_handler) {
+            item_click_handler(index);
+        }
+    }
+
     bool attached{};
     bool marker_visible{};
     bool probe_required{};
-    std::string summary;
+    std::vector<std::string> labels;
     int attach_calls{};
     int detach_calls{};
     std::vector<std::string> events;
     ClickHandler click_handler;
+    ItemClickHandler item_click_handler;
 };
 
 ui::UiContextSnapshot RecommendationHouseContext(
@@ -192,16 +203,16 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(requests == 2);
 
     AC_CHECK(!static_cast<bool>(
-        probe_controller.ShowRecommendations(11, "stale")));
-    AC_CHECK(probe_view.summary.empty());
+        probe_controller.ShowRecommendations(11, {"stale"})));
+    AC_CHECK(probe_view.labels.empty());
     AC_CHECK(static_cast<bool>(
         probe_controller.ShowRecommendations(
             12,
-            "* #1 Mew  42.0  ?")));
+            {"#1 Mew 42.0 ?", "#2 Purr 40.0 ?"})));
     AC_CHECK(probe_controller.MarkerVisible());
     AC_CHECK(probe_view.probe_required);
     AC_CHECK(!probe_view.marker_visible);
-    AC_CHECK(probe_view.summary == "* #1 Mew  42.0  ?");
+    AC_CHECK(probe_view.labels.size() == 2);
     now += 1999ms;
     probe_controller.Poll();
     AC_CHECK(probe_view.probe_required);
@@ -210,10 +221,23 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(probe_view.marker_visible);
     AC_CHECK(probe_controller.MarkerVisible());
 
+    std::size_t detail_index = 99;
+    std::uint64_t detail_generation{};
+    probe_controller.SetDetailsHandler(
+        [&](std::uint64_t generation, std::size_t index) {
+            detail_generation = generation;
+            detail_index = index;
+        });
+    probe_view.ClickItem(1);
+    AC_CHECK(detail_generation == 12);
+    AC_CHECK(detail_index == 1);
+    probe_view.ClickItem(2);
+    AC_CHECK(detail_index == 1);
+
     probe_view.Click();
     AC_CHECK(!probe_controller.MarkerVisible());
     AC_CHECK(!probe_view.marker_visible);
-    AC_CHECK(probe_view.summary.empty());
+    AC_CHECK(probe_view.labels.empty());
     AC_CHECK(requests == 2);
 }
 
