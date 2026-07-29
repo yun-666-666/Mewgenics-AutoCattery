@@ -43,7 +43,7 @@ int wmain(int argument_count, wchar_t** arguments) {
     const bool stable_ids =
         repeated && first_ids == repeated_ids;
     std::cout
-        << "cats=" << snapshot.cats.size()
+        << "house_cats=" << snapshot.cats.size()
         << " rooms=" << snapshot.rooms.size()
         << " assigned=" << assigned
         << " adventure=" << adventure

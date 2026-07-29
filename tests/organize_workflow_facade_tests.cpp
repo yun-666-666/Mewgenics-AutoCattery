@@ -47,7 +47,8 @@ void RunOrganizeWorkflowFacadeTests() {
     const auto preview = workflow.RequestPreview(44);
     AC_CHECK(static_cast<bool>(preview));
     AC_CHECK(adapter_view->captured_generation == 44);
-    AC_CHECK(preview.message.find("cats=2") != std::string::npos);
+    AC_CHECK(
+        preview.message.find("house_cats=1") != std::string::npos);
     AC_CHECK(
         preview.message.find("private-name") == std::string::npos);
 

@@ -1,5 +1,6 @@
 #include "auto_cattery/snapshot/detail/snapshot_assembler.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <map>
 #include <unordered_map>
@@ -69,6 +70,11 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
             entry.room_id == "AdventureBox";
         room_residents[entry.room_id].push_back(entry.cat_id);
     }
+    std::erase_if(
+        snapshot.cats,
+        [](const CatSnapshot& cat) {
+            return !cat.room_id.has_value();
+        });
 
     snapshot.rooms.reserve(room_residents.size());
     for (auto& [room_id, residents] : room_residents) {

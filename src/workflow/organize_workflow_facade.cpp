@@ -39,7 +39,7 @@ Result<void> OrganizeWorkflowFacade::RequestPreview(
         [](const auto& cat) { return cat.room_id.has_value(); });
     std::ostringstream summary;
     summary
-        << "Read-only snapshot: cats=" << captured.value.cats.size()
+        << "Read-only snapshot: house_cats=" << assigned
         << ", rooms=" << captured.value.rooms.size()
         << ", assigned=" << assigned
         << ", warnings=" << validation.WarningCount()

@@ -127,9 +127,13 @@
 - Unverified class, age, relationship, room-capacity, and missing-room fields
   remain unavailable.
 - Debug/Release unit tests and DLL load smoke pass.
-- A current-save read-only probe returned 30 cats, two represented rooms, eight
-  reliable room assignments, zero validation errors, and stable IDs across two
-  captures.
+- The selected save contains 30 raw `cats` table records, but only eight IDs
+  occur in its current `house_state`. These are records from one save, not a
+  merge across save slots.
+- After the player identified the UI count mismatch, snapshots were narrowed
+  to reliably room-assigned house cats. The corrected current-save probe
+  returns eight house cats, two represented rooms, zero validation errors, and
+  stable IDs across two captures.
 - The accepted live session produced ten identical sanitized `AC5100`
   snapshots and five recommendation-marker toggles, with zero warnings, zero
   errors, one attach per control, and clean detach on leaving House.
