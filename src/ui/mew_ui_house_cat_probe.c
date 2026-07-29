@@ -1,4 +1,5 @@
 #include "mew_ui_house_cat_probe.h"
+#include "mew_ui_scene_components.h"
 
 #include <limits.h>
 #include <stdlib.h>
@@ -110,13 +111,8 @@ static size_t AcFindHouseCats(
     *components_out = NULL;
     components = NULL;
     __try {
-        all = *(MewPodVectorPtr**)((uint8_t*)scene_manager +
-                                   MEW_OFF_SCENE_COMPONENT_LISTS);
-        if (!all || !all->data || all->size > 4096U) {
-            return 0U;
-        }
-        if (all->size == 0U ||
-            all->size > SIZE_MAX / sizeof(*components)) {
+        all = AcMewGetValidatedSceneComponents(scene_manager);
+        if (!all || all->size > SIZE_MAX / sizeof(*components)) {
             return 0U;
         }
         components = (void**)calloc(all->size, sizeof(*components));

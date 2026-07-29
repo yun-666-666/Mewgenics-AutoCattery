@@ -52,10 +52,11 @@
 - 该存档 25 只当前猫中有 16 只 `Colorless`、9 只已有战斗 class；但
   第一个被推荐的 `Colorless` 猫有持久化 death day。修复后真实结果为
   15 只可用、1 只 dead、9 只已有 class，评分器明确排除后两类。
-- 主存档的 `house_state` 有 74 只当前猫。只读 probe 复现两项独立失败：
-  cat blob 在变长 `dex` descriptor 后错位，以及 HouseCat probe 固定容量
-  64 导致运行时直接得到 0 个匹配。当前 reader 按长度前缀解析并读取
-  birth/death day；组件和映射存储按当前数量动态分配。
+- 当前主存档的 `house_state` 有 79 只当前猫。最新运行日志中快照已成功
+  读取 `requested_ids=79`，但场景探针返回 `anonymous_components=0`、
+  `house_cats=0`；根因是 HouseCat、匿名 mapping 和详情 probe 共同使用
+  的固定 4096 个场景组件上限。当前修复改为验证 vector bounds 和可读
+  指针范围，并让三条路径共享该规则。
 - 23:54:33 离开 House 时，chainloader 在 `AC4101` 同一毫秒记录大量旧
   UI 地址访问异常。两个 view 在 scene 已卸载后仍触碰旧按钮/MovieClip，
   且重进 House 可能复用句柄，解释了闪烁、Clear 失效和上方按钮无反馈。
@@ -85,7 +86,7 @@
   30 秒；重复点击不会再创建并发请求。只有当前 generation 的快照、
   CatId 映射和 root 仍有效才显示。
 - 一次请求会只读活动 Steam profile 的全部存档候选，再用当前 rooted
-  HouseCat 的完整稳定 CatId 双射选择真实活动存档；8/25/74 猫的快照
+  HouseCat 的完整稳定 CatId 双射选择真实活动存档；8/25/79 猫的快照
   不能互相冒充，也不依赖哪个 `.sav` 最后修改。
 - 推荐数量改为全部明确可出战猫，不再限制为 8。界面仍以四个物理行作为
   可滚动窗口；控制器测试以 12 条结果验证第 12 条可点击且第 13 条越界。
@@ -131,6 +132,10 @@
 - `src/ui/mew_ui_bridge.cpp`
 - `src/ui/mew_ui_house_cat_probe.c`
 - `src/ui/mew_ui_house_cat_probe.h`
+- `src/ui/mew_ui_house_detail_adapter.c`
+- `src/ui/mew_ui_mapping_probe.c`
+- `src/ui/mew_ui_scene_components.c`
+- `src/ui/mew_ui_scene_components.h`
 - `tests/cat_blob_parser_tests.cpp`
 - `tests/mew_ui_house_cat_probe_tests.cpp`
 - `tests/snapshot_probe.cpp`
@@ -149,18 +154,18 @@
 - 四个文字节点共同引用私有 character 151，初始 HTML 为空，不会在
   attach 前闪现 source `Test`。
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（4.15 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.06 秒）。
+- Debug `phase12_unit_tests`：通过（5.03 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.07 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.47 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.05 秒）。
+- Release `phase12_unit_tests`：通过（0.53 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
 - SWF 两列两行生成检查：通过；四个纸牌/文字 placement 与四个独立
   命中矩形按左上、右上、左下、右下对应。
 - 控制器测试覆盖 stale generation、两秒状态、12 条数据、有效/
   越界项点击、详情回调 generation/rank、view poll、清除，以及 pending
   期间重复点击不会启动第二个请求。
-- 主存档只读 `snapshot_probe`：`house_cats=74`、`assigned=74`、
-  `combat_available=70`、`combat_spent=4`、`dead=0`、`stable_ids=1`、
+- 主存档只读 `snapshot_probe`：`house_cats=79`、`assigned=78`、
+  `combat_available=74`、`combat_spent=5`、`dead=1`、`stable_ids=1`、
   `stable_ranking=1`，未写入存档。
 - 25 猫存档只读 `snapshot_probe`：`house_cats=25`、`assigned=25`、
   `combat_available=15`、`combat_spent=10`、`dead=1`、`stable_ids=1`、
@@ -173,7 +178,7 @@
 - Mewtator UI 数据 MOD 已部署并启用：
   `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
 - 构建与安装 DLL 均为 751616 bytes，SHA-256 均为
-  `F570383303F3640E498E8FF1A923CA046D8810C4714DCD88F8F754681BA051F3`。
+  `15B663F31818DCA4674D9D58CBC956E360A11147077B36EB0DA81FCC9CD3A832`。
 - 源与安装 SWF 均为 751211 bytes，SHA-256 均为
   `308D1185DAA03BA929E9156733AD6A50E823F7BE7C08EFCEAFD52753A90894AD`。
 - 用户明确要求需要时允许联网；搜索了公开 Mewgenics/MOD 信息，但未
@@ -185,13 +190,13 @@
 2. 玩家此前已确认四行只在 Mark 后、Clear 前静态显示。
 3. 玩家指定最终视觉收尾：增加点击动画、只显示放大白纸、移除排名前
    符号；此前实现已通过自动化/结构检查。
-4. 最新跨存档验收继续暴露死猫误选、主存档无法映射、四个 `0`/空牌和
-   家具界面触发重复组件；当前修复仍需玩家重启游戏后依次测试三档。
+4. 最新跨存档验收继续暴露死猫误选、79 猫主存档无法映射、四个 `0`/
+   空牌和家具界面触发重复组件；当前修复仍需玩家重启游戏后依次测试三档。
 
 剩余事项：
 - 验证 8 猫存档一次 Mark 能显示且出战箱猫仍被解析；25 猫存档显示
-  全部 15 只可出战猫并排除 1 只死猫和 9 只已有 class 的猫；74 猫
-  主存档能完整映射并显示全部 70 只可用猫。房间外猫仍在列表。
+  全部 15 只可出战猫并排除 1 只死猫和 9 只已有 class 的猫；79 猫
+  主存档能完整映射并显示全部 74 只可用猫。房间外猫仍在列表。
 - 反复进出家具界面、Clear 和切换存档后不闪烁、不残留 `0`/`.`/空牌，
   两个上方按钮持续可点击且 Button role 计数不再增长。
 - 验证两列两行与上方按钮、下方“出发”均有安全间距，四项点击对应

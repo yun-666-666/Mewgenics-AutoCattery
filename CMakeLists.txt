@@ -81,6 +81,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_recommendation_marker_view.cpp
     src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
+    src/ui/mew_ui_scene_components.c
     src/ui/mew_ui_scene_probe.c
 )
 target_link_libraries(auto_cattery_core PUBLIC mew_ui_api bcrypt)

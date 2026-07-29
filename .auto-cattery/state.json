@@ -55,7 +55,7 @@
       "status": "eligibility_and_large_save_validation_required",
       "commit": null,
       "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "awaiting_dead_filter_and_dynamic_large_save_validation",
+      "real_highlight_status": "awaiting_dynamic_large_scene_validation",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-30T02:06:03+08:00"
+  "updated_at": "2026-07-30T02:28:09+08:00"
 }

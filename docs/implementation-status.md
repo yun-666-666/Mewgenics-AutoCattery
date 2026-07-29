@@ -452,14 +452,16 @@ by the Unsupported Stage 10 adapter.
   combat class are excluded. Recommendation output includes every available cat,
   without the old limit of eight; the four physical rows remain a scrollable
   window over the full result set.
-- The main save has 74 current House cats. Its variable-length pre-breed
+- The current main save has 79 House cats: 74 combat-available, 1 persisted
+  dead, and 5 with an assigned combat class. Its variable-length pre-breed
   stat-affinity descriptor exposed a fixed-width parser error, while the live
-  HouseCat mapper separately rejected counts above its fixed capacity of 64.
-  The reader now follows the length prefix and reads persisted birth/death days;
-  component and mapping storage is dynamically sized from the current scene.
+  HouseCat, anonymous mapping, and detail probes separately rejected scenes
+  above a fixed 4096-component limit. The reader now follows the length prefix
+  and reads persisted birth/death days; scene component access validates the
+  vector bounds and readable pointer range instead of a business-count cap.
 - Capture reads all save candidates in the active Steam profile and selects
   the candidate with a complete stable CatId-to-rooted-HouseCat mapping. This
-  selects the current 8-, 25-, or 74-cat save immediately and rejects a stale
+  selects the current 8-, 25-, or 79-cat save immediately and rejects a stale
   snapshot from another slot.
 - Recommendation row labels use direct UTF-8 text instead of a localization
   numeric placeholder, so clearing a row cannot render `0` or `.`. The two
@@ -484,4 +486,4 @@ by the Unsupported Stage 10 adapter.
 Stage 12 is reopened for player-visible save-switch validation. The native cat
 detail path remains player-confirmed, but death filtering, dynamic large-save
 mapping, and the retry/lifecycle/grid repair must pass in one process across the
-8-, 25-, and 74-cat saves. Stage 13 remains blocked.
+8-, 25-, and 79-cat saves. Stage 13 remains blocked.

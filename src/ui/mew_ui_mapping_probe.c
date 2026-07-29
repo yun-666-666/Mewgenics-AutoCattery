@@ -1,4 +1,5 @@
 #include "mew_ui_mapping_probe.h"
+#include "mew_ui_scene_components.h"
 
 #include <string.h>
 
@@ -76,22 +77,10 @@ static int AcComponentHasRootNode(void* component) {
     }
 }
 static MewPodVectorPtr* AcGetComponents(void* scene_manager) {
-    MewPodVectorPtr* components;
     if (!scene_manager) {
         return NULL;
     }
-    __try {
-        components =
-            *(MewPodVectorPtr**)((uint8_t*)scene_manager +
-                                 MEW_OFF_SCENE_COMPONENT_LISTS);
-        if (!components || !components->data || components->size > 4096U) {
-            return NULL;
-        }
-        return components;
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        return NULL;
-    }
+    return AcMewGetValidatedSceneComponents(scene_manager);
 }
 AcMewAnonymousMappingObservation AcMewInspectAnonymousMapping(
     void* scene_manager) {
@@ -106,10 +95,8 @@ AcMewAnonymousMappingObservation AcMewInspectAnonymousMapping(
     }
 
     __try {
-        components =
-            *(MewPodVectorPtr**)((uint8_t*)scene_manager +
-                                 MEW_OFF_SCENE_COMPONENT_LISTS);
-        if (!components || !components->data || components->size > 4096U) {
+        components = AcMewGetValidatedSceneComponents(scene_manager);
+        if (!components) {
             return result;
         }
         result.component_count = components->size;

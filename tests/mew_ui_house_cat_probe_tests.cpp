@@ -25,10 +25,22 @@ MewNarrowString* __cdecl HouseCatType(
     return result;
 }
 
+MewNarrowString* __cdecl OtherType(
+    const void*,
+    MewNarrowString* result) {
+    constexpr char kType[] = "Other";
+    std::memset(result, 0, sizeof(*result));
+    std::memcpy(result->storage.inline_buf, kType, sizeof(kType) - 1);
+    result->size = sizeof(kType) - 1;
+    result->capacity = 15;
+    return result;
+}
+
 }  // namespace
 
 void RunMewUiHouseCatProbeTests() {
-    constexpr std::size_t kCatCount = 74;
+    constexpr std::size_t kCatCount = 79;
+    constexpr std::size_t kSceneComponentCount = 4'200;
     constexpr std::size_t kComponentSize = 0x800;
     constexpr std::size_t kIdentityOffset = 0x80;
     const MewComponentVTable vtable{
@@ -36,11 +48,19 @@ void RunMewUiHouseCatProbeTests() {
         nullptr,
         nullptr
     };
+    const MewComponentVTable other_vtable{
+        &OtherType,
+        nullptr,
+        nullptr
+    };
     std::vector<std::array<std::uint8_t, kComponentSize>> storage(kCatCount);
     std::vector<void*> components;
+    std::vector<void*> all_components;
     std::vector<std::int64_t> cat_ids;
     const MewComponentVTable* vtable_pointer = &vtable;
+    const MewComponentVTable* other_vtable_pointer = &other_vtable;
     components.reserve(kCatCount);
+    all_components.reserve(kSceneComponentCount);
     cat_ids.reserve(kCatCount);
     for (std::size_t index = 0; index < kCatCount; ++index) {
         auto& bytes = storage[index];
@@ -57,13 +77,24 @@ void RunMewUiHouseCatProbeTests() {
             &id,
             sizeof(id));
         components.push_back(bytes.data());
+        all_components.push_back(bytes.data());
         cat_ids.push_back(id);
+    }
+    std::vector<std::array<std::uint8_t, sizeof(void*)>> filler_storage(
+        kSceneComponentCount - kCatCount);
+    for (auto& bytes : filler_storage) {
+        bytes.fill(0);
+        std::memcpy(
+            bytes.data(),
+            &other_vtable_pointer,
+            sizeof(other_vtable_pointer));
+        all_components.push_back(bytes.data());
     }
 
     MewPodVectorPtr component_list{
-        static_cast<std::uint32_t>(components.size()),
-        static_cast<std::uint32_t>(components.size()),
-        components.data()
+        static_cast<std::uint32_t>(all_components.size()),
+        static_cast<std::uint32_t>(all_components.size()),
+        all_components.data()
     };
     std::array<
         std::uint8_t,
@@ -108,6 +139,17 @@ void RunMewUiHouseCatProbeTests() {
         AC_CHECK(matches[index].component == components[index]);
         AC_CHECK(matches[index].root_node != nullptr);
     }
+
+    component_list.capacity = component_list.size - 1U;
+    const auto invalid = AcMewProbeHouseCatIdentity(
+        scene_manager.data(),
+        cat_ids.data(),
+        cat_ids.size(),
+        matches.data(),
+        matches.size());
+    AC_CHECK(invalid.house_cat_count == 0U);
+    AC_CHECK(invalid.match_count == 0U);
+    AC_CHECK(invalid.stable_bijection == 0U);
 }
 
 }  // namespace autocattery::tests

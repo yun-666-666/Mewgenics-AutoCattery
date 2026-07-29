@@ -1,4 +1,5 @@
 #include "mew_ui_house_detail_adapter.h"
+#include "mew_ui_scene_components.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -124,10 +125,8 @@ static void* AcFindUniqueComponent(
     uint32_t index;
     match = NULL;
     __try {
-        components = *(MewPodVectorPtr**)((uint8_t*)scene_manager +
-                                          MEW_OFF_SCENE_COMPONENT_LISTS);
-        if (!components || !components->data ||
-            components->size > 4096U) {
+        components = AcMewGetValidatedSceneComponents(scene_manager);
+        if (!components) {
             return NULL;
         }
         for (index = 0U; index < components->size; ++index) {
