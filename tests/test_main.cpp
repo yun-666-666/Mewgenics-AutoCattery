@@ -3,6 +3,11 @@
 namespace autocattery::tests {
 
 void RunConfigTests();
+void RunExecutionPreconditionTests();
+void RunExecutionStorageTests();
+void RunExecutionTransactionSuccessTests();
+void RunExecutionTransactionFailureTests();
+void RunExecutionTransactionConcurrencyTests();
 void RunBreedingRankerTests();
 void RunBreedingScorerTests();
 void RunClassifierTests();
@@ -38,6 +43,11 @@ int main() {
     autocattery::tests::RunCombatRankingCacheTests();
     autocattery::tests::RunCombatScorerTests();
     autocattery::tests::RunConfigTests();
+    autocattery::tests::RunExecutionPreconditionTests();
+    autocattery::tests::RunExecutionStorageTests();
+    autocattery::tests::RunExecutionTransactionSuccessTests();
+    autocattery::tests::RunExecutionTransactionFailureTests();
+    autocattery::tests::RunExecutionTransactionConcurrencyTests();
     autocattery::tests::RunCatBlobParserTests();
     autocattery::tests::RunHouseButtonControllerTests();
     autocattery::tests::RunHouseStateParserTests();

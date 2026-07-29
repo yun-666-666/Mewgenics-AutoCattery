@@ -1,47 +1,42 @@
-# CODEX CURRENT TASK — STAGE 09
+# CODEX CURRENT TASK — STAGE 10
 
 ## Scope
 
-只实施阶段 09：容量感知、保护不可绕过、确定性的只读房间规划与房间
-不足回退。禁止移动执行、淘汰执行、存档写入、执行器和复杂 UI。
+只实施阶段 10：密封执行计划、执行前重检、离线一致备份、匿名 journal、
+恢复包、注入式事务执行器和明确 Unsupported 的真实写适配器。
 
-阶段 09 已完成。除非玩家明确要求，不得开始阶段 10。
+不实施阶段 11 流水线、复杂确认 UI、阶段 14 备份管理中心或任何自动组队、
+自动休息、自动推进日期、自动出征选择。
 
-## Evidence rules
+## Evidence result
 
-- 阶段文档和用户提供的 MIT Toolkit 只作为流程、接口和算法思想参考。
-- Toolkit 的整数 RoomId、房间类型、容量、繁育/幼猫/特殊/锁房标志及
-  兼容关系示例均未复制。
-- 当前 RoomId 为字符串；现有快照只确认房间 ID、居民和当前房间关系。
-- 真实硬容量、房间角色、特殊状态、玩家锁定、强制居民和接收/移出权限
-  仍为 Unknown，不从名称、人数或软容量推断。
-- `default_soft_capacity` 只用于拥有已确认硬容量时的 MOD 布局偏好，
-  绝不授权移动或替代游戏硬容量。
+- 本地 SDK、已安装公开源码和当前仓库没有可验证的运行时移动、淘汰或
+  RestoreCat API。
+- 当前 SaveDatabase 只以 SQLite READONLY | NOMUTEX 打开，并持有
+  BEGIN DEFERRED 读事务。
+- 当前 SQLite 绑定没有 backup API；运行中只复制 `.sav` 主文件的一致性
+  未被证明，WAL/SHM 可能遗漏已提交数据。
+- 因此真实写适配器为 Unsupported，配置不能启用真实写入或淘汰。
+- 未联网：活动 AGENTS.md 明确禁止 web research。
 
 ## Implemented boundary
 
-- 独立 RoomCapability、规划结果、输入验证、保守能力适配器和纯只读
-  RoomPlanner。
-- 快照、分类、ProtectionPolicy、保护摘要、房间与居民输入不一致时
-  fail closed。
-- Unknown 房间能力、特殊/锁定/强制居民状态、冒险箱、NoMove、
-  NoCullOrMove、FullyUnmanaged 和 fail_closed 都不能生成移动。
-- 繁育配对证据和真实繁育房能力未确认时，核心繁育猫保持原位，不生成
-  配对或虚构繁育布局。
-- 抽象完整证据夹具支持已知硬容量、确定性排序、最小移动、部分成功、
-  unplaced 和按 Stage 07/08 安全候选顺序的最小容量释放建议。
-- 所有移动和淘汰执行权限恒为 false；保护摘要变化仅返回
-  CancelAndRepreview。
-- 真实存档使用保守能力适配器，预期并验证为 0 planned moves。
+- ApprovedExecutionPlan 与 ExecutionAuthorization 只能由重检器产生。
+- 内容、分类、RoomPlan、保护摘要、HouseReady generation、游戏日、存档
+  身份和 build 身份全部进入前置条件；snapshot_id 仅作捕获关联。
+- Stage 9 的 `executable=false`、移动/淘汰权限恒 false 不被修改。
+- 备份只接受游戏已确认静止且无 WAL/SHM 的离线 `.sav`，验证 SHA-256
+  与大小后原子发布；拒绝穿越、重解析点、覆盖源和覆盖现有备份。
+- journal 与恢复包使用临时文件和原子替换，不记录猫名或 CatId。
+- fake 驱动事务器按备份、Prepared、逐移动验证、逐淘汰验证、Committed
+  顺序执行；任一失败停止并反向恢复，恢复失败写
+  ManualRecoveryRequired。
+- 现有 UI 仍只生成预览；应用服务执行入口固定返回 PreviewOnly。
 
-## Required validation
+## Stage gate
 
-- Debug/Release `phase09_unit_tests`。
-- Debug/Release `phase09_dll_load_smoke`。
-- 真实存档只读探针：0 校验错误、稳定 ID/分类/保护/房间计划、0 planned
-  moves、0 executable moves、0 executable culls。
-- `git diff --check` 与源码范围检查。
+阶段 10 的可测试安全基础设施已完成，但真实 adapter 仍为 Unsupported。
+不得操作真实存档，不需要玩家进游戏测试，也不得开始阶段 11。
 
-## Stop condition
-
-阶段 09 已完成。阶段 10 只能在玩家明确要求后开始，永不自动 push。
+只有取得许可清楚、签名明确且可重复的移动/淘汰/恢复证据，并通过专用复制
+测试存档的离线验证后，才能在新的明确任务中重新开启真实执行门。

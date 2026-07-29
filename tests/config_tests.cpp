@@ -111,6 +111,11 @@ void RunConfigTests() {
     AC_CHECK(!static_cast<bool>(unsafe));
     AC_CHECK(unsafe.code == ErrorCode::ConfigInvalid);
 
+    Write(user, R"({"execution":{"real_write_adapter_enabled":true}})");
+    const auto unverified_execution = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(unverified_execution));
+    AC_CHECK(unverified_execution.code == ErrorCode::ConfigInvalid);
+
     Write(user, R"({"combat_scoring":{"minimum_known_stats":8}})");
     const auto impossible = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(impossible));

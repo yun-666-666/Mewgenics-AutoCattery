@@ -265,3 +265,36 @@ explicitly requests it.
 
 Stage 09 passed on 2026-07-29. Stage 10 may begin only when the player
 explicitly requests it.
+
+## Stage 10
+
+- Status: testable execution safety infrastructure complete; real execution
+  remains blocked and Unsupported.
+- Approved execution plans are independently sealed after snapshot-content,
+  classification, RoomPlan, protection, scene generation, game day, save
+  identity, and build identity checks.
+- The Stage 07/08/09 read-only flags are unchanged. NoMove, NoCull,
+  NoCullOrMove, FullyUnmanaged, fail-closed, adventure-box, duplicate,
+  unknown, reordered, or changed inputs cannot bypass approval.
+- Offline backup uses SHA-256 and size verification, temporary files, atomic
+  publication, containment checks, and no-overwrite behavior. A running save,
+  WAL/SHM sidecars, path traversal, or reparse-point escape is rejected.
+- Journal and recovery metadata are atomically published and contain operation
+  indices instead of cat names or CatIds. Automatic live restore is forbidden.
+- The injected transaction executor stops at every failure point, verifies
+  each move/cull through an independent reader, rechecks protection/scene/save
+  state at boundaries, and records RolledBack or ManualRecoveryRequired.
+- Local SDK/source inspection found no verified move, cull, or restore API.
+  The read-only SQLite wrapper has no backup API, and copying a live main save
+  without WAL consistency is unproved. The real adapter and configuration
+  therefore remain Unsupported/disabled.
+- The existing House button still requests preview only. No DLL was deployed
+  and no real save was written.
+- Debug and Release `phase10_unit_tests` and `phase10_dll_load_smoke` are the
+  required final validation targets.
+
+## Stage gate
+
+Stage 10 safety infrastructure is complete, but Stage 11 remains blocked until
+a separately verified real write and restore mechanism exists. No player game
+test is requested for the Unsupported adapter.

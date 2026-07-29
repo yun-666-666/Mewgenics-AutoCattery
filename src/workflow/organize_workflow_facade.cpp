@@ -55,4 +55,16 @@ Result<void> OrganizeWorkflowFacade::RequestPreview(
     };
 }
 
+ExecutionAvailability
+OrganizeWorkflowFacade::CurrentExecutionAvailability() const noexcept {
+    return ExecutionAvailability::PreviewOnly;
+}
+
+Result<void> OrganizeWorkflowFacade::RequestExecution() {
+    return {
+        ErrorCode::UnsupportedGameBuild,
+        "Preview only: no verified game move or cull adapter is available."
+    };
+}
+
 }  // namespace autocattery::workflow

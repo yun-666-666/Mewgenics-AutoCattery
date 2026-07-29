@@ -32,6 +32,11 @@ Json SafeDefaults() {
             {"create_backup_before_apply", true},
             {"abort_on_unknown_game_build", true}
         }},
+        {"execution", {
+            {"real_write_adapter_enabled", false},
+            {"cull_enabled", false},
+            {"require_quiescent_backup", true}
+        }},
         {"combat_scoring", {
             {"version", 1},
             {"recommended_count", 8},
@@ -194,6 +199,19 @@ Result<void> Validate(const Json& value) {
                 "backup-before-apply cannot be disabled"
             };
         }
+        if (value.at("execution")
+                .at("real_write_adapter_enabled")
+                .get<bool>() ||
+            value.at("execution").at("cull_enabled").get<bool>() ||
+            !value.at("execution")
+                 .at("require_quiescent_backup")
+                 .get<bool>()) {
+            return {
+                ErrorCode::ConfigInvalid,
+                "unverified execution cannot be enabled and quiescent "
+                "backup cannot be disabled"
+            };
+        }
         if (!value.at("protection")
                  .at("protect_unknown_native_state")
                  .get<bool>() ||
@@ -273,6 +291,20 @@ Result<Config> LoadConfig(
             safety,
             "abort_on_unknown_game_build",
             result.safety.abort_on_unknown_game_build);
+
+        const auto& execution = merged.at("execution");
+        AssignIfPresent(
+            execution,
+            "real_write_adapter_enabled",
+            result.execution.real_write_adapter_enabled);
+        AssignIfPresent(
+            execution,
+            "cull_enabled",
+            result.execution.cull_enabled);
+        AssignIfPresent(
+            execution,
+            "require_quiescent_backup",
+            result.execution.require_quiescent_backup);
 
         const auto& combat = merged.at("combat_scoring");
         AssignIfPresent(

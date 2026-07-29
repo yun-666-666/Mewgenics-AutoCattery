@@ -24,6 +24,12 @@ struct SafetyConfig {
     bool abort_on_unknown_game_build{true};
 };
 
+struct ExecutionConfig {
+    bool real_write_adapter_enabled{};
+    bool cull_enabled{};
+    bool require_quiescent_backup{true};
+};
+
 struct ProtectionConfig {
     std::uint32_t version{1};
     std::string sidecar_file{"protection.json"};
@@ -39,6 +45,7 @@ struct Config {
     std::string language{"zh-CN"};
     UiConfig ui;
     SafetyConfig safety;
+    ExecutionConfig execution;
     scoring::CombatScoringConfig combat_scoring;
     breeding::BreedingScoringConfig breeding_scoring;
     classification::ClassificationConfig classification;

@@ -9,6 +9,7 @@
     "safe_mode",
     "ui",
     "safety",
+    "execution",
     "combat_scoring",
     "breeding_scoring",
     "classification",
@@ -36,6 +37,20 @@
         "create_backup_before_apply": {"const": true},
         "abort_on_unknown_game_build": {"type": "boolean"}
       }
+    },
+    "execution": {
+      "type": "object",
+      "required": [
+        "real_write_adapter_enabled",
+        "cull_enabled",
+        "require_quiescent_backup"
+      ],
+      "properties": {
+        "real_write_adapter_enabled": {"const": false},
+        "cull_enabled": {"const": false},
+        "require_quiescent_backup": {"const": true}
+      },
+      "additionalProperties": false
     },
     "combat_scoring": {
       "type": "object",

@@ -51,6 +51,12 @@ void RunOrganizeWorkflowFacadeTests() {
         preview.message.find("house_cats=1") != std::string::npos);
     AC_CHECK(
         preview.message.find("private-name") == std::string::npos);
+    AC_CHECK(
+        workflow.CurrentExecutionAvailability() ==
+        autocattery::workflow::ExecutionAvailability::PreviewOnly);
+    const auto execution = workflow.RequestExecution();
+    AC_CHECK(!static_cast<bool>(execution));
+    AC_CHECK(execution.code == ErrorCode::UnsupportedGameBuild);
 
     auto failing_adapter = std::make_unique<FakeReadAdapter>();
     failing_adapter->fail = true;

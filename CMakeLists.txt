@@ -32,6 +32,14 @@ add_library(auto_cattery_core STATIC
     src/breeding/breeding_scorer.cpp
     src/classification/classifier.cpp
     src/classification/protection_adapter.cpp
+    src/execution/plan_sealer.cpp
+    src/execution/precondition_validator.cpp
+    src/execution/backup_service.cpp
+    src/execution/file_safety.cpp
+    src/execution/journal_store.cpp
+    src/execution/recovery_package.cpp
+    src/execution/game_write_adapter.cpp
+    src/execution/transaction_executor.cpp
     src/protection/policy.cpp
     src/protection/sidecar.cpp
     src/room_planning/capability_adapter.cpp
@@ -61,7 +69,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_bridge.cpp
     src/ui/mew_ui_scene_probe.c
 )
-target_link_libraries(auto_cattery_core PUBLIC mew_ui_api)
+target_link_libraries(auto_cattery_core PUBLIC mew_ui_api bcrypt)
 target_compile_features(auto_cattery_core PUBLIC cxx_std_20)
 target_include_directories(auto_cattery_core
     PUBLIC
@@ -110,6 +118,11 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/combat_ranking_cache_tests.cpp
         tests/combat_scorer_tests.cpp
         tests/config_tests.cpp
+        tests/execution_precondition_tests.cpp
+        tests/execution_storage_tests.cpp
+        tests/execution_transaction_success_tests.cpp
+        tests/execution_transaction_failure_tests.cpp
+        tests/execution_transaction_concurrency_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
         tests/organize_workflow_facade_tests.cpp
@@ -128,7 +141,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase09_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase10_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
@@ -139,7 +152,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase09_dll_load_smoke
+        NAME phase10_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
 endif()
