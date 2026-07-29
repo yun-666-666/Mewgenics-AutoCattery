@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 
@@ -22,6 +23,13 @@ struct SafetyConfig {
     bool abort_on_unknown_game_build{true};
 };
 
+struct ProtectionConfig {
+    std::uint32_t version{1};
+    std::string sidecar_file{"protection.json"};
+    bool protect_unknown_native_state{true};
+    bool require_stable_identity_for_sidecar{true};
+};
+
 struct Config {
     int schema_version{1};
     bool mod_enabled{true};
@@ -33,6 +41,7 @@ struct Config {
     scoring::CombatScoringConfig combat_scoring;
     breeding::BreedingScoringConfig breeding_scoring;
     classification::ClassificationConfig classification;
+    ProtectionConfig protection;
     bool force_read_only{false};
 };
 

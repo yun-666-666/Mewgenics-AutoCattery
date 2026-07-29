@@ -15,6 +15,8 @@ void RunHouseStateParserTests();
 void RunLz4BlockTests();
 void RunModuleRegistryTests();
 void RunOrganizeWorkflowFacadeTests();
+void RunProtectionPolicyTests();
+void RunProtectionSidecarTests();
 void RunRecommendationMarkerControllerTests();
 void RunSaveDatabaseTests();
 void RunSaveLocatorTests();
@@ -39,6 +41,8 @@ int main() {
     autocattery::tests::RunLz4BlockTests();
     autocattery::tests::RunModuleRegistryTests();
     autocattery::tests::RunOrganizeWorkflowFacadeTests();
+    autocattery::tests::RunProtectionPolicyTests();
+    autocattery::tests::RunProtectionSidecarTests();
     autocattery::tests::RunRecommendationMarkerControllerTests();
     autocattery::tests::RunSaveDatabaseTests();
     autocattery::tests::RunSaveLocatorTests();

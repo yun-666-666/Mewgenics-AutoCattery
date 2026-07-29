@@ -32,6 +32,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $dist 'swfs') | Out-Null
 Copy-Item -LiteralPath (Join-Path $buildDirectory "out\$Configuration\AutoCattery.dll") -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\default_config.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\scene_signatures.json') -Destination (Join-Path $dist 'config') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'config\protection.schema.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\data\text\combined.csv.append') -Destination (Join-Path $dist 'data\text') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\localization\strings.json') -Destination (Join-Path $dist 'localization') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\swfs\auto_cattery_house.swf') -Destination (Join-Path $dist 'swfs') -Force

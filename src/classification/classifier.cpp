@@ -183,9 +183,11 @@ Result<ClassificationPlan> ClassifyCats(
         const auto& combat_score = *combat_by_id.at(cat.id);
         const auto& breeding_score = *breeding_by_id.at(cat.id);
         const auto facts = safety_facts.find(cat.id);
-        const bool protected_cat =
+        const auto* policy =
             facts != safety_facts.end() &&
-            facts->second.protected_from_cull == snapshot::TriState::Yes;
+                facts->second.policy_decision.has_value()
+            ? &*facts->second.policy_decision
+            : nullptr;
 
         CatDecision decision;
         decision.cat_id = cat.id;
@@ -198,10 +200,18 @@ Result<ClassificationPlan> ClassifyCats(
         decision.breeding_core = breeding_core.contains(cat.id);
         decision.breeding_reserve = breeding_reserve.contains(cat.id);
         decision.breeding_pool_protected = breeding_pool.contains(cat.id);
+        if (policy != nullptr) {
+            decision.protection_level = policy->effective_level;
+            decision.move_allowed = policy->move_allowed;
+            decision.blacklist_preferred = policy->blacklist_preferred;
+        }
 
-        if (protected_cat) {
+        if (policy != nullptr &&
+            !policy->automatically_managed) {
             decision.primary_role = CatRole::ProtectedUnmanaged;
-            decision.reasons.push_back("confirmed protected from cull");
+            decision.reasons.push_back(
+                "protection policy excludes this cat from automatic "
+                "classification");
         } else if (!combat_score.eligible && !breeding_score.eligible) {
             decision.primary_role = CatRole::Ineligible;
             decision.reasons.push_back(
@@ -276,6 +286,10 @@ Result<ClassificationPlan> ClassifyCats(
             "relationship safeguards are unavailable");
         guard(
             facts == safety_facts.end() ||
+                !facts->second.policy_decision.has_value(),
+            "protection policy decision is unavailable");
+        guard(
+            facts == safety_facts.end() ||
                 facts->second.protected_from_cull ==
                     snapshot::TriState::Unknown,
             "cull protection is unconfirmed");
@@ -284,6 +298,11 @@ Result<ClassificationPlan> ClassifyCats(
                 facts->second.protected_from_cull ==
                     snapshot::TriState::Yes,
             "confirmed protected from cull");
+        guard(
+            facts != safety_facts.end() &&
+                facts->second.policy_decision.has_value() &&
+                !facts->second.policy_decision->cull_allowed,
+            "protection policy forbids culling");
         guard(
             facts == safety_facts.end() ||
                 facts->second.special_state_present ==
@@ -323,6 +342,19 @@ Result<ClassificationPlan> ClassifyCats(
         plan.quality_cull_candidates.begin(),
         plan.quality_cull_candidates.end(),
         [&](const auto left, const auto right) {
+            const auto left_facts = safety_facts.find(left);
+            const auto right_facts = safety_facts.find(right);
+            const bool left_blacklisted =
+                left_facts != safety_facts.end() &&
+                left_facts->second.policy_decision.has_value() &&
+                left_facts->second.policy_decision->blacklist_preferred;
+            const bool right_blacklisted =
+                right_facts != safety_facts.end() &&
+                right_facts->second.policy_decision.has_value() &&
+                right_facts->second.policy_decision->blacklist_preferred;
+            if (left_blacklisted != right_blacklisted) {
+                return left_blacklisted;
+            }
             const auto left_value =
                 combat_by_id.at(left)->score + breeding_by_id.at(left)->score;
             const auto right_value =

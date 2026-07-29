@@ -11,7 +11,8 @@
     "safety",
     "combat_scoring",
     "breeding_scoring",
-    "classification"
+    "classification",
+    "protection"
   ],
   "properties": {
     "schema_version": {"type": "integer", "minimum": 1},
@@ -172,6 +173,27 @@
           "minimum": 0,
           "maximum": 1
         }
+      },
+      "additionalProperties": false
+    },
+    "protection": {
+      "type": "object",
+      "required": [
+        "version",
+        "sidecar_file",
+        "protect_unknown_native_state",
+        "require_stable_identity_for_sidecar"
+      ],
+      "properties": {
+        "version": {"const": 1},
+        "sidecar_file": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[^/\\\\]+\\.json$"
+        },
+        "protect_unknown_native_state": {"const": true},
+        "require_stable_identity_for_sidecar": {"const": true}
       },
       "additionalProperties": false
     }

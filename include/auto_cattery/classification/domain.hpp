@@ -2,11 +2,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "auto_cattery/snapshot/domain.hpp"
+#include "auto_cattery/protection/domain.hpp"
 
 namespace autocattery::classification {
 
@@ -26,6 +28,7 @@ enum class CatRole {
 struct CullSafetyFacts {
     snapshot::TriState protected_from_cull{snapshot::TriState::Unknown};
     snapshot::TriState special_state_present{snapshot::TriState::Unknown};
+    std::optional<protection::ProtectionDecision> policy_decision;
 };
 
 using CullSafetyFactsByCat =
@@ -53,6 +56,10 @@ struct CatDecision {
     bool breeding_pool_protected{};
     bool preview_cull_candidate{};
     bool destructive_action_allowed{};
+    protection::ProtectionLevel protection_level{
+        protection::ProtectionLevel::NoCullOrMove};
+    bool move_allowed{};
+    bool blacklist_preferred{};
     std::vector<std::string> reasons;
 };
 

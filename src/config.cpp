@@ -89,6 +89,12 @@ Json SafeDefaults() {
             {"minimum_breeding_pool", 8},
             {"minimum_general_reserve", 4},
             {"never_cull_if_data_confidence_below", 0.85}
+        }},
+        {"protection", {
+            {"version", 1},
+            {"sidecar_file", "protection.json"},
+            {"protect_unknown_native_state", true},
+            {"require_stable_identity_for_sidecar", true}
         }}
     };
 }
@@ -174,6 +180,17 @@ Result<void> Validate(const Json& value) {
             return {
                 ErrorCode::ConfigInvalid,
                 "backup-before-apply cannot be disabled"
+            };
+        }
+        if (!value.at("protection")
+                 .at("protect_unknown_native_state")
+                 .get<bool>() ||
+            !value.at("protection")
+                 .at("require_stable_identity_for_sidecar")
+                 .get<bool>()) {
+            return {
+                ErrorCode::ConfigInvalid,
+                "protection fail-closed rules cannot be disabled"
             };
         }
     } catch (const Json::exception& error) {
@@ -368,6 +385,29 @@ Result<Config> LoadConfig(
             classification,
             "never_cull_if_data_confidence_below",
             result.classification.never_cull_if_data_confidence_below);
+
+        const auto& protection = merged.at("protection");
+        AssignIfPresent(
+            protection, "version", result.protection.version);
+        AssignIfPresent(
+            protection, "sidecar_file", result.protection.sidecar_file);
+        AssignIfPresent(
+            protection,
+            "protect_unknown_native_state",
+            result.protection.protect_unknown_native_state);
+        AssignIfPresent(
+            protection,
+            "require_stable_identity_for_sidecar",
+            result.protection.require_stable_identity_for_sidecar);
+        if (result.protection.version != 1 ||
+            result.protection.sidecar_file.empty()) {
+            return {
+                {},
+                ErrorCode::ConfigInvalid,
+                "protection configuration version or sidecar filename is "
+                "invalid"
+            };
+        }
     } catch (const Json::exception& error) {
         return {{}, ErrorCode::ConfigInvalid, error.what()};
     }

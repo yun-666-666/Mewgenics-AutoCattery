@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.autocattery/protection.schema.json",
+  "title": "AutoCattery protection sidecar",
+  "type": "object",
+  "required": ["schema_version", "records", "blacklist"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cat_id", "level", "identity_token"],
+        "properties": {
+          "cat_id": {"type": "integer", "minimum": 1},
+          "level": {
+            "enum": [
+              "None",
+              "NoCull",
+              "NoMove",
+              "NoCullOrMove",
+              "FullyUnmanaged"
+            ]
+          },
+          "identity_token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "reason": {"type": "string", "maxLength": 1024},
+          "expires_on_day": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "blacklist": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 1}
+    }
+  },
+  "additionalProperties": false
+}

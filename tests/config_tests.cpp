@@ -57,6 +57,9 @@ void RunConfigTests() {
     AC_CHECK(
         valid.value.classification.never_cull_if_data_confidence_below ==
         0.85);
+    AC_CHECK(valid.value.protection.version == 1);
+    AC_CHECK(valid.value.protection.protect_unknown_native_state);
+    AC_CHECK(valid.value.protection.require_stable_identity_for_sidecar);
 
     Write(user, R"({
         "combat_scoring": {
@@ -121,6 +124,13 @@ void RunConfigTests() {
     const auto unsafe_threshold = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(unsafe_threshold));
     AC_CHECK(unsafe_threshold.code == ErrorCode::ConfigInvalid);
+
+    Write(
+        user,
+        R"({"protection":{"protect_unknown_native_state":false}})");
+    const auto unsafe_protection = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(unsafe_protection));
+    AC_CHECK(unsafe_protection.code == ErrorCode::ConfigInvalid);
 
     Write(user, "{");
     const auto truncated = LoadConfig(defaults, user);

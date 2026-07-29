@@ -33,5 +33,6 @@ engineered binary output is included.
 - Version: `1.0.0`
 - License: MIT
 - Use: deterministic single-cat combat/breeding scoring, stable ranking,
-  retained-pool classification, and preview-only cull candidate flow adapted
-  to the verified seven-stat and string-ID snapshot model.
+  retained-pool classification, protection-level permission intersection, and
+  preview-only cull candidate flow adapted to the verified seven-stat and
+  string-ID snapshot model. Toolkit game-field examples were not reused.

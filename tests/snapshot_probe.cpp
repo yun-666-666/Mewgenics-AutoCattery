@@ -1,6 +1,7 @@
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/breeding/breeding_ranker.hpp"
 #include "auto_cattery/classification/classifier.hpp"
+#include "auto_cattery/classification/protection_adapter.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
 
 #include <algorithm>
@@ -74,6 +75,44 @@ int wmain(int argument_count, wchar_t** arguments) {
     autocattery::breeding::BreedingScoringConfig breeding_config;
     const auto breeding =
         autocattery::breeding::RankBreedingCats(snapshot, breeding_config);
+    autocattery::protection::ProtectionSidecar unavailable_sidecar;
+    unavailable_sidecar.status =
+        autocattery::protection::SidecarLoadStatus::Missing;
+    unavailable_sidecar.destructive_actions_blocked = true;
+    const auto protection_facts =
+        autocattery::classification::BuildCullSafetyFacts(
+            snapshot,
+            {},
+            unavailable_sidecar,
+            {});
+    const auto repeated_protection_facts = repeated
+        ? autocattery::classification::BuildCullSafetyFacts(
+            repeated.value,
+            {},
+            unavailable_sidecar,
+            {})
+        : autocattery::classification::CullSafetyFactsByCat{};
+    std::vector<autocattery::protection::ProtectionDecision>
+        protection_decisions;
+    std::vector<autocattery::protection::ProtectionDecision>
+        repeated_protection_decisions;
+    for (const auto& cat : snapshot.cats) {
+        protection_decisions.push_back(
+            *protection_facts.at(cat.id).policy_decision);
+    }
+    if (repeated) {
+        for (const auto& cat : repeated.value.cats) {
+            repeated_protection_decisions.push_back(
+                *repeated_protection_facts.at(cat.id).policy_decision);
+        }
+    }
+    const auto protection_digest =
+        autocattery::protection::BuildDigest(protection_decisions);
+    const auto repeated_protection_digest =
+        autocattery::protection::BuildDigest(
+            repeated_protection_decisions);
+    const bool stable_protection =
+        repeated && protection_digest == repeated_protection_digest;
     const auto classification = ranking && breeding
         ? autocattery::classification::ClassifyCats(
             snapshot,
@@ -81,7 +120,7 @@ int wmain(int argument_count, wchar_t** arguments) {
             breeding.value,
             breeding_config,
             autocattery::classification::ClassificationConfig{},
-            autocattery::classification::CullSafetyFactsByCat{})
+            protection_facts)
         : autocattery::Result<
             autocattery::classification::ClassificationPlan>{
                 {},
@@ -109,6 +148,8 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " stable_ranking=" << (stable_ranking ? 1 : 0)
         << " breeding_ranked="
         << (breeding ? breeding.value.ranked.size() : 0)
+        << " protected=" << protection_digest.protected_count
+        << " stable_protection=" << (stable_protection ? 1 : 0)
         << " preview_culls="
         << (classification
             ? classification.value.quality_cull_candidates.size()
@@ -124,6 +165,7 @@ int wmain(int argument_count, wchar_t** arguments) {
             : 0)
         << '\n';
     return validation.Valid() && stable_ids && stable_ranking &&
+        stable_protection &&
         breeding && classification &&
         classification.value.quality_cull_candidates.empty() ? 0 : 2;
 }

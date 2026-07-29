@@ -71,5 +71,11 @@
     "minimum_breeding_pool": 8,
     "minimum_general_reserve": 4,
     "never_cull_if_data_confidence_below": 0.85
+  },
+  "protection": {
+    "version": 1,
+    "sidecar_file": "protection.json",
+    "protect_unknown_native_state": true,
+    "require_stable_identity_for_sidecar": true
   }
 }

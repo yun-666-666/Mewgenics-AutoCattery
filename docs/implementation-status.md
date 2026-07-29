@@ -199,3 +199,32 @@ explicitly requests it.
 
 Stage 07 passed on 2026-07-29. Stage 08 may begin only when the player
 explicitly requests it.
+
+## Stage 08
+
+- Status: complete; protection policy and strict read-only sidecar boundary.
+- An independent, non-bypassable protection policy supports None, NoCull,
+  NoMove, NoCullOrMove, and FullyUnmanaged with conservative permission
+  intersection.
+- Game-native lock, favorite, and special-state fields remain Unknown because
+  the current save format/parser has not proved them. Unknown values fail
+  closed and forbid both culling and movement.
+- The MOD sidecar reader is schema-versioned and rejects missing/empty files,
+  malformed JSON, old/future schemas, duplicate CatIds, invalid levels,
+  invalid expiry values, unstable identity, and identity conflicts.
+- Sidecar writing, backup recovery, save mutation, room planning, movement,
+  and culling are not implemented.
+- The classifier now requires a protection-policy decision for every cat.
+  Whitelist/hard protection wins over blacklist preference; blacklist only
+  reorders candidates after all Stage 07 safety and minimum-pool gates pass.
+- Protection digest rechecks compare exact canonical entries, not only a hash,
+  and return cancel/repreview when protection changes.
+- Debug and Release `phase08_unit_tests` and `phase08_dll_load_smoke` pass.
+- The current-save read-only probe returns eight conservatively protected cats,
+  zero validation errors, a stable protection digest, zero preview culls, and
+  zero executable culls.
+
+## Stage gate
+
+Stage 08 passed on 2026-07-29. Stage 09 may begin only when the player
+explicitly requests it.
