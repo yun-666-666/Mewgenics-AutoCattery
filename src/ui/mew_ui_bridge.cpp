@@ -178,6 +178,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                     << " scene=" << (unsigned)opened.scene_valid
                     << " drawer=" << (unsigned)opened.drawer_unique
                     << " cat=" << (unsigned)opened.cat_valid
+                    << " target=" << (unsigned)opened.detail_target_valid
                     << " opened=" << (unsigned)opened.invoked
                     << " box_changed=0 expedition_selection_changed=0";
             Logger::Instance().Write(

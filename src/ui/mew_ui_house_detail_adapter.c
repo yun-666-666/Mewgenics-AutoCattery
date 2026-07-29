@@ -10,11 +10,15 @@
 #include "mew_ui_api.h"
 
 #define AC_RVA_HOUSE_OPEN_CAT_DETAILS 0x00EBEF0ULL
+#define AC_RVA_HOUSE_CAT_DETAIL_TARGET 0x00EFCB0ULL
+#define AC_RVA_HOUSE_CAT_RESOLVE_CALL_SITE 0x001FE082ULL
 #define AC_RVA_HOUSE_CLICK_CALL_SITE 0x001FE2D5ULL
 
+typedef void*(__fastcall* AcResolveHouseCatDetailTargetFn)(
+    void* house_cat);
 typedef void(__fastcall* AcOpenCatDetailsFn)(
-    void* house,
-    void* house_cat,
+    void* house_drawer,
+    void* cat_detail_target,
     uint8_t show_drawer);
 
 static int AcGetTypeName(void* component, MewNarrowString* output) {
@@ -55,6 +59,15 @@ static int AcSignaturesMatch(uint8_t* module_base) {
         0x40, 0x53, 0x48, 0x83, 0xEC, 0x40, 0x48, 0x8B, 0xD9,
         0x48, 0x85, 0xD2
     };
+    static const uint8_t resolver_signature[] = {
+        0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74, 0x24,
+        0x10, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8B, 0x71,
+        0x18
+    };
+    static const uint8_t resolver_call_site_signature[] = {
+        0x49, 0x8B, 0xCF, 0xE8, 0x26, 0x1C, 0xEF, 0xFF,
+        0x4C, 0x8B, 0xF8
+    };
     static const uint8_t call_site_signature[] = {
         0x41, 0xB0, 0x01, 0x49, 0x8B, 0xD7, 0x48, 0x8B,
         0xCF, 0xE8, 0x0D, 0xDC, 0xEE, 0xFF
@@ -64,6 +77,14 @@ static int AcSignaturesMatch(uint8_t* module_base) {
                    module_base + AC_RVA_HOUSE_OPEN_CAT_DETAILS,
                    function_signature,
                    sizeof(function_signature)) == 0 &&
+               memcmp(
+                   module_base + AC_RVA_HOUSE_CAT_DETAIL_TARGET,
+                   resolver_signature,
+                   sizeof(resolver_signature)) == 0 &&
+               memcmp(
+                   module_base + AC_RVA_HOUSE_CAT_RESOLVE_CALL_SITE,
+                   resolver_call_site_signature,
+                   sizeof(resolver_call_site_signature)) == 0 &&
                memcmp(
                    module_base + AC_RVA_HOUSE_CLICK_CALL_SITE,
                    call_site_signature,
@@ -109,6 +130,8 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
     AcMewHouseDetailResult result;
     uint8_t* module_base;
     void* drawer;
+    void* detail_target;
+    MewNarrowString detail_target_type;
     memset(&result, 0, sizeof(result));
     if (!scene_manager ||
         MewUI_IsSceneReadyForUITick(scene_manager) == 0 ||
@@ -135,10 +158,24 @@ AcMewHouseDetailResult AcMewOpenHouseCatDetails(
     }
     result.cat_valid = 1U;
     __try {
+        AcResolveHouseCatDetailTargetFn resolve_target =
+            (AcResolveHouseCatDetailTargetFn)(
+                module_base + AC_RVA_HOUSE_CAT_DETAIL_TARGET);
+        detail_target = resolve_target(house_cat_component);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return result;
+    }
+    if (!detail_target ||
+        !AcGetTypeName(detail_target, &detail_target_type)) {
+        return result;
+    }
+    result.detail_target_valid = 1U;
+    __try {
         AcOpenCatDetailsFn open_details =
             (AcOpenCatDetailsFn)(
                 module_base + AC_RVA_HOUSE_OPEN_CAT_DETAILS);
-        open_details(drawer, house_cat_component, 1U);
+        open_details(drawer, detail_target, 1U);
         result.invoked = 1U;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {

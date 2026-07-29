@@ -395,7 +395,15 @@ by the Unsupported Stage 10 adapter.
   but threw inside the native call (`signature=scene=house=cat=1`,
   `opened=0`). Reinspection of the native call site proved its first argument
   is the HouseDrawerUI returned by the click manager, not the House component.
-  The adapter now passes the unique type-checked HouseDrawerUI.
+  The next live run verified the unique drawer but still returned
+  `drawer=cat=1 opened=0`. Following the native path farther back proved it
+  converts HouseCat through RVA `0xEFCB0` before passing the result as the
+  details function's second argument. The adapter now reproduces that exact
+  conversion and validates its function/call-site signatures and result type.
+- The latest screenshot also proved the centered HTML text field itself was
+  placed left of the sign. Its generated transform is now calculated from the
+  real SWF bounds: sign/text centers are 1124.35/1124.16 and text width 107.33
+  fits inside sign width 114.89.
 - This player-triggered action changes only the House detail focus. It has no
   adventure-box, expedition-team, confirmation, or save-write API.
 - The first click recomputes with the Stage 6 independent-cat scorer after
@@ -408,9 +416,8 @@ by the Unsupported Stage 10 adapter.
 
 ## Stage gate
 
-Stage 12 awaits player-visible validation of the corrected frozen-frame rows
-and HouseDrawerUI detail call: rows must appear only after Mark without
-flashing, wheel scrolling must reach later ranks, each row must open the
-matching cat details, Clear/scene exit must remove artwork and text, and the
-adventure box and expedition team must remain unchanged. Stage 13 must not
-begin until that passes.
+Stage 12 has player confirmation that frozen-frame visibility works. It now
+awaits player-visible validation of the native HouseCat detail-target
+conversion and centered text: each row must open the matching cat details,
+labels must sit inside the sign, and the adventure box and expedition team
+must remain unchanged. Stage 13 must not begin until that passes.

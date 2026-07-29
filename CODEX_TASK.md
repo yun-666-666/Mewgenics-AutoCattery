@@ -32,6 +32,11 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   两帧推荐牌被 `goto-and-play` 持续循环而闪烁，Mark 前即出现且 Clear
   后不能保持隐藏；`AC12109` 证明点击已到达、签名/scene/目标猫均有效，
   但 `opened=0`，旧适配器把 `House` 错当成原生详情函数第一个参数。
+- 第四版实机确认牌子只在 Mark 后、Clear 前静态显示，停帧/显隐已通过；
+  但新日志仍为 `drawer=1 cat=1 opened=0`。重新沿原生调用点向前确认，
+  游戏还会先调用 `0xEFCB0`，把 HouseCat 转换为内部详情目标，再把转换
+  结果作为详情函数第二参数；第四版遗漏了该转换。截图同时证明文字框
+  中心比木牌中心偏左约 41 个 SWF 单位且宽于木牌。
 - 2026-07-29 实机日志证明探针每次均在 House 完成并输出 `AC12102`：
   组件从 606 变为 608 后保持不变；后续装入/移出操作没有产生可区分的
   匿名汇总，因此仍不能把这两个组件认定为猫卡或 CatId 边界。
@@ -89,9 +94,13 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
   主动详情点击，`WM_MOUSEWHEEL` 产生逐项滚动；消息始终继续传给游戏，
   不依赖失效的原生推荐 Button hover/click，也不吞掉游戏输入。
 - 当前 EXE 本地反汇编验证了 HouseCatClickManager 的原生点击路径：
-  先取得唯一 `HouseDrawerUI`，再以 `HouseDrawerUI`、`HouseCat` 和
-  `show_drawer=1` 进入详情函数。旧版误传 `House` 导致 SEH fail closed；
-  当前 build-specific adapter 已改为验证并传递唯一 `HouseDrawerUI`。
+  先取得唯一 `HouseDrawerUI`，再以 HouseCat 调用 `0xEFCB0` 取得内部
+  详情目标，最终以 `HouseDrawerUI`、详情目标和 `show_drawer=1` 进入
+  详情函数。当前 adapter 验证转换函数、转换调用点、详情函数、详情
+  调用点四段当前 EXE 签名，并验证转换结果有有效组件类型后才调用。
+- 推荐文字沿用 `align=center` 的私有 text field；按真实边界计算后，
+  scale 从 0.32 改为 0.25，平移到 `(1071, 152 + row*42)`。木牌中心
+  1124.35、文字框中心 1124.16，文字框宽 107.33，小于木牌宽 114.89。
 - 详情点击是玩家主动操作，只改变 House 当前查看/绿色焦点猫；不调用
   冒险盒、出征队伍、确认或存档接口。
 - `Probe Required` 保持两秒后变为 `Clear Recommendations`；再次点击
@@ -100,7 +109,7 @@ CatId→猫卡证据不足时，只运行匿名 UI mapping probe。
 
 ## Stage gate
 
-`StaticRowsStopAndDrawerValidationRequired; frozen rows and corrected drawer adapter deployed`
+`DetailTargetAndTextValidationRequired; native detail conversion and centered text deployed`
 
 Release DLL 与 UI 数据 MOD 已部署到真实目录。Stage 12 等待玩家确认
 四行只在 Mark 后静态显示、Clear 后完整隐藏、滚轮浏览、点击打开正确猫

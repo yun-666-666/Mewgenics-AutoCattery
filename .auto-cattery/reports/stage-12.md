@@ -1,5 +1,5 @@
 阶段：12
-状态：StaticRowsStopAndDrawerValidationRequired；停帧与详情待实机验收
+状态：DetailTargetAndTextValidationRequired；详情转换与文字待实机验收
 
 实际能力：
 - 玩家点击 House 的 `Mark Combat Cats` 后才读取只读快照、验证当前
@@ -21,6 +21,15 @@
 - 同次 `AC12109` 显示 `signature=scene=house=cat=1 opened=0`：点击和
   目标猫验证成功，失败发生在原生详情调用。重新反汇编调用点确认第一
   参数是 `HouseDrawerUI`，不是旧适配器传入的 `House`。
+- 第四版实机确认四行只在 Mark 后、Clear 前静态显示，停帧与显隐问题
+  已解决。新日志每次点击均正确记录 rank，且
+  `signature=scene=drawer=cat=1`，但仍为 `opened=0`。
+- 继续沿原生调用点回溯确认：详情函数的第二参数也不是 HouseCat 组件；
+  游戏先用 HouseCat 调用 RVA `0xEFCB0`，再把返回的内部详情目标传入。
+  当前第五版复用相同转换，并新增转换函数/调用点签名和结果类型验证。
+- 同次截图证明文字框偏左且宽于木牌。当前按 SWF 实际 bounds 计算：
+  木牌/文字框中心为 1124.35/1124.16，宽为 114.89/107.33；text field
+  使用 `(1071, 152 + row*42, scale=0.25)`，保持 HTML 居中对齐。
 - 当前修复版不再创建推荐 Button 组件，只显示 4 个紧凑静态行：
   `#排名 猫名 分数 ?`。每行是私有两帧 SWF 牌子和独立文字；frame 0
   为空，frame 1 只保留木牌底图，垃圾桶图标、原 label、完整绳子
@@ -41,14 +50,16 @@
 
 原生详情适配证据与安全：
 - 当前 EXE 本地反汇编确认 HouseCatClickManager 的玩家点击路径先取得
-  唯一 `HouseDrawerUI`，再向详情函数传入 `HouseDrawerUI`、HouseCat
-  组件和 `show_drawer=1`。
+  唯一 `HouseDrawerUI`，再把 HouseCat 转为内部详情目标，最后向详情
+  函数传入 `HouseDrawerUI`、内部详情目标和 `show_drawer=1`。
 - build-specific adapter 调用前验证：
   1. 当前 House scene ready 且未销毁；
   2. scene generation 与生成推荐时一致；
-  3. 当前 EXE 详情函数及原生调用点两段指令签名一致；
+  3. 当前 EXE 转换函数、转换调用点、详情函数、详情调用点四段指令
+     签名一致；
   4. scene 中 `HouseDrawerUI` 组件唯一；
-  5. 目标组件仍归属该 scene 且类型仍为 HouseCat。
+  5. 目标组件仍归属该 scene 且类型仍为 HouseCat；
+  6. 转换结果非空且能读取有效组件类型。
 - 任一验证失败均不调用，并记录匿名 `AC12109` 技术结果。
 - 该玩家主动调用只改变 House 当前详情焦点；不调用冒险盒、出征队伍、
   确认、休息、日期推进、导航或存档写入接口。
@@ -63,7 +74,6 @@
 - `assets/swfs/auto_cattery_house.swf`
 - `src/ui/mew_ui_bridge.cpp`
 - `src/ui/mew_ui_house_detail_adapter.c/.h`
-- `src/ui/mew_ui_recommendation_marker_view.cpp`
 - `tools/build_house_ui_asset.py`
 
 验证：
@@ -76,11 +86,12 @@
 - 四个文字节点共同引用私有 character 148，初始 HTML 为空，不会在
   attach 前闪现 source `Test`。
 - Debug build：通过。
-- Debug `phase12_unit_tests`：通过（5.48 秒）。
-- Debug `phase12_dll_load_smoke`：通过（0.07 秒）。
+- Debug `phase12_unit_tests`：通过（5.96 秒）。
+- Debug `phase12_dll_load_smoke`：通过（0.09 秒）。
 - Release build：通过。
-- Release `phase12_unit_tests`：通过（0.48 秒）。
-- Release `phase12_dll_load_smoke`：通过（0.06 秒）。
+- Release `phase12_unit_tests`：通过（0.57 秒）。
+- Release `phase12_dll_load_smoke`：通过（0.07 秒）。
+- SWF 几何检查：通过；木牌/文字框中心差 0.19，文字框宽小于木牌宽。
 - 控制器测试覆盖 stale generation、两秒状态、最多 8 条数据、有效/
   越界项点击、详情回调 generation/rank、view poll、清除和不重复评分。
 - Release DLL 已部署：
@@ -88,17 +99,17 @@
 - Mewtator UI 数据 MOD 已部署并启用：
   `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
 - 构建与安装 DLL 均为 724480 bytes，SHA-256 均为
-  `1EB58231EDC7D4EAE8BD5182BA6EF45E6D962510066FD373978A8FB190871EC2`。
+  `27CBBFAEAFC54CA266C0744849EF67BC256D6BA5EBA5818FCE2DA5BA2FB20BEE`。
 - 源与安装 SWF 均为 725591 bytes，SHA-256 均为
-  `92F52D60D6554C7FDE0404972AAC21747F93723CFA076AC6FEEB30FB0251ADC1`。
+  `2F0B2A21AA0AA5F236E22792032BEA8A2756D816F0D4388237F9EA2A79C3E40E`。
 - 用户明确要求需要时允许联网；搜索了公开 Mewgenics/MOD 信息，但未
   找到可直接采用的 CatId→详情原始实现。实际接口证据来自当前本地 EXE
   与实机组件/日志。
 
 玩家最终验收：
 1. 通过 Mewtator 启动游戏，进入 House，点击 `Mark Combat Cats`。
-2. Mark 前确认没有 `Clean Up!`、空推荐牌或放大/缩小动画；Mark 后
-   确认只出现 4 个紧凑、无垃圾桶图标的静态木牌。
+2. 已确认 Mark 前无推荐牌、Mark 后静态显示、Clear 后完整隐藏；复测时
+   只需确认该行为没有回归。
 3. 将鼠标停在任一推荐行上向下滚轮，确认可看到第 5～8 名；向上滚轮
    可回到第 1～4 名，且列表不遮挡或误触原生“出发”。
 4. 点击例如第 3 名，确认左侧详情抽屉显示的名字与第 3 名完全一致，
@@ -110,11 +121,11 @@
    House 后也无残留。
 
 剩余事项：
-- 第三版实机已证明滚轮/点击 rank 到达，但停帧、Clear 隐藏和详情打开
-  失败；当前第四版修复仍需玩家可见验收。通过前 Stage 12 不标记
-  completed，Stage 13 继续 blocked。
-- 若仍有闪烁、残留、详情猫不匹配或 `AC12109 opened=0`，继续按实机
-  截图与日志做最小调整。
+- 第四版实机已确认停帧/Clear 隐藏通过，且点击 rank 正确到达；当前
+  第五版的内部详情目标转换与文字居中仍需玩家验收。通过前 Stage 12
+  不标记 completed，Stage 13 继续 blocked。
+- 若仍为 `AC12109 target=0/opened=0` 或详情猫不匹配，继续按新日志做
+  最小调整。
 
 本地 commit：本次实现提交见最终回复（报告与代码同一提交）
 是否 push：否

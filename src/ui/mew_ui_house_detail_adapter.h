@@ -9,6 +9,7 @@ typedef struct AcMewHouseDetailResult {
     unsigned char scene_valid;
     unsigned char drawer_unique;
     unsigned char cat_valid;
+    unsigned char detail_target_valid;
     unsigned char invoked;
 } AcMewHouseDetailResult;
 

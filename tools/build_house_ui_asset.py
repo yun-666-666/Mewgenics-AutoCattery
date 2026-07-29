@@ -57,7 +57,7 @@ RECOMMENDATION_ITEM_TRANSFORMS = tuple(
     for index in range(RECOMMENDATION_ITEM_COUNT)
 )
 RECOMMENDATION_TEXT_TRANSFORMS = tuple(
-    (1015.0, 162.0 + index * 42.0, 0.32)
+    (1071.0, 152.0 + index * 42.0, 0.25)
     for index in range(RECOMMENDATION_ITEM_COUNT)
 )
 

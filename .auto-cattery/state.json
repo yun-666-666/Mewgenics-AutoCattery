@@ -52,10 +52,10 @@
       "stage_12_blocked": false
     },
     "12": {
-      "status": "static_rows_stop_and_drawer_validation_required",
+      "status": "detail_target_and_text_validation_required",
       "commit": null,
       "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "awaiting_frozen_row_and_drawer_validation",
+      "real_highlight_status": "awaiting_native_detail_target_and_centered_text_validation",
       "stage_13_blocked": true
     },
     "13": {
@@ -75,5 +75,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-29T22:26:26+08:00"
+  "updated_at": "2026-07-29T22:40:32+08:00"
 }
