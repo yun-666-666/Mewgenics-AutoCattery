@@ -67,12 +67,17 @@ add_library(auto_cattery_core STATIC
     src/save_safety/backup_catalog.cpp
     src/save_safety/backup_manifest_store.cpp
     src/save_safety/game_process_probe.cpp
+    src/save_safety/game_build_gate.cpp
     src/save_safety/restore_service.cpp
     src/save_safety/safe_path.cpp
     src/save_safety/save_stability.cpp
+    src/save_safety/single_cat_move_test_service.cpp
+    src/save_safety/test_copy_house_state_store.cpp
+    src/save_safety/test_copy_guard.cpp
     src/snapshot/cat_blob_parser.cpp
     src/snapshot/domain.cpp
     src/snapshot/house_state_parser.cpp
+    src/snapshot/house_state_writer.cpp
     src/snapshot/lz4_block.cpp
     src/snapshot/save_database.cpp
     src/snapshot/save_locator.cpp
@@ -165,9 +170,25 @@ autocattery_enable_warnings(AutoCatteryRestore)
 set_target_properties(AutoCatteryRestore PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out"
 )
+
+add_executable(AutoCatterySaveLab tools/save_lab_main.cpp)
+target_link_libraries(AutoCatterySaveLab PRIVATE auto_cattery_core)
+target_compile_features(AutoCatterySaveLab PRIVATE cxx_std_20)
+autocattery_enable_warnings(AutoCatterySaveLab)
+set_target_properties(AutoCatterySaveLab PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out"
+)
+if(MSVC)
+    set_target_properties(AutoCatterySaveLab PROPERTIES
+        LINK_FLAGS "/SUBSYSTEM:CONSOLE"
+    )
+endif()
 foreach(config Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER "${config}" config_upper)
     set_target_properties(AutoCatteryRestore PROPERTIES
+        "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}/out/${config}"
+    )
+    set_target_properties(AutoCatterySaveLab PROPERTIES
         "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}/out/${config}"
     )
 endforeach()
@@ -202,7 +223,9 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/atomic_file_replace_tests.cpp
         tests/backup_manifest_tests.cpp
         tests/restore_service_tests.cpp
+        tests/single_cat_move_test_service_tests.cpp
         tests/file_hash_tests.cpp
+        tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
         tests/organize_workflow_facade_tests.cpp
@@ -220,12 +243,15 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/win_sqlite_api_tests.cpp
         tests/house_button_controller_tests.cpp
         tests/house_state_parser_tests.cpp
+        tests/house_state_writer_tests.cpp
         tests/recommendation_marker_controller_tests.cpp
         tests/save_database_tests.cpp
         tests/save_locator_tests.cpp
         tests/save_stability_tests.cpp
         tests/scene_context_tests.cpp
         tests/settings_file_editor_tests.cpp
+        tests/test_copy_guard_tests.cpp
+        tests/test_copy_house_state_store_tests.cpp
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
@@ -258,5 +284,9 @@ if(AUTOCATTERY_BUILD_TESTS)
     add_test(
         NAME phase14_restore_cli_smoke
         COMMAND AutoCatteryRestore --list --backup-root ${CMAKE_BINARY_DIR}/empty-backup-catalog
+    )
+    add_test(
+        NAME phase14_save_lab_cli_smoke
+        COMMAND AutoCatterySaveLab --help
     )
 endif()

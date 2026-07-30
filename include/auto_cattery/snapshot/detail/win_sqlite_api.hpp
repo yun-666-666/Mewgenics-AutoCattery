@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include <filesystem>
+
 namespace autocattery::snapshot::detail {
 
 struct sqlite3;
@@ -22,6 +24,12 @@ struct WinSqliteApi {
     using Exec =
         int(__cdecl*)(sqlite3*, const char*, void*, void*, char**);
     using BusyTimeout = int(__cdecl*)(sqlite3*, int);
+    using Destructor = void(__cdecl*)(void*);
+    using BindBlob = int(__cdecl*)(
+        sqlite3_stmt*, int, const void*, int, Destructor);
+    using Changes = int(__cdecl*)(sqlite3*);
+    using LibraryVersionNumber = int(__cdecl*)();
+    using Initialize = int(__cdecl*)();
 
     HMODULE module{};
     OpenV2 open_v2{};
@@ -36,8 +44,15 @@ struct WinSqliteApi {
     ErrorMessage error_message{};
     Exec exec{};
     BusyTimeout busy_timeout{};
+    BindBlob bind_blob{};
+    Changes changes{};
+    LibraryVersionNumber library_version_number{};
+    Initialize initialize{};
 
     [[nodiscard]] bool Available() const noexcept;
+    [[nodiscard]] int VersionNumber() const noexcept;
+    static WinSqliteApi LoadFrom(
+        const std::filesystem::path& library) noexcept;
     static const WinSqliteApi& Instance() noexcept;
 };
 

@@ -20,20 +20,6 @@ bool HasReparsePoint(const std::filesystem::path& path) {
     return false;
 }
 
-bool IsWithin(
-    const std::filesystem::path& root,
-    const std::filesystem::path& candidate) {
-    auto expected = root.begin();
-    auto actual = candidate.begin();
-    for (; expected != root.end() && actual != candidate.end();
-         ++expected, ++actual) {
-        if (_wcsicmp(expected->c_str(), actual->c_str()) != 0) {
-            return false;
-        }
-    }
-    return expected == root.end();
-}
-
 }  // namespace
 
 bool IsSafeOperationId(std::string_view value) noexcept {
@@ -44,6 +30,20 @@ bool IsSafeOperationId(std::string_view value) noexcept {
                 (byte >= '0' && byte <= '9') ||
                 byte == '-' || byte == '_';
         });
+}
+
+bool IsSameOrWithin(
+    const std::filesystem::path& root,
+    const std::filesystem::path& candidate) noexcept {
+    auto expected = root.begin();
+    auto actual = candidate.begin();
+    for (; expected != root.end() && actual != candidate.end();
+         ++expected, ++actual) {
+        if (_wcsicmp(expected->c_str(), actual->c_str()) != 0) {
+            return false;
+        }
+    }
+    return expected == root.end();
 }
 
 Result<std::filesystem::path> ResolveContainedExisting(
@@ -69,10 +69,39 @@ Result<std::filesystem::path> ResolveContainedExisting(
     const auto candidate = std::filesystem::weakly_canonical(
         canonical_root / std::string(child_name), error);
     if (error || !std::filesystem::is_directory(candidate, error) || error ||
-        HasReparsePoint(candidate) || !IsWithin(canonical_root, candidate)) {
+        HasReparsePoint(candidate) ||
+        !IsSameOrWithin(canonical_root, candidate)) {
         return {{}, ErrorCode::WriteConflict, "backup directory is unavailable or unsafe"};
     }
     return {candidate};
+}
+
+Result<std::filesystem::path> ResolveContainedExistingFile(
+    const std::filesystem::path& root,
+    const std::filesystem::path& candidate) {
+    std::error_code error;
+    if (root.empty() || candidate.empty() || HasReparsePoint(root) ||
+        HasReparsePoint(candidate)) {
+        return {{}, ErrorCode::WriteConflict,
+            "test-copy path is unavailable or unsafe"};
+    }
+    const auto canonical_root = std::filesystem::weakly_canonical(root, error);
+    if (error || !std::filesystem::is_directory(canonical_root, error) ||
+        error || HasReparsePoint(canonical_root)) {
+        return {{}, ErrorCode::WriteConflict,
+            "test-copy root is unavailable or unsafe"};
+    }
+    const auto canonical_candidate = std::filesystem::weakly_canonical(
+        candidate.is_absolute() ? candidate : canonical_root / candidate,
+        error);
+    if (error ||
+        !std::filesystem::is_regular_file(canonical_candidate, error) ||
+        error || HasReparsePoint(canonical_candidate) ||
+        !IsSameOrWithin(canonical_root, canonical_candidate)) {
+        return {{}, ErrorCode::WriteConflict,
+            "test save must be a contained regular file"};
+    }
+    return {canonical_candidate};
 }
 
 }  // namespace autocattery::save_safety
