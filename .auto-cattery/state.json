@@ -69,11 +69,12 @@
       "stage_14_blocked": false
     },
     "14": {
-      "status": "completed_test_copy_write_preview_only",
-      "commit": "00c061b0298cc244a4013ad9fbc4852bbf994f9b",
+      "status": "completed_player_validated_test_copy_write_preview_only",
+      "commit": "3d296df0e7e28138e157d5b2e6877b82b3f49e77",
+      "safety_commit": "00c061b0298cc244a4013ad9fbc4852bbf994f9b",
       "capability": "VerifiedOfflineBackupAtomicRestoreAndCurrentBuildGatedSingleCatTestCopyMoveReadbackUndo",
       "real_write_status": "production_adapter_unsupported;batch_assignment_disabled;real_cull_disabled",
-      "game_validation_status": "current_build_copied_save_move_readback_restore_passed;player_disposable_slot_visual_validation_pending"
+      "game_validation_status": "current_build_copied_save_move_readback_restore_passed;player_disposable_slot_move_and_restore_visual_validation_passed"
     },
     "15": {
       "status": "pending",
@@ -84,5 +85,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-30T17:12:16+08:00"
+  "updated_at": "2026-07-30T17:55:30+08:00"
 }
