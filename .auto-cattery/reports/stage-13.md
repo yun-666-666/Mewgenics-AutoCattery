@@ -1,6 +1,5 @@
 阶段：13
-状态：实现、自动化验证和 Release 部署完成；等待玩家完成跨存档实机复验，
-Stage 14 暂不开始。
+状态：完成；跨存档推荐修复已通过玩家实机复验，可以开始 Stage 14。
 
 本阶段实际能力：
 - 配置 schema v2、编译期安全默认值、发布默认配置、用户覆盖和会话覆盖保持
@@ -86,12 +85,15 @@ Stage 14 暂不开始。
 - `git diff --check`：通过，仅有 Git 的 LF/CRLF 工作区提示。
 
 游戏内验证状态：
-- 玩家此前已经验证 8 猫存档的推荐按钮可用，并提供了切换到 25 猫存档后
-  失败的真实日志证据。
-- 新 DLL 已部署，但修复后的跨存档路径必须由玩家在当前游戏进程中复验；
-  自动化测试不能替代存档切换后的真实对象重新分配。
-- 在该复验通过前，Stage 13 状态为 `awaiting_player_validation`，Stage 14
-  保持阻塞。
+- 玩家按要求完成 8 猫存档与 25 猫存档之间的切换复验，确认两边的
+  `Mark Combat Cats` 和推荐列表均正常，并确认已删除的游戏内设置入口不再
+  响应。
+- 2026-07-30 14:34:52 的修复后真实日志记录 25 猫存档：
+  `house_cats=25 requested_ids=25 layouts=2 offset=128 width=8 matched=25`
+  且 `roots=25 coverage_ready=1 selected_exact=1 stable_bijection=1`。
+- 同次日志记录 `marked=10`、`mapped_house_cats=25/25`、
+  `expedition_selection_changed=0`，证明推荐显示成功且没有自动选择出征猫。
+- 玩家证据与运行日志一致，Stage 13 验收完成，Stage 14 不再阻塞。
 
 已知风险：
 - 当前日志中的游戏 build identity 仍显示 `unknown`。本次只沿用已经由同一
@@ -109,7 +111,7 @@ Stage 14 暂不开始。
 外部编辑器收尾 commit：
 `9cef537e54cc2f121616640bfb8269e1de3616db`
 
-本次兼容性修复 commit：本报告所在的本地提交；确切哈希记录在本次任务结果，
-避免提交内容自引用导致哈希变化。
+本次兼容性修复 commit：
+`69b04e0a2d240a934ee07347764581fc3841cfb8`
 
 是否 push：否
