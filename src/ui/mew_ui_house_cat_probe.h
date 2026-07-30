@@ -32,6 +32,8 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
     AcMewHouseCatMatch* matches,
     size_t match_capacity);
 
+size_t AcMewCountHouseCats(void* scene_manager);
+
 #ifdef __cplusplus
 }
 #endif

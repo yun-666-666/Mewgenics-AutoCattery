@@ -8,4 +8,8 @@ namespace autocattery::room_planning {
 BuildConservativeRoomCapabilities(
     const snapshot::HouseSnapshot& snapshot);
 
+[[nodiscard]] std::vector<RoomCapability>
+BuildCurrentBuildMoveRoomCapabilities(
+    const snapshot::HouseSnapshot& snapshot);
+
 }  // namespace autocattery::room_planning

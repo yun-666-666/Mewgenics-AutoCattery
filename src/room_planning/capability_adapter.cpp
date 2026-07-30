@@ -20,4 +20,27 @@ std::vector<RoomCapability> BuildConservativeRoomCapabilities(
     return capabilities;
 }
 
+std::vector<RoomCapability> BuildCurrentBuildMoveRoomCapabilities(
+    const snapshot::HouseSnapshot& snapshot) {
+    auto capabilities = BuildConservativeRoomCapabilities(snapshot);
+    for (auto& capability : capabilities) {
+        if (capability.room_id == "Floor1_Large" ||
+            capability.room_id == "Floor1_Small" ||
+            capability.room_id == "Floor2_Large") {
+            capability.confirmed_role = RoomRole::General;
+        } else if (capability.room_id == "Attic") {
+            capability.confirmed_role = RoomRole::CombatStaging;
+        } else {
+            continue;
+        }
+        capability.special_room = CapabilityState::No;
+        capability.player_locked = CapabilityState::No;
+        capability.forced_residents_present = CapabilityState::No;
+        capability.can_receive_residents = CapabilityState::Yes;
+        capability.can_release_residents = CapabilityState::Yes;
+        capability.native_capacity_gate = CapabilityState::Yes;
+    }
+    return capabilities;
+}
+
 }  // namespace autocattery::room_planning

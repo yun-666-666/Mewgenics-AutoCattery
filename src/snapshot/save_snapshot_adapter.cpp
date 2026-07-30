@@ -67,11 +67,7 @@ SaveSnapshotAdapter::CaptureHouseSnapshotCandidates(
 
     std::vector<HouseSnapshot> snapshots;
     std::string first_failure;
-    const auto active_profile = save_paths.front().parent_path();
     for (const auto& save_path : save_paths) {
-        if (save_path.parent_path() != active_profile) {
-            continue;
-        }
         auto captured = CaptureHouseSnapshotFromPath(
             save_path,
             scene_generation);

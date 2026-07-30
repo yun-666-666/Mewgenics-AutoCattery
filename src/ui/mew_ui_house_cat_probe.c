@@ -13,6 +13,7 @@
 
 #define AC_SCAN_BEGIN 0x40U
 #define AC_SCAN_LIMIT 0x800U
+#define AC_VERIFIED_IDENTITY_OFFSET 0x80U
 static int AcGetTypeName(void* component, MewNarrowString* output) {
     MewComponent* typed;
     if (!component || !output) {
@@ -161,6 +162,15 @@ static size_t AcFindHouseCats(
         return 0U;
     }
 }
+
+size_t AcMewCountHouseCats(void* scene_manager) {
+    void** components;
+    const size_t count =
+        AcFindHouseCats(scene_manager, &components);
+    free(components);
+    return count;
+}
+
 static int AcCatIndex(
     const int64_t* cat_ids,
     size_t cat_count,
@@ -248,6 +258,32 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
     if (!first_mapping || !mapping || !seen) {
         goto cleanup;
     }
+    /*
+     * The current supported executable was verified independently to store
+     * the persisted CatId at HouseCat+0x80. Prefer that exact layout before
+     * the diagnostic scan: large saves can contain the same integers in
+     * unrelated fields, which made the all-layout consistency check reject
+     * an otherwise exact mapping.
+     */
+    if (AcEvaluateLayout(
+            components,
+            component_count,
+            cat_ids,
+            cat_id_count,
+            AC_VERIFIED_IDENTITY_OFFSET,
+            8U,
+            mapping,
+            seen)) {
+        result.valid_layout_count = 1U;
+        result.first_identity_offset =
+            AC_VERIFIED_IDENTITY_OFFSET;
+        result.first_identity_width = 8U;
+        memcpy(
+            first_mapping,
+            mapping,
+            cat_id_count * sizeof(*first_mapping));
+        goto layout_complete;
+    }
     for (offset = AC_SCAN_BEGIN;
          offset + 8U <= AC_SCAN_LIMIT;
          offset += 4U) {
@@ -288,6 +324,7 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
         }
     }
 
+layout_complete:
     result.stable_bijection =
         result.valid_layout_count > 0U &&
         result.consistent_mapping;

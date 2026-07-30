@@ -41,6 +41,7 @@ struct RoomCapability {
     CapabilityState forced_residents_present{CapabilityState::Unknown};
     CapabilityState can_receive_residents{CapabilityState::Unknown};
     CapabilityState can_release_residents{CapabilityState::Unknown};
+    CapabilityState native_capacity_gate{CapabilityState::Unknown};
 };
 
 struct RoomPlanningConfig {

@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstring>
 
 #include "auto_cattery/snapshot/detail/lz4_block.hpp"
@@ -142,6 +144,22 @@ bool ReadClassId(
     return false;
 }
 
+CatSex SexFromVoiceId(std::string voice_id) {
+    std::ranges::transform(
+        voice_id,
+        voice_id.begin(),
+        [](unsigned char value) {
+            return static_cast<char>(std::tolower(value));
+        });
+    if (voice_id.starts_with("female")) {
+        return CatSex::Female;
+    }
+    if (voice_id.starts_with("male")) {
+        return CatSex::Male;
+    }
+    return CatSex::Unknown;
+}
+
 }  // namespace
 
 Result<CatSnapshot> ParseCatBlob(
@@ -184,6 +202,7 @@ Result<CatSnapshot> ParseCatBlob(
         kStatBlockSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat voice/stat block is invalid"};
     }
+    cat.sex = SexFromVoiceId(cat.voice_id);
 
     const auto stat_start = cursor;
     if (!ReadStats(bytes, stat_start, kStatSeedSize, cat.genetic_stats) ||

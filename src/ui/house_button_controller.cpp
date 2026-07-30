@@ -9,17 +9,19 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kClickDebounce = std::chrono::milliseconds(500);
-constexpr auto kStatusHold = std::chrono::seconds(2);
+constexpr auto kFailureHold = std::chrono::milliseconds(500);
 
 }  // namespace
 
 HouseButtonController::HouseButtonController(
     HouseButtonView& view,
     workflow::OrganizeWorkflowFacade& workflow,
-    Clock clock)
+    Clock clock,
+    BeforePreview before_preview)
     : view_(view),
       workflow_(workflow),
-      clock_(std::move(clock)) {
+      clock_(std::move(clock)),
+      before_preview_(std::move(before_preview)) {
     if (!clock_) {
         clock_ = [] {
             return std::chrono::steady_clock::now();
@@ -49,6 +51,7 @@ Result<void> HouseButtonController::Attach(
     }
 
     scene_generation_ = context.scene_generation;
+    awaiting_execution_ = false;
     ready_after_ = {};
     SetState(OrganizeButtonState::Ready);
     Logger::Instance().Write(
@@ -68,6 +71,7 @@ void HouseButtonController::Detach() noexcept {
     view_.Detach();
     state_ = OrganizeButtonState::Hidden;
     scene_generation_ = 0;
+    awaiting_execution_ = false;
     last_click_ = {};
     ready_after_ = {};
     Logger::Instance().Write(
@@ -101,11 +105,37 @@ void HouseButtonController::HandleClick() {
     }
     last_click_ = now;
 
+    if (awaiting_execution_) {
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "HouseButton",
+            "AC3104",
+            "Move-only execution confirmed; applying the preview through "
+            "the native House room path.");
+        SetState(OrganizeButtonState::Running);
+        const auto execution = workflow_.RequestExecution();
+        awaiting_execution_ = false;
+        SetState(
+            execution ? OrganizeButtonState::Completed
+                      : OrganizeButtonState::Failed,
+            execution.message);
+        if (execution) {
+            last_click_ = {};
+            SetState(OrganizeButtonState::Ready, execution.message);
+        } else {
+            ready_after_ = clock_() + kFailureHold;
+        }
+        return;
+    }
+
     Logger::Instance().Write(
         LogLevel::Info,
         "HouseButton",
         "AC3102",
         "Auto-organize preview clicked; capturing a read-only snapshot.");
+    if (before_preview_) {
+        before_preview_();
+    }
     SetState(OrganizeButtonState::Running);
     const auto generation = scene_generation_;
     preview_generation_ = generation;
@@ -130,7 +160,17 @@ void HouseButtonController::Poll() {
             preview ? OrganizeButtonState::Completed
                     : OrganizeButtonState::Failed,
             preview.message);
-        ready_after_ = clock_() + kStatusHold;
+        awaiting_execution_ =
+            preview &&
+            workflow_.CurrentExecutionAvailability() !=
+                workflow::WorkflowCapability::PreviewOnly;
+        if (awaiting_execution_) {
+            last_click_ = {};
+            ready_after_ = {};
+            SetState(OrganizeButtonState::Ready, preview.message);
+        } else {
+            ready_after_ = clock_() + kFailureHold;
+        }
     }
 
     if (ready_after_.time_since_epoch().count() != 0 &&

@@ -1,102 +1,112 @@
-阶段：14
-状态：存档安全、离线恢复和当前 build 单猫测试槽移动/读回/恢复已通过玩家实机验证；真实 MoveCat adapter 仍 Unsupported，工作流保持 PreviewOnly
+# Stage 14 当前报告
 
-本阶段实现：
-- 复用 Stage 10 的 `BackupService`、journal、恢复包和事务边界。备份包含稳定
-  窗口、占用检查、WAL/SHM 拒绝、流式 SHA-256、大小校验、脱敏来源 identity、
-  manifest、verification.txt 和 staging 目录原子发布。
-- 同卷临时文件验证与 `ReplaceFileW` 原子替换；恢复前确认游戏未运行并再次
-  备份当前目标，恢复后独立校验大小/SHA-256，失败时自动回退预恢复备份。
-- 不控制、删除、枚举或改写 Steam Cloud 文件。单猫直接写入只作用于游戏目录
-  和玩家存档目录之外的 `.sav` 测试副本；恢复服务只处理玩家显式提供的本地
-  `.sav`，要求游戏关闭并在替换前再次备份当前目标。
-- 新增当前 build 精确门：`Mewgenics.exe` 21,981,184 bytes，SHA-256
+更新日期：2026-07-31
+
+状态：离线备份/恢复、复制存档写入验证和当前 build 原生 MoveOnly 自动分房均已
+通过玩家实机验证；真实淘汰仍未实现。
+
+## 离线存档安全
+
+- 复用 backup、journal、恢复包和事务边界。
+- 备份执行稳定窗口、占用检查、WAL/SHM 拒绝、SHA-256、大小和 manifest
+  校验。
+- 同卷临时文件写入后通过 `ReplaceFileW` 原子替换。
+- 恢复要求游戏关闭，并在覆盖前再次备份当前目标。
+- 恢复后独立验证文件大小、SHA-256 和存档结构。
+- 不控制或改写 Steam Cloud 文件。
+- `AutoCatterySaveLab.exe` 支持隔离复制存档的单猫移动、读回和恢复验证。
+
+## 当前 build 精确门
+
+- `Mewgenics.exe` 大小：`21,981,184` bytes。
+- SHA-256：
   `C3A41E436A93FA58CD386EC46DAD5C2A6F21A583D33C3A57A15A2604C726439E`。
-- 新增 `AutoCatterySaveLab.exe` / `Test-AutoCatterySingleCatMove.ps1`。写入必须
-  显式开发开关、关闭游戏、隔离路径、精确 build 和 SQLite 3.37+ runtime；
-  Windows 自带 SQLite 不支持当前 `STRICT` schema，因此保持安全失败。
+- 不匹配时不启用当前原生移动入口。
 
-当前 build 的本地证据：
-- 只读比较游戏创建的 `.savbackup` 证明 `house_state` 每条记录包含 CatId、房间
-  字符串和三个 double 坐标；同猫出现过 `Floor1_Large -> AdventureBox` 及反向
-  转换。正常模拟还会改变其他猫坐标，因此只改房间字符串不安全。
-- 当前样本验证的普通房间仅为 `Floor1_Large`、`Floor1_Small`、
-  `Floor2_Large`、`Attic`；测试写入只接受这四个已有值，拒绝空房间、
-  `AdventureBox` 和未知房间。
-- 静态 EXE 只读检查未找到签名可靠、可调用的运行时 `MoveCat` API。没有从
-  字符串、文档或示例推断函数签名。
-- 当前 79 条 placement、游戏日 249 的复制样本继续由既有只读链确认：容器为
-  SQLite，`properties`/`cats`/`files` 可读，699 个 cat blob 为 LZ4，猫身份来自
-  SQLite key，`house_state` 关联可重新解析。
+## 已验证存档与房间数据
 
-隔离复制存档验证：
-- 来源是游戏创建的 `.savbackup` 的逐字节副本，置于 `%TEMP%`；没有打开或写入
-  活动 `.sav`、游戏文件、真实日志或 Cloud 数据。
-- 选择两个不同的已验证普通房间，只修改索引 1 的 placement：复制索引 7 的
-  完整房间与三坐标。SQLite 使用 `BEGIN IMMEDIATE`、DELETE journal、FULL
-  synchronous，恰好更新一条 `files.key='house_state'`，并通过 integrity_check。
-- 修改前创建并验证备份；同目录临时副本写完后重新解析，原文件哈希再次确认
-  未变，再原子替换。独立只读 CLI 确认 79 条记录不变，索引 1 从
-  `Floor1_Large` 变为 `Floor2_Large`，且没有 WAL/SHM/journal 残留。
-- 恢复工具先备份修改后的目标，再恢复原备份；独立只读 CLI 确认索引 1 回到
-  `Floor1_Large`，最终文件 SHA-256 与最初复制样本完全一致。
-- Debug 直接 CLI 和 Release PowerShell 包装器各完成一次上述移动/读回/恢复。
+- 存档容器：SQLite。
+- 猫 blob：LZ4。
+- 稳定 CatId：SQLite 64-bit key。
+- `house_state` 记录 CatId、房间字符串和三个坐标。
+- 当前确认普通房间：
+  - `Floor1_Large`
+  - `Floor1_Small`
+  - `Floor2_Large`
+  - `Attic`
+- `AdventureBox` 不作为普通自动分房目标。
+- `voice_id` 当前样本可区分 `female...` 与 `male...`。
 
-玩家实机验证：
-- 玩家明确选择一个可覆盖并恢复的 8 猫测试槽；只读探针确认游戏日 17、
-  `house_state` 8 条记录。玩家截图确认测试前所选索引 1 位于主房间；本地解析
-  对应 `Floor1_Large`，目标阁楼由现有索引 2 的 placement 证明为 `Attic`。
-- 隔离副本只修改索引 1，独立读回为 `Attic`；移动版本被封装为经 manifest、
-  大小和 SHA-256 验证的恢复包。恢复服务在游戏关闭时先备份测试槽原文件，再
-  原子发布移动版本；发布后目标哈希与移动包一致。
-- 玩家进入游戏并截图确认所选猫实际位于阁楼。关闭游戏后，槽文件已被游戏
-  更新；恢复服务先把该实机验证后版本再次备份，再原子恢复最初版本。恢复后
-  文件 SHA-256 与测试前完全一致，独立解析确认索引 1 回到 `Floor1_Large`。
-- 玩家再次进入同一测试槽并截图确认所选猫回到主房间。移动、独立读回、游戏
-  目视确认、撤销恢复、恢复后独立读回和恢复后目视确认全部通过；未出现或处理
-  Steam Cloud 冲突。
+## 原生 House 移动证据
 
-测试覆盖：
-- 备份损坏、manifest 损坏、哈希/大小不一致、保存中、文件占用、WAL/SHM、
-  模拟无权限、原子替换失败、读回不一致及自动回退。
-- 恢复时游戏运行、准备期间游戏启动、恢复前备份、重复恢复、重复 operation、
-  catalog/path traversal/reparse 逃逸。
-- build 哈希/大小不匹配、隔离路径与玩家/游戏目录重叠、未开启开发开关、未知
-  房间、重复 CatId、非法坐标、SQLite 非单行更新和 sidecar 拒绝。
+通过玩家手动拖动猫、运行时差分、当前 EXE 反汇编和受控探针确认：
 
-实际修改文件：
-- 当前 build/隔离写服务：`include/auto_cattery/save_safety/game_build_gate.hpp`、
-  `single_cat_move_test_service.hpp`、`test_copy_guard.hpp`、
-  `test_copy_house_state_store.hpp` 及对应 `src/save_safety/*.cpp`。
-- 存档格式边界：`include/auto_cattery/snapshot/house_state_writer.hpp`、
-  `include/auto_cattery/snapshot/detail/win_sqlite_api.hpp`、
-  `src/snapshot/house_state_writer.cpp`、`src/snapshot/win_sqlite_api.cpp`。
-- 工具/构建：`tools/save_lab_main.cpp`、`tools/Test-AutoCatterySingleCatMove.ps1`、
-  `tools/build.ps1`、`CMakeLists.txt`。
-- 测试：`tests/game_build_gate_tests.cpp`、`house_state_writer_tests.cpp`、
-  `single_cat_move_test_service_tests.cpp`、`test_copy_guard_tests.cpp`、
-  `test_copy_house_state_store_tests.cpp`、`win_sqlite_api_tests.cpp`、`test_main.cpp`。
-- 阶段记录：`.auto-cattery/state.json`、本报告。
+- `HouseCat` 对象边界：`0x118`。
+- `HouseCat` vtable RVA：`0xEF4F58`。
+- CatId：`HouseCat+0x80`。
+- 当前房间指针：`HouseCat+0xE8`。
+- 原生房间移动 RVA：`0x2E7DB0`。
+- 原生函数会从旧房间移除猫、向目标房间添加猫，并更新当前房间指针。
+- Adapter 调用后再次读取 `HouseCat+0xE8`，只有等于目标房间才算提交。
 
-执行验证：
-- `tools/build.ps1 -Configuration Debug`：5/5 通过；unit、DLL smoke、settings
-  validation、restore CLI smoke、save lab CLI smoke。
-- `tools/build.ps1 -Configuration Release`：5/5 通过，同上。
-- 当前 build 复制存档：Debug 与 Release 均完成备份 -> 单猫完整 placement 修改
-  -> 原子替换 -> 独立读回 -> 恢复前备份 -> 恢复 -> 原哈希读回。
-- `git diff --check`：完成前通过。
+## 当前 MoveOnly 工作流
 
-游戏验证状态：
-- 当前 build 的离线单猫测试槽写入已通过玩家实机验证，但这只证明显式测试/
-  恢复工具的关闭游戏路径，不证明 MOD 运行期间可安全调用的实时移动能力。
-- `UnsupportedGameWriteAdapter`、批量房间分配和真实淘汰均未接通；工作流继续
-  `PreviewOnly`。Stage 15/16 未实施。
+1. House 场景稳定后刷新运行时猫数和房间组件数。
+2. 每次点击预览前再次强制刷新。
+3. 扫描全部存档候选，选择猫数与当前 House 一致的快照。
+4. 根据实际 2、3、4 房集合建立房间能力。
+5. 所有 House 猫按潜力评分，不以战斗状态、职业或受伤状态排除。
+6. 高潜力组在公母都存在时至少包含一公一母。
+7. 第一次点击生成移动计划。
+8. 第二次点击重新绑定 CatId、当前房间和目标房间。
+9. 已在目标房间的猫跳过，其余猫调用原生移动函数。
 
-剩余风险与 blocker：
-- 仍没有许可清楚且签名可靠的运行时 MoveCat API；已验证的直接写路径要求游戏
-  关闭，因此不能接入当前游戏内批量工作流。真实 adapter 继续安全失败。
-- 游戏 build 或 schema 变化会被精确 build/SQLite/version/room whitelist 门直接
-  拒绝；不得通过更新常量绕过，必须重新只读取证。
+## 玩家实机验证
 
-本地 commit：`00c061b0298cc244a4013ad9fbc4852bbf994f9b`（基础安全工具）；`3d296df0e7e28138e157d5b2e6877b82b3f49e77`（当前 build 单猫测试工具）；玩家实机验证记录见包含本报告的 HEAD
+### 8 猫存档
+
+- 运行时：8 猫、2 房。
+- 存档候选猫数：`79,25,8,9`。
+- 正确选择 8 猫快照。
+- 计划移动 6 只。
+- 原生提交 6 只。
+- 重复执行提交 0 只。
+
+### 25 猫存档
+
+- 运行时：25 猫、2 房。
+- 同一候选集合中正确选择 25 猫快照。
+- 计划移动 10 只。
+- 原生提交 10 只。
+- 重复执行提交 0 只。
+
+玩家确认两份存档均已正常自动分房。
+
+## 自动化验证
+
+- Debug/Release 构建成功。
+- Debug/Release CTest：均为 5/5 通过。
+- DLL build、dist 和部署文件 SHA-256 一致。
+- `git diff --check` 在每个修复小步后执行。
+
+## 当前限制
+
+- 当前存档选择先按猫数匹配；两个存档猫数相同时仍需 CatId 集合级匹配。
+- 3 房和 4 房尚未完成玩家执行验证。
+- 尚未验证移动结果经游戏正常保存、退出并重进后的持久化。
+- 当前只完成潜力优先 MoveOnly，不是全房间最优分配。
+- 实时移动尚未完整接回白名单、固定房间和 NoMove 规则。
+- 真实淘汰、繁育配对、近亲检查和淘汰撤销尚未实现。
+
+## 实际修改范围
+
+- 当前 build HouseCat/房间探针与原生移动 adapter。
+- 运行时移动 gateway。
+- 当前存档自动刷新与候选匹配 adapter。
+- MoveOnly 规划能力、潜力优先角色和公母混合修正。
+- House 按钮两次点击预览/执行状态。
+- 相关单元测试、运行日志和当前状态文档。
+
+本轮本地 commit：以任务完成后的仓库 `HEAD` 和最终回复为准。
+
 是否 push：否

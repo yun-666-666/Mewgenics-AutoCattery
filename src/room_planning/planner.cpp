@@ -34,7 +34,8 @@ void AddUnique(std::vector<std::string>& values, std::string value) {
 }
 
 bool RoomBoundaryConfirmed(const RoomCapability& capability) {
-    return capability.confirmed_hard_capacity.has_value() &&
+    return (capability.confirmed_hard_capacity.has_value() ||
+            capability.native_capacity_gate == CapabilityState::Yes) &&
         capability.confirmed_role != RoomRole::Unknown &&
         capability.confirmed_role != RoomRole::Special &&
         capability.confirmed_role != RoomRole::Unavailable &&
@@ -236,16 +237,30 @@ RoomPlan PlanRooms(
         });
 
     std::vector<snapshot::CatId> capacity_failures;
+    const bool combat_staging_available =
+        config.prefer_single_combat_staging_room &&
+        std::ranges::any_of(
+            input.room_capabilities,
+            [](const auto& capability) {
+                return capability.confirmed_role ==
+                           RoomRole::CombatStaging &&
+                       CanReceive(capability);
+            });
     for (const auto cat_id : candidates) {
         const auto& cat = *cats.at(cat_id);
         const auto& decision = *decisions.at(cat_id);
         const auto& current_id = *cat.room_id;
         const auto& current = *capabilities.at(current_id);
-        const auto current_capacity = *current.confirmed_hard_capacity;
         const bool current_over_capacity =
-            occupancy.at(current_id).size() > current_capacity;
+            current.confirmed_hard_capacity.has_value() &&
+            occupancy.at(current_id).size() >
+                *current.confirmed_hard_capacity;
         const bool current_role_matches =
-            RoleMatches(cat, decision, current);
+            RoleMatches(cat, decision, current) &&
+            !(combat_staging_available &&
+              decision.primary_role ==
+                  classification::CatRole::CombatRecommended &&
+              current.confirmed_role != RoomRole::CombatStaging);
         if (!current_over_capacity && current_role_matches) {
             continue;
         }
@@ -263,9 +278,16 @@ RoomPlan PlanRooms(
                 !RoleMatches(cat, decision, *capability)) {
                 continue;
             }
-            const auto capacity = *capability->confirmed_hard_capacity;
+            if (combat_staging_available &&
+                decision.primary_role ==
+                    classification::CatRole::CombatRecommended &&
+                capability->confirmed_role !=
+                    RoomRole::CombatStaging) {
+                continue;
+            }
             const auto projected = occupancy.at(room_id).size() + 1;
-            if (projected > capacity) {
+            if (capability->confirmed_hard_capacity.has_value() &&
+                projected > *capability->confirmed_hard_capacity) {
                 continue;
             }
             const auto overflow = SoftOverflow(projected, config);
@@ -314,18 +336,22 @@ RoomPlan PlanRooms(
                 ? "relieve confirmed hard-capacity overflow"
                 : "use confirmed compatible room role",
             CatPriority(decision),
-            false
+            current.native_capacity_gate == CapabilityState::Yes &&
+                capabilities.at(target_id)->native_capacity_gate ==
+                    CapabilityState::Yes
         });
     }
 
     std::size_t remaining_over_capacity{};
     for (const auto& [room_id, residents] : occupancy) {
         const auto& capability = *capabilities.at(room_id);
-        if (!capability.confirmed_hard_capacity.has_value()) {
+        if (!capability.confirmed_hard_capacity.has_value() &&
+            capability.native_capacity_gate != CapabilityState::Yes) {
             AddUnique(plan.limitations, "target-hard-capacity-unknown");
             continue;
         }
-        if (residents.size() > *capability.confirmed_hard_capacity) {
+        if (capability.confirmed_hard_capacity.has_value() &&
+            residents.size() > *capability.confirmed_hard_capacity) {
             remaining_over_capacity +=
                 residents.size() - *capability.confirmed_hard_capacity;
         }
@@ -399,6 +425,13 @@ RoomPlan PlanRooms(
     plan.disposition = plan.fully_satisfied
         ? PlanDisposition::Complete
         : PlanDisposition::Partial;
+    plan.move_execution_allowed =
+        !plan.moves.empty() &&
+        std::ranges::all_of(
+            plan.moves,
+            [](const auto& move) {
+                return move.executable;
+            });
     return plan;
 }
 

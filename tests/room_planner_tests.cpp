@@ -167,6 +167,18 @@ void RunRoomPlannerTests() {
     AC_CHECK(role_plan.moves.front().to_room == "R1");
     AC_CHECK(!role_plan.moves.front().executable);
 
+    PlannerFixture preferred_staging(1, 2);
+    preferred_staging.classification.decisions.front().primary_role =
+        classification::CatRole::CombatRecommended;
+    const auto preferred_plan = preferred_staging.Plan();
+    AC_CHECK(preferred_plan.moves.size() == 1);
+    AC_CHECK(preferred_plan.moves.front().to_room == "R1");
+
+    room_planning::RoomPlanningConfig no_staging_preference;
+    no_staging_preference.prefer_single_combat_staging_room = false;
+    AC_CHECK(
+        preferred_staging.Plan(no_staging_preference).moves.empty());
+
     auto applied = role_move;
     applied.house.rooms.front().residents.erase(
         applied.house.rooms.front().residents.begin());

@@ -44,6 +44,42 @@ void RunRoomCapabilityAdapterTests() {
             capability.can_release_residents ==
             room_planning::CapabilityState::Unknown);
     }
+
+    snapshot::HouseSnapshot current_build;
+    current_build.rooms = {
+        {.id = "Floor1_Large", .residents = {1}},
+        {.id = "Attic", .residents = {2}},
+        {.id = "Floor1_Small"},
+        {.id = "Floor2_Large"}
+    };
+    const auto movable =
+        room_planning::BuildCurrentBuildMoveRoomCapabilities(
+            current_build);
+    AC_CHECK(movable.size() == 4);
+    AC_CHECK(
+        movable[0].confirmed_role ==
+        room_planning::RoomRole::CombatStaging);
+    AC_CHECK(
+        movable[0].native_capacity_gate ==
+        room_planning::CapabilityState::Yes);
+    AC_CHECK(
+        movable[1].confirmed_role ==
+        room_planning::RoomRole::General);
+    AC_CHECK(
+        movable[1].native_capacity_gate ==
+        room_planning::CapabilityState::Yes);
+    AC_CHECK(
+        movable[2].confirmed_role ==
+        room_planning::RoomRole::General);
+    AC_CHECK(
+        movable[2].native_capacity_gate ==
+        room_planning::CapabilityState::Yes);
+    AC_CHECK(
+        movable[3].confirmed_role ==
+        room_planning::RoomRole::General);
+    AC_CHECK(
+        movable[3].native_capacity_gate ==
+        room_planning::CapabilityState::Yes);
 }
 
 }  // namespace autocattery::tests

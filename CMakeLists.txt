@@ -93,12 +93,22 @@ add_library(auto_cattery_core STATIC
     src/workflow/state_machine.cpp
     src/settings_file_editor.cpp
     src/ui/house_button_controller.cpp
+    src/ui/house_move_probe_controller.cpp
+    src/ui/house_move_probe_mapper.cpp
+    src/ui/house_move_probe_report.cpp
+    src/ui/house_move_probe_session.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/mew_ui_house_cat_probe.c
+    src/ui/mew_ui_house_move_capture.c
+    src/ui/mew_ui_house_move_adapter.c
+    src/ui/mew_ui_house_move_probe.c
+    src/ui/mew_ui_house_move_room_scan.c
     src/ui/mew_ui_house_detail_adapter.c
     src/ui/mew_ui_mapping_probe.c
     src/ui/mew_ui_movie_clip.cpp
     src/ui/recommendation_marker_controller.cpp
+    src/ui/runtime_house_move_gateway.cpp
+    src/ui/runtime_matched_save_snapshot_adapter.cpp
     src/ui/mew_ui_recommendation_marker_view.cpp
     src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
@@ -238,6 +248,8 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/workflow_recommendation_writer_tests.cpp
         tests/lz4_block_tests.cpp
         tests/mew_ui_house_cat_probe_tests.cpp
+        tests/mew_ui_house_move_probe_tests.cpp
+        tests/house_move_probe_session_tests.cpp
         tests/snapshot_domain_tests.cpp
         tests/snapshot_assembler_tests.cpp
         tests/win_sqlite_api_tests.cpp
@@ -255,7 +267,10 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
-    target_include_directories(auto_cattery_tests PRIVATE third_party/json/include)
+    target_include_directories(
+        auto_cattery_tests
+        PRIVATE third_party/json/include src/ui
+    )
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
     add_test(NAME phase14_unit_tests COMMAND auto_cattery_tests)

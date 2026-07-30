@@ -21,14 +21,18 @@
 #include "auto_cattery/scoring/combat_ranker.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
+#include "house_move_probe_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
 #include "mew_ui_house_cat_probe.h"
 #include "mew_ui_house_detail_adapter.h"
+#include "mew_ui_house_move_adapter.h"
 #include "mew_ui_mapping_probe.h"
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
+#include "runtime_house_move_gateway.hpp"
+#include "runtime_matched_save_snapshot_adapter.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
 #endif
@@ -229,13 +233,36 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     const auto config = config_runtime_->Current();
     recommendation_scoring_config_ = config.combat_scoring;
     recommendation_marker_config_ = config.recommendation_marker;
+    runtime_move_gateway_ =
+        std::make_unique<RuntimeHouseMoveGateway>();
+    const bool runtime_move_available =
+        runtime_move_gateway_->Initialize(
+            context.game_root / L"Mewgenics.exe");
+    auto runtime_snapshot_adapter =
+        std::make_unique<RuntimeMatchedSaveSnapshotAdapter>();
+    runtime_snapshot_adapter_ = runtime_snapshot_adapter.get();
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>(
-            std::make_unique<snapshot::SaveSnapshotAdapter>(),
-            config);
+            std::move(runtime_snapshot_adapter),
+            config,
+            runtime_move_available
+                ? workflow::WorkflowCapability::MoveOnly
+                : workflow::WorkflowCapability::PreviewOnly,
+            runtime_move_available
+                ? runtime_move_gateway_.get()
+                : nullptr);
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
-        *organize_workflow_);
+        *organize_workflow_,
+        HouseButtonController::Clock{},
+        [this] {
+            RefreshRuntimeSnapshotContext();
+        });
+    house_move_probe_controller_ =
+        std::make_unique<HouseMoveProbeController>();
+    house_move_probe_controller_->Initialize(
+        context.game_root / L"Mewgenics.exe",
+        diagnostics_root_);
 #ifdef _DEBUG
     debug_probe_enabled_ = true;
 #else
@@ -288,6 +315,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             last_house_attach_error_.clear();
             next_recommendation_attach_retry_ = {};
             last_recommendation_attach_error_.clear();
+            if (runtime_move_gateway_) {
+                runtime_move_gateway_->SetHouseScene(nullptr);
+            }
         }
     });
 
@@ -327,6 +357,9 @@ void MewUiBridge::Shutdown() noexcept {
     if (recommendation_marker_controller_) {
         recommendation_marker_controller_->Detach();
     }
+    if (house_move_probe_controller_) {
+        house_move_probe_controller_->Shutdown();
+    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -358,10 +391,12 @@ void MewUiBridge::Shutdown() noexcept {
     recommendation_detail_targets_.clear();
     ready_logged_.store(false);
     house_button_controller_.reset();
+    house_move_probe_controller_.reset();
     recommendation_marker_controller_.reset();
     recommendation_marker_view_.reset();
     config_runtime_.reset();
     organize_workflow_.reset();
+    runtime_move_gateway_.reset();
     house_button_view_.reset();
 }
 
@@ -444,6 +479,48 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    const auto house_scene = std::find_if(
+        scenes.begin(),
+        scenes.end(),
+        [&context](const RuntimeScene& candidate) {
+            return candidate.ready &&
+                   candidate.name == context.scene_name;
+        });
+    if (runtime_move_gateway_) {
+        const bool writable_house =
+            context.kind == UiContextKind::House &&
+            context.input_enabled &&
+            !context.save_in_progress &&
+            house_scene != scenes.end();
+        runtime_move_gateway_->SetHouseScene(
+            writable_house ? house_scene->manager : nullptr);
+        current_house_scene_manager_ =
+            writable_house ? house_scene->manager : nullptr;
+        if (writable_house &&
+            runtime_snapshot_adapter_ &&
+            runtime_snapshot_context_generation_ !=
+                context.scene_generation) {
+            RefreshRuntimeSnapshotContext();
+            runtime_snapshot_context_generation_ =
+                context.scene_generation;
+        }
+    }
+    if (debug_probe_enabled_ && house_move_probe_controller_) {
+        const auto event = house_move_probe_controller_->Poll(
+            context,
+            house_scene == scenes.end() ? nullptr : house_scene->manager,
+            (GetAsyncKeyState(VK_F9) & 1) != 0,
+            (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
+        if (event.kind != HouseMoveProbeEventKind::None) {
+            Logger::Instance().Write(
+                event.kind == HouseMoveProbeEventKind::Rejected
+                    ? LogLevel::Warn
+                    : LogLevel::Info,
+                "HouseMoveProbe",
+                "AC14200",
+                event.message);
+        }
+    }
     ObserveMappingProbe(context, scenes);
     ObserveHouseCatIdentity(context, scenes);
     const auto scene_ready =
@@ -532,6 +609,41 @@ void MewUiBridge::OnTick() {
             last_recommendation_attach_error_.clear();
         }
     }
+}
+
+void MewUiBridge::RefreshRuntimeSnapshotContext() {
+    if (!runtime_snapshot_adapter_ ||
+        !current_house_scene_manager_) {
+        return;
+    }
+    std::array<void*, 16> native_rooms{};
+    const auto native_room_count =
+        AcMewEnumerateNativeHouseRooms(
+            current_house_scene_manager_,
+            native_rooms.data(),
+            native_rooms.size());
+    const auto house_cat_count =
+        AcMewCountHouseCats(current_house_scene_manager_);
+    const auto available_room_count =
+        std::clamp<std::size_t>(
+            native_room_count > 2U
+                ? native_room_count - 2U
+                : 2U,
+            2U,
+            4U);
+    runtime_snapshot_adapter_->SetRuntimeContext(
+        house_cat_count,
+        available_room_count);
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "RuntimeSaveSelection",
+        "AC14315",
+        "House runtime context refreshed: cats=" +
+            std::to_string(house_cat_count) +
+            ", native room components=" +
+            std::to_string(native_room_count) +
+            ", available rooms=" +
+            std::to_string(available_room_count));
 }
 
 void MewUiBridge::ObserveMappingProbe(

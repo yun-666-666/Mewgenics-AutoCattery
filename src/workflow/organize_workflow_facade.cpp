@@ -111,10 +111,14 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
         if (preview) {
             const auto outcome = execution_router_.Execute(
                 preview.value,
-                ExecutionChoice::Execute,
+                capability_ == WorkflowCapability::MoveOnly
+                    ? ExecutionChoice::MoveOnly
+                    : ExecutionChoice::Execute,
                 state_);
             return {
-                ErrorCode::UnsupportedGameBuild,
+                outcome.failure_reason == WorkflowFailureReason::None
+                    ? ErrorCode::Ok
+                    : ErrorCode::UnsupportedGameBuild,
                 outcome.message
             };
         }

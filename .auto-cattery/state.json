@@ -42,13 +42,14 @@
     "10": {
       "status": "completed",
       "commit": "2593442a08ba564e0b0f70a3109adb479e0ea349",
-      "real_adapter_status": "unsupported",
+      "historical_real_adapter_status": "unsupported_at_stage_10",
+      "superseded_by": "stage_14_current_build_runtime_move_only",
       "stage_11_blocked": false
     },
     "11": {
-      "status": "completed_preview_only",
+      "status": "completed_preview_only_at_stage_11",
       "commit": null,
-      "real_execution_status": "blocked_by_unsupported_stage_10_adapter",
+      "real_execution_status": "superseded_by_stage_14_current_build_runtime_move_only",
       "stage_12_blocked": false
     },
     "12": {
@@ -69,12 +70,14 @@
       "stage_14_blocked": false
     },
     "14": {
-      "status": "completed_player_validated_test_copy_write_preview_only",
+      "status": "completed_player_validated_current_build_runtime_move_only",
       "commit": "3d296df0e7e28138e157d5b2e6877b82b3f49e77",
       "safety_commit": "00c061b0298cc244a4013ad9fbc4852bbf994f9b",
-      "capability": "VerifiedOfflineBackupAtomicRestoreAndCurrentBuildGatedSingleCatTestCopyMoveReadbackUndo",
-      "real_write_status": "production_adapter_unsupported;batch_assignment_disabled;real_cull_disabled",
-      "game_validation_status": "current_build_copied_save_move_readback_restore_passed;player_disposable_slot_move_and_restore_visual_validation_passed"
+      "runtime_move_commit": null,
+      "capability": "VerifiedOfflineBackupAtomicRestoreAndCurrentBuildGatedRuntimePotentialMoveOnly",
+      "real_write_status": "current_build_native_runtime_move_enabled;real_cull_disabled",
+      "game_validation_status": "copied_save_move_readback_restore_passed;8_cat_runtime_moves_6_passed;25_cat_runtime_moves_10_passed;cross_save_refresh_passed",
+      "remaining_business_scope": "full_room_balance;breeding_genetics;protection_integration;real_cull;detailed_preview;same_count_save_identity"
     },
     "15": {
       "status": "pending",
@@ -85,5 +88,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-30T17:55:30+08:00"
+  "updated_at": "2026-07-31T00:38:20+08:00"
 }

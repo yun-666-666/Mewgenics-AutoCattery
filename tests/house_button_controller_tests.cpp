@@ -68,8 +68,22 @@ public:
         };
     }
 
+    workflow::WorkflowCapability CurrentExecutionAvailability()
+        const noexcept override {
+        return capability;
+    }
+
+    Result<void> RequestExecution() override {
+        ++execution_calls;
+        return execution_result;
+    }
+
     std::atomic<int> preview_calls{};
+    int execution_calls{};
     std::atomic<std::uint64_t> last_scene_generation{};
+    workflow::WorkflowCapability capability{
+        workflow::WorkflowCapability::PreviewOnly};
+    Result<void> execution_result{};
 };
 
 ui::UiContextSnapshot HouseContext() {
@@ -132,7 +146,7 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(view.placeholder_calls == 1);
     AC_CHECK(view.state == ui::OrganizeButtonState::Completed);
 
-    now += 1999ms;
+    now += 499ms;
     controller.Poll();
     AC_CHECK(view.state == ui::OrganizeButtonState::Completed);
     view.Click();
@@ -184,6 +198,24 @@ void RunHouseButtonControllerTests() {
     }
     AC_CHECK(changed_view.placeholder_calls == 0);
     AC_CHECK(changed_view.state == ui::OrganizeButtonState::Ready);
+
+    FakeHouseButtonView move_view;
+    FakeWorkflow move_workflow;
+    move_workflow.capability =
+        workflow::WorkflowCapability::MoveOnly;
+    ui::HouseButtonController move_controller(
+        move_view,
+        move_workflow,
+        [&now] { return now; });
+    AC_CHECK(static_cast<bool>(move_controller.Attach(HouseContext())));
+    move_view.Click();
+    FinishPreview(move_controller, move_view);
+    AC_CHECK(move_workflow.preview_calls == 1);
+    AC_CHECK(move_workflow.execution_calls == 0);
+    AC_CHECK(move_view.state == ui::OrganizeButtonState::Ready);
+    move_view.Click();
+    AC_CHECK(move_workflow.execution_calls == 1);
+    AC_CHECK(move_workflow.preview_calls == 1);
 }
 
 }  // namespace autocattery::tests

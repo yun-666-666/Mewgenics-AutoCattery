@@ -26,6 +26,12 @@ enum class LifeStage {
     Dead
 };
 
+enum class CatSex {
+    Unknown,
+    Female,
+    Male
+};
+
 enum class Stat {
     Strength,
     Dexterity,
@@ -48,6 +54,7 @@ struct CatSnapshot {
     std::string display_name;
     std::string breed_id;
     std::string voice_id;
+    CatSex sex{CatSex::Unknown};
     std::string stat_type_id;
     std::string class_id;
     StatBlock genetic_stats;

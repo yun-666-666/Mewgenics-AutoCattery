@@ -1,5 +1,6 @@
 #include "auto_cattery/workflow/preview_builder.hpp"
 
+#include <algorithm>
 #include <chrono>
 
 #include "test_support.hpp"
@@ -31,6 +32,48 @@ void RunWorkflowPreviewBuilderTests() {
   AC_CHECK(!built.value.preview.bindings.protection_digest.empty());
   AC_CHECK(!built.value.preview.bindings.room_plan_digest.empty());
   AC_CHECK(!built.value.preview.bindings.config_digest.empty());
+
+  WorkflowReadFake potential;
+  potential.house = WorkflowHouse(25);
+  potential.house.rooms.front().id = "Floor1_Large";
+  for (auto &cat : potential.house.cats) {
+    cat.room_id = "Floor1_Large";
+    cat.life_stage = snapshot::LifeStage::Unknown;
+    cat.available_for_combat = snapshot::TriState::No;
+    cat.available_for_breeding = snapshot::TriState::No;
+    cat.injured = snapshot::TriState::Yes;
+    cat.sex =
+        cat.id == 1
+            ? snapshot::CatSex::Male
+            : snapshot::CatSex::Female;
+  }
+  Config potential_config;
+  potential_config.combat_scoring.recommended_count = 10;
+  workflow::WorkflowStateMachine potential_state;
+  AC_CHECK(potential_state.BeginPreview());
+  const auto potential_built =
+      workflow::PreviewBuilder(potential, potential_config).Build(
+          23, workflow::WorkflowCapability::MoveOnly, potential_state);
+  AC_CHECK(static_cast<bool>(potential_built));
+  AC_CHECK(potential_built.value.preview.room_count == 2);
+  AC_CHECK(
+      potential_built.value.preview.recommended_combat_count == 10);
+  AC_CHECK(potential_built.value.preview.breeding_core_count == 0);
+  AC_CHECK(potential_built.value.preview.planned_move_count == 10);
+  AC_CHECK(potential_built.value.room_plan.move_execution_allowed);
+  AC_CHECK(std::ranges::all_of(
+      potential_built.value.room_plan.moves,
+      [](const auto &move) {
+        return move.to_room == "Attic" && move.executable;
+      }));
+  AC_CHECK(std::ranges::any_of(
+      potential_built.value.room_plan.moves,
+      [](const auto &move) { return move.cat_id == 1; }));
+  AC_CHECK(std::ranges::any_of(
+      potential_built.value.preview.warnings,
+      [](const auto &warning) {
+        return warning == "potential-room-sex-mix-adjusted";
+      }));
 
   WorkflowReadFake empty;
   empty.house = WorkflowHouse(0);
