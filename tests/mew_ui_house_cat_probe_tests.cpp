@@ -140,6 +140,56 @@ void RunMewUiHouseCatProbeTests() {
         AC_CHECK(matches[index].root_node != nullptr);
     }
 
+    SYSTEM_INFO system_info{};
+    GetSystemInfo(&system_info);
+    const auto page_size =
+        static_cast<std::size_t>(system_info.dwPageSize);
+    auto* boundary_region = static_cast<std::uint8_t*>(VirtualAlloc(
+        nullptr,
+        page_size * 2U,
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_READWRITE));
+    AC_CHECK(boundary_region != nullptr);
+    if (boundary_region != nullptr) {
+        constexpr std::size_t kReadableTail = 0x100;
+        auto* boundary_component =
+            boundary_region + page_size - kReadableTail;
+        std::memcpy(
+            boundary_component,
+            components.back(),
+            kReadableTail);
+        void* boundary_root = boundary_component + 0x90;
+        std::memcpy(
+            boundary_component + 0x38,
+            &boundary_root,
+            sizeof(boundary_root));
+        components.back() = boundary_component;
+        all_components[kCatCount - 1U] = boundary_component;
+
+        DWORD previous_protection{};
+        const auto protected_boundary = VirtualProtect(
+            boundary_region + page_size,
+            page_size,
+            PAGE_NOACCESS,
+            &previous_protection) != 0;
+        AC_CHECK(protected_boundary);
+        if (protected_boundary) {
+            const auto boundary_result = AcMewProbeHouseCatIdentity(
+                scene_manager.data(),
+                cat_ids.data(),
+                cat_ids.size(),
+                matches.data(),
+                matches.size());
+            AC_CHECK(boundary_result.house_cat_count == kCatCount);
+            AC_CHECK(boundary_result.match_count == kCatCount);
+            AC_CHECK(boundary_result.first_identity_offset == kIdentityOffset);
+            AC_CHECK(boundary_result.first_identity_width == 8U);
+            AC_CHECK(boundary_result.stable_bijection != 0U);
+            AC_CHECK(matches.back().component == boundary_component);
+            AC_CHECK(matches.back().root_node == boundary_root);
+        }
+    }
+
     component_list.capacity = component_list.size - 1U;
     const auto invalid = AcMewProbeHouseCatIdentity(
         scene_manager.data(),
@@ -150,6 +200,9 @@ void RunMewUiHouseCatProbeTests() {
     AC_CHECK(invalid.house_cat_count == 0U);
     AC_CHECK(invalid.match_count == 0U);
     AC_CHECK(invalid.stable_bijection == 0U);
+    if (boundary_region != nullptr) {
+        VirtualFree(boundary_region, 0U, MEM_RELEASE);
+    }
 }
 
 }  // namespace autocattery::tests

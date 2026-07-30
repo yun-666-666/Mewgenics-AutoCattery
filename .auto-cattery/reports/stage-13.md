@@ -1,153 +1,115 @@
 阶段：13
-状态：完成；权重/规则编辑已移到游戏外，Stage 14 不再阻塞
+状态：实现、自动化验证和 Release 部署完成；等待玩家完成跨存档实机复验，
+Stage 14 暂不开始。
 
-实际能力：
-- 配置升级为 schema v2，总 schema 与 general、UI、战斗评分、繁育评分、
-  分类、保护、房间规划、执行安全、推荐标记、诊断模块各自有明确版本边界。
-- 加载顺序为编译期安全默认值、发布默认配置、用户覆盖、会话覆盖；缺失文件
-  使用安全默认值，损坏/截断/非法文件拒绝并保留上一份运行时配置。
-- 读取边界包括 1 MiB 文件上限、32 层嵌套、每对象 1024 项、拒绝数组；
-  解析和字段验证错误包含 JSON 解析位置或配置路径。
-- v1 配置只在内存中迁移至 v2，不改写用户文件，因此没有需要备份的迁移写入；
-  未来 schema 强制只读，未知模块版本拒绝。
-- 验证覆盖推荐数量 1～100、完整七项已确认 stat 权重、有限数及范围、
-  保留池/房间容量边界、未知日志级别、保护与房间 fail-closed 规则。
+本阶段实际能力：
+- 配置 schema v2、编译期安全默认值、发布默认配置、用户覆盖和会话覆盖保持
+  不变。缺失、损坏、截断或非法配置不会关闭硬安全约束。
+- 外部 `AutoCatterySettings.exe` 是唯一的权重/规则编辑界面；它验证候选配置
+  后原子写入 MOD 自己的 `config/user_config.json`，并保留未知字段。
+- 游戏内设置快捷入口、四个设置按钮及其键盘/鼠标控制已经删除。
+- `Auto-Organize Cattery`、`Mark Combat Cats`、推荐列表和推荐详情均保留。
+- 配置热加载仍只在工作流 Idle 时应用；应用后使旧预览和旧推荐失效，不会
+  自动整理、评分、选猫、休息、推进日期或出征。
 - `never_auto_select=true`、破坏性操作前预览、未知 build 中止、离场清理和
-  stale 重算不可关闭；当前真实写适配仍不支持。关闭备份会强制
-  `execution.cull_enabled=false`，不能产生无备份淘汰。
-- 文件热加载使用 500ms 去抖，只在工作流 Idle 时应用；忙碌时延迟，失败时
-  保持旧不可变配置。配置生效统一更新整理工作流、使旧预览失效并清除旧推荐，
-  不自动开始整理、评分、选猫、休息、日期推进或出征。
-- 新增应用层 `SettingsService` 和三页设置模型。根据玩家反馈，游戏内只暴露
-  简单页的四项快捷设置：推荐数、受伤排除、最低保留数和软溢出；F9 打开/
-  关闭，方向键、Enter 和鼠标操作保持不变，Tab/PageDown/PageUp 不再进入
-  高级权重或安全规则页。
-- 新增独立 Windows x64 程序 `AutoCatterySettings.exe`。战斗/繁育七项权重、
-  评分阈值、分类保留池、房间规则、推荐显示和执行安全选项在游戏外编辑，保存
-  到 MOD 自己的 `config/user_config.json`。程序先验证候选配置，再以同目录临时
-  文件原子替换；非法输入不覆盖旧文件，并保留用户配置中的无关字段。
-- 开启单击执行模式前有独立确认对话框；保存配置不会启动整理、评分、选猫、
-  休息、日期推进或出征。游戏未启动时下次启动读取，运行中仅在工作流 Idle 时
-  由现有热加载服务应用。
-- 设置视图仅复用 Stage 12 已实机验证的四个 MOD 自有推荐行、文本节点、命中
-  区域和停帧行为；未新增或猜测游戏原生节点、函数、偏移、场景、ID、存档字段
-  或 API，未修改 SWF 与游戏原始文件。
-- 推荐结果现在遵守已加载的推荐数量、是否显示排名和是否显示分数；仍只对
-  单只猫独立评分，不实现组队算法或自动选择。
+  stale 重算不可关闭；当前真实写适配仍不支持。
 
-证据与取舍：
-- 检查了仓库已有评分、分类、房间规划、保护、执行和 Stage 12 推荐契约，
-  并检查 Toolkit 与已导入 AutoCatteryReference 的选择器边界；没有复制
-  Toolkit 示例值或重新实现选择器。
-- 当前仓库、既有实机日志和已验收 Stage 12 UI 证据足够，本阶段没有采用
-  在线资料，也没有复制外部代码或资源。
-- 玩家截图确认当前 build 的 House 中，F9 四项快捷设置与
-  `Mark Combat Cats` 按钮同时存在。此次运行时变更只删除分页热键分支，没有
-  删除或改名四项设置行、推荐按钮、推荐列表或推荐详情行为。
-- 没有提供“保守/平衡/激进”预设：文档中的平衡值没有当前 build 或玩家
-  证据，照搬会违反真实值规则。配置文件仍支持全部现有评分覆盖表。
-- 没有实现导入/导出按钮：本阶段没有安全、已验证的文本输入/文件选择 UI
-  契约；schema 和分层配置文件已可人工复制，未为此发明游戏 API。
-- 没有实施 Stage 14 的存档写入、备份管理中心或恢复工具；Stage 10 真实写
-  adapter 仍为 unsupported。
+跨存档推荐故障证据：
+- 玩家在同一次实机运行中报告：8 猫存档的 `Mark Combat Cats` 正常，切到
+  另一个存档后推荐失效。
+- 2026-07-30 13:19:56 的真实运行日志记录 8 猫存档：
+  `house_cats=8 requested_ids=8 layouts=2 offset=128 width=8 matched=8`
+  且 `selected_exact=1 stable_bijection=1`。
+- 2026-07-30 13:21:32 的真实运行日志记录切换后的 25 猫存档：
+  `house_cats=25 requested_ids=25 layouts=0 matched=0`
+  且 `selected_exact=0 stable_bijection=0`。
+- 同一当前游戏 build 的历史真实日志在 2026-07-30 02:46:50 已记录同一个
+  25 猫规模存档能以 `offset=128 width=8` 完成 25/25 唯一双射。因此没有把
+  猫数量、身份偏移或字段宽度当作新值修改。
 
-修改文件：
-- 构建/配置：`CMakeLists.txt`、`config/config.schema.json`、
-  `config/default_config.json`、`include/auto_cattery/version.hpp`、
-  `tools/build.ps1`、`tools/deploy.ps1`、`tools/verify_install.ps1`。
-- 配置模型/运行时：`include/auto_cattery/config.hpp`、
-  `include/auto_cattery/config_runtime.hpp`、`src/config.cpp`、
-  `src/config/config_json.hpp`、`src/config/defaults.cpp`、
-  `src/config/reader.cpp`、`src/config/migration.cpp`、
-  `src/config/validation.cpp`、`src/config/decoder.cpp`、
-  `src/config_runtime.cpp`。
-- 设置应用/UI：`include/auto_cattery/settings_service.hpp`、
-  `include/auto_cattery/settings_file_editor.hpp`、
+根因与修复：
+- `src/ui/mew_ui_house_cat_probe.c` 原先要求每个 `HouseCat` 对象起始地址后的
+  完整 `0x800` 字节位于同一可读内存区。切换存档后对象重新分配；对象靠近
+  内存区末端时，即使真实使用的身份字段仍可读，也会在布局扫描前被拒绝，
+  产生 `layouts=0`。
+- 探针现在只在每次读取候选 4/8 字节前检查该实际范围是否可读，并保留 SEH
+  安全失败路径。
+- 没有降低身份门槛：仍要求全量猫 ID 唯一双射、所有有效布局映射一致、
+  推荐目标数量精确且 root node 完整；不允许部分或猜测匹配。
+- 新增页边界回归测试：79 只猫中的最后一个 `HouseCat` 距可读页末只有
+  `0x100` 字节，下一页为 `PAGE_NOACCESS`。测试要求继续完成 79/79 双射、
+  命中既有 `0x80`/8 字节身份布局，并返回正确 root node。旧实现会拒绝该
+  场景。
+
+本次修改文件：
+- 构建和桥接：`CMakeLists.txt`、
+  `include/auto_cattery/ui/mew_ui_bridge.hpp`、`src/ui/mew_ui_bridge.cpp`。
+- 身份探针：`src/ui/mew_ui_house_cat_probe.c`。
+- 回归测试：`tests/mew_ui_house_cat_probe_tests.cpp`、`tests/test_main.cpp`。
+- 删除的游戏内设置模块：
+  `include/auto_cattery/settings_service.hpp`、
   `include/auto_cattery/ui/settings_panel_controller.hpp`、
-  `include/auto_cattery/ui/mew_ui_bridge.hpp`、`src/settings_service.cpp`、
-  `src/settings_editor.cpp`、`src/settings_file_editor.cpp`、
-  `src/settings_app/settings_app.cpp`、
-  `src/settings_app/settings_form.hpp`、
-  `src/settings_app/settings_form.cpp`、
-  `src/settings_app/settings_form_data.cpp`、
-  `src/settings_app/settings_form_schema.hpp`、
-  `src/settings_app/settings_form_schema.cpp`、
+  `src/settings_editor.cpp`、`src/settings_service.cpp`、
   `src/ui/settings_panel_controller.cpp`、
   `src/ui/mew_ui_settings_panel_view.hpp`、
-  `src/ui/mew_ui_settings_panel_view.cpp`、`src/ui/mew_ui_movie_clip.hpp`、
-  `src/ui/mew_ui_movie_clip.cpp`、`src/ui/mew_ui_config_binding.cpp`、
-  `src/ui/mew_ui_bridge.cpp`、
-  `src/ui/mew_ui_recommendation_marker_view.cpp`。
-- 工作流：`include/auto_cattery/workflow/organize_workflow_facade.hpp`、
-  `include/auto_cattery/workflow/preview_store.hpp`、
-  `src/workflow/organize_workflow_facade.cpp`、
-  `src/workflow/preview_store.cpp`、`src/workflow/digests.cpp`。
-- 测试：`tests/config_tests.cpp`、`tests/config_boundary_tests.cpp`、
-  `tests/config_migration_tests.cpp`、`tests/config_runtime_tests.cpp`、
-  `tests/settings_service_tests.cpp`、
-  `tests/settings_file_editor_tests.cpp`、
+  `src/ui/mew_ui_settings_panel_view.cpp`、
   `tests/settings_panel_controller_tests.cpp`、
-  `tests/organize_workflow_facade_tests.cpp`、
-  `tests/workflow_digest_tests.cpp`、
-  `tests/workflow_preview_store_tests.cpp`、`tests/test_main.cpp`。
+  `tests/settings_service_tests.cpp`。
 - 阶段记录：`.auto-cattery/reports/stage-13.md`、
   `.auto-cattery/state.json`。
-- 分发/启动：`tools/open_settings.ps1`；`tools/build.ps1`、
-  `tools/deploy.ps1` 和 `tools/verify_install.ps1` 增加独立编辑器处理。
 
-验证：
-- `tools/build.ps1 -Configuration Debug`：通过；最终
-  `phase13_unit_tests` 4.29 秒、`phase13_dll_load_smoke` 0.03 秒、
-  `phase13_settings_editor_validate` 0.02 秒，100% 通过。
-- `tools/build.ps1 -Configuration Release`：通过；
-  `phase13_unit_tests` 0.54 秒、`phase13_dll_load_smoke` 0.07 秒、
-  `phase13_settings_editor_validate` 0.05 秒，100% 通过。
-- `git diff --check`：通过；仅 Git 的 LF/CRLF 工作区提示，无空白错误。
-- PowerShell `ConvertFrom-Json`：源、Debug 和 Release 的
-  `default_config.json`、`config.schema.json` 全部可解析。
-- 分发一致性：源/Debug/Release 默认配置 SHA-256 均为
-  `23DCB56079A93FFA49462B2C440CCA59FE9100A75CE2926AAFA1542579E02D1B`；
-  schema 均为
-  `088B36C5533FC9E248576956254BA4DCEF3C962B93FBB0A671DDEB16B8754321`。
-- Release 已通过现有部署脚本安装；`tools/verify_install.ps1` 通过。
-  安装 DLL 为 836096 bytes，SHA-256
-  `94BE3F57177C668435BB49A0C25C629299C7C55FA10278B8AC61F8B93B6116C2`；
-  独立编辑器为 316928 bytes，SHA-256
-  `F1B0AED7CE75D3FBBF24269EA044C904BDBB4EB75799E071068875FFBB70615A`。
-  二者及安装默认配置均与 `dist/Release` 一致；安装路径执行
-  `AutoCatterySettings.exe --validate` 返回 0。部署前后的
-  `user_config.json` 都不存在，部署没有制造或覆盖用户设置。
-- 使用 Windows UI 自动化真实启动 Debug 编辑器并检查完整可访问性树与窗口
-  截图：三栏、45 个字段控件、状态区和两个命令按钮均可见，中文无重叠或截断；
-  检查后未保存并正常关闭窗口。
+保留且未修改：
+- 外部设置程序及其配置模型、解析、验证、迁移、热加载和文件编辑服务。
+- 推荐按钮、推荐列表、推荐详情和现有全量唯一身份校验。
+- 已安装的
+  `D:/steam/steam/steamapps/common/Mewgenics/Mods/AutoCattery/config/user_config.json`。
+- 用户未跟踪的 Toolkit、文档压缩包和 `PushToMeow/`。
 
-自动化覆盖：
-- 有效、缺失、非法、截断 JSON，根数组、未知数组、1 MiB 上限、边界值、
-  未知枚举/统计项、NaN 字符串、非有限数、v1 迁移、未来 schema、未知模块版本。
-- 500ms 去抖、评分/规划/应用期间延迟、失败保留旧配置、成功清错、连续会话
-  覆盖合并、Idle 后应用、配置 generation/digest 和失效回调。
-- 设置三页、权重精确键匹配、边界调整、只读控件、单击模式双确认、忙碌
-  状态提示、会话配置应用。
-- 外部编辑器覆盖首次创建、持久保存后重新加载、保留未知字段、候选文件清理、
-  非法推荐数量拒绝且原文件字节不变。
-- 配置 digest 覆盖执行与保护字段；配置变化重建 PreviewBuilder、清空旧预览，
-  非 Idle 拒绝重配。
+执行的验证：
+- `.\tools\build.ps1 -Configuration Debug`：通过；
+  `phase13_unit_tests` 6.39 秒、`phase13_dll_load_smoke` 0.04 秒、
+  `phase13_settings_editor_validate` 0.02 秒，3/3 通过。
+- `.\tools\build.ps1 -Configuration Release`：通过；
+  `phase13_unit_tests` 1.06 秒、`phase13_dll_load_smoke` 0.06 秒、
+  `phase13_settings_editor_validate` 0.05 秒，3/3 通过。
+- `.\tools\deploy.ps1 -GameRoot
+  'D:\steam\steam\steamapps\common\Mewgenics' -Configuration Release`：通过。
+- `.\tools\verify_install.ps1 -GameRoot
+  'D:\steam\steam\steamapps\common\Mewgenics'`：通过。
+- Release DLL 的源文件和安装文件均为 809984 bytes，SHA-256 均为
+  `B60CE2B41738819F2A5DEBC02DF2BD118F64C76FF9D16C1E92315D7EEFF1BD6A`。
+- Release 外部设置程序的源文件和安装文件均为 316928 bytes，SHA-256 均为
+  `F4A2ABBE1164A29231A00FF987031DFBECBAC75E0FBF6A16AA7C914C8FC425DF`。
+- 部署前后 `user_config.json` 的 SHA-256 均为
+  `3345FCA91F5CF268E6DD911A901AC8D24AD01C269BF9CEB2746580C511401C7D`；
+  用户配置没有被覆盖。
+- `git diff --check`：通过，仅有 Git 的 LF/CRLF 工作区提示。
 
-游戏内验证：
-- 玩家截图已经确认 F9 四项快捷设置和 `Mark Combat Cats` 按钮在当前 build
-  同时存在。此次只收窄键盘分页路由，不改动这些已验证的 MewUI 节点与控制器。
-- 最终权重/规则界面现在是可独立自动验证的 Windows 程序，不再需要玩家进入
-  游戏检查高级设置页。Stage 13 验收完成，可以继续 Stage 14。
+游戏内验证状态：
+- 玩家此前已经验证 8 猫存档的推荐按钮可用，并提供了切换到 25 猫存档后
+  失败的真实日志证据。
+- 新 DLL 已部署，但修复后的跨存档路径必须由玩家在当前游戏进程中复验；
+  自动化测试不能替代存档切换后的真实对象重新分配。
+- 在该复验通过前，Stage 13 状态为 `awaiting_player_validation`，Stage 14
+  保持阻塞。
 
 已知风险：
-- F9 四项仍是会话覆盖；外部编辑器写入的文件配置才跨游戏重启保留。这是配置
-  分层设计，外部保存不会自动触发工作流。
-- Stage 10 真实写 adapter 仍不支持，因此关闭只读或开启单击模式也不会让
-  真实移动/淘汰变得可执行。
+- 当前日志中的游戏 build identity 仍显示 `unknown`。本次只沿用已经由同一
+  build 多次实机证明的身份布局，不把它升级为通用 build 假设。
+- 若实机仍失败，必须依据新日志继续定位，不允许放宽全量双射或 root-node
+  安全条件。
 
-本地实现 commit：3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc
-提交信息：`feat: add validated hot-reloadable configuration and settings UI`
-验证门禁 commit：aa5429a8f1c60d33e14a174a3bcc202ad724e11c
-本次玩家反馈收尾：独立编辑器、F9 分页收窄、报告与状态在同一后续提交中；
-其最终哈希由提交创建后记录在任务结果中（提交内容不能自引用自身哈希）。
+明确未实施：
+- Stage 14 的真实存档写入、备份管理或恢复工具。
+- 自动组队、自动选猫、自动确认、自动休息、日期推进或自动出征。
+
+本地 Stage 13 主实现 commit：
+`3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc`
+
+外部编辑器收尾 commit：
+`9cef537e54cc2f121616640bfb8269e1de3616db`
+
+本次兼容性修复 commit：本报告所在的本地提交；确切哈希记录在本次任务结果，
+避免提交内容自引用导致哈希变化。
+
 是否 push：否

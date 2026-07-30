@@ -19,7 +19,6 @@
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/recommendation/snapshot_reader.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
-#include "auto_cattery/settings_service.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
@@ -29,8 +28,6 @@
 #include "mew_ui_house_detail_adapter.h"
 #include "mew_ui_mapping_probe.h"
 #include "mew_ui_recommendation_marker_view.hpp"
-#include "mew_ui_settings_panel_view.hpp"
-#include "auto_cattery/ui/settings_panel_controller.hpp"
 #include "mew_ui_scene_probe.h"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -133,7 +130,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     recommendation_marker_controller_ =
         std::make_unique<RecommendationMarkerController>(
             *recommendation_marker_view_);
-    settings_panel_view_ = std::make_unique<MewUiSettingsPanelView>();
     recommendation_marker_controller_->SetRequestHandler(
         [this](std::uint64_t generation) {
             recommendation_detail_targets_.clear();
@@ -237,10 +233,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         std::make_unique<workflow::OrganizeWorkflowFacade>(
             std::make_unique<snapshot::SaveSnapshotAdapter>(),
             config);
-    settings_service_ = std::make_unique<SettingsService>(*config_runtime_);
-    settings_panel_controller_ = std::make_unique<SettingsPanelController>(
-        *settings_service_,
-        *settings_panel_view_);
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
         *organize_workflow_);
@@ -292,9 +284,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             mapping_snapshot_next_attempt_ = {};
             house_button_controller_->Detach();
             recommendation_marker_controller_->Detach();
-            if (settings_panel_controller_) {
-                settings_panel_controller_->Detach();
-            }
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
             next_recommendation_attach_retry_ = {};
@@ -338,9 +327,6 @@ void MewUiBridge::Shutdown() noexcept {
     if (recommendation_marker_controller_) {
         recommendation_marker_controller_->Detach();
     }
-    if (settings_panel_controller_) {
-        settings_panel_controller_->Detach();
-    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -374,9 +360,6 @@ void MewUiBridge::Shutdown() noexcept {
     house_button_controller_.reset();
     recommendation_marker_controller_.reset();
     recommendation_marker_view_.reset();
-    settings_panel_controller_.reset();
-    settings_service_.reset();
-    settings_panel_view_.reset();
     config_runtime_.reset();
     organize_workflow_.reset();
     house_button_view_.reset();
@@ -484,70 +467,11 @@ void MewUiBridge::OnTick() {
         mod_ui_enabled && active_config.ui.house_button_enabled;
     const bool recommendation_button_enabled =
         mod_ui_enabled && active_config.ui.embark_button_enabled;
-    if (settings_panel_controller_) {
-        if ((!house_ready || !mod_ui_enabled) &&
-            settings_panel_controller_->IsOpen()) {
-            settings_panel_controller_->Detach();
-        } else if (house_ready && mod_ui_enabled &&
-                   (GetAsyncKeyState(VK_F9) & 1) != 0) {
-            if (settings_panel_controller_->IsOpen()) {
-                settings_panel_controller_->Detach();
-            } else {
-                recommendation_marker_controller_->Detach();
-                const auto attached = settings_panel_controller_->Attach(context);
-                Logger::Instance().Write(
-                    attached ? LogLevel::Info : LogLevel::Warn,
-                    "SettingsPanel",
-                    attached ? "AC1310" : "AC1311",
-                    attached
-                        ? "Four-control session settings panel opened on verified MOD rows."
-                        : "Settings panel could not open: " + attached.message);
-            }
-        }
-    }
-
-    const bool settings_open =
-        settings_panel_controller_ && settings_panel_controller_->IsOpen();
-    if (settings_open) {
-        const auto workflow_state = organize_workflow_
-            ? organize_workflow_->State()
-            : workflow::WorkflowState::Idle;
-        if ((GetAsyncKeyState(VK_UP) & 1) != 0) {
-            (void)settings_panel_controller_->MoveSelection(-1);
-        } else if ((GetAsyncKeyState(VK_DOWN) & 1) != 0) {
-            (void)settings_panel_controller_->MoveSelection(1);
-        }
-        if ((GetAsyncKeyState(VK_LEFT) & 1) != 0) {
-            (void)settings_panel_controller_->AdjustSelected(
-                -1,
-                workflow_state);
-        } else if ((GetAsyncKeyState(VK_RIGHT) & 1) != 0) {
-            (void)settings_panel_controller_->AdjustSelected(
-                1,
-                workflow_state);
-        } else if ((GetAsyncKeyState(VK_RETURN) & 1) != 0) {
-            (void)settings_panel_controller_->ActivateSelected(workflow_state);
-        }
-        if ((GetAsyncKeyState(VK_LBUTTON) & 1) != 0 &&
-            settings_panel_view_) {
-            const auto hit = settings_panel_view_->HitTest(GetForegroundWindow());
-            if (hit) {
-                const auto selected =
-                    settings_panel_controller_->SelectVisibleRow(hit->row);
-                if (selected) {
-                    (void)settings_panel_controller_->AdjustSelected(
-                        hit->direction,
-                        workflow_state);
-                }
-            }
-        }
-        (void)settings_panel_controller_->Refresh();
-    }
     const bool interstitial_ready = scene_ready("Interstitial");
     const bool expedition_ready =
         scene_ready("Map") || scene_ready("Battle");
     recommendation_marker_controller_->ObserveRuntime(
-        house_ready && recommendation_button_enabled && !settings_open,
+        house_ready && recommendation_button_enabled,
         interstitial_ready,
         expedition_ready);
 
@@ -583,7 +507,6 @@ void MewUiBridge::OnTick() {
     }
 
     if (recommendation_button_enabled &&
-        !settings_open &&
         house_ready &&
         recommendation_marker_controller_->ShouldShow() &&
         !recommendation_marker_controller_->IsAttached() &&

@@ -12,7 +12,6 @@
 #include "auto_cattery/config_runtime.hpp"
 #include "auto_cattery/recommendation/mapping_probe.hpp"
 #include "auto_cattery/scoring/domain.hpp"
-#include "auto_cattery/settings_service.hpp"
 #include "auto_cattery/snapshot/domain.hpp"
 #include "auto_cattery/ui/scene_context.hpp"
 
@@ -26,8 +25,6 @@ class HouseButtonController;
 class MewUiHouseButtonView;
 class RecommendationMarkerController;
 class MewUiRecommendationMarkerView;
-class SettingsPanelController;
-class MewUiSettingsPanelView;
 
 class MewUiBridge final : public Module {
 public:
@@ -91,7 +88,6 @@ private:
     RecommendationMarkerConfig recommendation_marker_config_;
     std::vector<void*> recommendation_detail_targets_;
     std::unique_ptr<RuntimeConfigService> config_runtime_;
-    std::unique_ptr<SettingsService> settings_service_;
     std::future<Result<std::vector<snapshot::HouseSnapshot>>>
         mapping_snapshot_task_;
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
@@ -101,8 +97,6 @@ private:
         recommendation_marker_view_;
     std::unique_ptr<RecommendationMarkerController>
         recommendation_marker_controller_;
-    std::unique_ptr<MewUiSettingsPanelView> settings_panel_view_;
-    std::unique_ptr<SettingsPanelController> settings_panel_controller_;
 };
 
 }  // namespace autocattery::ui

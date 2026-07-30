@@ -42,43 +42,64 @@ static int AcTypeEquals(
     return data && size == literal_size &&
            memcmp(data, literal, literal_size) == 0;
 }
-static size_t AcReadableBytes(void* pointer) {
-    MEMORY_BASIC_INFORMATION info;
-    uintptr_t start;
+static int AcReadableRange(const void* pointer, size_t byte_count) {
+    uintptr_t current;
     uintptr_t end;
-    DWORD blocked;
-    if (!pointer ||
-        VirtualQuery(pointer, &info, sizeof(info)) != sizeof(info) ||
-        info.State != MEM_COMMIT) {
-        return 0U;
+    if (!pointer || byte_count == 0U) {
+        return 0;
     }
-    blocked = PAGE_GUARD | PAGE_NOACCESS;
-    if ((info.Protect & blocked) != 0U) {
-        return 0U;
+    current = (uintptr_t)pointer;
+    if (byte_count > UINTPTR_MAX - current) {
+        return 0;
     }
-    start = (uintptr_t)pointer;
-    end = (uintptr_t)info.BaseAddress + (uintptr_t)info.RegionSize;
-    if (end <= start) {
-        return 0U;
+    end = current + byte_count;
+    while (current < end) {
+        MEMORY_BASIC_INFORMATION info;
+        uintptr_t region_end;
+        const DWORD blocked = PAGE_GUARD | PAGE_NOACCESS;
+        if (VirtualQuery(
+                (const void*)current,
+                &info,
+                sizeof(info)) != sizeof(info) ||
+            info.State != MEM_COMMIT ||
+            (info.Protect & blocked) != 0U) {
+            return 0;
+        }
+        region_end = (uintptr_t)info.BaseAddress +
+                     (uintptr_t)info.RegionSize;
+        if (region_end <= current) {
+            return 0;
+        }
+        current = region_end < end ? region_end : end;
     }
-    return (size_t)(end - start);
+    return 1;
 }
 static int AcReadIdentity(
     void* component,
     size_t offset,
     uint8_t width,
     int64_t* value) {
+    const size_t byte_count = width == 8U ? 8U : width == 4U ? 4U : 0U;
+    const uintptr_t start = (uintptr_t)component;
+    const void* source;
     if (!component || !value) {
+        return 0;
+    }
+    if (byte_count == 0U || offset > UINTPTR_MAX - start) {
+        return 0;
+    }
+    source = (const void*)(start + offset);
+    if (!AcReadableRange(source, byte_count)) {
         return 0;
     }
     __try {
         if (width == 8U) {
-            memcpy(value, (uint8_t*)component + offset, 8U);
+            memcpy(value, source, 8U);
             return 1;
         }
         if (width == 4U) {
             uint32_t narrow;
-            memcpy(&narrow, (uint8_t*)component + offset, 4U);
+            memcpy(&narrow, source, 4U);
             *value = narrow;
             return 1;
         }
@@ -220,11 +241,6 @@ AcMewHouseCatIdentityProbe AcMewProbeHouseCatIdentity(
     result.house_cat_count = (uint32_t)component_count;
     if (component_count < cat_id_count) {
         goto cleanup;
-    }
-    for (offset = 0U; offset < component_count; ++offset) {
-        if (AcReadableBytes(components[offset]) < AC_SCAN_LIMIT) {
-            goto cleanup;
-        }
     }
     first_mapping = (size_t*)calloc(cat_id_count, sizeof(*first_mapping));
     mapping = (size_t*)calloc(cat_id_count, sizeof(*mapping));

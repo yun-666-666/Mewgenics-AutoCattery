@@ -78,8 +78,6 @@ add_library(auto_cattery_core STATIC
     src/workflow/preview_store.cpp
     src/workflow/recommendation_snapshot_writer.cpp
     src/workflow/state_machine.cpp
-    src/settings_service.cpp
-    src/settings_editor.cpp
     src/settings_file_editor.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
@@ -88,9 +86,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_mapping_probe.c
     src/ui/mew_ui_movie_clip.cpp
     src/ui/recommendation_marker_controller.cpp
-    src/ui/settings_panel_controller.cpp
     src/ui/mew_ui_recommendation_marker_view.cpp
-    src/ui/mew_ui_settings_panel_view.cpp
     src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
     src/ui/mew_ui_config_binding.cpp
@@ -202,9 +198,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/save_database_tests.cpp
         tests/save_locator_tests.cpp
         tests/scene_context_tests.cpp
-        tests/settings_panel_controller_tests.cpp
         tests/settings_file_editor_tests.cpp
-        tests/settings_service_tests.cpp
         tests/test_main.cpp
     )
     target_link_libraries(auto_cattery_tests PRIVATE auto_cattery_core)
