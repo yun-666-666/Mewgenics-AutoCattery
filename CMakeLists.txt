@@ -80,6 +80,7 @@ add_library(auto_cattery_core STATIC
     src/workflow/state_machine.cpp
     src/settings_service.cpp
     src/settings_editor.cpp
+    src/settings_file_editor.cpp
     src/ui/house_button_controller.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/mew_ui_house_cat_probe.c
@@ -126,6 +127,29 @@ set_target_properties(AutoCattery PROPERTIES
 foreach(config Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER "${config}" config_upper)
     set_target_properties(AutoCattery PROPERTIES
+        "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}/out/${config}"
+    )
+endforeach()
+
+add_executable(AutoCatterySettings WIN32
+    src/settings_app/settings_app.cpp
+    src/settings_app/settings_form.cpp
+    src/settings_app/settings_form_data.cpp
+    src/settings_app/settings_form_schema.cpp
+)
+target_link_libraries(
+    AutoCatterySettings
+    PRIVATE auto_cattery_core shell32 user32 gdi32
+)
+target_compile_features(AutoCatterySettings PRIVATE cxx_std_20)
+target_compile_definitions(AutoCatterySettings PRIVATE UNICODE _UNICODE)
+autocattery_enable_warnings(AutoCatterySettings)
+set_target_properties(AutoCatterySettings PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out"
+)
+foreach(config Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER "${config}" config_upper)
+    set_target_properties(AutoCatterySettings PROPERTIES
         "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}/out/${config}"
     )
 endforeach()
@@ -179,6 +203,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/save_locator_tests.cpp
         tests/scene_context_tests.cpp
         tests/settings_panel_controller_tests.cpp
+        tests/settings_file_editor_tests.cpp
         tests/settings_service_tests.cpp
         tests/test_main.cpp
     )
@@ -199,5 +224,9 @@ if(AUTOCATTERY_BUILD_TESTS)
     add_test(
         NAME phase13_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
+    )
+    add_test(
+        NAME phase13_settings_editor_validate
+        COMMAND AutoCatterySettings --validate ${CMAKE_SOURCE_DIR}
     )
 endif()

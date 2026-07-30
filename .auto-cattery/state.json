@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 13,
+  "active_stage": 14,
   "stages": {
     "1": {
       "status": "completed",
@@ -59,12 +59,13 @@
       "stage_13_blocked": false
     },
     "13": {
-      "status": "settings_ui_validation_required",
-      "commit": null,
+      "status": "completed",
+      "commit": "3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc",
       "implementation_commit": "3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc",
-      "capability": "ValidatedHotReloadableConfigAndSessionSettingsPanel",
-      "game_validation_status": "awaiting_player_house_settings_panel_validation",
-      "stage_14_blocked": true
+      "validation_commit": "aa5429a8f1c60d33e14a174a3bcc202ad724e11c",
+      "capability": "ValidatedHotReloadableConfigWithExternalPersistentSettingsEditorAndFourControlF9Panel",
+      "game_validation_status": "player_evidence_accepted_for_f9_controls_and_mark_button;external_editor_automated_and_visual_validation_passed",
+      "stage_14_blocked": false
     },
     "14": {
       "status": "pending",
@@ -79,5 +80,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-07-30T04:22:42+08:00"
+  "updated_at": "2026-07-30T13:10:10+08:00"
 }

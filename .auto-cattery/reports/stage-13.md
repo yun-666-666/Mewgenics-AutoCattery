@@ -1,5 +1,5 @@
 阶段：13
-状态：代码与自动化验收完成；等待玩家实机确认 House 设置面板，Stage 14 保持阻塞
+状态：完成；权重/规则编辑已移到游戏外，Stage 14 不再阻塞
 
 实际能力：
 - 配置升级为 schema v2，总 schema 与 general、UI、战斗评分、繁育评分、
@@ -18,12 +18,17 @@
 - 文件热加载使用 500ms 去抖，只在工作流 Idle 时应用；忙碌时延迟，失败时
   保持旧不可变配置。配置生效统一更新整理工作流、使旧预览失效并清除旧推荐，
   不自动开始整理、评分、选猫、休息、日期推进或出征。
-- 新增应用层 `SettingsService` 和三页设置模型。简单页可改推荐数、受伤排除、
-  最低保留数和软溢出；高级页可改战斗/繁育七项权重；安全页显示只读、备份、
-  单击模式以及两个不可修改的硬约束。开启单击模式需要连续两次明确确认。
-- House 中按 F9 打开/关闭设置。Tab/PageDown、PageUp 翻页，方向键选择/修改，
-  Enter 激活；鼠标点击行左/右半区可减/增。设置仅作为本次游戏会话覆盖，
-  持久配置仍由 `user_config.json` 热加载。
+- 新增应用层 `SettingsService` 和三页设置模型。根据玩家反馈，游戏内只暴露
+  简单页的四项快捷设置：推荐数、受伤排除、最低保留数和软溢出；F9 打开/
+  关闭，方向键、Enter 和鼠标操作保持不变，Tab/PageDown/PageUp 不再进入
+  高级权重或安全规则页。
+- 新增独立 Windows x64 程序 `AutoCatterySettings.exe`。战斗/繁育七项权重、
+  评分阈值、分类保留池、房间规则、推荐显示和执行安全选项在游戏外编辑，保存
+  到 MOD 自己的 `config/user_config.json`。程序先验证候选配置，再以同目录临时
+  文件原子替换；非法输入不覆盖旧文件，并保留用户配置中的无关字段。
+- 开启单击执行模式前有独立确认对话框；保存配置不会启动整理、评分、选猫、
+  休息、日期推进或出征。游戏未启动时下次启动读取，运行中仅在工作流 Idle 时
+  由现有热加载服务应用。
 - 设置视图仅复用 Stage 12 已实机验证的四个 MOD 自有推荐行、文本节点、命中
   区域和停帧行为；未新增或猜测游戏原生节点、函数、偏移、场景、ID、存档字段
   或 API，未修改 SWF 与游戏原始文件。
@@ -36,6 +41,9 @@
   Toolkit 示例值或重新实现选择器。
 - 当前仓库、既有实机日志和已验收 Stage 12 UI 证据足够，本阶段没有采用
   在线资料，也没有复制外部代码或资源。
+- 玩家截图确认当前 build 的 House 中，F9 四项快捷设置与
+  `Mark Combat Cats` 按钮同时存在。此次运行时变更只删除分页热键分支，没有
+  删除或改名四项设置行、推荐按钮、推荐列表或推荐详情行为。
 - 没有提供“保守/平衡/激进”预设：文档中的平衡值没有当前 build 或玩家
   证据，照搬会违反真实值规则。配置文件仍支持全部现有评分覆盖表。
 - 没有实现导入/导出按钮：本阶段没有安全、已验证的文本输入/文件选择 UI
@@ -54,9 +62,17 @@
   `src/config/validation.cpp`、`src/config/decoder.cpp`、
   `src/config_runtime.cpp`。
 - 设置应用/UI：`include/auto_cattery/settings_service.hpp`、
+  `include/auto_cattery/settings_file_editor.hpp`、
   `include/auto_cattery/ui/settings_panel_controller.hpp`、
   `include/auto_cattery/ui/mew_ui_bridge.hpp`、`src/settings_service.cpp`、
-  `src/settings_editor.cpp`、`src/ui/settings_panel_controller.cpp`、
+  `src/settings_editor.cpp`、`src/settings_file_editor.cpp`、
+  `src/settings_app/settings_app.cpp`、
+  `src/settings_app/settings_form.hpp`、
+  `src/settings_app/settings_form.cpp`、
+  `src/settings_app/settings_form_data.cpp`、
+  `src/settings_app/settings_form_schema.hpp`、
+  `src/settings_app/settings_form_schema.cpp`、
+  `src/ui/settings_panel_controller.cpp`、
   `src/ui/mew_ui_settings_panel_view.hpp`、
   `src/ui/mew_ui_settings_panel_view.cpp`、`src/ui/mew_ui_movie_clip.hpp`、
   `src/ui/mew_ui_movie_clip.cpp`、`src/ui/mew_ui_config_binding.cpp`、
@@ -69,20 +85,23 @@
 - 测试：`tests/config_tests.cpp`、`tests/config_boundary_tests.cpp`、
   `tests/config_migration_tests.cpp`、`tests/config_runtime_tests.cpp`、
   `tests/settings_service_tests.cpp`、
+  `tests/settings_file_editor_tests.cpp`、
   `tests/settings_panel_controller_tests.cpp`、
   `tests/organize_workflow_facade_tests.cpp`、
   `tests/workflow_digest_tests.cpp`、
   `tests/workflow_preview_store_tests.cpp`、`tests/test_main.cpp`。
 - 阶段记录：`.auto-cattery/reports/stage-13.md`、
   `.auto-cattery/state.json`。
+- 分发/启动：`tools/open_settings.ps1`；`tools/build.ps1`、
+  `tools/deploy.ps1` 和 `tools/verify_install.ps1` 增加独立编辑器处理。
 
 验证：
 - `tools/build.ps1 -Configuration Debug`：通过；最终
-  `phase13_unit_tests` 4.90 秒、`phase13_dll_load_smoke` 0.07 秒，
-  100% 通过。
+  `phase13_unit_tests` 4.29 秒、`phase13_dll_load_smoke` 0.03 秒、
+  `phase13_settings_editor_validate` 0.02 秒，100% 通过。
 - `tools/build.ps1 -Configuration Release`：通过；
-  `phase13_unit_tests` 0.67 秒、`phase13_dll_load_smoke` 0.07 秒，
-  100% 通过。
+  `phase13_unit_tests` 0.54 秒、`phase13_dll_load_smoke` 0.07 秒、
+  `phase13_settings_editor_validate` 0.05 秒，100% 通过。
 - `git diff --check`：通过；仅 Git 的 LF/CRLF 工作区提示，无空白错误。
 - PowerShell `ConvertFrom-Json`：源、Debug 和 Release 的
   `default_config.json`、`config.schema.json` 全部可解析。
@@ -91,9 +110,16 @@
   schema 均为
   `088B36C5533FC9E248576956254BA4DCEF3C962B93FBB0A671DDEB16B8754321`。
 - Release 已通过现有部署脚本安装；`tools/verify_install.ps1` 通过。
-  安装 DLL 为 836608 bytes，SHA-256
-  `B9B8FCF1F412332A0107AFE788B6EC8E5B38F3BFAD5C0EA738A2CB7F6D0FEAB1`，
-  与 `dist/Release/AutoCattery.dll` 一致；安装配置/schema 哈希也一致。
+  安装 DLL 为 836096 bytes，SHA-256
+  `94BE3F57177C668435BB49A0C25C629299C7C55FA10278B8AC61F8B93B6116C2`；
+  独立编辑器为 316928 bytes，SHA-256
+  `F1B0AED7CE75D3FBBF24269EA044C904BDBB4EB75799E071068875FFBB70615A`。
+  二者及安装默认配置均与 `dist/Release` 一致；安装路径执行
+  `AutoCatterySettings.exe --validate` 返回 0。部署前后的
+  `user_config.json` 都不存在，部署没有制造或覆盖用户设置。
+- 使用 Windows UI 自动化真实启动 Debug 编辑器并检查完整可访问性树与窗口
+  截图：三栏、45 个字段控件、状态区和两个命令按钮均可见，中文无重叠或截断；
+  检查后未保存并正常关闭窗口。
 
 自动化覆盖：
 - 有效、缺失、非法、截断 JSON，根数组、未知数组、1 MiB 上限、边界值、
@@ -102,24 +128,26 @@
   覆盖合并、Idle 后应用、配置 generation/digest 和失效回调。
 - 设置三页、权重精确键匹配、边界调整、只读控件、单击模式双确认、忙碌
   状态提示、会话配置应用。
+- 外部编辑器覆盖首次创建、持久保存后重新加载、保留未知字段、候选文件清理、
+  非法推荐数量拒绝且原文件字节不变。
 - 配置 digest 覆盖执行与保护字段；配置变化重建 PreviewBuilder、清空旧预览，
   非 Idle 拒绝重配。
 
 游戏内验证：
-- Release 已部署，最终设置界面仍需玩家确认。离线测试无法证明实际 House
-  布局、键鼠输入、离场清理及原生 UI 在当前游戏运行时中无视觉/交互冲突。
-- 最短步骤：通过 Mewtator 进入 House，按 F9；用 Tab 查看三页并把推荐数量
-  或一个权重改动一次；按 F9 关闭后由玩家点击 `Mark Combat Cats`，确认只在
-  点击后按新规则刷新；离开再进入 House，确认设置行已清空且原生 UI 正常。
-- 全程确认没有自动整理、自动选猫、自动休息、日期推进或自动出征。完成此轮
-  玩家确认前不得开始 Stage 14。
+- 玩家截图已经确认 F9 四项快捷设置和 `Mark Combat Cats` 按钮在当前 build
+  同时存在。此次只收窄键盘分页路由，不改动这些已验证的 MewUI 节点与控制器。
+- 最终权重/规则界面现在是可独立自动验证的 Windows 程序，不再需要玩家进入
+  游戏检查高级设置页。Stage 13 验收完成，可以继续 Stage 14。
 
 已知风险：
-- 设置面板的最终可用性与布局互不干扰性待上述实机验证。
-- 设置是会话覆盖，游戏重启后回到文件配置；这是分层设计，不是持久写入。
+- F9 四项仍是会话覆盖；外部编辑器写入的文件配置才跨游戏重启保留。这是配置
+  分层设计，外部保存不会自动触发工作流。
 - Stage 10 真实写 adapter 仍不支持，因此关闭只读或开启单击模式也不会让
   真实移动/淘汰变得可执行。
 
 本地实现 commit：3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc
 提交信息：`feat: add validated hot-reloadable configuration and settings UI`
+验证门禁 commit：aa5429a8f1c60d33e14a174a3bcc202ad724e11c
+本次玩家反馈收尾：独立编辑器、F9 分页收窄、报告与状态在同一后续提交中；
+其最终哈希由提交创建后记录在任务结果中（提交内容不能自引用自身哈希）。
 是否 push：否

@@ -44,6 +44,7 @@ void RunSaveDatabaseTests();
 void RunSaveLocatorTests();
 void RunSceneContextTests();
 void RunSettingsPanelControllerTests();
+void RunSettingsFileEditorTests();
 void RunSettingsServiceTests();
 void RunSnapshotDomainTests();
 void RunSnapshotAssemblerTests();
@@ -101,6 +102,7 @@ int main() {
     autocattery::tests::RunSaveLocatorTests();
     autocattery::tests::RunSceneContextTests();
     autocattery::tests::RunSettingsPanelControllerTests();
+    autocattery::tests::RunSettingsFileEditorTests();
     autocattery::tests::RunSettingsServiceTests();
     autocattery::tests::RunSnapshotDomainTests();
     autocattery::tests::RunSnapshotAssemblerTests();

@@ -500,7 +500,7 @@ void MewUiBridge::OnTick() {
                     "SettingsPanel",
                     attached ? "AC1310" : "AC1311",
                     attached
-                        ? "Session settings panel opened on verified MOD rows."
+                        ? "Four-control session settings panel opened on verified MOD rows."
                         : "Settings panel could not open: " + attached.message);
             }
         }
@@ -512,12 +512,6 @@ void MewUiBridge::OnTick() {
         const auto workflow_state = organize_workflow_
             ? organize_workflow_->State()
             : workflow::WorkflowState::Idle;
-        if ((GetAsyncKeyState(VK_TAB) & 1) != 0 ||
-            (GetAsyncKeyState(VK_NEXT) & 1) != 0) {
-            (void)settings_panel_controller_->NextPage(1);
-        } else if ((GetAsyncKeyState(VK_PRIOR) & 1) != 0) {
-            (void)settings_panel_controller_->NextPage(-1);
-        }
         if ((GetAsyncKeyState(VK_UP) & 1) != 0) {
             (void)settings_panel_controller_->MoveSelection(-1);
         } else if ((GetAsyncKeyState(VK_DOWN) & 1) != 0) {
