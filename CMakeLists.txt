@@ -62,6 +62,14 @@ add_library(auto_cattery_core STATIC
     src/scoring/combat_ranker.cpp
     src/scoring/combat_ranking_cache.cpp
     src/scoring/combat_scorer.cpp
+    src/save_safety/file_hash.cpp
+    src/save_safety/atomic_file_replace.cpp
+    src/save_safety/backup_catalog.cpp
+    src/save_safety/backup_manifest_store.cpp
+    src/save_safety/game_process_probe.cpp
+    src/save_safety/restore_service.cpp
+    src/save_safety/safe_path.cpp
+    src/save_safety/save_stability.cpp
     src/snapshot/cat_blob_parser.cpp
     src/snapshot/domain.cpp
     src/snapshot/house_state_parser.cpp
@@ -150,6 +158,20 @@ foreach(config Debug Release RelWithDebInfo MinSizeRel)
     )
 endforeach()
 
+add_executable(AutoCatteryRestore tools/restore_main.cpp)
+target_link_libraries(AutoCatteryRestore PRIVATE auto_cattery_core)
+target_compile_features(AutoCatteryRestore PRIVATE cxx_std_20)
+autocattery_enable_warnings(AutoCatteryRestore)
+set_target_properties(AutoCatteryRestore PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out"
+)
+foreach(config Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER "${config}" config_upper)
+    set_target_properties(AutoCatteryRestore PROPERTIES
+        "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}/out/${config}"
+    )
+endforeach()
+
 if(AUTOCATTERY_BUILD_TESTS)
     enable_testing()
     add_executable(auto_cattery_tests
@@ -177,6 +199,10 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/execution_transaction_success_tests.cpp
         tests/execution_transaction_failure_tests.cpp
         tests/execution_transaction_concurrency_tests.cpp
+        tests/atomic_file_replace_tests.cpp
+        tests/backup_manifest_tests.cpp
+        tests/restore_service_tests.cpp
+        tests/file_hash_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
         tests/organize_workflow_facade_tests.cpp
@@ -197,6 +223,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/recommendation_marker_controller_tests.cpp
         tests/save_database_tests.cpp
         tests/save_locator_tests.cpp
+        tests/save_stability_tests.cpp
         tests/scene_context_tests.cpp
         tests/settings_file_editor_tests.cpp
         tests/test_main.cpp
@@ -205,22 +232,31 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_include_directories(auto_cattery_tests PRIVATE third_party/json/include)
     target_compile_features(auto_cattery_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(auto_cattery_tests)
-    add_test(NAME phase13_unit_tests COMMAND auto_cattery_tests)
+    add_test(NAME phase14_unit_tests COMMAND auto_cattery_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
     target_compile_features(snapshot_probe PRIVATE cxx_std_20)
     autocattery_enable_warnings(snapshot_probe)
 
+    add_executable(save_format_probe tests/save_format_probe.cpp)
+    target_link_libraries(save_format_probe PRIVATE auto_cattery_core)
+    target_compile_features(save_format_probe PRIVATE cxx_std_20)
+    autocattery_enable_warnings(save_format_probe)
+
     add_executable(dll_smoke_tests tests/dll_smoke_tests.cpp)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)
     autocattery_enable_warnings(dll_smoke_tests)
     add_test(
-        NAME phase13_dll_load_smoke
+        NAME phase14_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
     )
     add_test(
-        NAME phase13_settings_editor_validate
+        NAME phase14_settings_editor_validate
         COMMAND AutoCatterySettings --validate ${CMAKE_SOURCE_DIR}
+    )
+    add_test(
+        NAME phase14_restore_cli_smoke
+        COMMAND AutoCatteryRestore --list --backup-root ${CMAKE_BINARY_DIR}/empty-backup-catalog
     )
 endif()

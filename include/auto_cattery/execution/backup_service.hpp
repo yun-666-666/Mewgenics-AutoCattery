@@ -1,6 +1,9 @@
 #pragma once
 
+#include <chrono>
+#include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 #include "auto_cattery/error.hpp"
@@ -13,12 +16,17 @@ struct BackupArtifact {
     std::string content_hash;
     std::uintmax_t byte_size{};
     std::string backup_identity;
+    std::filesystem::path manifest_file;
+    std::string source_identity;
 };
 
 struct BackupRequest {
     OperationId operation_id;
     std::filesystem::path source_save;
     bool game_confirmed_quiescent{};
+    std::string game_build_identity{"unknown"};
+    std::optional<std::int64_t> game_day;
+    std::chrono::milliseconds stable_window{150};
 };
 
 class IBackupService {
@@ -34,6 +42,7 @@ public:
 
     Result<BackupArtifact> CreateVerifiedBackup(
         const BackupRequest& request) override;
+    Result<void> VerifyBackup(const BackupArtifact& backup) const;
 
 private:
     std::filesystem::path backup_root_;
