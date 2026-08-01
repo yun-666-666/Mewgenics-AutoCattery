@@ -38,21 +38,32 @@ void AddAvailableEmptyRooms(
 void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeContext(
     std::size_t house_cat_count,
     std::size_t available_room_count) noexcept {
-    house_cat_count_.store(
-        house_cat_count,
-        std::memory_order_release);
-    available_room_count_.store(
-        available_room_count,
-        std::memory_order_release);
+    std::scoped_lock lock(context_mutex_);
+    house_cat_count_ = house_cat_count;
+    available_room_count_ = available_room_count;
+    runtime_state_.reset();
+}
+
+void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeHouseState(
+    RuntimeHouseState state) noexcept {
+    std::scoped_lock lock(context_mutex_);
+    house_cat_count_ = state.cats.size();
+    available_room_count_ = state.available_room_count;
+    runtime_state_ = std::move(state);
 }
 
 Result<snapshot::HouseSnapshot>
 RuntimeMatchedSaveSnapshotAdapter::CaptureHouseSnapshot(
     std::uint64_t scene_generation) {
-    const auto expected_cats =
-        house_cat_count_.load(std::memory_order_acquire);
-    const auto expected_rooms =
-        available_room_count_.load(std::memory_order_acquire);
+    std::size_t expected_cats{};
+    std::size_t expected_rooms{};
+    std::optional<RuntimeHouseState> runtime_state;
+    {
+        std::scoped_lock lock(context_mutex_);
+        expected_cats = house_cat_count_;
+        expected_rooms = available_room_count_;
+        runtime_state = runtime_state_;
+    }
     if (expected_cats == 0U || expected_rooms < 2U) {
         return {
             {},
@@ -103,6 +114,20 @@ RuntimeMatchedSaveSnapshotAdapter::CaptureHouseSnapshot(
 
     auto snapshot = std::move(*selected);
     AddAvailableEmptyRooms(snapshot, expected_rooms);
+    if (runtime_state) {
+        const auto overlaid =
+            OverlayRuntimeHouseState(snapshot, *runtime_state);
+        if (!overlaid) {
+            return {{}, overlaid.code, overlaid.message};
+        }
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RuntimeSaveSelection",
+            "AC14317",
+            "Preview snapshot overlaid with current runtime rooms: cats=" +
+                std::to_string(snapshot.cats.size()) +
+                ", rooms=" + std::to_string(snapshot.rooms.size()));
+    }
     return {std::move(snapshot)};
 }
 

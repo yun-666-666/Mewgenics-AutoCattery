@@ -77,8 +77,8 @@
       "capability": "VerifiedOfflineBackupAtomicRestoreAndCurrentBuildGatedRuntimePotentialMoveOnly",
       "real_write_status": "current_build_native_runtime_move_enabled;real_cull_disabled",
       "game_validation_status": "copied_save_move_readback_restore_passed;8_cat_runtime_moves_6_passed;25_cat_runtime_moves_10_passed;cross_save_refresh_passed",
-      "balanced_move_only_algorithm_status": "debug_release_tests_passed;player_validation_pending",
-      "remaining_business_scope": "balanced_move_only_player_validation;room_attribute_adaptation;breeding_genetics;protection_integration;real_cull;detailed_preview;same_count_save_identity"
+      "balanced_move_only_algorithm_status": "two_room_player_validation_passed;manual_move_stale_preview_fix_automated_and_deployed;player_revalidation_pending",
+      "remaining_business_scope": "manual_move_stale_preview_player_revalidation;three_four_room_validation;room_attribute_adaptation;breeding_genetics;protection_integration;real_cull;detailed_preview;same_count_save_identity"
     },
     "15": {
       "status": "pending",
@@ -89,5 +89,5 @@
       "commit": null
     }
   },
-  "updated_at": "2026-08-01T14:15:00+08:00"
+  "updated_at": "2026-08-01T15:30:00+08:00"
 }

@@ -51,15 +51,21 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
   const auto result = gateway_->ExecuteApproved(bundle, choice);
   if (!result.committed) {
     state.Fail();
+    const bool stale = result.failure_reason ==
+                       execution::FailureReason::PreconditionsChanged;
     return {bundle.preview.id,
             capability_,
             WorkflowState::Failed,
-            WorkflowFailureReason::ExecutionFailed,
+            stale ? WorkflowFailureReason::PreconditionsChanged
+                  : WorkflowFailureReason::ExecutionFailed,
             result.completed_moves,
             result.completed_culls,
             result.completed_moves != 0 || result.completed_culls != 0,
             false,
-            "Execution did not commit; no cull fallback was attempted."};
+            stale
+                ? "Room assignments changed after preview. No moves were "
+                  "made; click again to create a fresh preview."
+                : "Execution did not commit; no cull fallback was attempted."};
   }
   if (!state.BeginVerify() || !state.Complete()) {
     state.Fail();

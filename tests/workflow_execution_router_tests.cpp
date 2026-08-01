@@ -76,6 +76,18 @@ void RunWorkflowExecutionRouterTests() {
   AC_CHECK(gateway.calls == 2);
   AC_CHECK(failed.state == workflow::WorkflowState::Failed);
   AC_CHECK(failed.completed_culls == 0);
+
+  gateway.result = {};
+  gateway.result.failure_reason =
+      execution::FailureReason::PreconditionsChanged;
+  workflow::WorkflowStateMachine stale_state;
+  AwaitConfirmation(stale_state);
+  const auto stale = move_only.Execute(
+      bundle, workflow::ExecutionChoice::MoveOnly, stale_state);
+  AC_CHECK(stale.failure_reason ==
+           workflow::WorkflowFailureReason::PreconditionsChanged);
+  AC_CHECK(stale.game_data_modified == false);
+  AC_CHECK(stale.message.find("click again") != std::string::npos);
 }
 
 } // namespace autocattery::tests

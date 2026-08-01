@@ -103,6 +103,7 @@ add_library(auto_cattery_core STATIC
     src/ui/house_move_probe_session.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/mew_ui_house_cat_probe.c
+    src/ui/mew_ui_live_house_state.c
     src/ui/mew_ui_house_move_capture.c
     src/ui/mew_ui_house_move_adapter.c
     src/ui/mew_ui_house_move_probe.c
@@ -112,6 +113,9 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_movie_clip.cpp
     src/ui/recommendation_marker_controller.cpp
     src/ui/runtime_house_move_gateway.cpp
+    src/ui/runtime_house_state_capture.cpp
+    src/ui/runtime_room_resolution.cpp
+    src/ui/runtime_snapshot_overlay.cpp
     src/ui/runtime_matched_save_snapshot_adapter.cpp
     src/ui/mew_ui_recommendation_marker_view.cpp
     src/ui/scene_context.cpp
@@ -259,6 +263,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/snapshot_assembler_tests.cpp
         tests/win_sqlite_api_tests.cpp
         tests/house_button_controller_tests.cpp
+        tests/runtime_house_state_tests.cpp
         tests/house_state_parser_tests.cpp
         tests/house_state_writer_tests.cpp
         tests/recommendation_marker_controller_tests.cpp

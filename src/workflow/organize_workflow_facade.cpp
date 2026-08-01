@@ -118,7 +118,10 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
             return {
                 outcome.failure_reason == WorkflowFailureReason::None
                     ? ErrorCode::Ok
-                    : ErrorCode::UnsupportedGameBuild,
+                    : outcome.failure_reason ==
+                            WorkflowFailureReason::PreconditionsChanged
+                        ? ErrorCode::OperationCancelled
+                        : ErrorCode::UnsupportedGameBuild,
                 outcome.message
             };
         }

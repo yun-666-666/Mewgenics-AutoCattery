@@ -61,6 +61,7 @@ private:
 
     bool started_{};
     bool debug_probe_enabled_{};
+    bool runtime_move_available_{};
     std::filesystem::path diagnostics_root_;
     std::filesystem::path recommendation_sidecar_path_;
     SceneSignatures signatures_;

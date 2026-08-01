@@ -32,6 +32,7 @@
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
 #include "runtime_house_move_gateway.hpp"
+#include "runtime_house_state_capture.hpp"
 #include "runtime_matched_save_snapshot_adapter.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -238,6 +239,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     const bool runtime_move_available =
         runtime_move_gateway_->Initialize(
             context.game_root / L"Mewgenics.exe");
+    runtime_move_available_ = runtime_move_available;
     auto runtime_snapshot_adapter =
         std::make_unique<RuntimeMatchedSaveSnapshotAdapter>();
     runtime_snapshot_adapter_ = runtime_snapshot_adapter.get();
@@ -616,24 +618,42 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
         !current_house_scene_manager_) {
         return;
     }
-    std::array<void*, 16> native_rooms{};
-    const auto native_room_count =
-        AcMewEnumerateNativeHouseRooms(
-            current_house_scene_manager_,
-            native_rooms.data(),
-            native_rooms.size());
-    const auto house_cat_count =
-        AcMewCountHouseCats(current_house_scene_manager_);
+    if (!runtime_move_available_) {
+        std::array<void*, 16> native_rooms{};
+        const auto native_room_count =
+            AcMewEnumerateNativeHouseRooms(
+                current_house_scene_manager_,
+                native_rooms.data(),
+                native_rooms.size());
+        const auto house_cat_count =
+            AcMewCountHouseCats(current_house_scene_manager_);
+        runtime_snapshot_adapter_->SetRuntimeContext(
+            house_cat_count,
+            std::clamp<std::size_t>(
+                native_room_count > 2U
+                    ? native_room_count - 2U
+                    : 2U,
+                2U,
+                4U));
+        return;
+    }
+    auto runtime = CaptureRuntimeHouseState(
+        current_house_scene_manager_);
+    if (!runtime) {
+        runtime_snapshot_adapter_->SetRuntimeContext(0U, 0U);
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "RuntimeSaveSelection",
+            "AC14318",
+            "Live House room refresh failed closed: " + runtime.message);
+        return;
+    }
+    const auto house_cat_count = runtime.value.cats.size();
     const auto available_room_count =
-        std::clamp<std::size_t>(
-            native_room_count > 2U
-                ? native_room_count - 2U
-                : 2U,
-            2U,
-            4U);
-    runtime_snapshot_adapter_->SetRuntimeContext(
-        house_cat_count,
-        available_room_count);
+        runtime.value.available_room_count;
+    const auto native_room_count = runtime.value.rooms.size();
+    runtime_snapshot_adapter_->SetRuntimeHouseState(
+        std::move(runtime.value));
     Logger::Instance().Write(
         LogLevel::Info,
         "RuntimeSaveSelection",

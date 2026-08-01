@@ -30,6 +30,7 @@ void RunConfigMigrationTests();
 void RunConfigRuntimeTests();
 void RunCatBlobParserTests();
 void RunHouseButtonControllerTests();
+void RunRuntimeHouseStateTests();
 void RunHouseStateParserTests();
 void RunHouseStateWriterTests();
 void RunHouseMoveProbeSessionTests();
@@ -99,6 +100,7 @@ int main() {
     autocattery::tests::RunGameBuildGateTests();
     autocattery::tests::RunCatBlobParserTests();
     autocattery::tests::RunHouseButtonControllerTests();
+    autocattery::tests::RunRuntimeHouseStateTests();
     autocattery::tests::RunHouseStateParserTests();
     autocattery::tests::RunHouseStateWriterTests();
     autocattery::tests::RunHouseMoveProbeSessionTests();
