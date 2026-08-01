@@ -1,0 +1,61 @@
+#pragma once
+
+#include <filesystem>
+#include <future>
+#include <memory>
+#include <optional>
+#include <string>
+
+#include "auto_cattery/protection/editor_model.hpp"
+#include "in_game_settings_model.hpp"
+#include "mew_ui_management_panel_view.hpp"
+
+namespace autocattery::ui {
+
+class InGamePanelController final {
+public:
+    InGamePanelController(
+        MewUiManagementPanelView& view,
+        std::filesystem::path mod_root,
+        std::filesystem::path game_root);
+    ~InGamePanelController();
+    void Poll(
+        const UiContextSnapshot& context,
+        bool f10_pressed,
+        bool escape_pressed);
+    void Detach() noexcept;
+    [[nodiscard]] bool IsOpen() const noexcept;
+
+private:
+    using ProtectionModel = protection::ProtectionEditorModel;
+    using ProtectionLoad = Result<std::shared_ptr<ProtectionModel>>;
+
+    void Open(const UiContextSnapshot& context);
+    void Handle(const ManagementPanelEvent& event);
+    void HandleProtectionRow(std::size_t row, int direction);
+    void StartProtectionLoad();
+    void PollProtectionLoad();
+    void Render();
+    [[nodiscard]] ManagementPanelContent SettingsContent();
+    [[nodiscard]] ManagementPanelContent ProtectionContent();
+
+    MewUiManagementPanelView& view_;
+    std::filesystem::path mod_root_;
+    std::filesystem::path game_root_;
+    InGameSettingsModel settings_;
+    std::shared_ptr<ProtectionModel> protection_;
+    std::future<ProtectionLoad> protection_task_;
+    bool protection_loading_{};
+    bool protection_page_{};
+    bool open_{};
+    std::uint64_t generation_{};
+    std::size_t settings_page_{};
+    std::size_t cat_page_{};
+    std::optional<std::size_t> selected_cat_;
+    protection::ProtectionLevel selected_level_{
+        protection::ProtectionLevel::NoMove};
+    std::optional<snapshot::RoomId> selected_room_;
+    std::string status_;
+};
+
+}  // namespace autocattery::ui

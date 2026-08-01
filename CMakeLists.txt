@@ -120,6 +120,11 @@ add_library(auto_cattery_core STATIC
     src/ui/house_move_probe_mapper.cpp
     src/ui/house_move_probe_report.cpp
     src/ui/house_move_probe_session.cpp
+    src/ui/in_game_panel_controller.cpp
+    src/ui/in_game_panel_protection.cpp
+    src/ui/in_game_panel_render.cpp
+    src/ui/in_game_settings_model.cpp
+    src/ui/in_game_settings_pages.cpp
     src/ui/mew_ui_house_button_view.cpp
     src/ui/mew_ui_house_cat_probe.c
     src/ui/mew_ui_live_house_state.c
@@ -130,6 +135,8 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_house_move_room_scan.c
     src/ui/mew_ui_house_detail_adapter.c
     src/ui/mew_ui_mapping_probe.c
+    src/ui/mew_ui_management_panel_input.cpp
+    src/ui/mew_ui_management_panel_view.cpp
     src/ui/mew_ui_movie_clip.cpp
     src/ui/recommendation_marker_controller.cpp
     src/ui/runtime_house_move_gateway.cpp
@@ -291,6 +298,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/snapshot_assembler_tests.cpp
         tests/win_sqlite_api_tests.cpp
         tests/house_button_controller_tests.cpp
+        tests/in_game_settings_model_tests.cpp
         tests/runtime_house_state_tests.cpp
         tests/house_state_parser_tests.cpp
         tests/house_state_writer_tests.cpp

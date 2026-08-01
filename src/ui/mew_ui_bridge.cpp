@@ -22,6 +22,7 @@
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
 #include "house_move_probe_controller.hpp"
+#include "in_game_panel_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
@@ -29,6 +30,7 @@
 #include "mew_ui_house_detail_adapter.h"
 #include "mew_ui_house_move_adapter.h"
 #include "mew_ui_mapping_probe.h"
+#include "mew_ui_management_panel_view.hpp"
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
 #include "runtime_house_move_gateway.hpp"
@@ -130,6 +132,11 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
+    management_panel_view_ =
+        std::make_unique<MewUiManagementPanelView>();
+    in_game_panel_controller_ =
+        std::make_unique<InGamePanelController>(
+            *management_panel_view_, context.mod_root, context.game_root);
     recommendation_marker_view_ =
         std::make_unique<MewUiRecommendationMarkerView>();
     recommendation_marker_controller_ =
@@ -315,6 +322,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             mapping_snapshot_next_attempt_ = {};
             house_button_controller_->Detach();
             recommendation_marker_controller_->Detach();
+            if (in_game_panel_controller_) {
+                in_game_panel_controller_->Detach();
+            }
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
             next_recommendation_attach_retry_ = {};
@@ -355,6 +365,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
 }
 
 void MewUiBridge::Shutdown() noexcept {
+    if (in_game_panel_controller_) {
+        in_game_panel_controller_->Detach();
+    }
     if (house_button_controller_) {
         house_button_controller_->Detach();
     }
@@ -398,6 +411,8 @@ void MewUiBridge::Shutdown() noexcept {
     house_move_probe_controller_.reset();
     recommendation_marker_controller_.reset();
     recommendation_marker_view_.reset();
+    in_game_panel_controller_.reset();
+    management_panel_view_.reset();
     config_runtime_.reset();
     organize_workflow_.reset();
     runtime_move_gateway_.reset();
@@ -483,6 +498,12 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    if (in_game_panel_controller_) {
+        in_game_panel_controller_->Poll(
+            context,
+            (GetAsyncKeyState(VK_F10) & 1) != 0,
+            (GetAsyncKeyState(VK_ESCAPE) & 1) != 0);
+    }
     const auto house_scene = std::find_if(
         scenes.begin(),
         scenes.end(),
@@ -544,10 +565,12 @@ void MewUiBridge::OnTick() {
         ? config_runtime_->Current()
         : Config{};
     const bool mod_ui_enabled = active_config.general.mod_enabled;
+    const bool panel_open = in_game_panel_controller_ &&
+        in_game_panel_controller_->IsOpen();
     const bool house_button_enabled =
-        mod_ui_enabled && active_config.ui.house_button_enabled;
+        mod_ui_enabled && active_config.ui.house_button_enabled && !panel_open;
     const bool recommendation_button_enabled =
-        mod_ui_enabled && active_config.ui.embark_button_enabled;
+        mod_ui_enabled && active_config.ui.embark_button_enabled && !panel_open;
     const bool interstitial_ready = scene_ready("Interstitial");
     const bool expedition_ready =
         scene_ready("Map") || scene_ready("Battle");

@@ -70,6 +70,31 @@ RECOMMENDATION_TEXT_TRANSFORMS = (
     (986.0, 247.0, 0.25),
     (1121.0, 247.0, 0.25),
 )
+PANEL_BACKGROUND_TRANSFORM = (165.0, 42.0, (3.0, 4.55))
+PANEL_ELEMENTS = (
+    ("panel_tab_settings", (310.0, 82.0, (0.86, 0.34)),
+     (268.0, 91.0, (0.45, 0.27))),
+    ("panel_tab_protection", (590.0, 82.0, (0.86, 0.34)),
+     (548.0, 91.0, (0.45, 0.27))),
+    ("panel_close", (1045.0, 82.0, (0.42, 0.34)),
+     (1004.0, 91.0, (0.28, 0.27))),
+    ("panel_prev", (320.0, 622.0, (0.62, 0.32)),
+     (279.0, 630.0, (0.34, 0.25))),
+    ("panel_next", (535.0, 622.0, (0.62, 0.32)),
+     (494.0, 630.0, (0.34, 0.25))),
+    ("panel_apply", (785.0, 622.0, (0.62, 0.32)),
+     (744.0, 630.0, (0.34, 0.25))),
+    ("panel_remove", (1000.0, 622.0, (0.62, 0.32)),
+     (959.0, 630.0, (0.34, 0.25))),
+    *((f"panel_row_{index + 1}",
+       (285.0, 152.0 + index * 55.0, (2.2, 0.34)),
+       (235.0, 161.0 + index * 55.0, (1.35, 0.27)))
+      for index in range(8)),
+)
+PANEL_TEXTS = (
+    ("panel_title", (210.0, 50.0, (1.2, 0.3))),
+    ("panel_status", (210.0, 675.0, (1.6, 0.24))),
+)
 # Pixel coordinates in the pinned source bitmap. The polygon follows the
 # jagged white-paper silhouette and excludes the surrounding wooden board.
 PAPER_POLYGON = (
@@ -293,7 +318,7 @@ def relocate_matrix(
     body: bytes,
     x: float,
     y: float,
-    scale: float | None,
+    scale: float | tuple[float, float] | None,
 ) -> bytes:
     flags = body[0]
     if not flags & 0x04:
@@ -312,8 +337,8 @@ def relocate_matrix(
         )
     if scale is not None:
         has_scale = 1
-        scale_raw = round(scale * 65536)
-        scale_values = (scale_raw, scale_raw)
+        scale_pair = scale if isinstance(scale, tuple) else (scale, scale)
+        scale_values = tuple(round(value * 65536) for value in scale_pair)
         scale_bits = signed_bit_count(*scale_values)
 
     has_rotate = reader.unsigned(1)
@@ -543,6 +568,9 @@ def filter_overlay_sprite(
             RECOMMENDATION_TEXT_DEPTH,
             RECOMMENDATION_TEXT_DEPTH + RECOMMENDATION_ITEM_COUNT,
         ),
+        60,
+        *range(61, 61 + len(PANEL_ELEMENTS)),
+        *range(90, 90 + len(PANEL_ELEMENTS) + len(PANEL_TEXTS)),
     }
     if used_depths & reserved_depths:
         raise ValueError("recommendation depth is already occupied")
@@ -632,6 +660,56 @@ def filter_overlay_sprite(
                     *transform,
                 ))
                 kept.extend(encode_tag(code, bytes(text_body)))
+                cloned += 1
+            background = bytearray(with_character_id(
+                source_button_body,
+                recommendation_row_character_id,
+            ))
+            struct.pack_into("<H", background, 1, 60)
+            background = bytearray(bytes(background).replace(
+                TARGET_MARKER, b"panel_background\x00", 1))
+            background = bytearray(relocate_matrix(
+                bytes(background), *PANEL_BACKGROUND_TRANSFORM))
+            kept.extend(encode_tag(code, bytes(background)))
+            cloned += 1
+            for index, (name, row_transform, text_transform) in enumerate(
+                PANEL_ELEMENTS
+            ):
+                panel_row = bytearray(with_character_id(
+                    source_button_body,
+                    recommendation_row_character_id,
+                ))
+                struct.pack_into("<H", panel_row, 1, 61 + index)
+                panel_row = bytearray(bytes(panel_row).replace(
+                    TARGET_MARKER, name.encode() + b"\x00", 1))
+                panel_row = bytearray(relocate_matrix(
+                    bytes(panel_row), *row_transform))
+                kept.extend(encode_tag(code, bytes(panel_row)))
+
+                panel_text = bytearray(with_character_id(
+                    source_text_body,
+                    recommendation_text_character_id,
+                ))
+                struct.pack_into("<H", panel_text, 1, 90 + index)
+                panel_text = bytearray(bytes(panel_text).replace(
+                    b"test_text\x00",
+                    f"{name}_text".encode() + b"\x00", 1))
+                panel_text = bytearray(relocate_matrix(
+                    bytes(panel_text), *text_transform))
+                kept.extend(encode_tag(code, bytes(panel_text)))
+                cloned += 2
+            for index, (name, transform) in enumerate(PANEL_TEXTS):
+                panel_text = bytearray(with_character_id(
+                    source_text_body,
+                    recommendation_text_character_id,
+                ))
+                struct.pack_into(
+                    "<H", panel_text, 1, 90 + len(PANEL_ELEMENTS) + index)
+                panel_text = bytearray(bytes(panel_text).replace(
+                    b"test_text\x00", name.encode() + b"\x00", 1))
+                panel_text = bytearray(relocate_matrix(
+                    bytes(panel_text), *transform))
+                kept.extend(encode_tag(code, bytes(panel_text)))
                 cloned += 1
     return bytes(kept), removed, relocated, cloned
 
@@ -804,7 +882,10 @@ def build(source: Path, destination: Path) -> None:
         or not cloned_text_definition
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
-        or cloned != 1 + (2 * RECOMMENDATION_ITEM_COUNT)
+        or cloned != (
+            2 + (2 * RECOMMENDATION_ITEM_COUNT) +
+            (2 * len(PANEL_ELEMENTS)) + len(PANEL_TEXTS)
+        )
     ):
         raise ValueError(
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "

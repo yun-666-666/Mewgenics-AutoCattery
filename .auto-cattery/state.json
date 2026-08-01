@@ -99,11 +99,11 @@
       "game_validation_status": "automated_and_visual_validation_passed;player_accepted_no_move_fixed_room_and_remove;default_rules_empty"
     },
     "18": {
-      "status": "in_progress",
+      "status": "implementation_complete_player_validation_pending",
       "commit": null,
       "capability": "F10InGameSettingsAndProtectionPanel",
-      "game_validation_status": "not_started"
+      "game_validation_status": "release_deployed_waiting_f10_player_validation"
     }
   },
-  "updated_at": "2026-08-01T22:00:00+08:00"
+  "updated_at": "2026-08-01T23:15:00+08:00"
 }
