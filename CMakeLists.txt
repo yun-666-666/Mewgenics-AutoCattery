@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.1.0 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.0 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -34,6 +34,7 @@ add_library(auto_cattery_core STATIC
     src/breeding/pair_trait_scorer.cpp
     src/classification/classifier.cpp
     src/classification/protection_adapter.cpp
+    src/diagnostics/cat_data_collector.cpp
     src/execution/plan_sealer.cpp
     src/execution/plan_sealer_snapshot.cpp
     src/execution/precondition_validator.cpp
@@ -125,6 +126,7 @@ add_library(auto_cattery_core STATIC
     src/ui/in_game_panel_protection.cpp
     src/ui/in_game_panel_render.cpp
     src/ui/in_game_panel_settings.cpp
+    src/ui/in_game_preview_model.cpp
     src/ui/in_game_settings_input.cpp
     src/ui/in_game_settings_model.cpp
     src/ui/in_game_settings_pages.cpp
@@ -282,6 +284,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/furniture_attributes_tests.cpp
         tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
+        tests/cat_data_collector_tests.cpp
         tests/module_registry_tests.cpp
         tests/mutation_catalog_tests.cpp
         tests/pedigree_parser_tests.cpp
@@ -303,6 +306,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/win_sqlite_api_tests.cpp
         tests/house_button_controller_tests.cpp
         tests/in_game_settings_model_tests.cpp
+        tests/in_game_preview_model_tests.cpp
         tests/runtime_house_state_tests.cpp
         tests/house_state_parser_tests.cpp
         tests/house_state_writer_tests.cpp

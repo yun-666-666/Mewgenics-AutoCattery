@@ -22,7 +22,8 @@ std::optional<std::string> InGameSettingsModel::DirectValue(
     std::size_t index) {
     if (!loaded_) return std::nullopt;
     const auto field = FlatField(index);
-    if (!field || std::holds_alternative<bool*>(field->value)) {
+    if (!field || std::holds_alternative<bool*>(field->value) ||
+        std::holds_alternative<std::string*>(field->value)) {
         return std::nullopt;
     }
     if (const auto* integer = std::get_if<std::size_t*>(&field->value)) {
@@ -40,7 +41,8 @@ Result<void> InGameSettingsModel::SetFlatValue(
         return {ErrorCode::ConfigInvalid, "settings are not loaded"};
     }
     const auto field = FlatField(index);
-    if (!field || std::holds_alternative<bool*>(field->value)) {
+    if (!field || std::holds_alternative<bool*>(field->value) ||
+        std::holds_alternative<std::string*>(field->value)) {
         return {ErrorCode::ConfigInvalid,
                 "this setting does not accept numeric input"};
     }

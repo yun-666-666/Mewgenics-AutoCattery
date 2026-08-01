@@ -170,6 +170,8 @@ void PopulateSettingsForm(HWND parent, const Config& config) {
     SetCheck(parent, CreateBackup, config.execution_safety.create_backup_before_apply);
     SetCheck(parent, SingleClickExecute,
              config.execution_safety.single_click_execute);
+    SetCheck(parent, UseEnglish, config.general.language == "en-US");
+    SetCheck(parent, CollectCatData, config.diagnostics.collect_cat_data);
 }
 
 Result<Config> ReadSettingsForm(HWND parent, const Config& base) {
@@ -276,6 +278,10 @@ Result<Config> ReadSettingsForm(HWND parent, const Config& base) {
     config.execution_safety.read_only_mode = IsChecked(parent, ReadOnlyMode);
     config.execution_safety.create_backup_before_apply = IsChecked(parent, CreateBackup);
     config.execution_safety.single_click_execute = IsChecked(parent, SingleClickExecute);
+    config.general.language = IsChecked(parent, UseEnglish)
+        ? "en-US" : "zh-CN";
+    config.language = config.general.language;
+    config.diagnostics.collect_cat_data = IsChecked(parent, CollectCatData);
     config.safety = config.execution_safety;
     return {std::move(config)};
 }

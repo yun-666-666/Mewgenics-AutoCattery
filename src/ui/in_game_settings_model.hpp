@@ -30,11 +30,13 @@ public:
     [[nodiscard]] std::string PageTitle(std::size_t page);
     [[nodiscard]] std::vector<std::string> Rows(std::size_t page);
     [[nodiscard]] std::vector<std::string> AllRows();
+    [[nodiscard]] std::vector<std::string> GroupTitles() const;
+    [[nodiscard]] bool IsEnglish() const noexcept;
 
 private:
     struct Field {
         const char* label;
-        std::variant<bool*, std::size_t*, double*> value;
+        std::variant<bool*, std::size_t*, double*, std::string*> value;
         double minimum{};
         double maximum{};
         double step{1.0};

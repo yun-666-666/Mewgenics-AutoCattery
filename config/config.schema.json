@@ -253,11 +253,17 @@
     },
     "diagnostics": {
       "type": "object",
-      "required": ["version", "show_debug_overlay", "export_scene_summary_enabled"],
+      "required": [
+        "version",
+        "show_debug_overlay",
+        "export_scene_summary_enabled",
+        "collect_cat_data"
+      ],
       "properties": {
         "version": {"const": 1},
         "show_debug_overlay": {"type": "boolean"},
-        "export_scene_summary_enabled": {"type": "boolean"}
+        "export_scene_summary_enabled": {"type": "boolean"},
+        "collect_cat_data": {"type": "boolean"}
       },
       "additionalProperties": false
     }

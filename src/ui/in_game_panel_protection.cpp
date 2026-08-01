@@ -15,14 +15,14 @@ constexpr std::array kLevels{
     protection::ProtectionLevel::FullyUnmanaged
 };
 
-const char* LevelName(protection::ProtectionLevel level) {
+const char* LevelName(protection::ProtectionLevel level, bool english) {
     using enum protection::ProtectionLevel;
     switch (level) {
-    case NoCull: return "禁止淘汰";
-    case NoMove: return "禁止移动";
-    case NoCullOrMove: return "禁止淘汰和移动";
-    case FullyUnmanaged: return "完全不管理";
-    default: return "无";
+    case NoCull: return english ? "No Cull" : "禁止淘汰";
+    case NoMove: return english ? "No Move" : "禁止移动";
+    case NoCullOrMove: return english ? "No Cull or Move" : "禁止淘汰和移动";
+    case FullyUnmanaged: return english ? "Fully Unmanaged" : "完全不管理";
+    default: return english ? "None" : "无";
     }
 }
 
@@ -39,7 +39,8 @@ void InGamePanelController::StartProtectionLoad() {
     protection_loading_ = true;
     current_save_.reset();
     current_save_checked_ = false;
-    status_ = "正在读取本机存档和猫身份，请稍候…";
+    status_ = English() ? "Reading local saves and cat identities…"
+                        : "正在读取本机存档和猫身份，请稍候…";
     const auto mod_root = mod_root_;
     const auto game_root = game_root_;
     protection_task_ = std::async(
@@ -67,29 +68,36 @@ void InGamePanelController::PollProtectionLoad() {
     auto loaded = protection_task_.get();
     protection_loading_ = false;
     if (!loaded) {
-        status_ = "保护数据读取失败：" + loaded.message;
+        status_ = (English() ? "Protection data failed: "
+                             : "保护数据读取失败：") + loaded.message;
     } else {
         protection_ = std::move(loaded.value);
         ResolveCurrentSave();
         cat_page_ = 0;
         selected_cat_.reset();
-        status_ = "先明确选择一只猫，再设置保护等级或固定房间";
+        status_ = English()
+            ? "Select one cat before changing protection or fixed room"
+            : "先明确选择一只猫，再设置保护等级或固定房间";
     }
-    if (open_ && protection_page_) Render();
+    if (open_ && page_ == ManagementPanelPage::Protection) Render();
 }
 
 void InGamePanelController::HandleProtectionRow(
     std::size_t row, int direction) {
     if (!protection_) {
-        status_ = protection_loading_ ? "保护数据仍在读取"
-                                      : "保护数据不可用";
+        status_ = protection_loading_
+            ? (English() ? "Protection data is still loading"
+                         : "保护数据仍在读取")
+            : (English() ? "Protection data is unavailable"
+                         : "保护数据不可用");
         return;
     }
     if (protection_choice_ != ProtectionChoice::None) {
         if (row == 0) {
             protection_choice_ = ProtectionChoice::None;
             choice_page_ = 0;
-            status_ = "已返回当前存档猫列表";
+            status_ = English() ? "Returned to current save cat list"
+                                : "已返回当前存档猫列表";
             return;
         }
         if (row < 1 || row > 9) return;
@@ -97,15 +105,17 @@ void InGamePanelController::HandleProtectionRow(
         if (protection_choice_ == ProtectionChoice::Level) {
             if (index >= kLevels.size()) return;
             selected_level_ = kLevels[index];
-            status_ = "已选择保护等级：" +
-                std::string(LevelName(selected_level_));
+            status_ = (English() ? "Protection selected: "
+                                 : "已选择保护等级：") +
+                std::string(LevelName(selected_level_, English()));
         } else {
             const auto rooms = protection_->rooms();
             if (index > rooms.size()) return;
             selected_room_ = index == 0 ? std::nullopt
                 : std::optional(rooms[index - 1]);
-            status_ = "已选择固定房间：" +
-                selected_room_.value_or("不固定");
+            status_ = (English() ? "Fixed room selected: "
+                                 : "已选择固定房间：") +
+                selected_room_.value_or(English() ? "None" : "不固定");
         }
         protection_choice_ = ProtectionChoice::None;
         choice_page_ = 0;
@@ -116,8 +126,11 @@ void InGamePanelController::HandleProtectionRow(
         const auto next = Cycle(
             protection_->selected_save(), count, direction);
         const auto selected = protection_->SelectSave(next);
-        status_ = selected ? "已切换存档；请重新选择猫"
-                           : "切换失败：" + selected.message;
+        status_ = selected
+            ? (English() ? "Save changed; select a cat again"
+                         : "已切换存档；请重新选择猫")
+            : (English() ? "Switch failed: " : "切换失败：") +
+                selected.message;
         cat_page_ = 0;
         selected_cat_.reset();
         selected_room_.reset();
@@ -132,30 +145,37 @@ void InGamePanelController::HandleProtectionRow(
         selected_level_ = cat.level.value_or(
             protection::ProtectionLevel::NoMove);
         selected_room_ = cat.fixed_room;
-        status_ = "已选择 " + cat.display_name + "；现在可以应用或移除";
+        status_ = (English() ? "Selected " : "已选择 ") + cat.display_name +
+            (English() ? "; protection can now be applied or removed"
+                       : "；现在可以应用或移除");
         return;
     }
     if (!selected_cat_) {
-        status_ = "请先明确选择一只猫";
+        status_ = English() ? "Select one cat first" : "请先明确选择一只猫";
         return;
     }
     if (row == 10) {
         protection_choice_ = ProtectionChoice::Level;
         choice_page_ = 0;
-        status_ = "请选择保护等级";
+        status_ = English() ? "Choose a protection level" : "请选择保护等级";
     } else if (row == 11) {
         protection_choice_ = ProtectionChoice::Room;
         choice_page_ = 0;
-        status_ = "请选择固定房间";
+        status_ = English() ? "Choose a fixed room" : "请选择固定房间";
     } else if (row == 12) {
         const auto applied = protection_->Apply(
             *selected_cat_, selected_level_, selected_room_);
-        status_ = applied ? "保护规则已保存"
-                          : "保护保存失败：" + applied.message;
+        status_ = applied
+            ? (English() ? "Protection rule saved" : "保护规则已保存")
+            : (English() ? "Protection save failed: " : "保护保存失败：") +
+                applied.message;
     } else if (row == 13) {
         const auto removed = protection_->Remove(*selected_cat_);
-        status_ = removed ? "该猫的玩家保护规则已移除"
-                          : "移除失败：" + removed.message;
+        status_ = removed
+            ? (English() ? "The player's protection rule was removed"
+                         : "该猫的玩家保护规则已移除")
+            : (English() ? "Remove failed: " : "移除失败：") +
+                removed.message;
     }
 }
 

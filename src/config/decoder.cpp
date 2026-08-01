@@ -200,6 +200,8 @@ Result<Config> DecodeConfig(const Json& value) {
             diagnostics.at("show_debug_overlay").get<bool>();
         result.diagnostics.export_scene_summary_enabled =
             diagnostics.at("export_scene_summary_enabled").get<bool>();
+        result.diagnostics.collect_cat_data =
+            diagnostics.at("collect_cat_data").get<bool>();
     } catch (const Json::exception& exception) {
         return {{}, ErrorCode::ConfigInvalid, exception.what()};
     }

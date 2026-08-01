@@ -64,6 +64,7 @@ void SetStatWeights(
 
 Json EditableLayer(const Json& existing, const Config& config) {
     Json layer = existing;
+    layer["general"]["language"] = config.general.language;
     auto& combat = layer["combat_scoring"];
     combat["recommended_count"] = config.combat_scoring.recommended_count;
     combat["minimum_score"] = config.combat_scoring.minimum_score;
@@ -134,6 +135,8 @@ Json EditableLayer(const Json& existing, const Config& config) {
         config.execution_safety.create_backup_before_apply;
     layer["execution_safety"]["single_click_execute"] =
         config.execution_safety.single_click_execute;
+    layer["diagnostics"]["collect_cat_data"] =
+        config.diagnostics.collect_cat_data;
     return layer;
 }
 

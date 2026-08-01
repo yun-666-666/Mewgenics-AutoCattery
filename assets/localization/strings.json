@@ -17,6 +17,6 @@
     "house.recommend_clear": "Clear Recommendations",
     "house.recommend_row": "{v0}"
   },
-  "runtime_fallback": "en-US",
-  "runtime_fallback_reason": "The pinned SWF font has no verified CJK glyph coverage."
+  "runtime_default": "zh-CN",
+  "runtime_fallback": "en-US"
 }

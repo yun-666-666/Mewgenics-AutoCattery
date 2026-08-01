@@ -9,9 +9,11 @@ namespace autocattery::ui {
 
 InGamePanelController::InGamePanelController(
     MewUiManagementPanelView& view,
+    workflow::OrganizeWorkflowFacade& workflow,
     std::filesystem::path mod_root,
     std::filesystem::path game_root)
     : view_(view),
+      workflow_(workflow),
       mod_root_(std::move(mod_root)),
       game_root_(std::move(game_root)),
       settings_(
@@ -64,7 +66,8 @@ void InGamePanelController::Poll(
             view_.CancelNumericInput();
             editing_setting_.reset();
             editing_text_.clear();
-            status_ = "已取消数字输入";
+            status_ = English() ? "Numeric input cancelled"
+                                : "已取消数字输入";
             Render();
             return;
         }
@@ -78,13 +81,19 @@ void InGamePanelController::Poll(
 void InGamePanelController::Open(const UiContextSnapshot& context) {
     (void)context;
     const auto loaded = settings_.Reload();
-    status_ = loaded ? "左右两侧微调；点击数值中间可直接输入"
-                     : "设置读取失败：" + loaded.message;
-    protection_page_ = false;
+    status_ = loaded
+        ? (English()
+            ? "Use the sides to adjust; click the center to type a value"
+            : "左右两侧微调；点击数值中间可直接输入")
+        : (English() ? "Settings load failed: " : "设置读取失败：") +
+            loaded.message;
+    page_ = ManagementPanelPage::Settings;
     if (!protection_loading_) protection_.reset();
     open_ = true;
     cat_page_ = 0;
     choice_page_ = 0;
+    preview_page_ = 0;
+    preview_.pages.clear();
     protection_choice_ = ProtectionChoice::None;
     editing_setting_.reset();
     editing_text_.clear();
@@ -140,8 +149,10 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         editing_text_.clear();
         protection_choice_ = ProtectionChoice::None;
         choice_page_ = 0;
-        protection_page_ = false;
-        status_ = "左右两侧微调；点击数值中间可直接输入";
+        page_ = ManagementPanelPage::Settings;
+        status_ = English()
+            ? "Use the sides to adjust; click the center to type a value"
+            : "左右两侧微调；点击数值中间可直接输入";
         break;
     case ManagementPanelControl::ProtectionTab:
         view_.CancelNumericInput();
@@ -149,16 +160,31 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         editing_text_.clear();
         protection_choice_ = ProtectionChoice::None;
         choice_page_ = 0;
-        protection_page_ = true;
+        page_ = ManagementPanelPage::Protection;
         if (!protection_ && !protection_loading_) StartProtectionLoad();
+        break;
+    case ManagementPanelControl::PreviewTab:
+        view_.CancelNumericInput();
+        editing_setting_.reset();
+        editing_text_.clear();
+        protection_choice_ = ProtectionChoice::None;
+        page_ = ManagementPanelPage::Preview;
+        LoadPreview();
         break;
     case ManagementPanelControl::Previous:
     case ManagementPanelControl::Next:
     case ManagementPanelControl::Scroll: {
-        if (!protection_page_) break;
+        if (page_ == ManagementPanelPage::Settings) break;
         const int step = event.control == ManagementPanelControl::Scroll
             ? event.direction
             : (event.control == ManagementPanelControl::Next ? 1 : -1);
+        if (page_ == ManagementPanelPage::Preview) {
+            const auto pages = std::max<std::size_t>(1, preview_.pages.size());
+            preview_page_ = step > 0
+                ? (preview_page_ + 1) % pages
+                : (preview_page_ == 0 ? pages - 1 : preview_page_ - 1);
+            break;
+        }
         std::size_t count{};
         if (protection_) {
             if (protection_choice_ == ProtectionChoice::Level) count = 4;
@@ -176,13 +202,15 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         break;
     }
     case ManagementPanelControl::Row:
-        if (protection_page_) HandleProtectionRow(event.row, event.direction);
-        else HandleSettingsEvent(event);
+        if (page_ == ManagementPanelPage::Protection)
+            HandleProtectionRow(event.row, event.direction);
+        else if (page_ == ManagementPanelPage::Settings)
+            HandleSettingsEvent(event);
         break;
     case ManagementPanelControl::BeginEdit:
     case ManagementPanelControl::EditChanged:
     case ManagementPanelControl::CommitEdit:
-        if (!protection_page_) HandleSettingsEvent(event);
+        if (page_ == ManagementPanelPage::Settings) HandleSettingsEvent(event);
         break;
     case ManagementPanelControl::Apply:
     case ManagementPanelControl::Remove:
@@ -194,20 +222,67 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
 }
 
 void InGamePanelController::Render() {
-    const auto shown = view_.Show(
-        protection_page_ ? ProtectionContent() : SettingsContent());
+    auto content = page_ == ManagementPanelPage::Protection
+        ? ProtectionContent()
+        : (page_ == ManagementPanelPage::Preview
+            ? PreviewContent() : SettingsContent());
+    content.group_titles = settings_.GroupTitles();
+    const auto shown = view_.Show(content);
     if (!shown) Detach();
 }
 
 ManagementPanelContent InGamePanelController::SettingsContent() {
     ManagementPanelContent content;
-    content.title = "设置";
+    content.page = ManagementPanelPage::Settings;
+    content.title = English() ? "Settings" : "设置";
     content.status = status_;
     content.rows = settings_.AllRows();
     if (editing_setting_ && *editing_setting_ < content.rows.size()) {
-        content.rows[*editing_setting_] = "<  输入：" + editing_text_ + "  >";
+        content.rows[*editing_setting_] =
+            std::string("<  ") + (English() ? "Input: " : "输入：") +
+            editing_text_ + "  >";
     }
     content.selected_row = editing_setting_;
+    return content;
+}
+
+bool InGamePanelController::English() const noexcept {
+    return settings_.IsEnglish();
+}
+
+void InGamePanelController::LoadPreview() {
+    preview_page_ = 0;
+    const auto latest = workflow_.LatestPreview();
+    if (!latest) {
+        preview_.pages.clear();
+        status_ = English()
+            ? "Create a plan with Auto-Organize first, then return here."
+            : "请先点击“自动整理猫舍”生成计划，再回到这里查看。";
+        return;
+    }
+    preview_ = BuildDetailedPreview(latest.value, English());
+    status_ = English()
+        ? "Loaded the latest unexpired preview; this page never moves cats."
+        : "已读取最新且未过期的预览；此页面本身不会移动猫。";
+}
+
+ManagementPanelContent InGamePanelController::PreviewContent() {
+    ManagementPanelContent content;
+    content.page = ManagementPanelPage::Preview;
+    if (preview_.pages.empty()) {
+        content.title = English() ? "Full Preview" : "完整预览";
+        content.status = status_;
+        content.rows = {English()
+            ? "No preview is available. Close F10, click Auto-Organize once, and return."
+            : "暂无预览。请关闭 F10，点击一次“自动整理猫舍”后再回来。"};
+        return content;
+    }
+    preview_page_ = std::min(preview_page_, preview_.pages.size() - 1);
+    const auto& page = preview_.pages[preview_page_];
+    content.title = page.title;
+    content.status = page.status;
+    content.rows = page.rows;
+    content.show_navigation = preview_.pages.size() > 1;
     return content;
 }
 

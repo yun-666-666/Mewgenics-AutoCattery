@@ -14,8 +14,6 @@ namespace {
 constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
-constexpr auto kReadyText = "HOUSE.RECOMMEND_COMBAT_CATS";
-constexpr auto kMarkedText = "HOUSE.RECOMMEND_CLEAR";
 constexpr std::array<const char*, 4> kItemNodes{
     "recommend_row_1",
     "recommend_row_2",
@@ -105,7 +103,8 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
-    create_info.label_key = kReadyText;
+    create_info.label_text = english_
+        ? "Mark Combat Cats" : "标记推荐战斗猫";
     create_info.enabled = 1;
     create_info.activate_enabled = 1;
     create_info.strict_mouse = 1;
@@ -183,18 +182,27 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
 
 void MewUiRecommendationMarkerView::SetStatus(
     RecommendationUiStatus status) {
+    current_status_ = status;
     if (button_ == nullptr) {
         return;
     }
     if (status == RecommendationUiStatus::ProbeRequired) {
-        MewUI_SetButtonLabelText(button_, "Probe Required");
+        MewUI_SetButtonLabelText(
+            button_, english_ ? "Probe Required" : "需要兼容性探针");
         return;
     }
     if (status == RecommendationUiStatus::Marked) {
-        MewUI_SetButtonLabelFromLocalizationKey(button_, kMarkedText);
+        MewUI_SetButtonLabelText(
+            button_, english_ ? "Clear Recommendations" : "清除推荐标记");
         return;
     }
-    MewUI_SetButtonLabelFromLocalizationKey(button_, kReadyText);
+    MewUI_SetButtonLabelText(
+        button_, english_ ? "Mark Combat Cats" : "标记推荐战斗猫");
+}
+
+void MewUiRecommendationMarkerView::SetEnglish(bool english) {
+    english_ = english;
+    if (button_ != nullptr && CanTouchScene()) SetStatus(current_status_);
 }
 
 Result<void> MewUiRecommendationMarkerView::ShowItems(

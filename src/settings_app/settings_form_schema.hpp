@@ -51,7 +51,9 @@ enum class SettingField : int {
     SeparateKittens,
     ReadOnlyMode,
     CreateBackup,
-    SingleClickExecute
+    SingleClickExecute,
+    UseEnglish,
+    CollectCatData
 };
 
 enum class FieldKind { Text, Check };

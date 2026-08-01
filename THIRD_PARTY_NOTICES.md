@@ -17,7 +17,7 @@
 ## MewUI API
 
 - Source: https://github.com/Pseudonym-Tim/mewgenics-ui-api
-- Revision: `0b3415ab5fa8617edcecc7eb206c165cb8b6e991`
+- Revision: `3cf26d8bcc496bba356ce9029cc81ff2b6447ddd`
 - Version: `1.2.0`
 - License: MIT
 - Use: compiled-in scene-ready and UI lifecycle API.

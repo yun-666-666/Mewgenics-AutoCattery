@@ -24,6 +24,32 @@ bool IsPotential(const classification::CatDecision& decision) {
         classification::CatRole::CombatRecommended;
 }
 
+std::string MoveReason(
+    const PlanningContext& context,
+    const snapshot::CatSnapshot& cat,
+    const BalancedSlot& slot) {
+    if (context.fixed_rooms.contains(cat.id)) {
+        return "fixed-room-protection";
+    }
+    const bool breeding_pair =
+        std::ranges::find(context.breeding_pair, cat.id) !=
+        context.breeding_pair.end();
+    if (slot.preferred_cat && breeding_pair) {
+        return "recommended-breeding-pair";
+    }
+    const bool sex_balance = slot.required_sex != SlotSex::Any;
+    if (sex_balance && slot.potential_preferred) {
+        return "sex-balance-and-potential-room";
+    }
+    if (sex_balance) {
+        return "sex-balance";
+    }
+    if (slot.potential_preferred) {
+        return "high-potential-development-room";
+    }
+    return "balance-room-population";
+}
+
 std::vector<std::size_t> MinimumCostAssignment(
     const std::vector<std::vector<std::int64_t>>& costs) {
     const auto count = costs.size();
@@ -156,7 +182,7 @@ bool AppendMinimumCostMoves(
                 cat.id,
                 cat.room_id.value_or("Outside"),
                 target,
-                "restore property-ranked cat purpose assignment",
+                MoveReason(context, cat, slots[slot_index]),
                 0,
                 true
             });

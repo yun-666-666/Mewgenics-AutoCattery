@@ -367,6 +367,7 @@ Result<void> ValidateMarkerAndDiagnostics(const Json& value) {
     }
     (void)diagnostics.at("show_debug_overlay").get<bool>();
     (void)diagnostics.at("export_scene_summary_enabled").get<bool>();
+    (void)diagnostics.at("collect_cat_data").get<bool>();
     return {};
 }
 

@@ -6,6 +6,8 @@ PANEL_FIXED_ELEMENTS = (
      (172.0, 87.0, 0.22)),
     ("panel_tab_protection", (365.0, 82.0, (0.19, 0.42)),
      (372.0, 87.0, 0.22)),
+    ("panel_tab_preview", (565.0, 82.0, (0.19, 0.42)),
+     (572.0, 87.0, 0.22)),
     ("panel_close", (990.0, 82.0, (0.13, 0.42)),
      (991.0, 92.0, 0.16)),
     ("panel_prev", (165.0, 540.0, (0.18, 0.45)),
@@ -23,7 +25,7 @@ PANEL_GROUP_ELEMENTS = tuple(
      (194.0 + index * 317.0, 148.0, 0.29))
     for index in range(3)
 )
-PANEL_SETTING_COUNTS = (17, 18, 10)
+PANEL_SETTING_COUNTS = (17, 18, 12)
 PANEL_SETTING_ELEMENTS = tuple(
     (f"panel_setting_row_{sum(PANEL_SETTING_COUNTS[:column]) + row + 1}",
      (160.0 + column * 317.0, 191.0 + row * 25.0, (0.30, 0.21)),

@@ -71,6 +71,7 @@ struct DiagnosticsConfig {
     std::uint32_t version{1};
     bool show_debug_overlay{false};
     bool export_scene_summary_enabled{false};
+    bool collect_cat_data{false};
 };
 
 struct Config {

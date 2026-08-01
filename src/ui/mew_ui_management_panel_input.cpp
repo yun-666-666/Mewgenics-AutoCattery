@@ -9,15 +9,17 @@ namespace {
 constexpr double kVirtualWidth = 1280.0;
 constexpr double kVirtualHeight = 720.0;
 struct Rect { double left; double top; double right; double bottom; };
-constexpr std::array<Rect, 7> kButtons{{
+constexpr std::array<Rect, 8> kButtons{{
     {165, 82, 355, 120}, {365, 82, 555, 120},
-    {990, 82, 1120, 124}, {165, 540, 345, 585},
+    {565, 82, 755, 120}, {990, 82, 1120, 124},
+    {165, 540, 345, 585},
     {355, 540, 535, 585}, {755, 540, 935, 585},
     {945, 540, 1125, 585}
 }};
-constexpr std::array<ManagementPanelControl, 7> kButtonControls{
+constexpr std::array<ManagementPanelControl, 8> kButtonControls{
     ManagementPanelControl::SettingsTab,
     ManagementPanelControl::ProtectionTab,
+    ManagementPanelControl::PreviewTab,
     ManagementPanelControl::Close,
     ManagementPanelControl::Previous,
     ManagementPanelControl::Next,
@@ -25,7 +27,7 @@ constexpr std::array<ManagementPanelControl, 7> kButtonControls{
     ManagementPanelControl::Remove
 };
 constexpr std::array<std::size_t, 3> kSettingStarts{0, 17, 35};
-constexpr std::array<std::size_t, 3> kSettingCounts{17, 18, 10};
+constexpr std::array<std::size_t, 3> kSettingCounts{17, 18, 12};
 MewUiManagementPanelView* g_panel_view{};
 
 bool Contains(const Rect& rect, double x, double y) {
@@ -71,7 +73,8 @@ LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
                     g_panel_view->pending_direction_.store(hit->direction);
                 }
             } else if (message->message == WM_MOUSEWHEEL &&
-                       g_panel_view->protection_page_.load()) {
+                       g_panel_view->page_.load() !=
+                           static_cast<int>(ManagementPanelPage::Settings)) {
                 const int delta = GET_WHEEL_DELTA_WPARAM(message->wParam);
                 g_panel_view->pending_control_.store(
                     static_cast<int>(ManagementPanelControl::Scroll));
@@ -118,16 +121,18 @@ MewUiManagementPanelView::HitTest(HWND window) const noexcept {
     if (width <= 0 || height <= 0) return std::nullopt;
     const double x = cursor.x * kVirtualWidth / width;
     const double y = cursor.y * kVirtualHeight / height;
+    const auto page = static_cast<ManagementPanelPage>(page_.load());
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
         if (!Contains(kButtons[index], x, y)) continue;
-        if (!protection_page_.load() && index >= 3) return std::nullopt;
-        if ((index == 3 || index == 4) && !navigation_visible_.load())
+        if (page == ManagementPanelPage::Settings && index >= 4)
             return std::nullopt;
-        if (index == 5 && !apply_visible_.load()) return std::nullopt;
-        if (index == 6 && !remove_visible_.load()) return std::nullopt;
+        if ((index == 4 || index == 5) && !navigation_visible_.load())
+            return std::nullopt;
+        if (index == 6 && !apply_visible_.load()) return std::nullopt;
+        if (index == 7 && !remove_visible_.load()) return std::nullopt;
         return HitResult{kButtonControls[index], 0, 0};
     }
-    if (protection_page_.load()) {
+    if (page != ManagementPanelPage::Settings) {
         const Rect save{160, 145, 1090, 181};
         if (Contains(save, x, y)) {
             const int direction = x < 470 ? -1 : (x > 780 ? 1 : 0);
@@ -140,9 +145,11 @@ MewUiManagementPanelView::HitTest(HWND window) const noexcept {
             if (!Contains(rectangle, x, y)) continue;
             return HitResult{ManagementPanelControl::Row, row + 1, 0};
         }
-        if (Contains({160, 445, 610, 493}, x, y))
+        if (page == ManagementPanelPage::Protection &&
+            Contains({160, 445, 610, 493}, x, y))
             return HitResult{ManagementPanelControl::Row, 10, 0};
-        if (Contains({640, 445, 1090, 493}, x, y))
+        if (page == ManagementPanelPage::Protection &&
+            Contains({640, 445, 1090, 493}, x, y))
             return HitResult{ManagementPanelControl::Row, 11, 0};
         return std::nullopt;
     }

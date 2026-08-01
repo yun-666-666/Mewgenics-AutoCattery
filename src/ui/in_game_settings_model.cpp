@@ -29,6 +29,9 @@ Result<void> InGameSettingsModel::Adjust(
     auto& field = pages[page].fields[row];
     if (auto* boolean = std::get_if<bool*>(&field.value)) {
         **boolean = !**boolean;
+    } else if (auto* language = std::get_if<std::string*>(&field.value)) {
+        **language = **language == "en-US" ? "zh-CN" : "en-US";
+        config_.language = **language;
     } else if (auto* integer = std::get_if<std::size_t*>(&field.value)) {
         const auto signed_value = static_cast<double>(**integer) +
             (direction < 0 ? -field.step : field.step);
@@ -67,8 +70,9 @@ std::size_t InGameSettingsModel::PageCount() { return Pages().size(); }
 
 std::string InGameSettingsModel::PageTitle(std::size_t page) {
     auto pages = Pages();
-    if (page >= pages.size()) return "设置";
-    return std::string("设置 · ") + pages[page].group + " · " +
+    if (page >= pages.size()) return IsEnglish() ? "Settings" : "设置";
+    return std::string(IsEnglish() ? "Settings · " : "设置 · ") +
+        pages[page].group + " · " +
         std::to_string(page + 1) + "/" + std::to_string(pages.size());
 }
 
@@ -91,9 +95,14 @@ std::vector<std::string> InGameSettingsModel::AllRows() {
 
 std::string InGameSettingsModel::Format(const Field& field) const {
     std::ostringstream output;
-    output << "<  " << field.label << "：";
+    output << "<  " << field.label << (IsEnglish() ? ": " : "：");
     if (const auto* boolean = std::get_if<bool*>(&field.value)) {
-        output << (**boolean ? "开启" : "关闭");
+        output << (**boolean
+            ? (IsEnglish() ? "On" : "开启")
+            : (IsEnglish() ? "Off" : "关闭"));
+    } else if (const auto* language =
+                   std::get_if<std::string*>(&field.value)) {
+        output << (**language == "en-US" ? "English" : "中文");
     } else if (const auto* integer = std::get_if<std::size_t*>(&field.value)) {
         output << **integer;
     } else {
@@ -101,6 +110,19 @@ std::string InGameSettingsModel::Format(const Field& field) const {
                << **std::get_if<double*>(&field.value);
     }
     return output.str() + "  >";
+}
+
+std::vector<std::string> InGameSettingsModel::GroupTitles() const {
+    return IsEnglish()
+        ? std::vector<std::string>{
+              "Combat Scoring", "Breeding & Classification",
+              "Rooms, Safety & MOD"}
+        : std::vector<std::string>{
+              "战斗评分与推荐", "繁育评分与分类", "房间、安全与 MOD"};
+}
+
+bool InGameSettingsModel::IsEnglish() const noexcept {
+    return config_.general.language == "en-US";
 }
 
 }  // namespace autocattery::ui

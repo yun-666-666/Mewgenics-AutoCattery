@@ -8,12 +8,6 @@ namespace {
 constexpr auto kButtonNode = "test_button";
 constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
 
-constexpr auto kReadyText = "HOUSE.AUTO_ORGANIZE";
-constexpr auto kRunningText = "HOUSE.RUNNING";
-constexpr auto kCompletedText = "HOUSE.COMPLETED";
-constexpr auto kUnsupportedText = "HOUSE.UNSUPPORTED";
-constexpr auto kFailedText = "HOUSE.FAILED";
-
 }  // namespace
 
 Result<void> MewUiHouseButtonView::Attach(
@@ -52,7 +46,8 @@ Result<void> MewUiHouseButtonView::Attach(
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
-    create_info.label_key = kReadyText;
+    create_info.label_text = english_
+        ? "Auto-Organize Cattery" : "自动整理猫舍";
     create_info.enabled = 1;
     create_info.activate_enabled = 1;
     create_info.strict_mouse = 1;
@@ -104,38 +99,39 @@ void MewUiHouseButtonView::SetState(
     OrganizeButtonState state,
     std::string_view detail) {
     (void)detail;
+    current_state_ = state;
     if (button_ == nullptr || !CanTouchScene()) {
         return;
     }
 
-    const char* label = kReadyText;
+    const char* label = english_ ? "Auto-Organize Cattery" : "自动整理猫舍";
     bool enabled = true;
     switch (state) {
     case OrganizeButtonState::Hidden:
         enabled = false;
         break;
     case OrganizeButtonState::DisabledUnsupportedBuild:
-        label = kUnsupportedText;
+        label = english_ ? "Preview Only" : "仅预览";
         enabled = false;
         break;
     case OrganizeButtonState::DisabledBusy:
     case OrganizeButtonState::Running:
-        label = kRunningText;
+        label = english_ ? "Analyzing…" : "正在分析…";
         enabled = false;
         break;
     case OrganizeButtonState::Ready:
-        label = kReadyText;
+        label = english_ ? "Auto-Organize Cattery" : "自动整理猫舍";
         break;
     case OrganizeButtonState::Completed:
-        label = kCompletedText;
+        label = english_ ? "Preview Complete" : "预览已完成";
         enabled = false;
         break;
     case OrganizeButtonState::Failed:
-        label = kFailedText;
+        label = english_ ? "Preview Unavailable" : "预览不可用";
         enabled = false;
         break;
     }
-    MewUI_SetButtonLabelFromLocalizationKey(button_, label);
+    MewUI_SetButtonLabelText(button_, label);
     MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
     MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
 }
@@ -145,6 +141,11 @@ void MewUiHouseButtonView::ShowPlaceholder() {
     // feedback surface. Avoid scene-wide text-node probes here: the pinned
     // MewUI build handles a missing text node through repeated SEH probes,
     // which caused a visible pause on every Stage 03 click.
+}
+
+void MewUiHouseButtonView::SetEnglish(bool english) {
+    english_ = english;
+    if (button_ != nullptr && CanTouchScene()) SetState(current_state_, {});
 }
 
 bool MewUiHouseButtonView::IsAttached() const noexcept {

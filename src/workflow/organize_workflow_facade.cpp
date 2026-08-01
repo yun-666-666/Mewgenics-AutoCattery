@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/diagnostics/cat_data_collector.hpp"
 #include "auto_cattery/protection/policy.hpp"
 
 namespace autocattery::workflow {
@@ -23,11 +24,14 @@ OrganizeWorkflowFacade::OrganizeWorkflowFacade(
     Config config,
     WorkflowCapability capability,
     IApprovedTransactionGateway* gateway,
-    std::filesystem::path protection_root)
+    std::filesystem::path protection_root,
+    std::filesystem::path cat_data_root)
     : read_adapter_(std::move(read_adapter)),
       execution_router_(capability, gateway),
       capability_(capability),
-      protection_root_(std::move(protection_root)) {
+      protection_root_(std::move(protection_root)),
+      cat_data_root_(std::move(cat_data_root)),
+      config_(config) {
     if (read_adapter_) {
         preview_builder_ = std::make_unique<PreviewBuilder>(
             *read_adapter_,
@@ -59,12 +63,26 @@ Result<OrganizePreview> OrganizeWorkflowFacade::BuildPreview(
     if (!built) {
         return {{}, built.code, built.message};
     }
+    if (config_.diagnostics.collect_cat_data && !cat_data_root_.empty()) {
+        const auto collected = diagnostics::WriteCatDataSnapshot(
+            built.value, cat_data_root_);
+        Logger::Instance().Write(
+            collected ? LogLevel::Info : LogLevel::Warn,
+            "CatDataCollector",
+            collected ? "AC19000" : "AC19001",
+            collected
+                ? "Opt-in cat data snapshot saved without names, paths, or account data."
+                : "Opt-in cat data snapshot failed: " + collected.message);
+    }
     const auto stored = preview_store_.Store(std::move(built.value));
     if (!stored) {
         state_.Fail();
         return {{}, stored.code, stored.message};
     }
-    latest_preview_ = stored.value;
+    {
+        std::scoped_lock lock(latest_mutex_);
+        latest_preview_ = stored.value;
+    }
     const auto preview = preview_store_.Read(stored.value);
     if (!preview) {
         state_.Fail();
@@ -121,15 +139,21 @@ Result<void> OrganizeWorkflowFacade::Cancel(
 }
 
 Result<void> OrganizeWorkflowFacade::RequestExecution() {
-    if (latest_preview_) {
-        const auto preview = preview_store_.Read(*latest_preview_);
+    std::optional<PreviewId> latest;
+    {
+        std::scoped_lock lock(latest_mutex_);
+        latest = latest_preview_;
+    }
+    if (latest) {
+        const auto preview = preview_store_.Read(*latest);
         if (preview) {
             const auto current_protection =
                 preview_builder_->CaptureProtectionDigest(
                     preview.value.snapshot, capability_);
             if (current_protection !=
                 protection::BuildDigest(preview.value.protections)) {
-                preview_store_.Cancel(*latest_preview_);
+                const auto cancel_result = preview_store_.Cancel(*latest);
+                (void)cancel_result;
                 state_.Cancel();
                 return {
                     ErrorCode::OperationCancelled,
@@ -159,6 +183,19 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
     };
 }
 
+Result<PreviewBundle> OrganizeWorkflowFacade::LatestPreview() const {
+    std::optional<PreviewId> latest;
+    {
+        std::scoped_lock lock(latest_mutex_);
+        latest = latest_preview_;
+    }
+    if (!latest) {
+        return {{}, ErrorCode::OperationCancelled,
+                "no organize preview is available"};
+    }
+    return preview_store_.Read(*latest);
+}
+
 Result<void> OrganizeWorkflowFacade::ApplyConfig(Config config) {
     if (state_.State() != WorkflowState::Idle) {
         return {
@@ -176,8 +213,12 @@ Result<void> OrganizeWorkflowFacade::ApplyConfig(Config config) {
         *read_adapter_,
         config,
         ProtectionPath(protection_root_, config));
+    config_ = config;
     preview_store_.InvalidateAll();
-    latest_preview_.reset();
+    {
+        std::scoped_lock lock(latest_mutex_);
+        latest_preview_.reset();
+    }
     return {};
 }
 

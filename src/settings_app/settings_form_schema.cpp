@@ -59,7 +59,9 @@ constexpr std::array kPlanningFields{
     FieldSpec{SeparateKittens, L"尽量分开幼猫", Check},
     FieldSpec{ReadOnlyMode, L"只读模式", Check},
     FieldSpec{CreateBackup, L"应用前创建备份", Check},
-    FieldSpec{SingleClickExecute, L"单击执行模式（危险）", Check}
+    FieldSpec{SingleClickExecute, L"单击执行模式（危险）", Check},
+    FieldSpec{UseEnglish, L"界面语言：英语（不勾选为中文）", Check},
+    FieldSpec{CollectCatData, L"收集猫数据（默认关闭，无姓名/路径/账号）", Check}
 };
 
 constexpr std::array kGroups{

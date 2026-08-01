@@ -122,6 +122,7 @@ std::string DigestConfig(const Config &config) {
   Append(canonical, config.diagnostics.version);
   Append(canonical, config.diagnostics.show_debug_overlay);
   Append(canonical, config.diagnostics.export_scene_summary_enabled);
+  Append(canonical, config.diagnostics.collect_cat_data);
   return DigestPrivateIdentity(canonical.str());
 }
 

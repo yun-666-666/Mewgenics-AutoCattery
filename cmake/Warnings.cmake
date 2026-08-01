@@ -1,6 +1,6 @@
 function(autocattery_enable_warnings target)
     if(MSVC)
-        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc /utf-8)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc /utf-8 /FS)
     else()
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
     endif()

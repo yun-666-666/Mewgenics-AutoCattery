@@ -19,6 +19,7 @@ public:
         std::string_view detail) override;
     void ShowPlaceholder() override;
     [[nodiscard]] bool IsAttached() const noexcept override;
+    void SetEnglish(bool english);
 
 private:
     static void __cdecl ButtonCallback(
@@ -33,6 +34,8 @@ private:
     void* button_{};
     std::uint64_t attached_generation_{};
     bool active_{};
+    bool english_{};
+    OrganizeButtonState current_state_{OrganizeButtonState::Hidden};
     ClickHandler click_handler_;
 };
 

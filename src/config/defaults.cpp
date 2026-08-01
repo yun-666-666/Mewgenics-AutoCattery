@@ -137,7 +137,8 @@ Json SafeDefaultsJson() {
         {"diagnostics", {
             {"version", 1},
             {"show_debug_overlay", false},
-            {"export_scene_summary_enabled", false}
+            {"export_scene_summary_enabled", false},
+            {"collect_cat_data", false}
         }}
     };
 }

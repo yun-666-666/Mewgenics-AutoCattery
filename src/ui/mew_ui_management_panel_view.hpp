@@ -16,6 +16,7 @@ namespace autocattery::ui {
 enum class ManagementPanelControl {
     SettingsTab,
     ProtectionTab,
+    PreviewTab,
     Close,
     Previous,
     Next,
@@ -28,6 +29,8 @@ enum class ManagementPanelControl {
     Row
 };
 
+enum class ManagementPanelPage { Settings, Protection, Preview };
+
 struct ManagementPanelEvent {
     ManagementPanelControl control{ManagementPanelControl::Close};
     std::size_t row{};
@@ -39,7 +42,8 @@ struct ManagementPanelContent {
     std::string title;
     std::string status;
     std::vector<std::string> rows;
-    bool protection_page{};
+    std::vector<std::string> group_titles;
+    ManagementPanelPage page{ManagementPanelPage::Settings};
     bool show_navigation{};
     bool show_apply{};
     bool show_remove{};
@@ -61,6 +65,12 @@ public:
     [[nodiscard]] bool IsEditing() const noexcept;
 
 private:
+    struct Element {
+        void* clip{};
+        void* text{};
+        std::string rendered_text;
+        int rendered_frame{-1};
+    };
     struct HitResult {
         ManagementPanelControl control;
         std::size_t row{};
@@ -75,20 +85,21 @@ private:
     bool ResolveNodes() noexcept;
     bool CanTouchScene() const noexcept;
     [[nodiscard]] std::optional<HitResult> HitTest(HWND window) const noexcept;
-    void SetElement(
-        void* node, const char* name,
-        const char* text, int frame) noexcept;
+    void SetElement(Element& element, const char* text, int frame) noexcept;
+    void ResetElements() noexcept;
 
     void* scene_manager_{};
     std::uint64_t generation_{};
     void* background_{};
-    std::array<void*, 7> fixed_nodes_{};
-    std::array<void*, 12> protection_nodes_{};
-    std::array<void*, 3> group_nodes_{};
-    std::array<void*, 45> setting_nodes_{};
+    std::array<Element, 8> fixed_nodes_{};
+    std::array<Element, 12> list_nodes_{};
+    std::array<Element, 3> group_nodes_{};
+    std::array<Element, 47> setting_nodes_{};
+    Element title_;
+    Element status_;
     HHOOK message_hook_{};
     std::atomic_bool visible_{false};
-    std::atomic_bool protection_page_{false};
+    std::atomic<int> page_{static_cast<int>(ManagementPanelPage::Settings)};
     std::atomic_bool navigation_visible_{false};
     std::atomic_bool apply_visible_{false};
     std::atomic_bool remove_visible_{false};

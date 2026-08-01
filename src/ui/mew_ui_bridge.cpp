@@ -134,9 +134,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
     management_panel_view_ =
         std::make_unique<MewUiManagementPanelView>();
-    in_game_panel_controller_ =
-        std::make_unique<InGamePanelController>(
-            *management_panel_view_, context.mod_root, context.game_root);
     recommendation_marker_view_ =
         std::make_unique<MewUiRecommendationMarkerView>();
     recommendation_marker_controller_ =
@@ -239,6 +236,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                 loaded_config.message);
     }
     const auto config = config_runtime_->Current();
+    const bool english = config.general.language == "en-US";
+    house_button_view_->SetEnglish(english);
+    recommendation_marker_view_->SetEnglish(english);
     recommendation_scoring_config_ = config.combat_scoring;
     recommendation_marker_config_ = config.recommendation_marker;
     runtime_move_gateway_ =
@@ -261,7 +261,12 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             runtime_move_available
                 ? runtime_move_gateway_.get()
                 : nullptr,
-            context.mod_root / L"config");
+            context.mod_root / L"config",
+            context.mod_root / L"AutoCatteryData");
+    in_game_panel_controller_ =
+        std::make_unique<InGamePanelController>(
+            *management_panel_view_, *organize_workflow_,
+            context.mod_root, context.game_root);
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
         *organize_workflow_,

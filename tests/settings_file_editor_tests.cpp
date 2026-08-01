@@ -46,6 +46,9 @@ void RunSettingsFileEditorTests() {
     changed.room_planning.default_soft_capacity = 5;
     changed.room_planning.allow_soft_overflow = false;
     changed.recommendation_marker.show_score = false;
+    changed.general.language = "en-US";
+    changed.language = "en-US";
+    changed.diagnostics.collect_cat_data = true;
     const auto saved = editor.Save(changed);
     AC_CHECK(static_cast<bool>(saved));
     AC_CHECK(saved.value.combat_scoring.recommended_count == 11);
@@ -55,6 +58,8 @@ void RunSettingsFileEditorTests() {
     AC_CHECK(saved.value.room_planning.default_soft_capacity == 5);
     AC_CHECK(!saved.value.room_planning.allow_soft_overflow);
     AC_CHECK(!saved.value.recommendation_marker.show_score);
+    AC_CHECK(saved.value.general.language == "en-US");
+    AC_CHECK(saved.value.diagnostics.collect_cat_data);
     AC_CHECK(!std::filesystem::exists(temporary));
 
     const auto reloaded = editor.Load();
@@ -66,6 +71,8 @@ void RunSettingsFileEditorTests() {
     AC_CHECK(reloaded.value.room_planning.default_soft_capacity == 5);
     AC_CHECK(!reloaded.value.room_planning.allow_soft_overflow);
     AC_CHECK(!reloaded.value.recommendation_marker.show_score);
+    AC_CHECK(reloaded.value.general.language == "en-US");
+    AC_CHECK(reloaded.value.diagnostics.collect_cat_data);
 
     const auto stored = nlohmann::json::parse(ReadText(user));
     AC_CHECK(stored.at("custom_note") == "preserve");

@@ -7,6 +7,8 @@
 #include <string>
 
 #include "auto_cattery/protection/editor_model.hpp"
+#include "auto_cattery/workflow/organize_workflow_facade.hpp"
+#include "in_game_preview_model.hpp"
 #include "in_game_settings_model.hpp"
 #include "mew_ui_management_panel_view.hpp"
 
@@ -16,6 +18,7 @@ class InGamePanelController final {
 public:
     InGamePanelController(
         MewUiManagementPanelView& view,
+        workflow::OrganizeWorkflowFacade& workflow,
         std::filesystem::path mod_root,
         std::filesystem::path game_root);
     ~InGamePanelController();
@@ -40,22 +43,28 @@ private:
     void StartProtectionLoad();
     void PollProtectionLoad();
     void ResolveCurrentSave();
+    void LoadPreview();
     void Render();
     [[nodiscard]] ManagementPanelContent SettingsContent();
     [[nodiscard]] ManagementPanelContent ProtectionContent();
+    [[nodiscard]] ManagementPanelContent PreviewContent();
+    [[nodiscard]] bool English() const noexcept;
 
     MewUiManagementPanelView& view_;
+    workflow::OrganizeWorkflowFacade& workflow_;
     std::filesystem::path mod_root_;
     std::filesystem::path game_root_;
     InGameSettingsModel settings_;
     std::shared_ptr<ProtectionModel> protection_;
     std::future<ProtectionLoad> protection_task_;
     bool protection_loading_{};
-    bool protection_page_{};
+    ManagementPanelPage page_{ManagementPanelPage::Settings};
     bool open_{};
     std::uint64_t attached_generation_{};
     std::size_t cat_page_{};
     std::size_t choice_page_{};
+    std::size_t preview_page_{};
+    DetailedPreviewModel preview_;
     ProtectionChoice protection_choice_{ProtectionChoice::None};
     std::optional<std::size_t> editing_setting_;
     std::string editing_text_;

@@ -30,6 +30,7 @@ public:
     void ClearSummary() noexcept override;
     void Poll() override;
     [[nodiscard]] bool IsAttached() const noexcept override;
+    void SetEnglish(bool english);
 
 private:
     static void __cdecl ButtonCallback(
@@ -55,6 +56,8 @@ private:
     std::uint64_t attached_generation_{};
     std::array<void*, 4> item_nodes_{};
     bool active_{};
+    bool english_{};
+    RecommendationUiStatus current_status_{RecommendationUiStatus::Ready};
     HHOOK wheel_hook_{};
     std::atomic<int> pending_press_row_{-1};
     std::atomic<int> pending_click_row_{-1};

@@ -3,6 +3,8 @@
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
+#include "mew_ui_house_button_view.hpp"
+#include "mew_ui_recommendation_marker_view.hpp"
 
 namespace autocattery::ui {
 
@@ -27,6 +29,10 @@ void MewUiBridge::ApplyRuntimeConfig() {
 
     recommendation_scoring_config_ = config.combat_scoring;
     recommendation_marker_config_ = config.recommendation_marker;
+    const bool english = config.general.language == "en-US";
+    if (house_button_view_) house_button_view_->SetEnglish(english);
+    if (recommendation_marker_view_)
+        recommendation_marker_view_->SetEnglish(english);
 #ifndef _DEBUG
     debug_probe_enabled_ =
         config.ui.show_debug_overlay ||

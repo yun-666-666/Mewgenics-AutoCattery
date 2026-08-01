@@ -12,12 +12,9 @@
 namespace autocattery::ui {
 namespace {
 
-constexpr std::array<const char*, 7> kFixedNames{
-    "panel_tab_settings", "panel_tab_protection", "panel_close",
-    "panel_prev", "panel_next", "panel_apply", "panel_remove"
-};
-constexpr std::array<const char*, 3> kGroupNames{
-    "战斗评分与推荐", "繁育评分与分类", "房间规则与安全"
+constexpr std::array<const char*, 8> kFixedNames{
+    "panel_tab_settings", "panel_tab_protection", "panel_tab_preview",
+    "panel_close", "panel_prev", "panel_next", "panel_apply", "panel_remove"
 };
 
 std::string IndexedName(const char* prefix, std::size_t index) {
@@ -58,10 +55,7 @@ void MewUiManagementPanelView::Detach() noexcept {
     scene_manager_ = nullptr;
     generation_ = 0;
     background_ = nullptr;
-    fixed_nodes_.fill(nullptr);
-    protection_nodes_.fill(nullptr);
-    group_nodes_.fill(nullptr);
-    setting_nodes_.fill(nullptr);
+    ResetElements();
 }
 
 Result<void> MewUiManagementPanelView::Show(
@@ -71,59 +65,63 @@ Result<void> MewUiManagementPanelView::Show(
     }
     MewUI_SetModalInputBlocked(true);
     visible_.store(true);
-    protection_page_.store(content.protection_page);
+    page_.store(static_cast<int>(content.page));
     navigation_visible_.store(content.show_navigation);
     apply_visible_.store(content.show_apply);
     remove_visible_.store(content.show_remove);
     HoldMewUiMovieClipFrame(background_, 1);
-    SetElement(fixed_nodes_[0], kFixedNames[0], "设置",
-               content.protection_page ? 1 : 2);
-    SetElement(fixed_nodes_[1], kFixedNames[1], "猫保护",
-               content.protection_page ? 2 : 1);
-    SetElement(fixed_nodes_[2], kFixedNames[2], "关闭", 1);
-    SetElement(fixed_nodes_[3], kFixedNames[3],
-               content.show_navigation ? "上一页" : "",
+    const bool english = !content.group_titles.empty() &&
+        content.group_titles.front() == "Combat Scoring";
+    SetElement(fixed_nodes_[0], english ? "Settings" : "设置",
+               content.page == ManagementPanelPage::Settings ? 2 : 1);
+    SetElement(fixed_nodes_[1], english ? "Cat Protection" : "猫保护",
+               content.page == ManagementPanelPage::Protection ? 2 : 1);
+    SetElement(fixed_nodes_[2], english ? "Full Preview" : "完整预览",
+               content.page == ManagementPanelPage::Preview ? 2 : 1);
+    SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 1);
+    SetElement(fixed_nodes_[4],
+               content.show_navigation ? (english ? "Previous" : "上一页") : "",
                content.show_navigation ? 1 : 0);
-    SetElement(fixed_nodes_[4], kFixedNames[4],
-               content.show_navigation ? "下一页" : "",
+    SetElement(fixed_nodes_[5],
+               content.show_navigation ? (english ? "Next" : "下一页") : "",
                content.show_navigation ? 1 : 0);
-    SetElement(fixed_nodes_[5], kFixedNames[5],
-               content.show_apply ? "应用" : "",
+    SetElement(fixed_nodes_[6],
+               content.show_apply ? (english ? "Apply" : "应用") : "",
                content.show_apply ? 1 : 0);
-    SetElement(fixed_nodes_[6], kFixedNames[6],
-               content.show_remove ? "移除" : "",
+    SetElement(fixed_nodes_[7],
+               content.show_remove ? (english ? "Remove" : "移除") : "",
                content.show_remove ? 1 : 0);
 
-    for (std::size_t index = 0; index < protection_nodes_.size(); ++index) {
-        const auto name = IndexedName("panel_protection_row_", index);
-        const bool shown = content.protection_page &&
+    for (std::size_t index = 0; index < list_nodes_.size(); ++index) {
+        const bool shown = content.page != ManagementPanelPage::Settings &&
             index < content.rows.size() && !content.rows[index].empty();
         const int frame = content.selected_row == index ? 2 : 1;
-        SetElement(protection_nodes_[index], name.c_str(),
+        SetElement(list_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
     for (std::size_t index = 0; index < group_nodes_.size(); ++index) {
-        const auto name = IndexedName("panel_group_", index);
-        SetElement(group_nodes_[index], name.c_str(),
-                   content.protection_page ? "" : kGroupNames[index],
-                   content.protection_page ? 0 : 1);
+        const bool shown = content.page == ManagementPanelPage::Settings &&
+            index < content.group_titles.size();
+        SetElement(group_nodes_[index],
+                   shown ? content.group_titles[index].c_str() : "",
+                   shown ? 1 : 0);
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
-        const auto name = IndexedName("panel_setting_row_", index);
-        const bool shown = !content.protection_page && index < content.rows.size();
+        const bool shown = content.page == ManagementPanelPage::Settings &&
+            index < content.rows.size();
         const int frame = content.selected_row == index ? 2 : 1;
-        SetElement(setting_nodes_[index], name.c_str(),
+        SetElement(setting_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
-    MewUI_SetTextInSceneText(scene_manager_, "panel_title", content.title.c_str());
-    MewUI_SetTextInSceneText(scene_manager_, "panel_status", content.status.c_str());
+    SetElement(title_, content.title.c_str(), 0);
+    SetElement(status_, content.status.c_str(), 0);
     return {};
 }
 
 void MewUiManagementPanelView::Hide() noexcept {
     MewUI_SetModalInputBlocked(false);
     visible_.store(false);
-    protection_page_.store(false);
+    page_.store(static_cast<int>(ManagementPanelPage::Settings));
     navigation_visible_.store(false);
     apply_visible_.store(false);
     remove_visible_.store(false);
@@ -134,21 +132,16 @@ void MewUiManagementPanelView::Hide() noexcept {
     if (!CanTouchScene()) return;
     HoldMewUiMovieClipFrame(background_, 0);
     for (std::size_t index = 0; index < fixed_nodes_.size(); ++index)
-        SetElement(fixed_nodes_[index], kFixedNames[index], "", 0);
-    for (std::size_t index = 0; index < protection_nodes_.size(); ++index) {
-        const auto name = IndexedName("panel_protection_row_", index);
-        SetElement(protection_nodes_[index], name.c_str(), "", 0);
-    }
+        SetElement(fixed_nodes_[index], "", 0);
+    for (auto& node : list_nodes_) SetElement(node, "", 0);
     for (std::size_t index = 0; index < group_nodes_.size(); ++index) {
-        const auto name = IndexedName("panel_group_", index);
-        SetElement(group_nodes_[index], name.c_str(), "", 0);
+        SetElement(group_nodes_[index], "", 0);
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
-        const auto name = IndexedName("panel_setting_row_", index);
-        SetElement(setting_nodes_[index], name.c_str(), "", 0);
+        SetElement(setting_nodes_[index], "", 0);
     }
-    MewUI_SetTextInSceneText(scene_manager_, "panel_title", "");
-    MewUI_SetTextInSceneText(scene_manager_, "panel_status", "");
+    SetElement(title_, "", 0);
+    SetElement(status_, "", 0);
 }
 
 bool MewUiManagementPanelView::IsAttached() const noexcept {
@@ -165,24 +158,31 @@ bool MewUiManagementPanelView::ResolveNodes() noexcept {
     auto resolve = [this](auto& nodes, const char* prefix) {
         for (std::size_t index = 0; index < nodes.size(); ++index) {
             const auto name = IndexedName(prefix, index);
-            nodes[index] = MewUI_FindNodeInSceneByName(scene_manager_, name.c_str());
-            if (nodes[index] == nullptr || MewUI_FindNodeInSceneByName(
-                    scene_manager_, (name + "_text").c_str()) == nullptr) return false;
+            nodes[index].clip = MewUI_FindNodeInSceneByName(
+                scene_manager_, name.c_str());
+            nodes[index].text = MewUI_FindNodeInSceneByName(
+                scene_manager_, (name + "_text").c_str());
+            if (nodes[index].clip == nullptr || nodes[index].text == nullptr)
+                return false;
         }
         return true;
     };
     for (std::size_t index = 0; index < fixed_nodes_.size(); ++index) {
-        fixed_nodes_[index] = MewUI_FindNodeInSceneByName(
+        fixed_nodes_[index].clip = MewUI_FindNodeInSceneByName(
             scene_manager_, kFixedNames[index]);
-        if (fixed_nodes_[index] == nullptr || MewUI_FindNodeInSceneByName(
-                scene_manager_, (std::string(kFixedNames[index]) + "_text").c_str()) == nullptr)
+        fixed_nodes_[index].text = MewUI_FindNodeInSceneByName(
+            scene_manager_,
+            (std::string(kFixedNames[index]) + "_text").c_str());
+        if (fixed_nodes_[index].clip == nullptr ||
+            fixed_nodes_[index].text == nullptr)
             return false;
     }
-    return resolve(protection_nodes_, "panel_protection_row_") &&
+    title_.text = MewUI_FindNodeInSceneByName(scene_manager_, "panel_title");
+    status_.text = MewUI_FindNodeInSceneByName(scene_manager_, "panel_status");
+    return resolve(list_nodes_, "panel_protection_row_") &&
         resolve(group_nodes_, "panel_group_") &&
         resolve(setting_nodes_, "panel_setting_row_") &&
-        MewUI_FindNodeInSceneByName(scene_manager_, "panel_title") &&
-        MewUI_FindNodeInSceneByName(scene_manager_, "panel_status");
+        title_.text != nullptr && status_.text != nullptr;
 }
 
 bool MewUiManagementPanelView::CanTouchScene() const noexcept {
@@ -193,10 +193,27 @@ bool MewUiManagementPanelView::CanTouchScene() const noexcept {
 }
 
 void MewUiManagementPanelView::SetElement(
-    void* node, const char* name, const char* text, int frame) noexcept {
-    MewUI_SetTextInSceneText(
-        scene_manager_, (std::string(name) + "_text").c_str(), text);
-    HoldMewUiMovieClipFrame(node, frame);
+    Element& element, const char* text, int frame) noexcept {
+    if (element.text != nullptr && element.rendered_text != text) {
+        MewUI_SetTextElementFromLocalizationKeyValue(
+            element.text,
+            "house.recommend_row",
+            text);
+        element.rendered_text = text;
+    }
+    if (element.clip != nullptr && element.rendered_frame != frame) {
+        HoldMewUiMovieClipFrame(element.clip, frame);
+        element.rendered_frame = frame;
+    }
+}
+
+void MewUiManagementPanelView::ResetElements() noexcept {
+    for (auto& node : fixed_nodes_) node = {};
+    for (auto& node : list_nodes_) node = {};
+    for (auto& node : group_nodes_) node = {};
+    for (auto& node : setting_nodes_) node = {};
+    title_ = {};
+    status_ = {};
 }
 
 }  // namespace autocattery::ui
