@@ -59,7 +59,7 @@ void RunWorkflowPreviewBuilderTests() {
   AC_CHECK(
       potential_built.value.preview.recommended_combat_count == 10);
   AC_CHECK(potential_built.value.preview.breeding_core_count == 0);
-  AC_CHECK(potential_built.value.preview.planned_move_count == 10);
+  AC_CHECK(potential_built.value.preview.planned_move_count == 12);
   AC_CHECK(potential_built.value.room_plan.move_execution_allowed);
   AC_CHECK(std::ranges::all_of(
       potential_built.value.room_plan.moves,
@@ -67,12 +67,82 @@ void RunWorkflowPreviewBuilderTests() {
         return move.to_room == "Attic" && move.executable;
       }));
   AC_CHECK(std::ranges::any_of(
-      potential_built.value.room_plan.moves,
-      [](const auto &move) { return move.cat_id == 1; }));
-  AC_CHECK(std::ranges::any_of(
       potential_built.value.preview.warnings,
       [](const auto &warning) {
         return warning == "potential-room-sex-mix-adjusted";
+      }));
+
+  WorkflowReadFake balanced_sexes;
+  balanced_sexes.house = WorkflowHouse(8);
+  balanced_sexes.house.rooms.front().id = "Floor1_Large";
+  for (std::size_t index = 0;
+       index < balanced_sexes.house.cats.size();
+       ++index) {
+    auto &cat = balanced_sexes.house.cats[index];
+    cat.room_id = "Floor1_Large";
+    cat.sex = index % 2 == 0
+                  ? snapshot::CatSex::Female
+                  : snapshot::CatSex::Male;
+  }
+  Config balanced_config;
+  balanced_config.combat_scoring.recommended_count = 4;
+  workflow::WorkflowStateMachine balanced_state;
+  AC_CHECK(balanced_state.BeginPreview());
+  const auto balanced =
+      workflow::PreviewBuilder(balanced_sexes, balanced_config).Build(
+          24, workflow::WorkflowCapability::MoveOnly, balanced_state);
+  AC_CHECK(static_cast<bool>(balanced));
+  AC_CHECK(balanced.value.preview.planned_move_count == 4);
+  AC_CHECK(balanced.value.room_plan.algorithm_version ==
+           room_planning::kBalancedMoveOnlyAlgorithmVersion);
+  AC_CHECK(std::ranges::find(
+      balanced.value.room_plan.limitations,
+      "room-capacities-unknown") !=
+           balanced.value.room_plan.limitations.end());
+  std::size_t attic_female{};
+  std::size_t attic_male{};
+  for (const auto &move : balanced.value.room_plan.moves) {
+    if (move.to_room != "Attic") {
+      continue;
+    }
+    const auto cat = std::ranges::find_if(
+        balanced.value.snapshot.cats,
+        [&](const auto &candidate) {
+          return candidate.id == move.cat_id;
+        });
+    AC_CHECK(cat != balanced.value.snapshot.cats.end());
+    attic_female += cat->sex == snapshot::CatSex::Female ? 1U : 0U;
+    attic_male += cat->sex == snapshot::CatSex::Male ? 1U : 0U;
+  }
+  AC_CHECK(attic_female > 0);
+  AC_CHECK(attic_male > 0);
+
+  WorkflowReadFake four_rooms;
+  four_rooms.house = WorkflowHouse(10);
+  four_rooms.house.rooms.front().id = "Floor1_Large";
+  four_rooms.house.rooms.push_back({.id = "Attic"});
+  four_rooms.house.rooms.push_back({.id = "Floor1_Small"});
+  four_rooms.house.rooms.push_back({.id = "Floor2_Large"});
+  for (auto &cat : four_rooms.house.cats) {
+    cat.room_id = "Floor1_Large";
+    cat.sex = cat.id % 2 == 0
+                  ? snapshot::CatSex::Female
+                  : snapshot::CatSex::Male;
+  }
+  workflow::WorkflowStateMachine four_room_state;
+  AC_CHECK(four_room_state.BeginPreview());
+  const auto four_room_plan =
+      workflow::PreviewBuilder(four_rooms).Build(
+          25, workflow::WorkflowCapability::MoveOnly,
+          four_room_state);
+  AC_CHECK(static_cast<bool>(four_room_plan));
+  AC_CHECK(four_room_plan.value.preview.room_count == 4);
+  AC_CHECK(four_room_plan.value.preview.planned_move_count == 7);
+  AC_CHECK(std::ranges::all_of(
+      four_room_plan.value.room_plan.moves,
+      [](const auto &move) {
+        return move.from_room == "Floor1_Large" &&
+               move.to_room != "Floor1_Large" && move.executable;
       }));
 
   WorkflowReadFake empty;

@@ -58,7 +58,7 @@ void RunRoomCapabilityAdapterTests() {
     AC_CHECK(movable.size() == 4);
     AC_CHECK(
         movable[0].confirmed_role ==
-        room_planning::RoomRole::CombatStaging);
+        room_planning::RoomRole::General);
     AC_CHECK(
         movable[0].native_capacity_gate ==
         room_planning::CapabilityState::Yes);

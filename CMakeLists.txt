@@ -48,6 +48,10 @@ add_library(auto_cattery_core STATIC
     src/recommendation/snapshot_reader.cpp
     src/recommendation/snapshot_validator.cpp
     src/room_planning/capability_adapter.cpp
+    src/room_planning/balanced_move_only_assignment.cpp
+    src/room_planning/balanced_move_only_context.cpp
+    src/room_planning/balanced_move_only_planner.cpp
+    src/room_planning/balanced_move_only_targets.cpp
     src/room_planning/planner.cpp
     src/room_planning/validator.cpp
     src/config.cpp
@@ -206,6 +210,7 @@ endforeach()
 if(AUTOCATTERY_BUILD_TESTS)
     enable_testing()
     add_executable(auto_cattery_tests
+        tests/balanced_move_only_planner_tests.cpp
         tests/breeding_ranker_tests.cpp
         tests/breeding_scorer_tests.cpp
         tests/classifier_tests.cpp

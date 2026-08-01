@@ -10,6 +10,7 @@
 #include "auto_cattery/classification/protection_adapter.hpp"
 #include "auto_cattery/execution/plan_sealer.hpp"
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/room_planning/balanced_move_only_planner.hpp"
 #include "auto_cattery/room_planning/capability_adapter.hpp"
 #include "auto_cattery/room_planning/planner.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
@@ -313,10 +314,15 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
                 captured.value)
           : room_planning::BuildConservativeRoomCapabilities(
                 captured.value);
-  auto room_plan = room_planning::PlanRooms(
-      {captured.value, classified.value, protections, capabilities,
-       protection_digest, protection_digest},
-      config_.room_planning);
+  const room_planning::RoomPlanningInput planning_input{
+      captured.value, classified.value, protections, capabilities,
+      protection_digest, protection_digest};
+  auto room_plan =
+      capability == WorkflowCapability::MoveOnly
+          ? room_planning::PlanCurrentBuildBalancedMoveOnlyRooms(
+                planning_input, config_.room_planning)
+          : room_planning::PlanRooms(
+                planning_input, config_.room_planning);
   if (!state.PlanningComplete()) {
     state.Fail();
     return {{}, ErrorCode::WriteConflict, "workflow state changed"};

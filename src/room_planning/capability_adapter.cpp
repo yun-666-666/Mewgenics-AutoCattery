@@ -24,15 +24,13 @@ std::vector<RoomCapability> BuildCurrentBuildMoveRoomCapabilities(
     const snapshot::HouseSnapshot& snapshot) {
     auto capabilities = BuildConservativeRoomCapabilities(snapshot);
     for (auto& capability : capabilities) {
-        if (capability.room_id == "Floor1_Large" ||
-            capability.room_id == "Floor1_Small" ||
-            capability.room_id == "Floor2_Large") {
-            capability.confirmed_role = RoomRole::General;
-        } else if (capability.room_id == "Attic") {
-            capability.confirmed_role = RoomRole::CombatStaging;
-        } else {
+        if (capability.room_id != "Floor1_Large" &&
+            capability.room_id != "Floor1_Small" &&
+            capability.room_id != "Floor2_Large" &&
+            capability.room_id != "Attic") {
             continue;
         }
+        capability.confirmed_role = RoomRole::General;
         capability.special_room = CapabilityState::No;
         capability.player_locked = CapabilityState::No;
         capability.forced_residents_present = CapabilityState::No;

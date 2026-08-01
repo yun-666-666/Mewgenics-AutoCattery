@@ -16,6 +16,7 @@ void RunExecutionTransactionFailureTests();
 void RunExecutionTransactionConcurrencyTests();
 void RunFileHashTests();
 void RunGameBuildGateTests();
+void RunBalancedMoveOnlyPlannerTests();
 void RunBreedingRankerTests();
 void RunBreedingScorerTests();
 void RunBackupManifestTests();
@@ -76,6 +77,7 @@ int main() {
         SEM_NOOPENFILEERRORBOX);
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
     try {
+    autocattery::tests::RunBalancedMoveOnlyPlannerTests();
     autocattery::tests::RunBreedingRankerTests();
     autocattery::tests::RunBreedingScorerTests();
     autocattery::tests::RunBackupManifestTests();
