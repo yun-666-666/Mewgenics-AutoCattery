@@ -79,6 +79,12 @@ std::string DigestSnapshotContent(const snapshot::HouseSnapshot& snapshot) {
             Append(canonical, slot.size());
             Append(canonical, slot);
         }
+        for (const auto& trait : cat.visual_traits) {
+            Append(canonical, trait.slot);
+            Append(canonical, trait.category);
+            Append(canonical, trait.id);
+            Append(canonical, static_cast<int>(trait.kind));
+        }
         AppendOptional(canonical, cat.birth_day);
         AppendOptional(canonical, cat.age_days);
         Append(canonical, cat.room_id.value_or(""));

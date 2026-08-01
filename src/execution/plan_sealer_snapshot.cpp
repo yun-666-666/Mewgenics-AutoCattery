@@ -34,6 +34,7 @@ void AppendSnapshotCapabilitiesAndBreeding(
     Append(output, c.read_equipment_bonus);
     Append(output, c.read_raw_ability_slots);
     Append(output, c.read_typed_abilities);
+    Append(output, c.read_visual_traits);
     Append(output, c.read_class_id);
     Append(output, c.read_age);
     Append(output, c.read_sexuality);

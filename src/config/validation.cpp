@@ -129,6 +129,18 @@ Result<void> ValidateScoring(
             path + ".injury_penalty must be finite and between -10000 and 10000"
         };
     }
+    if (!combat) {
+        for (const char* key : {
+                 "mutation_default_weight",
+                 "birth_defect_default_penalty"}) {
+            if (!ReasonableFinite(module.at(key).get<double>())) {
+                return {
+                    ErrorCode::ConfigInvalid,
+                    path + "." + key + " must be a reasonable finite value"
+                };
+            }
+        }
+    }
     auto result = ValidateWeightObject(
         module.at("stat_weights"),
         path + ".stat_weights",
@@ -146,6 +158,17 @@ Result<void> ValidateScoring(
             false);
         if (!result) {
             return result;
+        }
+    }
+    if (!combat) {
+        for (const char* key : {
+                 "mutation_overrides",
+                 "birth_defect_overrides"}) {
+            result = ValidateWeightObject(
+                module.at(key), path + "." + key, false);
+            if (!result) {
+                return result;
+            }
         }
     }
     return {};

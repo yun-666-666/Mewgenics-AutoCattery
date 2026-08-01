@@ -8,6 +8,7 @@
 
 #include "auto_cattery/snapshot/detail/lz4_block.hpp"
 #include "auto_cattery/snapshot/detail/cat_personality.hpp"
+#include "auto_cattery/snapshot/detail/visual_traits.hpp"
 
 namespace autocattery::snapshot {
 namespace {
@@ -204,6 +205,7 @@ Result<CatSnapshot> ParseCatBlob(
         kEquipmentBlockSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat breed block is invalid"};
     }
+    detail::ParseVisualPartSlots(bytes, cursor, cat);
     cursor += kEquipmentBlockSize;
     if (!ReadAsciiString(bytes, cursor, cat.voice_id) ||
         kStatBlockSize > bytes.size() - cursor) {

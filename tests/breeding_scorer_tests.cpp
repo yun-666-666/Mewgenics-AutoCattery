@@ -40,7 +40,9 @@ void RunBreedingScorerTests() {
     config.passive_overrides["Calm"] = 2.0;
     config.disorder_overrides["Fragile"] = 3.0;
     const auto configured =
-        breeding::ScoreBreedingCat(BreedingCat(), config);
+        breeding::ScoreBreedingCat(
+            BreedingCat(), config,
+            breeding::BreedingStage::StableAllSeven);
     AC_CHECK(static_cast<bool>(configured));
     AC_CHECK(configured.value.score == 10.0);
 

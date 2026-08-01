@@ -39,7 +39,7 @@ const autocattery::snapshot::RoomSnapshot* BestBreedingRoom(
         const auto key = [&](const auto& value) {
             const auto& a = *value.attributes;
             return stable
-                ? std::tuple{-a.comfort, -a.stimulation, value.id}
+                ? std::tuple{-a.stimulation, -a.mutation, value.id}
                 : std::tuple{-a.stimulation, -a.comfort, value.id};
         };
         if (best == nullptr || key(room) < key(*best)) {
@@ -65,9 +65,19 @@ int wmain(int argc, wchar_t** argv) {
     std::size_t bisexual{};
     std::size_t gay{};
     std::size_t genetic_values{};
+    std::size_t mutations{};
+    std::size_t birth_defects{};
     auto genetic_min = std::numeric_limits<std::int32_t>::max();
     auto genetic_max = std::numeric_limits<std::int32_t>::min();
     for (const auto& cat : house.cats) {
+        for (const auto& trait : cat.visual_traits) {
+            if (trait.kind ==
+                autocattery::snapshot::VisualTraitKind::BirthDefect) {
+                ++birth_defects;
+            } else {
+                ++mutations;
+            }
+        }
         for (const auto& value : cat.genetic_stats.values) {
             if (value) {
                 ++genetic_values;
@@ -98,6 +108,9 @@ int wmain(int argc, wchar_t** argv) {
         << (genetic_values ? std::to_string(genetic_max) : "unknown")
         << " sexuality=" << house.capabilities.read_sexuality
         << " pedigree=" << house.capabilities.read_relationships
+        << " visual_traits=" << house.capabilities.read_visual_traits
+        << " mutations=" << mutations
+        << " birth_defects=" << birth_defects
         << " pair_coi=" << house.pedigree_pair_coefficients.size()
         << " straight=" << straight
         << " bisexual=" << bisexual
@@ -118,6 +131,7 @@ int wmain(int argc, wchar_t** argv) {
             << " coverage=" << pair.covered_seven_stats
             << " stable=" << pair.jointly_stable_seven_stats
             << " coi=" << *pair.offspring_inbreeding_coefficient
+            << " trait_score=" << pair.trait_score
             << " target=" << (room ? room->id : "unavailable");
     }
     autocattery::workflow::WorkflowStateMachine state;

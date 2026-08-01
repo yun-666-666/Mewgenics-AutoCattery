@@ -78,9 +78,11 @@ Json SafeDefaultsJson() {
             {"minimum_known_stats", 7},
             {"require_confirmed_eligibility", true},
             {"missing_stat_penalty", 0.0},
-            {"active_ability_default_weight", 0.0},
-            {"passive_default_weight", 0.0},
-            {"disorder_default_penalty", 0.0},
+            {"active_ability_default_weight", 1.0},
+            {"passive_default_weight", 1.0},
+            {"disorder_default_penalty", 1.0},
+            {"mutation_default_weight", 1.0},
+            {"birth_defect_default_penalty", 1.0},
             {"stat_weights", {
                 {"strength", 1.0},
                 {"dexterity", 1.0},
@@ -92,7 +94,9 @@ Json SafeDefaultsJson() {
             }},
             {"active_ability_overrides", Json::object()},
             {"passive_overrides", Json::object()},
-            {"disorder_overrides", Json::object()}
+            {"disorder_overrides", Json::object()},
+            {"mutation_overrides", Json::object()},
+            {"birth_defect_overrides", Json::object()}
         }},
         {"classification", {
             {"version", 1},

@@ -33,6 +33,7 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
         .read_equipment_bonus = base_stats_unlocked,
         .read_raw_ability_slots = true,
         .read_typed_abilities = true,
+        .read_visual_traits = false,
         .read_class_id = !snapshot.cats.empty() &&
             std::ranges::all_of(
                 snapshot.cats,

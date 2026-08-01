@@ -39,6 +39,24 @@ enum class CatSexuality {
     Gay
 };
 
+enum class VisualTraitKind {
+    Mutation,
+    BirthDefect
+};
+
+struct VisualPartSlot {
+    std::string slot;
+    std::string category;
+    std::uint32_t id{};
+};
+
+struct VisualTrait {
+    std::string slot;
+    std::string category;
+    std::uint32_t id{};
+    VisualTraitKind kind{VisualTraitKind::Mutation};
+};
+
 enum class Stat {
     Strength,
     Dexterity,
@@ -73,6 +91,8 @@ struct CatSnapshot {
     StatBlock heredity_bonus;
     StatBlock equipment_bonus;
     std::vector<std::string> raw_ability_slots;
+    std::vector<VisualPartSlot> raw_visual_part_slots;
+    std::vector<VisualTrait> visual_traits;
     std::optional<std::int64_t> birth_day;
     std::optional<std::int64_t> age_days;
     std::optional<RoomId> room_id;
@@ -120,6 +140,7 @@ struct CapabilityMatrix {
     bool read_equipment_bonus{};
     bool read_raw_ability_slots{};
     bool read_typed_abilities{};
+    bool read_visual_traits{};
     bool read_class_id{};
     bool read_age{};
     bool read_sexuality{};

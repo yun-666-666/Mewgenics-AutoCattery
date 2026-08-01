@@ -5,6 +5,10 @@
 #include <map>
 #include <numbers>
 #include <tuple>
+#include <unordered_map>
+
+#include "auto_cattery/breeding/breeding_scorer.hpp"
+#include "pair_trait_scorer.hpp"
 
 namespace autocattery::breeding {
 namespace {
@@ -84,6 +88,9 @@ BreedingPairScore ScorePair(
     }
     result.eligible = result.exclusion_reasons.empty();
     if (result.eligible) {
+        result.stable_all_seven =
+            result.jointly_stable_seven_stats == snapshot::kStatCount &&
+            result.offspring_inbreeding_coefficient == 0.0;
         result.score =
             static_cast<double>(result.covered_seven_stats) * 1000.0 +
             static_cast<double>(result.jointly_stable_seven_stats) * 100.0 +
@@ -96,7 +103,13 @@ BreedingPairScore ScorePair(
 
 }  // namespace
 
-Result<PairRanking> RankBreedingPairs(const snapshot::HouseSnapshot& house) {
+Result<PairRanking> RankBreedingPairs(
+    const snapshot::HouseSnapshot& house,
+    const BreedingScoringConfig& config) {
+    const auto config_validation = Validate(config);
+    if (!config_validation) {
+        return {{}, config_validation.code, config_validation.message};
+    }
     if (!house.capabilities.read_genetic_stats ||
         !house.capabilities.read_sexuality ||
         !house.capabilities.read_relationships) {
@@ -118,25 +131,49 @@ Result<PairRanking> RankBreedingPairs(const snapshot::HouseSnapshot& house) {
                 ScorePair(house.cats[i], house.cats[j], coefficients));
         }
     }
-    std::sort(
-        ranking.ranked.begin(), ranking.ranked.end(),
-        [](const auto& left, const auto& right) {
-            return std::tuple{!left.eligible, -left.score,
-                              left.cat_a_id, left.cat_b_id} <
-                std::tuple{!right.eligible, -right.score,
-                           right.cat_a_id, right.cat_b_id};
-        });
     const bool stable = std::ranges::any_of(
         ranking.ranked,
-        [](const auto& pair) {
-            return pair.eligible &&
-                pair.jointly_stable_seven_stats == snapshot::kStatCount &&
-                pair.offspring_inbreeding_coefficient == 0.0;
-        });
+        [](const auto& pair) { return pair.stable_all_seven; });
     ranking.stage = stable
         ? BreedingStage::StableAllSeven
         : has_all_seven ? BreedingStage::BaseAllSeven
                         : BreedingStage::Foundation;
+    if (stable) {
+        std::unordered_map<snapshot::CatId, const snapshot::CatSnapshot*> cats;
+        for (const auto& cat : house.cats) {
+            cats.emplace(cat.id, &cat);
+        }
+        for (auto& pair : ranking.ranked) {
+            if (!pair.stable_all_seven) {
+                continue;
+            }
+            pair.trait_score = detail::StablePairTraitScore(
+                house,
+                *cats.at(pair.cat_a_id),
+                *cats.at(pair.cat_b_id),
+                config);
+            pair.score += pair.trait_score;
+        }
+    }
+    std::sort(
+        ranking.ranked.begin(), ranking.ranked.end(),
+        [stable](const auto& left, const auto& right) {
+            return std::tuple{
+                !left.eligible,
+                stable && !left.stable_all_seven,
+                stable ? -left.trait_score : 0.0,
+                -left.score,
+                left.cat_a_id,
+                left.cat_b_id
+            } < std::tuple{
+                !right.eligible,
+                stable && !right.stable_all_seven,
+                stable ? -right.trait_score : 0.0,
+                -right.score,
+                right.cat_a_id,
+                right.cat_b_id
+            };
+        });
     return {std::move(ranking)};
 }
 

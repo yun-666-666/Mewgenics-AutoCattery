@@ -41,7 +41,18 @@ std::vector<std::uint8_t> CatBlob(
     const auto personality_anchor = bytes.size();
     bytes.resize(bytes.size() + 16, 0);
     AppendString(bytes, "None");
+    const auto equipment_start = bytes.size();
     bytes.resize(bytes.size() + 368, 0);
+    const std::uint32_t fur_mutation = 300;
+    const std::uint32_t body_defect = 700;
+    std::memcpy(
+        bytes.data() + equipment_start + 68,
+        &fur_mutation,
+        sizeof(fur_mutation));
+    std::memcpy(
+        bytes.data() + equipment_start + 68 + 3 * sizeof(std::uint32_t),
+        &body_defect,
+        sizeof(body_defect));
     AppendString(bytes, voice_id);
 
     const auto stat_start = bytes.size();
@@ -94,6 +105,9 @@ void RunCatBlobParserTests() {
     AC_CHECK(parsed.value.id == 42);
     AC_CHECK(parsed.value.display_name == "Mew");
     AC_CHECK(parsed.value.raw_ability_slots.size() == 10);
+    AC_CHECK(parsed.value.raw_visual_part_slots.size() == 15);
+    AC_CHECK(parsed.value.raw_visual_part_slots[0].id == 300);
+    AC_CHECK(parsed.value.raw_visual_part_slots[1].id == 700);
     AC_CHECK(parsed.value.genetic_stats.values[0] == 1);
     AC_CHECK(parsed.value.genetic_stats.values[6] == 7);
     AC_CHECK(parsed.value.heredity_bonus.values[0] == 11);

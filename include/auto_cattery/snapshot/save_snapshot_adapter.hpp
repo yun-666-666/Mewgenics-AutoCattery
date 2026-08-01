@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
+#include "auto_cattery/snapshot/detail/visual_traits.hpp"
 #include "auto_cattery/snapshot/game_read_adapter.hpp"
 
 namespace autocattery::snapshot {
@@ -45,6 +46,8 @@ private:
     std::filesystem::path game_root_;
     detail::FurnitureCatalog furniture_catalog_;
     bool furniture_catalog_attempted_{};
+    detail::MutationCatalog mutation_catalog_;
+    bool mutation_catalog_attempted_{};
     std::uint64_t next_snapshot_id_{1};
 };
 

@@ -87,6 +87,10 @@ std::string DigestConfig(const Config &config) {
   AppendScoring(canonical, config.breeding_scoring);
   Append(canonical, config.breeding_scoring.core_breeders);
   Append(canonical, config.breeding_scoring.reserve_breeders);
+  Append(canonical, config.breeding_scoring.mutation_default_weight);
+  Append(canonical, config.breeding_scoring.birth_defect_default_penalty);
+  AppendOverrides(canonical, config.breeding_scoring.mutation_overrides);
+  AppendOverrides(canonical, config.breeding_scoring.birth_defect_overrides);
   Append(canonical, config.classification.version);
   Append(canonical, config.classification.combat_priority_over_breeding);
   Append(canonical, config.classification.minimum_combat_pool);

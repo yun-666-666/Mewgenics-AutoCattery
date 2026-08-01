@@ -9,6 +9,7 @@ Result<void> Validate(const BreedingScoringConfig& config);
 
 Result<BreedingScoreResult> ScoreBreedingCat(
     const snapshot::CatSnapshot& cat,
-    const BreedingScoringConfig& config);
+    const BreedingScoringConfig& config,
+    BreedingStage stage = BreedingStage::Foundation);
 
 }  // namespace autocattery::breeding

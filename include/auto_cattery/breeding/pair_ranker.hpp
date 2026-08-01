@@ -11,6 +11,7 @@ struct PairRanking {
 };
 
 [[nodiscard]] Result<PairRanking> RankBreedingPairs(
-    const snapshot::HouseSnapshot& house);
+    const snapshot::HouseSnapshot& house,
+    const BreedingScoringConfig& config = {});
 
 }  // namespace autocattery::breeding

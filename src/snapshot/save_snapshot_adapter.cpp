@@ -5,6 +5,7 @@
 #include "auto_cattery/snapshot/detail/unlocked_breeding_data.hpp"
 #include "auto_cattery/snapshot/detail/save_locator.hpp"
 #include "auto_cattery/snapshot/detail/snapshot_assembler.hpp"
+#include "auto_cattery/snapshot/detail/visual_traits.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -145,6 +146,16 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
             furniture_catalog_.clear();
         }
     }
+    if (!mutation_catalog_attempted_) {
+        mutation_catalog_attempted_ = true;
+        std::string catalog_error;
+        if (!detail::LoadMutationCatalog(
+                game_root_ / L"resources.gpak",
+                mutation_catalog_,
+                catalog_error)) {
+            mutation_catalog_.clear();
+        }
+    }
 
     const auto house_entries =
         ParseHouseState(AsBytes(*stored_house_state));
@@ -199,6 +210,17 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
         unlocks.base_stats,
         unlocks.sexuality);
     if (snapshot) {
+        if (!mutation_catalog_.empty()) {
+            for (auto& cat : snapshot.value.cats) {
+                detail::ApplyMutationCatalog(cat, mutation_catalog_);
+            }
+            snapshot.value.capabilities.read_visual_traits =
+                std::ranges::all_of(
+                    snapshot.value.cats,
+                    [](const CatSnapshot& cat) {
+                        return cat.raw_visual_part_slots.size() == 15;
+                    });
+        }
         if (furniture_read && !furniture_catalog_.empty()) {
             detail::ApplyFurnitureRoomAttributes(
                 snapshot.value, furniture, furniture_catalog_);

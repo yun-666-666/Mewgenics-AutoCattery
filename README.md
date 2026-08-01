@@ -26,7 +26,8 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
   `tink_sexuality`、`tink_inbreeding`、`tink_relationships` 对应进度
   实际解锁后读取，未解锁维度不参与评分。
 - 解锁完整繁育信息后，按七维基础属性缺口、游戏缓存 COI 和性取向选择成年
-  配对；尚未稳定全 7 时优先高刺激房，稳定全 7 后改为优先高舒适房。
+  配对；稳定全 7 前不启用技能/变异权重，稳定后才按技能、被动、疾病、普通
+  变异和出生缺陷优化配对，并继续选择高刺激、其次高变异属性的繁育房。
 - 不以战斗状态、是否战斗过、职业或受伤状态排除猫。
 - 8 猫和 25 猫两房存档已通过玩家实机自动分房验证，目标分别为 `4/4`
   和 `13/12`。
@@ -34,7 +35,7 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 
 当前实时执行能力是 `MoveOnly`。房间属性、第一阶段繁育配对、基础属性默认
 读取、房间身份缓存与房外猫原生搬入均已由玩家确认。真实淘汰、
-全 7 后技能/被动/变异优化和详细预览仍未完成。见
+详细预览仍未完成。见
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md)。
 
 ## 构建

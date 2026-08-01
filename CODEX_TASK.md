@@ -1,9 +1,9 @@
-# CODEX CURRENT TASK - CURRENT BUILD MOVEONLY CONSOLIDATION
+# CODEX CURRENT TASK - PROTECTION RULES ON CURRENT MOVEONLY
 
 ## Current objective
 
-整理并固化当前 build 已通过玩家验证的原生 MoveOnly 自动分房能力，维护当前
-状态文档，并为后续猫属性、技能、被动、变异和遗传评分研究准备证据化输入。
+把既有保护、白名单和禁止移动规则重新接入当前 build 的原生 MoveOnly 自动
+分房，同时保持已经完成的分阶段繁育与稳定全 7 遗传评分。
 
 ## Required reading
 

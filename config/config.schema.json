@@ -144,10 +144,14 @@
         "active_ability_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
         "passive_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
         "disorder_default_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "mutation_default_weight": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "birth_defect_default_penalty": {"type": "number", "minimum": -10000, "maximum": 10000},
         "stat_weights": {"$ref": "#/$defs/stat_weights"},
         "active_ability_overrides": {"$ref": "#/$defs/weights"},
         "passive_overrides": {"$ref": "#/$defs/weights"},
-        "disorder_overrides": {"$ref": "#/$defs/weights"}
+        "disorder_overrides": {"$ref": "#/$defs/weights"},
+        "mutation_overrides": {"$ref": "#/$defs/weights"},
+        "birth_defect_overrides": {"$ref": "#/$defs/weights"}
       },
       "additionalProperties": false
     },

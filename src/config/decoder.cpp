@@ -125,6 +125,16 @@ Result<Config> DecodeConfig(const Json& value) {
             breeding.at("core_breeders").get<std::size_t>();
         result.breeding_scoring.reserve_breeders =
             breeding.at("reserve_breeders").get<std::size_t>();
+        result.breeding_scoring.mutation_default_weight =
+            breeding.at("mutation_default_weight").get<double>();
+        result.breeding_scoring.birth_defect_default_penalty =
+            breeding.at("birth_defect_default_penalty").get<double>();
+        DecodeOverrides(
+            breeding.at("mutation_overrides"),
+            result.breeding_scoring.mutation_overrides);
+        DecodeOverrides(
+            breeding.at("birth_defect_overrides"),
+            result.breeding_scoring.birth_defect_overrides);
 
         const auto& classification = value.at("classification");
         result.classification.version =

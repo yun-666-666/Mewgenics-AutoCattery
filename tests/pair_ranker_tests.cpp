@@ -66,6 +66,44 @@ void RunPairRankerTests() {
     AC_CHECK(static_cast<bool>(base));
     AC_CHECK(base.value.stage == breeding::BreedingStage::BaseAllSeven);
 
+    auto traits = PairHouse();
+    auto favored = Adult(
+        4, snapshot::CatSex::Male,
+        snapshot::CatSexuality::Straight, 0.0, 7);
+    favored.raw_ability_slots.resize(10);
+    favored.raw_ability_slots[2] = "Gift";
+    for (auto& cat : traits.cats) {
+        cat.raw_ability_slots.resize(10);
+    }
+    traits.cats.push_back(std::move(favored));
+    traits.capabilities.read_raw_ability_slots = true;
+    traits.rooms.push_back({
+        .id = "Stim",
+        .attributes = snapshot::RoomAttributes{.stimulation = 32}
+    });
+    traits.pedigree_pair_coefficients.push_back({1, 4, 0.0});
+    breeding::BreedingScoringConfig trait_config;
+    trait_config.active_ability_overrides["Gift"] = 10.0;
+    const auto trait_ranked =
+        breeding::RankBreedingPairs(traits, trait_config);
+    AC_CHECK(static_cast<bool>(trait_ranked));
+    AC_CHECK(trait_ranked.value.ranked[0].cat_a_id == 1);
+    AC_CHECK(trait_ranked.value.ranked[0].cat_b_id == 4);
+    AC_CHECK(trait_ranked.value.ranked[0].trait_score > 0.0);
+
+    traits.cats.back().raw_ability_slots.assign(10, std::string{});
+    traits.cats.back().visual_traits = {{
+        "body", "body", 300,
+        snapshot::VisualTraitKind::Mutation
+    }};
+    traits.capabilities.read_visual_traits = true;
+    trait_config.mutation_overrides["body:300"] = 20.0;
+    const auto visual_ranked =
+        breeding::RankBreedingPairs(traits, trait_config);
+    AC_CHECK(static_cast<bool>(visual_ranked));
+    AC_CHECK(visual_ranked.value.ranked[0].cat_b_id == 4);
+    AC_CHECK(visual_ranked.value.ranked[0].trait_score > 0.0);
+
     auto hidden = PairHouse();
     hidden.capabilities.read_sexuality = false;
     const auto unavailable = breeding::RankBreedingPairs(hidden);

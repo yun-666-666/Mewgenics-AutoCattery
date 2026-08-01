@@ -14,6 +14,10 @@ void RunWorkflowDigestTests() {
   AC_CHECK(workflow::DigestConfig(first) == workflow::DigestConfig(same));
   same.combat_scoring.stat_weights[5] = 2.0;
   AC_CHECK(workflow::DigestConfig(first) != workflow::DigestConfig(same));
+
+  same = first;
+  same.breeding_scoring.mutation_default_weight += 1.0;
+  AC_CHECK(workflow::DigestConfig(first) != workflow::DigestConfig(same));
   same = first;
   same.execution.require_quiescent_backup = false;
   AC_CHECK(workflow::DigestConfig(first) != workflow::DigestConfig(same));

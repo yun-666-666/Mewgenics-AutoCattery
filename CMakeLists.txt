@@ -31,6 +31,7 @@ add_library(auto_cattery_core STATIC
     src/breeding/breeding_ranker.cpp
     src/breeding/breeding_scorer.cpp
     src/breeding/pair_ranker.cpp
+    src/breeding/pair_trait_scorer.cpp
     src/classification/classifier.cpp
     src/classification/protection_adapter.cpp
     src/execution/plan_sealer.cpp
@@ -90,6 +91,7 @@ add_library(auto_cattery_core STATIC
     src/snapshot/house_state_parser.cpp
     src/snapshot/house_state_writer.cpp
     src/snapshot/lz4_block.cpp
+    src/snapshot/mutation_catalog.cpp
     src/snapshot/save_database.cpp
     src/snapshot/save_database_files.cpp
     src/snapshot/save_locator.cpp
@@ -98,6 +100,7 @@ add_library(auto_cattery_core STATIC
     src/snapshot/pedigree_parser.cpp
     src/snapshot/progress_unlocks.cpp
     src/snapshot/unlocked_breeding_data.cpp
+    src/snapshot/visual_part_slots.cpp
     src/snapshot/win_sqlite_api.cpp
     src/workflow/organize_workflow_facade.cpp
     src/workflow/digests.cpp
@@ -261,6 +264,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
+        tests/mutation_catalog_tests.cpp
         tests/pedigree_parser_tests.cpp
         tests/pair_ranker_tests.cpp
         tests/organize_workflow_facade_tests.cpp

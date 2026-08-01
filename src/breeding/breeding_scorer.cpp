@@ -89,12 +89,16 @@ Result<void> Validate(const BreedingScoringConfig& config) {
         !std::isfinite(config.active_ability_default_weight) ||
         !std::isfinite(config.passive_default_weight) ||
         !std::isfinite(config.disorder_default_penalty) ||
+        !std::isfinite(config.mutation_default_weight) ||
+        !std::isfinite(config.birth_defect_default_penalty) ||
         !std::ranges::all_of(
             config.stat_weights,
             [](double value) { return std::isfinite(value); }) ||
         !AllFinite(config.active_ability_overrides) ||
         !AllFinite(config.passive_overrides) ||
-        !AllFinite(config.disorder_overrides)) {
+        !AllFinite(config.disorder_overrides) ||
+        !AllFinite(config.mutation_overrides) ||
+        !AllFinite(config.birth_defect_overrides)) {
         return {ErrorCode::ConfigInvalid, "scoring values must be finite"};
     }
     return {};
@@ -102,7 +106,8 @@ Result<void> Validate(const BreedingScoringConfig& config) {
 
 Result<BreedingScoreResult> ScoreBreedingCat(
     const snapshot::CatSnapshot& cat,
-    const BreedingScoringConfig& config) {
+    const BreedingScoringConfig& config,
+    BreedingStage stage) {
     const auto validation = Validate(config);
     if (!validation) {
         return {{}, validation.code, validation.message};
@@ -160,7 +165,8 @@ Result<BreedingScoreResult> ScoreBreedingCat(
         });
     }
 
-    if (cat.raw_ability_slots.size() == kDisorderSlotEnd) {
+    if (stage == BreedingStage::StableAllSeven &&
+        cat.raw_ability_slots.size() == kDisorderSlotEnd) {
         AddConfiguredSlots(
             result,
             cat,
@@ -188,7 +194,7 @@ Result<BreedingScoreResult> ScoreBreedingCat(
             config.disorder_default_penalty,
             config.disorder_overrides,
             -1.0);
-    } else {
+    } else if (stage == BreedingStage::StableAllSeven) {
         result.limitations.push_back(
             "ten typed core ability slots are unavailable for this cat");
     }

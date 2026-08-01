@@ -25,9 +25,25 @@ Result<BreedingRanking> RankBreedingCats(
     BreedingRanking ranking;
     ranking.source_snapshot_id = snapshot.snapshot_id;
     ranking.algorithm_version = kBreedingAlgorithmVersion;
+    if (snapshot.capabilities.read_genetic_stats &&
+        snapshot.capabilities.read_sexuality &&
+        snapshot.capabilities.read_relationships) {
+        auto pairs = RankBreedingPairs(snapshot, config);
+        if (!pairs) {
+            return {{}, pairs.code, pairs.message};
+        }
+        ranking.stage = pairs.value.stage;
+        ranking.ranked_pairs = std::move(pairs.value.ranked);
+        const auto recommended = std::ranges::find_if(
+            ranking.ranked_pairs,
+            [](const auto& pair) { return pair.eligible; });
+        if (recommended != ranking.ranked_pairs.end()) {
+            ranking.recommended_pair = *recommended;
+        }
+    }
     ranking.ranked.reserve(snapshot.cats.size());
     for (const auto& cat : snapshot.cats) {
-        auto result = ScoreBreedingCat(cat, config);
+        auto result = ScoreBreedingCat(cat, config, ranking.stage);
         if (!result) {
             return {{}, result.code, result.message};
         }
@@ -52,22 +68,6 @@ Result<BreedingRanking> RankBreedingCats(
             }
             return left.cat_id < right.cat_id;
         });
-    if (snapshot.capabilities.read_genetic_stats &&
-        snapshot.capabilities.read_sexuality &&
-        snapshot.capabilities.read_relationships) {
-        auto pairs = RankBreedingPairs(snapshot);
-        if (!pairs) {
-            return {{}, pairs.code, pairs.message};
-        }
-        ranking.stage = pairs.value.stage;
-        ranking.ranked_pairs = std::move(pairs.value.ranked);
-        const auto recommended = std::ranges::find_if(
-            ranking.ranked_pairs,
-            [](const auto& pair) { return pair.eligible; });
-        if (recommended != ranking.ranked_pairs.end()) {
-            ranking.recommended_pair = *recommended;
-        }
-    }
     return {std::move(ranking)};
 }
 

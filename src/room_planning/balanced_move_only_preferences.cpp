@@ -51,18 +51,12 @@ auto BreedingKey(
     const PlanningContext& context,
     const snapshot::RoomId& room_id) {
     const auto* attributes = Attributes(context, room_id);
-    const auto primary = attributes
-        ? context.breeding_stats_stable
-            ? attributes->comfort : attributes->stimulation
-        : 0.0;
-    const auto secondary = attributes
-        ? context.breeding_stats_stable
-            ? attributes->stimulation : attributes->comfort
-        : 0.0;
     return std::tuple{
         attributes ? 0 : 1,
-        -primary,
-        -secondary,
+        attributes ? -attributes->stimulation : 0.0,
+        attributes && context.breeding_stats_stable
+            ? -attributes->mutation : 0.0,
+        attributes ? -attributes->comfort : 0.0,
         attributes ? -attributes->health : 0.0,
         room_id
     };

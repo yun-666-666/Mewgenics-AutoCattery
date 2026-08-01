@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 16,
+  "active_stage": 17,
   "stages": {
     "1": {
       "status": "completed",
@@ -87,7 +87,13 @@
       "game_validation_status": "pairing_passed;early_base_stats_and_room_mapping_passed;outside_null_room_native_move_passed"
     },
     "16": {
-      "status": "in_progress_stable_all_seven_trait_scoring",
+      "status": "completed_current_game_resource_and_save_probe",
+      "commit": null,
+      "capability": "StableAllSevenStageAwareAbilityPassiveDisorderAndTypedVisualMutationPairScoring",
+      "game_validation_status": "foundation_three_save_regression_probe_passed;stable_all_seven_save_unavailable"
+    },
+    "17": {
+      "status": "pending_protection_rules_on_current_move_only",
       "commit": null
     }
   },
