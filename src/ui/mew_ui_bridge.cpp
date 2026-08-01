@@ -498,12 +498,6 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
-    if (in_game_panel_controller_) {
-        in_game_panel_controller_->Poll(
-            context,
-            (GetAsyncKeyState(VK_F10) & 1) != 0,
-            (GetAsyncKeyState(VK_ESCAPE) & 1) != 0);
-    }
     const auto house_scene = std::find_if(
         scenes.begin(),
         scenes.end(),
@@ -511,6 +505,13 @@ void MewUiBridge::OnTick() {
             return candidate.ready &&
                    candidate.name == context.scene_name;
         });
+    if (in_game_panel_controller_) {
+        in_game_panel_controller_->Poll(
+            context,
+            house_scene == scenes.end() ? nullptr : house_scene->manager,
+            (GetAsyncKeyState(VK_F10) & 1) != 0,
+            (GetAsyncKeyState(VK_ESCAPE) & 1) != 0);
+    }
     if (runtime_move_gateway_) {
         const bool writable_house =
             context.kind == UiContextKind::House &&

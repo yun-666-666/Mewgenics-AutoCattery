@@ -944,7 +944,7 @@ def build(source: Path, destination: Path) -> None:
             output.extend(encode_tag(
                 DEFINE_EDIT_TEXT,
                 make_panel_text_definition(
-                    body, panel_compact_text_character_id, 20000),
+                    body, panel_compact_text_character_id, 16000),
             ))
             cloned_text_definition = True
             continue

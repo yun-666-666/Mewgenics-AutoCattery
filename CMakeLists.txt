@@ -121,6 +121,7 @@ add_library(auto_cattery_core STATIC
     src/ui/house_move_probe_report.cpp
     src/ui/house_move_probe_session.cpp
     src/ui/in_game_panel_controller.cpp
+    src/ui/in_game_panel_current_save.cpp
     src/ui/in_game_panel_protection.cpp
     src/ui/in_game_panel_render.cpp
     src/ui/in_game_panel_settings.cpp

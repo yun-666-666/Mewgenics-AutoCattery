@@ -22,6 +22,7 @@ InGamePanelController::~InGamePanelController() { Detach(); }
 
 void InGamePanelController::Poll(
     const UiContextSnapshot& context,
+    void* house_scene_manager,
     bool f10_pressed,
     bool escape_pressed) {
     const bool house_ready = context.kind == UiContextKind::House &&
@@ -30,6 +31,7 @@ void InGamePanelController::Poll(
         Detach();
         return;
     }
+    house_scene_manager_ = house_scene_manager;
     if (view_.IsAttached() &&
         context.scene_generation != attached_generation_) {
         Detach();
@@ -87,6 +89,8 @@ void InGamePanelController::Open(const UiContextSnapshot& context) {
     editing_setting_.reset();
     editing_text_.clear();
     selected_cat_.reset();
+    current_save_.reset();
+    current_save_checked_ = false;
     selected_room_.reset();
     Logger::Instance().Write(
         LogLevel::Info, "ManagementPanel", "AC18002",
@@ -100,6 +104,9 @@ void InGamePanelController::Close() noexcept {
     editing_setting_.reset();
     editing_text_.clear();
     selected_cat_.reset();
+    current_save_.reset();
+    current_save_checked_ = false;
+    house_scene_manager_ = nullptr;
     protection_choice_ = ProtectionChoice::None;
     Logger::Instance().Write(
         LogLevel::Info, "ManagementPanel", "AC18003",
@@ -113,6 +120,9 @@ void InGamePanelController::Detach() noexcept {
     editing_setting_.reset();
     editing_text_.clear();
     selected_cat_.reset();
+    current_save_.reset();
+    current_save_checked_ = false;
+    house_scene_manager_ = nullptr;
     protection_choice_ = ProtectionChoice::None;
     last_attach_error_.clear();
 }

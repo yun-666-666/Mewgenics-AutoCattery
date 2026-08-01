@@ -37,6 +37,8 @@ std::size_t Cycle(std::size_t current, std::size_t count, T direction) {
 
 void InGamePanelController::StartProtectionLoad() {
     protection_loading_ = true;
+    current_save_.reset();
+    current_save_checked_ = false;
     status_ = "正在读取本机存档和猫身份，请稍候…";
     const auto mod_root = mod_root_;
     const auto game_root = game_root_;
@@ -68,6 +70,7 @@ void InGamePanelController::PollProtectionLoad() {
         status_ = "保护数据读取失败：" + loaded.message;
     } else {
         protection_ = std::move(loaded.value);
+        ResolveCurrentSave();
         cat_page_ = 0;
         selected_cat_.reset();
         status_ = "先明确选择一只猫，再设置保护等级或固定房间";

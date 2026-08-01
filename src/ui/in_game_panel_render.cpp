@@ -79,8 +79,15 @@ ManagementPanelContent InGamePanelController::ProtectionContent() {
         return content;
     }
     const auto saves = protection_->saves();
+    auto save_label = saves[protection_->selected_save()].label;
+    if (current_save_) {
+        save_label += protection_->selected_save() == *current_save_
+            ? " | 当前存档" : " | 非当前存档";
+    } else if (current_save_checked_) {
+        save_label += " | 当前状态未确认";
+    }
     content.rows.push_back(
-        "<  存档：" + saves[protection_->selected_save()].label + "  >");
+        "<  存档：" + save_label + "  >");
     const auto cats = protection_->cats();
     for (std::size_t visible = 0; visible < 9; ++visible) {
         const auto index = cat_page_ * 9 + visible;

@@ -21,6 +21,7 @@ public:
     ~InGamePanelController();
     void Poll(
         const UiContextSnapshot& context,
+        void* house_scene_manager,
         bool f10_pressed,
         bool escape_pressed);
     void Detach() noexcept;
@@ -38,6 +39,7 @@ private:
     void HandleProtectionRow(std::size_t row, int direction);
     void StartProtectionLoad();
     void PollProtectionLoad();
+    void ResolveCurrentSave();
     void Render();
     [[nodiscard]] ManagementPanelContent SettingsContent();
     [[nodiscard]] ManagementPanelContent ProtectionContent();
@@ -58,6 +60,9 @@ private:
     std::optional<std::size_t> editing_setting_;
     std::string editing_text_;
     std::optional<std::size_t> selected_cat_;
+    std::optional<std::size_t> current_save_;
+    bool current_save_checked_{};
+    void* house_scene_manager_{};
     protection::ProtectionLevel selected_level_{
         protection::ProtectionLevel::NoMove};
     std::optional<snapshot::RoomId> selected_room_;

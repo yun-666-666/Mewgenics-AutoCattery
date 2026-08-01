@@ -149,8 +149,8 @@ MewUiManagementPanelView::HitTest(HWND window) const noexcept {
     for (std::size_t column = 0; column < 3; ++column) {
         for (std::size_t row = 0; row < kSettingCounts[column]; ++row) {
             const double left = 160 + column * 317.0;
-            const Rect rectangle{left, 162 + row * 25.0,
-                                 left + 300, 185 + row * 25.0};
+            const Rect rectangle{left, 181 + row * 24.0,
+                                 left + 300, 204 + row * 24.0};
             if (!Contains(rectangle, x, y)) continue;
             if (x >= left + 75 && x <= left + 225) {
                 return HitResult{ManagementPanelControl::BeginEdit,
