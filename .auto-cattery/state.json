@@ -102,8 +102,8 @@
       "status": "implementation_complete_player_validation_pending",
       "commit": null,
       "capability": "F10InGameSettingsAndProtectionPanel",
-      "game_validation_status": "clean_skin_visible_no_flicker;larger_centered_fonts_spaced_setting_cards_direct_numeric_input_three_column_selected_save_cats_choice_pages_cross_page_hide_and_exact_current_save_marker_deployed;player_revalidation_pending"
+      "game_validation_status": "clean_skin_visible_no_flicker;large_font_setting_backplates_recentered_and_spaced;virtual_resolution_scaling_confirmed;direct_numeric_input_three_column_selected_save_cats_choice_pages_cross_page_hide_and_exact_current_save_marker_deployed;player_revalidation_pending"
     }
   },
-  "updated_at": "2026-08-02T02:30:00+08:00"
+  "updated_at": "2026-08-02T02:40:00+08:00"
 }

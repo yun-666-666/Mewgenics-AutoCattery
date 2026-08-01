@@ -26,7 +26,7 @@ PANEL_GROUP_ELEMENTS = tuple(
 PANEL_SETTING_COUNTS = (17, 18, 10)
 PANEL_SETTING_ELEMENTS = tuple(
     (f"panel_setting_row_{sum(PANEL_SETTING_COUNTS[:column]) + row + 1}",
-     (160.0 + column * 317.0, 185.0 + row * 25.0, (0.30, 0.20)),
+     (160.0 + column * 317.0, 191.0 + row * 25.0, (0.30, 0.21)),
      (202.0 + column * 317.0, 186.0 + row * 25.0, 0.27))
     for column, count in enumerate(PANEL_SETTING_COUNTS)
     for row in range(count)
