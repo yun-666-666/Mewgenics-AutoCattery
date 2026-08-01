@@ -1,9 +1,9 @@
-# CODEX CURRENT TASK - PLAYER VALIDATE GENERIC PROTECTION
+# CODEX CURRENT TASK - F10 IN-GAME MANAGEMENT PANEL
 
 ## Current objective
 
-让玩家在测试存档验证已经部署的通用保护管理器与当前 build 原生 MoveOnly；
-验收通过后才能进入真实淘汰、journal 和撤销。
+在不更换 Mewjector/MewUI 技术路线的前提下，把现有设置与猫保护管理迁入
+House 游戏界面，并用 F10 打开或关闭；保留现有外部编辑器作为备用入口。
 
 ## Required reading
 
@@ -49,8 +49,9 @@
 
 ## Completion requirements for current stage
 
-- 在任意测试存档中，由玩家自主选择一只猫并应用 NoMove；自动整理不能移动它。
-- 为测试猫指定当前存在的固定房间；自动整理必须把它留在或移动到该房间。
-- 移除保护后，该猫恢复参与普通自动整理。
-- 主存档不用于本阶段破坏性测试，也不自动写入任何保护规则。
-- 验收通过后更新阶段状态，再开始真实淘汰实现。
+- House 场景按 F10 打开和关闭游戏内总面板，Esc 也能关闭。
+- 面板打开时不会把点击或滚轮传给后方 House 操作。
+- 提供设置分页与保护分页；配置和保护继续使用现有持久化模型。
+- 保护页必须由玩家明确选择猫后才能应用或移除规则。
+- 不删除现有外部编辑器，不更换或并装另一套 `version.dll` 加载框架。
+- Debug/Release 构建和测试通过，Release 部署后等待玩家实机验收。

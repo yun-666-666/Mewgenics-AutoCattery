@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 17,
+  "active_stage": 18,
   "stages": {
     "1": {
       "status": "completed",
@@ -93,11 +93,17 @@
       "game_validation_status": "foundation_three_save_regression_probe_passed;stable_all_seven_save_unavailable"
     },
     "17": {
-      "status": "generic_protection_editor_deployed_pending_player_validation",
-      "commit": null,
+      "status": "completed_player_validated",
+      "commit": "0e72fd8fe771675544d4a554688b5738c24976da",
       "capability": "GenericOptInStableIdentityProtectionEditorWithRuntimeEnforcement",
-      "game_validation_status": "automated_and_visual_validation_passed;default_rules_empty;player_test_save_validation_pending"
+      "game_validation_status": "automated_and_visual_validation_passed;player_accepted_no_move_fixed_room_and_remove;default_rules_empty"
+    },
+    "18": {
+      "status": "in_progress",
+      "commit": null,
+      "capability": "F10InGameSettingsAndProtectionPanel",
+      "game_validation_status": "not_started"
     }
   },
-  "updated_at": "2026-08-01T21:05:00+08:00"
+  "updated_at": "2026-08-01T22:00:00+08:00"
 }
