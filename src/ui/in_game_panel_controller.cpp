@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include "auto_cattery/logger.hpp"
+
 namespace autocattery::ui {
 
 InGamePanelController::InGamePanelController(
@@ -28,16 +30,35 @@ void InGamePanelController::Poll(
         Detach();
         return;
     }
-    if (open_ && context.scene_generation != generation_) {
+    if (view_.IsAttached() &&
+        context.scene_generation != attached_generation_) {
         Detach();
     }
+    if (!view_.IsAttached()) {
+        const auto attached = view_.Attach(context);
+        if (!attached) {
+            status_ = attached.message;
+            if (last_attach_error_ != attached.message) {
+                last_attach_error_ = attached.message;
+                Logger::Instance().Write(
+                    LogLevel::Warn, "ManagementPanel", "AC18001",
+                    "House panel attach deferred: " + attached.message);
+            }
+            return;
+        }
+        last_attach_error_.clear();
+        attached_generation_ = context.scene_generation;
+        Logger::Instance().Write(
+            LogLevel::Info, "ManagementPanel", "AC18000",
+            "House panel nodes attached and held on the hidden frame.");
+    }
     if (f10_pressed) {
-        if (open_) Detach();
+        if (open_) Close();
         else Open(context);
     }
     if (!open_) return;
     if (escape_pressed) {
-        Detach();
+        Close();
         return;
     }
     PollProtectionLoad();
@@ -45,32 +66,38 @@ void InGamePanelController::Poll(
 }
 
 void InGamePanelController::Open(const UiContextSnapshot& context) {
-    if (!view_.IsAttached()) {
-        const auto attached = view_.Attach(context);
-        if (!attached) {
-            status_ = attached.message;
-            return;
-        }
-    }
+    (void)context;
     const auto loaded = settings_.Reload();
     status_ = loaded ? "左侧点击减少，右侧点击增加；修改会立即保存"
                      : "设置读取失败：" + loaded.message;
     protection_page_ = false;
     if (!protection_loading_) protection_.reset();
     open_ = true;
-    generation_ = context.scene_generation;
     settings_page_ = 0;
     cat_page_ = 0;
     selected_cat_.reset();
     selected_room_.reset();
+    Logger::Instance().Write(
+        LogLevel::Info, "ManagementPanel", "AC18002",
+        "F10 opened the in-game management panel.");
     Render();
+}
+
+void InGamePanelController::Close() noexcept {
+    view_.Hide();
+    open_ = false;
+    selected_cat_.reset();
+    Logger::Instance().Write(
+        LogLevel::Info, "ManagementPanel", "AC18003",
+        "The in-game management panel was closed and remains hidden.");
 }
 
 void InGamePanelController::Detach() noexcept {
     if (view_.IsAttached()) view_.Detach();
     open_ = false;
-    generation_ = 0;
+    attached_generation_ = 0;
     selected_cat_.reset();
+    last_attach_error_.clear();
 }
 
 bool InGamePanelController::IsOpen() const noexcept { return open_; }
@@ -78,7 +105,7 @@ bool InGamePanelController::IsOpen() const noexcept { return open_; }
 void InGamePanelController::Handle(const ManagementPanelEvent& event) {
     switch (event.control) {
     case ManagementPanelControl::Close:
-        Detach();
+        Close();
         return;
     case ManagementPanelControl::SettingsTab:
         protection_page_ = false;

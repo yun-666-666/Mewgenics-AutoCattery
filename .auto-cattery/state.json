@@ -102,8 +102,8 @@
       "status": "implementation_complete_player_validation_pending",
       "commit": null,
       "capability": "F10InGameSettingsAndProtectionPanel",
-      "game_validation_status": "release_deployed_waiting_f10_player_validation"
+      "game_validation_status": "initial_swf_flicker_reported;immediate_hidden_frame_and_clean_skin_fix_deployed;player_revalidation_pending"
     }
   },
-  "updated_at": "2026-08-01T23:15:00+08:00"
+  "updated_at": "2026-08-01T23:45:00+08:00"
 }

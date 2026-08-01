@@ -20,10 +20,13 @@ from pathlib import Path
 import struct
 import zlib
 
+from swf_panel_shapes import rectangle_shape, three_frame_sprite
+
 
 DEFINE_SPRITE = 39
 DEFINE_EDIT_TEXT = 37
 DEFINE_SHAPE = 2
+DEFINE_SHAPE_3 = 32
 DEFINE_BITS_LOSSLESS_2 = 36
 PLACE_OBJECT_2 = 26
 SHOW_FRAME = 1
@@ -70,30 +73,30 @@ RECOMMENDATION_TEXT_TRANSFORMS = (
     (986.0, 247.0, 0.25),
     (1121.0, 247.0, 0.25),
 )
-PANEL_BACKGROUND_TRANSFORM = (165.0, 42.0, (3.0, 4.55))
+PANEL_BACKGROUND_TRANSFORM = (140.0, 30.0, 1.0)
 PANEL_ELEMENTS = (
-    ("panel_tab_settings", (310.0, 82.0, (0.86, 0.34)),
-     (268.0, 91.0, (0.45, 0.27))),
-    ("panel_tab_protection", (590.0, 82.0, (0.86, 0.34)),
-     (548.0, 91.0, (0.45, 0.27))),
-    ("panel_close", (1045.0, 82.0, (0.42, 0.34)),
-     (1004.0, 91.0, (0.28, 0.27))),
-    ("panel_prev", (320.0, 622.0, (0.62, 0.32)),
-     (279.0, 630.0, (0.34, 0.25))),
-    ("panel_next", (535.0, 622.0, (0.62, 0.32)),
-     (494.0, 630.0, (0.34, 0.25))),
-    ("panel_apply", (785.0, 622.0, (0.62, 0.32)),
-     (744.0, 630.0, (0.34, 0.25))),
-    ("panel_remove", (1000.0, 622.0, (0.62, 0.32)),
-     (959.0, 630.0, (0.34, 0.25))),
+    ("panel_tab_settings", (250.0, 82.0, (0.25, 0.45)),
+     (265.0, 91.0, 0.27)),
+    ("panel_tab_protection", (530.0, 82.0, (0.25, 0.45)),
+     (545.0, 91.0, 0.27)),
+    ("panel_close", (1000.0, 82.0, (0.14, 0.45)),
+     (1015.0, 91.0, 0.27)),
+    ("panel_prev", (250.0, 622.0, (0.20, 0.45)),
+     (265.0, 630.0, 0.25)),
+    ("panel_next", (470.0, 622.0, (0.20, 0.45)),
+     (485.0, 630.0, 0.25)),
+    ("panel_apply", (720.0, 622.0, (0.20, 0.45)),
+     (735.0, 630.0, 0.25)),
+    ("panel_remove", (940.0, 622.0, (0.20, 0.45)),
+     (955.0, 630.0, 0.25)),
     *((f"panel_row_{index + 1}",
-       (285.0, 152.0 + index * 55.0, (2.2, 0.34)),
-       (235.0, 161.0 + index * 55.0, (1.35, 0.27)))
+       (220.0, 152.0 + index * 55.0, (0.90, 0.48)),
+       (235.0, 161.0 + index * 55.0, 0.27))
       for index in range(8)),
 )
 PANEL_TEXTS = (
-    ("panel_title", (210.0, 50.0, (1.2, 0.3))),
-    ("panel_status", (210.0, 675.0, (1.6, 0.24))),
+    ("panel_title", (205.0, 48.0, 0.30)),
+    ("panel_status", (205.0, 662.0, 0.22)),
 )
 # Pixel coordinates in the pinned source bitmap. The polygon follows the
 # jagged white-paper silhouette and excludes the surrounding wooden board.
@@ -177,6 +180,15 @@ def read_rect(data: bytes, byte_offset: int) -> tuple[
         reader.signed(count),
     )
     return bounds, (reader.position + 7) // 8
+
+
+def encode_rect(bounds: tuple[int, int, int, int]) -> bytes:
+    count = signed_bit_count(*bounds)
+    writer = BitWriter()
+    writer.unsigned(count, 5)
+    for value in bounds:
+        writer.signed(value, count)
+    return writer.bytes()
 
 
 def matrix_end(data: bytes, byte_offset: int) -> int:
@@ -513,6 +525,13 @@ def make_recommendation_text_definition(
     return bytes(output)
 
 
+def make_panel_text_definition(body: bytes, character_id: int) -> bytes:
+    output = make_recommendation_text_definition(body, character_id)
+    _, bounds_end = read_rect(output, 2)
+    wide_bounds = encode_rect((-40, 60000, -40, 2800))
+    return output[:2] + wide_bounds + output[bounds_end:]
+
+
 def button_background_ids(body: bytes) -> tuple[int, int]:
     frame = 0
     normal = None
@@ -535,6 +554,9 @@ def filter_overlay_sprite(
     body: bytes,
     recommendation_row_character_id: int,
     recommendation_text_character_id: int,
+    panel_background_character_id: int,
+    panel_control_character_id: int,
+    panel_text_character_id: int,
 ) -> tuple[bytes, int, int, int]:
     sprite_header = body[:4]
     kept = bytearray(sprite_header)
@@ -663,7 +685,7 @@ def filter_overlay_sprite(
                 cloned += 1
             background = bytearray(with_character_id(
                 source_button_body,
-                recommendation_row_character_id,
+                panel_background_character_id,
             ))
             struct.pack_into("<H", background, 1, 60)
             background = bytearray(bytes(background).replace(
@@ -677,7 +699,7 @@ def filter_overlay_sprite(
             ):
                 panel_row = bytearray(with_character_id(
                     source_button_body,
-                    recommendation_row_character_id,
+                    panel_control_character_id,
                 ))
                 struct.pack_into("<H", panel_row, 1, 61 + index)
                 panel_row = bytearray(bytes(panel_row).replace(
@@ -688,7 +710,7 @@ def filter_overlay_sprite(
 
                 panel_text = bytearray(with_character_id(
                     source_text_body,
-                    recommendation_text_character_id,
+                    panel_text_character_id,
                 ))
                 struct.pack_into("<H", panel_text, 1, 90 + index)
                 panel_text = bytearray(bytes(panel_text).replace(
@@ -701,7 +723,7 @@ def filter_overlay_sprite(
             for index, (name, transform) in enumerate(PANEL_TEXTS):
                 panel_text = bytearray(with_character_id(
                     source_text_body,
-                    recommendation_text_character_id,
+                    panel_text_character_id,
                 ))
                 struct.pack_into(
                     "<H", panel_text, 1, 90 + len(PANEL_ELEMENTS) + index)
@@ -793,13 +815,20 @@ def build(source: Path, destination: Path) -> None:
     pressed_paper_shape_character_id = paper_bitmap_character_id + 2
     recommendation_row_character_id = paper_bitmap_character_id + 3
     recommendation_text_character_id = paper_bitmap_character_id + 4
-    if recommendation_text_character_id > 0xFFFF:
+    panel_background_shape_id = paper_bitmap_character_id + 5
+    panel_background_character_id = paper_bitmap_character_id + 6
+    panel_control_normal_shape_id = paper_bitmap_character_id + 7
+    panel_control_pressed_shape_id = paper_bitmap_character_id + 8
+    panel_control_character_id = paper_bitmap_character_id + 9
+    panel_text_character_id = paper_bitmap_character_id + 10
+    if panel_text_character_id > 0xFFFF:
         raise ValueError("no SWF character id remains for recommendation rows")
 
     output = bytearray(swf[:start])
     found = False
     cloned_row_sprite = False
     cloned_text_definition = False
+    cloned_panel_definitions = False
     removed = 0
     relocated = 0
     cloned = 0
@@ -844,7 +873,40 @@ def build(source: Path, destination: Path) -> None:
                     pressed_paper_shape_character_id,
                 ),
             ))
+            output.extend(encode_tag(
+                DEFINE_SHAPE_3,
+                rectangle_shape(
+                    panel_background_shape_id, 1000, 660,
+                    (224, 216, 195, 248), (39, 37, 32, 255), 4),
+            ))
+            output.extend(encode_tag(
+                DEFINE_SPRITE,
+                three_frame_sprite(
+                    panel_background_character_id,
+                    panel_background_shape_id,
+                    panel_background_shape_id),
+            ))
+            output.extend(encode_tag(
+                DEFINE_SHAPE_3,
+                rectangle_shape(
+                    panel_control_normal_shape_id, 1000, 100,
+                    (247, 243, 232, 255), (49, 46, 39, 255), 3),
+            ))
+            output.extend(encode_tag(
+                DEFINE_SHAPE_3,
+                rectangle_shape(
+                    panel_control_pressed_shape_id, 1000, 100,
+                    (205, 181, 126, 255), (49, 46, 39, 255), 4),
+            ))
+            output.extend(encode_tag(
+                DEFINE_SPRITE,
+                three_frame_sprite(
+                    panel_control_character_id,
+                    panel_control_normal_shape_id,
+                    panel_control_pressed_shape_id),
+            ))
             cloned_row_sprite = True
+            cloned_panel_definitions = True
             continue
         if (
             code == DEFINE_EDIT_TEXT
@@ -859,6 +921,10 @@ def build(source: Path, destination: Path) -> None:
                     recommendation_text_character_id,
                 ),
             ))
+            output.extend(encode_tag(
+                DEFINE_EDIT_TEXT,
+                make_panel_text_definition(body, panel_text_character_id),
+            ))
             cloned_text_definition = True
             continue
         if code == DEFINE_SPRITE and TARGET_MARKER in body:
@@ -869,6 +935,9 @@ def build(source: Path, destination: Path) -> None:
                     body,
                     recommendation_row_character_id,
                     recommendation_text_character_id,
+                    panel_background_character_id,
+                    panel_control_character_id,
+                    panel_text_character_id,
                 )
             )
             output.extend(encode_tag(code, body))
@@ -880,6 +949,7 @@ def build(source: Path, destination: Path) -> None:
         not found
         or not cloned_row_sprite
         or not cloned_text_definition
+        or not cloned_panel_definitions
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
         or cloned != (
@@ -891,6 +961,7 @@ def build(source: Path, destination: Path) -> None:
             f"expected one overlay and {len(REMOVED_NAMES)} removals; "
             f"found={found} row_clone={cloned_row_sprite} "
             f"text_clone={cloned_text_definition} "
+            f"panel_defs={cloned_panel_definitions} "
             f"removed={removed} "
             f"relocated={relocated} cloned={cloned}"
         )

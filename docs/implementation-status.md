@@ -169,7 +169,8 @@
 - House 内按 F10 打开/关闭，Esc 关闭；设置和猫保护共用当前原生 MewUI/SWF。
 - 设置页覆盖外部编辑器现有全部字段并原子写回 `user_config.json`；外部编辑器保留。
 - 保护页异步发现存档，只有明确选择猫后才允许应用或移除现有稳定身份保护。
-- Release 已部署；中文显示、缩放和背景输入拦截等待玩家在测试存档确认。
+- 首次皮肤在 F10 接管前播放纸片时间轴；现已改为 House 就绪立即锁住隐藏帧，
+  并换成不拉伸纸片的原创整块面板皮肤。修复版 Release 已部署，等待玩家复测。
 
 详细顺序见
 [`pre-completion-functional-roadmap.md`](pre-completion-functional-roadmap.md)。
