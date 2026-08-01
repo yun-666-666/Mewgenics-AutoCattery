@@ -27,7 +27,8 @@ std::vector<std::uint8_t> CatBlob(
     std::string_view class_id = "Colorless",
     std::string_view stat_affinity = "",
     std::int64_t death_day = -1,
-    std::string_view voice_id = "female31") {
+    std::string_view voice_id = "female31",
+    double sexuality = 0.5) {
     std::vector<std::uint8_t> bytes(20, 0);
     const std::uint32_t magic = 19;
     const std::uint32_t name_length = 3;
@@ -37,6 +38,7 @@ std::vector<std::uint8_t> CatBlob(
         Append(bytes, character);
     }
     AppendString(bytes, stat_affinity);
+    const auto personality_anchor = bytes.size();
     bytes.resize(bytes.size() + 16, 0);
     AppendString(bytes, "None");
     bytes.resize(bytes.size() + 368, 0);
@@ -77,6 +79,10 @@ std::vector<std::uint8_t> CatBlob(
         bytes.data() + post_class_start + 20,
         &death_day,
         sizeof(death_day));
+    std::memcpy(
+        bytes.data() + personality_anchor + 40,
+        &sexuality,
+        sizeof(sexuality));
     return bytes;
 }
 
@@ -94,11 +100,28 @@ void RunCatBlobParserTests() {
     AC_CHECK(parsed.value.equipment_bonus.values[6] == 27);
     AC_CHECK(parsed.value.birth_day == 3);
     AC_CHECK(parsed.value.age_days == 14);
-    AC_CHECK(parsed.value.life_stage == snapshot::LifeStage::Unknown);
+    AC_CHECK(parsed.value.life_stage == snapshot::LifeStage::Adult);
+    AC_CHECK(
+        parsed.value.available_for_breeding == snapshot::TriState::Yes);
     AC_CHECK(parsed.value.class_id == "Colorless");
     AC_CHECK(parsed.value.sex == snapshot::CatSex::Female);
     AC_CHECK(
         parsed.value.available_for_combat == snapshot::TriState::Yes);
+
+    const auto bisexual = snapshot::ParseCatBlob(
+        48, CatBlob("Colorless", "", -1, "female31", 0.5), 17,
+        true, true);
+    AC_CHECK(static_cast<bool>(bisexual));
+    AC_CHECK(
+        bisexual.value.sexuality == snapshot::CatSexuality::Bisexual);
+    AC_CHECK(bisexual.value.sexuality_coefficient == 0.5);
+
+    const auto hidden = snapshot::ParseCatBlob(
+        49, CatBlob(), 17, false, false);
+    AC_CHECK(static_cast<bool>(hidden));
+    AC_CHECK(
+        hidden.value.sexuality == snapshot::CatSexuality::Unknown);
+    AC_CHECK(!hidden.value.genetic_stats.values[0].has_value());
 
     const auto classed = snapshot::ParseCatBlob(
         43,

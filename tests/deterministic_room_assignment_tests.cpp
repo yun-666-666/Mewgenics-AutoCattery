@@ -137,6 +137,40 @@ void RunDeterministicRoomAssignmentTests() {
     AC_CHECK(static_cast<bool>(swapped));
     AC_CHECK(!swapped.value.room_plan.moves.empty());
     AC_CHECK(FinalRooms(swapped.value) == canonical);
+
+    WorkflowReadFake breeding_reader;
+    breeding_reader.house = WorkflowHouse(6);
+    breeding_reader.house.rooms.front().id = "Floor1_Large";
+    breeding_reader.house.rooms.front().attributes =
+        snapshot::RoomAttributes{.comfort = 20, .stimulation = 1};
+    breeding_reader.house.rooms.push_back({
+        .id = "Attic",
+        .attributes = snapshot::RoomAttributes{
+            .comfort = 1, .stimulation = 20
+        }
+    });
+    breeding_reader.house.capabilities.read_room_attributes = true;
+    breeding_reader.house.capabilities.read_sexuality = true;
+    breeding_reader.house.capabilities.read_relationships = true;
+    for (auto& cat : breeding_reader.house.cats) {
+        cat.room_id = "Attic";
+        cat.sex = cat.id == 1
+            ? snapshot::CatSex::Female
+            : snapshot::CatSex::Male;
+        cat.sexuality = snapshot::CatSexuality::Straight;
+        cat.sexuality_coefficient = 0.0;
+        for (auto& stat : cat.genetic_stats.values) {
+            stat = cat.id <= 2 ? 7 : 6;
+        }
+        breeding_reader.house.rooms[1].residents.push_back(cat.id);
+    }
+    breeding_reader.house.rooms[0].residents.clear();
+    breeding_reader.house.pedigree_pair_coefficients.push_back({1, 2, 0.0});
+    const auto breeding_preview = Preview(breeding_reader, 43);
+    AC_CHECK(static_cast<bool>(breeding_preview));
+    const auto breeding_rooms = FinalRooms(breeding_preview.value);
+    AC_CHECK(breeding_rooms.at(1) == "Floor1_Large");
+    AC_CHECK(breeding_rooms.at(2) == "Floor1_Large");
 }
 
 }  // namespace autocattery::tests

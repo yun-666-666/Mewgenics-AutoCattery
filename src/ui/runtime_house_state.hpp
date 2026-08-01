@@ -37,6 +37,11 @@ ResolveRuntimeRoomPointers(
     snapshot::HouseSnapshot& snapshot,
     const RuntimeHouseState& runtime);
 
+[[nodiscard]] Result<void> OverlayRuntimeHouseState(
+    snapshot::HouseSnapshot& snapshot,
+    const RuntimeHouseState& runtime,
+    const std::unordered_map<snapshot::RoomId, RuntimePointer>& room_pointers);
+
 [[nodiscard]] bool RuntimeHouseStateMatches(
     const snapshot::HouseSnapshot& snapshot,
     const RuntimeHouseState& runtime);

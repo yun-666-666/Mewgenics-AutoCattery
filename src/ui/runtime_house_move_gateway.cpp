@@ -114,6 +114,9 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
                 "AC14303",
                 "Native House move failed: signature=" +
                     std::to_string(moved.signature_valid) +
+                    " cat=" + std::to_string(moved.cat_valid) +
+                    " target=" +
+                    std::to_string(moved.target_room_valid) +
                     " invoked=" + std::to_string(moved.invoked) +
                     " committed=" + std::to_string(moved.committed) +
                     " exception=" + std::to_string(moved.seh_code));

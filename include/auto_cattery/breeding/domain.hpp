@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -13,7 +14,24 @@
 namespace autocattery::breeding {
 
 inline constexpr char kBreedingAlgorithmVersion[] =
-    "confirmed-heritable-fields-v1";
+    "unlocked-base-stat-pairs-v2";
+
+enum class BreedingStage {
+    Foundation,
+    BaseAllSeven,
+    StableAllSeven
+};
+
+struct BreedingPairScore {
+    snapshot::CatId cat_a_id{};
+    snapshot::CatId cat_b_id{};
+    bool eligible{};
+    double score{};
+    std::size_t covered_seven_stats{};
+    std::size_t jointly_stable_seven_stats{};
+    std::optional<double> offspring_inbreeding_coefficient;
+    std::vector<std::string> exclusion_reasons;
+};
 
 struct BreedingScoringConfig {
     std::uint32_t version{1};
@@ -49,6 +67,9 @@ struct BreedingRanking {
     std::uint64_t source_snapshot_id{};
     std::string algorithm_version;
     std::vector<BreedingScoreResult> ranked;
+    BreedingStage stage{BreedingStage::Foundation};
+    std::vector<BreedingPairScore> ranked_pairs;
+    std::optional<BreedingPairScore> recommended_pair;
 };
 
 }  // namespace autocattery::breeding

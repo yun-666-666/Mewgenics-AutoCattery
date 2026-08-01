@@ -46,6 +46,10 @@ public:
     bool ReadFurniture(
         std::vector<FurnitureStorageRecord>& furniture,
         std::string& error) const;
+    bool ReadFileBlob(
+        const char* key,
+        std::optional<std::vector<std::byte>>& blob,
+        std::string& error) const;
 
 private:
     explicit SaveDatabase(sqlite3* database) noexcept;

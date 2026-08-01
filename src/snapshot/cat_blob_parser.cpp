@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "auto_cattery/snapshot/detail/lz4_block.hpp"
+#include "auto_cattery/snapshot/detail/cat_personality.hpp"
 
 namespace autocattery::snapshot {
 namespace {
@@ -165,7 +166,9 @@ CatSex SexFromVoiceId(std::string voice_id) {
 Result<CatSnapshot> ParseCatBlob(
     CatId cat_id,
     std::span<const std::uint8_t> blob,
-    std::optional<std::int64_t> current_day) {
+    std::optional<std::int64_t> current_day,
+    bool base_stats_unlocked,
+    bool sexuality_unlocked) {
     if (cat_id <= 0) {
         return {{}, ErrorCode::CatDataUnavailable, "cat ID is invalid"};
     }
@@ -192,6 +195,10 @@ Result<CatSnapshot> ParseCatBlob(
         kPostDescriptorMetadataSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat metadata is truncated"};
     }
+    const auto personality_anchor = cursor;
+    if (sexuality_unlocked) {
+        detail::ApplyUnlockedSexuality(bytes, personality_anchor, cat);
+    }
     cursor += kPostDescriptorMetadataSize;
     if (!ReadAsciiString(bytes, cursor, cat.breed_id) ||
         kEquipmentBlockSize > bytes.size() - cursor) {
@@ -209,6 +216,11 @@ Result<CatSnapshot> ParseCatBlob(
         !ReadStats(bytes, stat_start, kStatBonusOffset, cat.heredity_bonus) ||
         !ReadStats(bytes, stat_start, kStatEquipmentOffset, cat.equipment_bonus)) {
         return {{}, ErrorCode::CatDataUnavailable, "cat stats are truncated"};
+    }
+    if (!base_stats_unlocked) {
+        cat.genetic_stats = {};
+        cat.heredity_bonus = {};
+        cat.equipment_bonus = {};
     }
     cursor += kStatBlockSize;
     if (!ReadAsciiString(bytes, cursor, cat.stat_type_id)) {
@@ -283,6 +295,13 @@ Result<CatSnapshot> ParseCatBlob(
     }
     if (death_day >= 0) {
         cat.life_stage = LifeStage::Dead;
+    } else if (std::ranges::find(
+                   cat.raw_ability_slots,
+                   "EternalYouth") != cat.raw_ability_slots.end() ||
+               (cat.age_days && *cat.age_days < 3)) {
+        cat.life_stage = LifeStage::Kitten;
+    } else if (cat.age_days) {
+        cat.life_stage = LifeStage::Adult;
     }
     // Colorless is the save's not-yet-committed combat class. Death is an
     // independent persisted state and must always exclude the cat, including
@@ -291,6 +310,13 @@ Result<CatSnapshot> ParseCatBlob(
         cat.life_stage != LifeStage::Dead && cat.class_id == "Colorless"
             ? TriState::Yes
             : TriState::No;
+    cat.available_for_breeding =
+        cat.life_stage == LifeStage::Adult
+            ? TriState::Yes
+            : cat.life_stage == LifeStage::Kitten ||
+                    cat.life_stage == LifeStage::Dead
+                ? TriState::No
+                : TriState::Unknown;
     return {std::move(cat)};
 }
 

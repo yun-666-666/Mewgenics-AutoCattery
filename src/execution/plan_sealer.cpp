@@ -6,6 +6,8 @@
 #include <sstream>
 #include <tuple>
 
+#include "plan_sealer_snapshot.hpp"
+
 namespace autocattery::execution {
 namespace {
 
@@ -54,19 +56,7 @@ std::string DigestSnapshotContent(const snapshot::HouseSnapshot& snapshot) {
     std::ostringstream canonical;
     Append(canonical, snapshot.scene_generation);
     Append(canonical, snapshot.game_day.value_or(-1));
-    Append(canonical, snapshot.capabilities.stable_cat_id);
-    Append(canonical, snapshot.capabilities.read_room_assignments);
-    Append(canonical, snapshot.capabilities.read_genetic_stats);
-    Append(canonical, snapshot.capabilities.read_heredity_bonus);
-    Append(canonical, snapshot.capabilities.read_equipment_bonus);
-    Append(canonical, snapshot.capabilities.read_raw_ability_slots);
-    Append(canonical, snapshot.capabilities.read_typed_abilities);
-    Append(canonical, snapshot.capabilities.read_class_id);
-    Append(canonical, snapshot.capabilities.read_age);
-    Append(canonical, snapshot.capabilities.read_breeding_eligibility);
-    Append(canonical, snapshot.capabilities.read_relationships);
-    Append(canonical, snapshot.capabilities.read_room_attributes);
-    Append(canonical, snapshot.capabilities.read_room_capacities);
+    detail::AppendSnapshotCapabilitiesAndBreeding(canonical, snapshot);
 
     auto cats = snapshot.cats;
     std::ranges::sort(cats, {}, &snapshot::CatSnapshot::id);
@@ -147,6 +137,8 @@ std::string DigestClassification(
         Append(canonical, decision.destructive_action_allowed);
         Append(canonical, static_cast<int>(decision.protection_level));
         Append(canonical, decision.move_allowed);
+        AppendOptional(canonical, decision.breeding_partner_id);
+        Append(canonical, decision.breeding_stats_stable);
     }
     for (const auto id : classification.capacity_relief_candidates) {
         Append(canonical, id);

@@ -14,7 +14,10 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
     std::optional<std::int64_t> current_day,
     std::string source_save_name,
     std::vector<CatSnapshot> cats,
-    std::span<const HouseStateEntry> house_entries) {
+    std::span<const HouseStateEntry> house_entries,
+    const PedigreeData* pedigree,
+    bool base_stats_unlocked,
+    bool sexuality_unlocked) {
     HouseSnapshot snapshot;
     snapshot.snapshot_id = snapshot_id;
     snapshot.scene_generation = scene_generation;
@@ -25,9 +28,9 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
     snapshot.capabilities = {
         .stable_cat_id = true,
         .read_display_name = true,
-        .read_genetic_stats = true,
-        .read_heredity_bonus = true,
-        .read_equipment_bonus = true,
+        .read_genetic_stats = base_stats_unlocked,
+        .read_heredity_bonus = base_stats_unlocked,
+        .read_equipment_bonus = base_stats_unlocked,
         .read_raw_ability_slots = true,
         .read_typed_abilities = true,
         .read_class_id = !snapshot.cats.empty() &&
@@ -36,12 +39,49 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
                 [](const CatSnapshot& cat) {
                     return !cat.class_id.empty();
                 }),
-        .read_age = false,
-        .read_relationships = false,
+        .read_age = !snapshot.cats.empty() &&
+            std::ranges::all_of(
+                snapshot.cats,
+                [](const CatSnapshot& cat) {
+                    return cat.age_days.has_value();
+                }),
+        .read_sexuality = sexuality_unlocked &&
+            std::ranges::all_of(
+                snapshot.cats,
+                [](const CatSnapshot& cat) {
+                    return cat.sexuality_coefficient.has_value();
+                }),
+        .read_breeding_eligibility = !snapshot.cats.empty() &&
+            std::ranges::all_of(
+                snapshot.cats,
+                [](const CatSnapshot& cat) {
+                    return cat.available_for_breeding != TriState::Unknown;
+                }),
+        .read_relationships = pedigree != nullptr,
         .read_room_assignments = true,
         .read_room_attributes = false,
         .read_room_capacities = false
     };
+
+    if (pedigree != nullptr) {
+        snapshot.pedigree = pedigree->entries;
+        snapshot.pedigree_pair_coefficients =
+            pedigree->pair_coefficients;
+        std::unordered_map<CatId, const PedigreeEntry*> by_id;
+        for (const auto& entry : snapshot.pedigree) {
+            by_id.emplace(entry.cat_id, &entry);
+        }
+        for (auto& cat : snapshot.cats) {
+            const auto found = by_id.find(cat.id);
+            if (found == by_id.end()) {
+                continue;
+            }
+            cat.parent_a_id = found->second->parent_a_id;
+            cat.parent_b_id = found->second->parent_b_id;
+            cat.inbreeding_coefficient =
+                found->second->inbreeding_coefficient;
+        }
+    }
 
     std::unordered_map<CatId, std::size_t> cat_index;
     for (std::size_t index = 0; index < snapshot.cats.size(); ++index) {

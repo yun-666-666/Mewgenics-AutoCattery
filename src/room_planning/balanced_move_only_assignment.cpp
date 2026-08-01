@@ -120,6 +120,9 @@ bool AppendMinimumCostMoves(
             if (!SexMatches(cat, slot.required_sex)) {
                 continue;
             }
+            if (slot.preferred_cat && *slot.preferred_cat != cat.id) {
+                continue;
+            }
             const auto stable_distance = cat_index > slot_index
                 ? cat_index - slot_index
                 : slot_index - cat_index;

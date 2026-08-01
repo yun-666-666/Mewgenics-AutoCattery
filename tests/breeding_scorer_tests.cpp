@@ -32,8 +32,8 @@ void RunBreedingScorerTests() {
     const auto baseline = breeding::ScoreBreedingCat(BreedingCat(), config);
     AC_CHECK(static_cast<bool>(baseline));
     AC_CHECK(baseline.value.eligible);
-    AC_CHECK(baseline.value.score == 21.0);
-    AC_CHECK(baseline.value.heritable_stat_sum == 21);
+    AC_CHECK(baseline.value.score == 7.0);
+    AC_CHECK(baseline.value.heritable_stat_sum == 7);
     AC_CHECK(baseline.value.confidence == 1.0);
 
     config.active_ability_overrides["Gift"] = 4.0;
@@ -42,7 +42,7 @@ void RunBreedingScorerTests() {
     const auto configured =
         breeding::ScoreBreedingCat(BreedingCat(), config);
     AC_CHECK(static_cast<bool>(configured));
-    AC_CHECK(configured.value.score == 24.0);
+    AC_CHECK(configured.value.score == 10.0);
 
     auto unknown = BreedingCat();
     unknown.available_for_breeding = snapshot::TriState::Unknown;
@@ -51,7 +51,7 @@ void RunBreedingScorerTests() {
     AC_CHECK(!excluded.value.eligible);
 
     auto missing = BreedingCat();
-    missing.heredity_bonus.values[6].reset();
+    missing.genetic_stats.values[6].reset();
     const auto incomplete = breeding::ScoreBreedingCat(missing, config);
     AC_CHECK(static_cast<bool>(incomplete));
     AC_CHECK(!incomplete.value.eligible);

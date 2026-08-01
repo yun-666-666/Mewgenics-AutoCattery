@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -20,6 +21,7 @@ struct BalancedSlot {
     snapshot::RoomId room_id;
     SlotSex required_sex{SlotSex::Any};
     bool potential_preferred{};
+    std::optional<snapshot::CatId> preferred_cat;
 };
 
 struct PlanningContext {
@@ -37,6 +39,8 @@ struct PlanningContext {
         snapshot::RoomId,
         const snapshot::RoomSnapshot*> room_snapshots;
     std::vector<snapshot::CatId> movable;
+    std::vector<snapshot::CatId> breeding_pair;
+    bool breeding_stats_stable{};
     CountMap current_count;
     CountMap pinned_count;
     CountMap current_potential;
@@ -71,9 +75,28 @@ struct PlanningContext {
     const snapshot::RoomId& left,
     const snapshot::RoomId& right);
 
+[[nodiscard]] bool PreferBreedingRoom(
+    const PlanningContext& context,
+    const snapshot::RoomId& left,
+    const snapshot::RoomId& right);
+
 [[nodiscard]] bool AppendMinimumCostMoves(
     const PlanningContext& context,
     const std::vector<BalancedSlot>& slots,
     RoomPlan& plan);
+
+[[nodiscard]] std::optional<snapshot::RoomId> FindBreedingTarget(
+    const PlanningContext& context,
+    const CountMap& occupancy);
+
+[[nodiscard]] bool BreedingPairHasSex(
+    const PlanningContext& context,
+    snapshot::CatSex sex);
+
+void AssignBreedingPairSlots(
+    const PlanningContext& context,
+    const std::optional<snapshot::RoomId>& target,
+    RoomPlan& plan,
+    std::vector<BalancedSlot>& slots);
 
 }  // namespace autocattery::room_planning::balanced_internal

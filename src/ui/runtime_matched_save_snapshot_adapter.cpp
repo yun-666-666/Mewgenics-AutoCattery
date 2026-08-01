@@ -50,6 +50,8 @@ void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeContext(
     house_cat_count_ = house_cat_count;
     available_room_count_ = available_room_count;
     runtime_state_.reset();
+    room_mapping_.reset();
+    room_mapping_generation_ = 0;
 }
 
 void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeHouseState(
@@ -66,11 +68,16 @@ RuntimeMatchedSaveSnapshotAdapter::CaptureHouseSnapshot(
     std::size_t expected_cats{};
     std::size_t expected_rooms{};
     std::optional<RuntimeHouseState> runtime_state;
+    std::optional<std::unordered_map<
+        snapshot::RoomId, RuntimePointer>> room_mapping;
     {
         std::scoped_lock lock(context_mutex_);
         expected_cats = house_cat_count_;
         expected_rooms = available_room_count_;
         runtime_state = runtime_state_;
+        if (room_mapping_generation_ == scene_generation) {
+            room_mapping = room_mapping_;
+        }
     }
     if (expected_cats == 0U || expected_rooms < 2U) {
         return {
@@ -123,8 +130,19 @@ RuntimeMatchedSaveSnapshotAdapter::CaptureHouseSnapshot(
     auto snapshot = std::move(*selected);
     AddAvailableEmptyRooms(snapshot, expected_rooms);
     if (runtime_state) {
-        const auto overlaid =
-            OverlayRuntimeHouseState(snapshot, *runtime_state);
+        if (!room_mapping) {
+            const auto resolved =
+                ResolveRuntimeRoomPointers(snapshot, *runtime_state);
+            if (!resolved) {
+                return {{}, resolved.code, resolved.message};
+            }
+            room_mapping = resolved.value;
+            std::scoped_lock lock(context_mutex_);
+            room_mapping_ = room_mapping;
+            room_mapping_generation_ = scene_generation;
+        }
+        const auto overlaid = OverlayRuntimeHouseState(
+            snapshot, *runtime_state, *room_mapping);
         if (!overlaid) {
             return {{}, overlaid.code, overlaid.message};
         }

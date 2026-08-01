@@ -13,8 +13,15 @@ Result<void> OverlayRuntimeHouseState(
     if (!room_pointers) {
         return {room_pointers.code, room_pointers.message};
     }
+    return OverlayRuntimeHouseState(snapshot, runtime, room_pointers.value);
+}
+
+Result<void> OverlayRuntimeHouseState(
+    snapshot::HouseSnapshot& snapshot,
+    const RuntimeHouseState& runtime,
+    const std::unordered_map<snapshot::RoomId, RuntimePointer>& room_pointers) {
     std::unordered_map<RuntimePointer, snapshot::RoomId> room_ids;
-    for (const auto& [id, pointer] : room_pointers.value) {
+    for (const auto& [id, pointer] : room_pointers) {
         if (!room_ids.emplace(pointer, id).second) {
             return {ErrorCode::RoomDataUnavailable,
                     "runtime rooms are not one-to-one"};

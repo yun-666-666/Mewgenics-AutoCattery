@@ -1,6 +1,7 @@
 #pragma once
 
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
+#include "auto_cattery/snapshot/detail/pedigree_parser.hpp"
 
 #include <optional>
 #include <span>
@@ -15,6 +16,9 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
     std::optional<std::int64_t> current_day,
     std::string source_save_name,
     std::vector<CatSnapshot> cats,
-    std::span<const HouseStateEntry> house_entries);
+    std::span<const HouseStateEntry> house_entries,
+    const PedigreeData* pedigree = nullptr,
+    bool base_stats_unlocked = true,
+    bool sexuality_unlocked = false);
 
 }  // namespace autocattery::snapshot::detail

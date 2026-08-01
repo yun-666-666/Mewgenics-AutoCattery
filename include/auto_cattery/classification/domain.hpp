@@ -52,6 +52,8 @@ struct CatDecision {
     bool combat_recommended{};
     bool combat_pool_protected{};
     bool breeding_core{};
+    std::optional<snapshot::CatId> breeding_partner_id;
+    bool breeding_stats_stable{};
     bool breeding_reserve{};
     bool breeding_pool_protected{};
     bool preview_cull_candidate{};

@@ -30,9 +30,11 @@ target_link_libraries(mew_ui_api PUBLIC user32 kernel32)
 add_library(auto_cattery_core STATIC
     src/breeding/breeding_ranker.cpp
     src/breeding/breeding_scorer.cpp
+    src/breeding/pair_ranker.cpp
     src/classification/classifier.cpp
     src/classification/protection_adapter.cpp
     src/execution/plan_sealer.cpp
+    src/execution/plan_sealer_snapshot.cpp
     src/execution/precondition_validator.cpp
     src/execution/backup_service.cpp
     src/execution/file_safety.cpp
@@ -49,6 +51,7 @@ add_library(auto_cattery_core STATIC
     src/recommendation/snapshot_validator.cpp
     src/room_planning/capability_adapter.cpp
     src/room_planning/balanced_move_only_assignment.cpp
+    src/room_planning/balanced_move_only_breeding.cpp
     src/room_planning/balanced_move_only_context.cpp
     src/room_planning/balanced_move_only_planner.cpp
     src/room_planning/balanced_move_only_preferences.cpp
@@ -80,6 +83,7 @@ add_library(auto_cattery_core STATIC
     src/save_safety/test_copy_house_state_store.cpp
     src/save_safety/test_copy_guard.cpp
     src/snapshot/cat_blob_parser.cpp
+    src/snapshot/cat_personality.cpp
     src/snapshot/domain.cpp
     src/snapshot/furniture_catalog.cpp
     src/snapshot/furniture_room_attributes.cpp
@@ -87,9 +91,13 @@ add_library(auto_cattery_core STATIC
     src/snapshot/house_state_writer.cpp
     src/snapshot/lz4_block.cpp
     src/snapshot/save_database.cpp
+    src/snapshot/save_database_files.cpp
     src/snapshot/save_locator.cpp
     src/snapshot/save_snapshot_adapter.cpp
     src/snapshot/snapshot_assembler.cpp
+    src/snapshot/pedigree_parser.cpp
+    src/snapshot/progress_unlocks.cpp
+    src/snapshot/unlocked_breeding_data.cpp
     src/snapshot/win_sqlite_api.cpp
     src/workflow/organize_workflow_facade.cpp
     src/workflow/digests.cpp
@@ -109,6 +117,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_live_house_state.c
     src/ui/mew_ui_house_move_capture.c
     src/ui/mew_ui_house_move_adapter.c
+    src/ui/mew_ui_house_move_invoke.c
     src/ui/mew_ui_house_move_probe.c
     src/ui/mew_ui_house_move_room_scan.c
     src/ui/mew_ui_house_detail_adapter.c
@@ -252,6 +261,8 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
+        tests/pedigree_parser_tests.cpp
+        tests/pair_ranker_tests.cpp
         tests/organize_workflow_facade_tests.cpp
         tests/workflow_state_machine_tests.cpp
         tests/workflow_digest_tests.cpp
@@ -294,6 +305,11 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
     target_compile_features(snapshot_probe PRIVATE cxx_std_20)
     autocattery_enable_warnings(snapshot_probe)
+
+    add_executable(breeding_data_probe tests/breeding_data_probe.cpp)
+    target_link_libraries(breeding_data_probe PRIVATE auto_cattery_core)
+    target_compile_features(breeding_data_probe PRIVATE cxx_std_20)
+    autocattery_enable_warnings(breeding_data_probe)
 
     add_executable(
         room_attribute_probe tests/room_attribute_probe.cpp)

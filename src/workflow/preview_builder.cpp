@@ -252,7 +252,7 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
           : captured.value;
   auto combat = scoring::RankCombatCats(scoring_snapshot, combat_config);
   auto breeding =
-      breeding::RankBreedingCats(scoring_snapshot, breeding_config);
+      breeding::RankBreedingCats(captured.value, breeding_config);
   if (!combat) {
     state.Fail();
     return {{}, combat.code, combat.message};

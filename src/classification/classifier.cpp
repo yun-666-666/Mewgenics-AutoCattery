@@ -118,8 +118,17 @@ Result<ClassificationPlan> ClassifyCats(
         std::max(
             combat.recommended_cat_ids.size(),
             config.minimum_combat_pool));
-    const auto breeding_core =
+    auto breeding_core =
         Take(breeding_eligible, breeding_config.core_breeders);
+    std::unordered_map<snapshot::CatId, snapshot::CatId>
+        breeding_partners;
+    if (breeding.recommended_pair) {
+        const auto& pair = *breeding.recommended_pair;
+        breeding_core.insert(pair.cat_a_id);
+        breeding_core.insert(pair.cat_b_id);
+        breeding_partners.emplace(pair.cat_a_id, pair.cat_b_id);
+        breeding_partners.emplace(pair.cat_b_id, pair.cat_a_id);
+    }
 
     std::unordered_set<snapshot::CatId> breeding_reserve;
     const auto reserve_begin =
@@ -198,6 +207,12 @@ Result<ClassificationPlan> ClassifyCats(
         decision.combat_recommended = combat_recommended.contains(cat.id);
         decision.combat_pool_protected = combat_pool.contains(cat.id);
         decision.breeding_core = breeding_core.contains(cat.id);
+        if (const auto partner = breeding_partners.find(cat.id);
+            partner != breeding_partners.end()) {
+            decision.breeding_partner_id = partner->second;
+            decision.breeding_stats_stable =
+                breeding.stage == breeding::BreedingStage::StableAllSeven;
+        }
         decision.breeding_reserve = breeding_reserve.contains(cat.id);
         decision.breeding_pool_protected = breeding_pool.contains(cat.id);
         if (policy != nullptr) {

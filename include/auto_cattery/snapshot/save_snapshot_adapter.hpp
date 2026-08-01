@@ -20,7 +20,9 @@ struct HouseStateEntry {
 Result<CatSnapshot> ParseCatBlob(
     CatId cat_id,
     std::span<const std::uint8_t> blob,
-    std::optional<std::int64_t> current_day);
+    std::optional<std::int64_t> current_day,
+    bool base_stats_unlocked = true,
+    bool sexuality_unlocked = false);
 Result<std::vector<HouseStateEntry>> ParseHouseState(
     std::span<const std::uint8_t> blob);
 

@@ -2,6 +2,7 @@
 
 #include "auto_cattery/snapshot/detail/save_database.hpp"
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
+#include "auto_cattery/snapshot/detail/unlocked_breeding_data.hpp"
 #include "auto_cattery/snapshot/detail/save_locator.hpp"
 #include "auto_cattery/snapshot/detail/snapshot_assembler.hpp"
 
@@ -122,6 +123,12 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
             "house state unavailable",
             error);
     }
+    const auto breeding_data =
+        detail::LoadUnlockedBreedingData(*database);
+    if (!breeding_data) {
+        return {{}, breeding_data.code, breeding_data.message};
+    }
+    const auto& unlocks = breeding_data.value.unlocks;
     std::vector<detail::FurniturePlacement> furniture;
     const bool furniture_read =
         database->ReadFurniture(stored_furniture, error) &&
@@ -164,7 +171,12 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
             continue;
         }
         auto parsed =
-            ParseCatBlob(stored_cat.id, AsBytes(stored_cat.blob), day);
+            ParseCatBlob(
+                stored_cat.id,
+                AsBytes(stored_cat.blob),
+                day,
+                unlocks.base_stats,
+                unlocks.sexuality);
         if (!parsed) {
             return Failure(
                 parsed.code,
@@ -181,7 +193,11 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
         day,
         save_path.filename().string(),
         std::move(cats),
-        house_entries.value);
+        house_entries.value,
+        breeding_data.value.pedigree
+            ? &*breeding_data.value.pedigree : nullptr,
+        unlocks.base_stats,
+        unlocks.sexuality);
     if (snapshot) {
         if (furniture_read && !furniture_catalog_.empty()) {
             detail::ApplyFurnitureRoomAttributes(

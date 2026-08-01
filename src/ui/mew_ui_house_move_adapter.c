@@ -12,32 +12,13 @@
 #include "mew_ui_api.h"
 
 enum {
-    AC_HOUSE_CAT_VTABLE_RVA = 0xEF4F58,
-    AC_HOUSE_CAT_ROOM_OFFSET = 0xE8,
-    AC_NATIVE_HOUSE_MOVE_RVA = 0x2E7DB0,
     AC_COMPONENT_BUCKET_PREPARE_RVA = 0x963040,
     AC_HOUSE_ROOM_COMPONENT_ID = 0x1D2
 };
 
-typedef void (__fastcall *AcNativeHouseMoveFn)(
-    void* target_room,
-    void* house_cat);
 typedef void (__fastcall *AcPrepareComponentBucketFn)(
     void* component_registry,
     uint32_t component_id);
-
-static LONG AcCaptureException(
-    EXCEPTION_POINTERS* exception,
-    HMODULE executable,
-    AcMewNativeHouseMoveResult* result) {
-    if (exception && exception->ExceptionRecord && result) {
-        result->seh_code = exception->ExceptionRecord->ExceptionCode;
-        result->exception_rva =
-            (uintptr_t)exception->ExceptionRecord->ExceptionAddress -
-            (uintptr_t)executable;
-    }
-    return EXCEPTION_EXECUTE_HANDLER;
-}
 
 static int AcReadable(const void* address, size_t size) {
     MEMORY_BASIC_INFORMATION memory;
@@ -58,15 +39,6 @@ static int AcReadable(const void* address, size_t size) {
     return end >= start && end <= region_end;
 }
 
-static int AcSignatureMatches(const uint8_t* address) {
-    static const uint8_t expected[] = {
-        0x48, 0x89, 0x5C, 0x24, 0x08,
-        0x48, 0x89, 0x74, 0x24, 0x10,
-        0x57, 0x48, 0x83, 0xEC, 0x20
-    };
-    return AcReadable(address, sizeof(expected)) &&
-           memcmp(address, expected, sizeof(expected)) == 0;
-}
 
 static int AcTypeEquals(void* component, const char* literal) {
     MewNarrowString type_name;
@@ -206,56 +178,4 @@ uint32_t AcMewDetectNativeHouseRoomMask(void* room) {
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return 0U;
     }
-}
-
-void* AcMewReadHouseCatCurrentRoom(void* house_cat) {
-    HMODULE executable;
-    void* expected_vtable;
-    void* current_vtable;
-    void* room;
-    executable = GetModuleHandleW(NULL);
-    if (!executable ||
-        !AcReadable(house_cat, AC_HOUSE_CAT_ROOM_OFFSET + sizeof(void*))) {
-        return NULL;
-    }
-    expected_vtable =
-        (uint8_t*)executable + AC_HOUSE_CAT_VTABLE_RVA;
-    current_vtable = *(void**)house_cat;
-    if (current_vtable != expected_vtable) {
-        return NULL;
-    }
-    room = *(void**)((uint8_t*)house_cat + AC_HOUSE_CAT_ROOM_OFFSET);
-    return AcReadable(room, sizeof(void*)) ? room : NULL;
-}
-
-AcMewNativeHouseMoveResult AcMewInvokeNativeHouseMove(
-    void* house_cat,
-    void* target_room) {
-    AcMewNativeHouseMoveResult result;
-    HMODULE executable;
-    uint8_t* native_move;
-    void* before;
-    memset(&result, 0, sizeof(result));
-    executable = GetModuleHandleW(NULL);
-    if (!executable) {
-        return result;
-    }
-    native_move = (uint8_t*)executable + AC_NATIVE_HOUSE_MOVE_RVA;
-    result.signature_valid = (uint8_t)AcSignatureMatches(native_move);
-    before = AcMewReadHouseCatCurrentRoom(house_cat);
-    result.cat_valid = (uint8_t)(before != NULL);
-    result.target_room_valid =
-        (uint8_t)AcReadable(target_room, sizeof(void*));
-    if (!result.signature_valid || !result.cat_valid ||
-        !result.target_room_valid) {
-        return result;
-    }
-    __try {
-        ((AcNativeHouseMoveFn)native_move)(target_room, house_cat);
-        result.invoked = 1U;
-        result.committed = (uint8_t)(
-            AcMewReadHouseCatCurrentRoom(house_cat) == target_room);
-    } __except (AcCaptureException(
-        GetExceptionInformation(), executable, &result)) {}
-    return result;
 }

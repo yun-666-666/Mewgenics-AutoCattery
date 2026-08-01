@@ -79,8 +79,12 @@ std::unordered_set<snapshot::RoomId> RequiredSexRooms(
     const PlanningContext& context,
     const CountMap& occupancy,
     const CountMap& pinned,
-    std::size_t known_count) {
+    std::size_t known_count,
+    const std::optional<snapshot::RoomId>& preferred_room) {
     std::unordered_set<snapshot::RoomId> required;
+    if (preferred_room) {
+        required.insert(*preferred_room);
+    }
     for (const auto& room_id : context.rooms) {
         if (occupancy.at(room_id) >= 2 && pinned.at(room_id) > 0) {
             required.insert(room_id);
@@ -126,10 +130,16 @@ bool BuildBalancedSlots(
         return false;
     }
 
+    const auto breeding_target = FindBreedingTarget(context, occupancy);
+
     const auto female_rooms = RequiredSexRooms(
-        context, occupancy, context.pinned_female, context.known_female);
+        context, occupancy, context.pinned_female, context.known_female,
+        BreedingPairHasSex(context, snapshot::CatSex::Female)
+            ? breeding_target : std::nullopt);
     const auto male_rooms = RequiredSexRooms(
-        context, occupancy, context.pinned_male, context.known_male);
+        context, occupancy, context.pinned_male, context.known_male,
+        BreedingPairHasSex(context, snapshot::CatSex::Male)
+            ? breeding_target : std::nullopt);
     slots.reserve(context.movable.size());
     for (const auto& room_id : context.rooms) {
         const auto slot_count =
@@ -154,11 +164,13 @@ bool BuildBalancedSlots(
             slots.push_back({
                 room_id,
                 requirements[index],
-                index < preferred
+                index < preferred,
+                std::nullopt
             });
         }
     }
     if (slots.size() == context.movable.size()) {
+        AssignBreedingPairSlots(context, breeding_target, plan, slots);
         return true;
     }
     plan.validation_errors.push_back("balanced-room-slot-count-mismatch");

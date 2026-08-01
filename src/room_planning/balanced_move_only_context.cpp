@@ -168,6 +168,22 @@ bool BuildPlanningContext(
             }
             return left < right;
         });
+    const std::unordered_set<snapshot::CatId> movable_ids(
+        context.movable.begin(), context.movable.end());
+    for (const auto id : context.movable) {
+        const auto partner = context.decisions.at(id)->breeding_partner_id;
+        if (!partner || id >= *partner || !movable_ids.contains(*partner)) {
+            continue;
+        }
+        const auto reciprocal =
+            context.decisions.at(*partner)->breeding_partner_id;
+        if (reciprocal && *reciprocal == id) {
+            context.breeding_pair = {id, *partner};
+            context.breeding_stats_stable =
+                context.decisions.at(id)->breeding_stats_stable;
+            break;
+        }
+    }
     return true;
 }
 

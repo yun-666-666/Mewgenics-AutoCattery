@@ -134,21 +134,19 @@ Result<BreedingScoreResult> ScoreBreedingCat(
     std::size_t known_stats{};
     for (std::size_t index = 0; index < snapshot::kStatCount; ++index) {
         const auto genetic = cat.genetic_stats.values[index];
-        const auto heredity = cat.heredity_bonus.values[index];
-        if (!genetic || !heredity) {
+        if (!genetic) {
             result.score -= config.missing_stat_penalty;
             result.components.push_back({
                 "missing:" + std::string(kStatKeys[index]),
                 0.0,
                 config.missing_stat_penalty,
                 -config.missing_stat_penalty,
-                "genetic or heredity source is unavailable"
+                "unlocked base stat is unavailable"
             });
             continue;
         }
         ++known_stats;
-        const auto total = static_cast<std::int64_t>(*genetic) +
-            static_cast<std::int64_t>(*heredity);
+        const auto total = static_cast<std::int64_t>(*genetic);
         result.heritable_stat_sum += total;
         const auto contribution =
             static_cast<double>(total) * config.stat_weights[index];
@@ -158,7 +156,7 @@ Result<BreedingScoreResult> ScoreBreedingCat(
             static_cast<double>(total),
             config.stat_weights[index],
             contribution,
-            "confirmed genetic + heredity bonus; equipment excluded"
+            "unlocked inherited base stat; later modifiers excluded"
         });
     }
 

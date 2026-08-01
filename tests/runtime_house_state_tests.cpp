@@ -74,6 +74,20 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(Room(overlaid, "Floor1_Large").residents.size() == 1);
     AC_CHECK(Room(overlaid, "Attic").residents.size() == 3);
 
+    const auto fixed_mapping =
+        ui::ResolveRuntimeRoomPointers(original, unchanged);
+    AC_CHECK(static_cast<bool>(fixed_mapping));
+    auto swapped_runtime = unchanged;
+    swapped_runtime.cats[0].room = 200;
+    swapped_runtime.cats[1].room = 200;
+    swapped_runtime.cats[2].room = 100;
+    swapped_runtime.cats[3].room = 100;
+    auto stable_overlay = original;
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(
+        stable_overlay, swapped_runtime, fixed_mapping.value)));
+    AC_CHECK(stable_overlay.cats[0].room_id == "Attic");
+    AC_CHECK(stable_overlay.cats[2].room_id == "Floor1_Large");
+
     auto outside = unchanged;
     outside.cats.front().room = 0;
     auto outside_overlay = original;

@@ -60,7 +60,12 @@ RoomPlan PlanCurrentBuildBalancedMoveOnlyRooms(
     if (!input.snapshot.capabilities.read_room_attributes) {
         AddUnique(plan.limitations, "room-attributes-unavailable");
     }
-    AddUnique(plan.limitations, "relationship-aware-pairing-not-enabled");
+    if (!input.snapshot.capabilities.read_sexuality ||
+        !input.snapshot.capabilities.read_relationships) {
+        AddUnique(plan.limitations, "unlocked-breeding-fields-unavailable");
+    } else if (context.breeding_pair.empty()) {
+        AddUnique(plan.limitations, "eligible-breeding-pair-unavailable");
+    }
     plan.fully_satisfied = true;
     plan.disposition = PlanDisposition::Complete;
     plan.move_execution_allowed = !plan.moves.empty();

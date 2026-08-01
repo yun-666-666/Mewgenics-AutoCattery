@@ -32,6 +32,13 @@ enum class CatSex {
     Male
 };
 
+enum class CatSexuality {
+    Unknown,
+    Straight,
+    Bisexual,
+    Gay
+};
+
 enum class Stat {
     Strength,
     Dexterity,
@@ -55,6 +62,11 @@ struct CatSnapshot {
     std::string breed_id;
     std::string voice_id;
     CatSex sex{CatSex::Unknown};
+    CatSexuality sexuality{CatSexuality::Unknown};
+    std::optional<double> sexuality_coefficient;
+    std::optional<CatId> parent_a_id;
+    std::optional<CatId> parent_b_id;
+    std::optional<double> inbreeding_coefficient;
     std::string stat_type_id;
     std::string class_id;
     StatBlock genetic_stats;
@@ -69,6 +81,19 @@ struct CatSnapshot {
     TriState available_for_combat{TriState::Unknown};
     TriState available_for_breeding{TriState::Unknown};
     TriState injured{TriState::Unknown};
+};
+
+struct PedigreeEntry {
+    CatId cat_id{};
+    std::optional<CatId> parent_a_id;
+    std::optional<CatId> parent_b_id;
+    std::optional<double> inbreeding_coefficient;
+};
+
+struct PedigreePairCoefficient {
+    CatId cat_a_id{};
+    CatId cat_b_id{};
+    double coefficient{};
 };
 
 struct RoomAttributes {
@@ -97,6 +122,7 @@ struct CapabilityMatrix {
     bool read_typed_abilities{};
     bool read_class_id{};
     bool read_age{};
+    bool read_sexuality{};
     bool read_breeding_eligibility{};
     bool read_relationships{};
     bool read_room_assignments{};
@@ -111,6 +137,8 @@ struct HouseSnapshot {
     std::string source_save_name;
     std::vector<CatSnapshot> cats;
     std::vector<RoomSnapshot> rooms;
+    std::vector<PedigreeEntry> pedigree;
+    std::vector<PedigreePairCoefficient> pedigree_pair_coefficients;
     CapabilityMatrix capabilities;
     std::chrono::system_clock::time_point captured_at;
 };

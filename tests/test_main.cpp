@@ -40,6 +40,8 @@ void RunLz4BlockTests();
 void RunMewUiHouseCatProbeTests();
 void RunMewUiHouseMoveProbeTests();
 void RunModuleRegistryTests();
+void RunPedigreeParserTests();
+void RunPairRankerTests();
 void RunOrganizeWorkflowFacadeTests();
 void RunProtectionPolicyTests();
 void RunProtectionSidecarTests();
@@ -112,6 +114,8 @@ int main() {
     autocattery::tests::RunMewUiHouseCatProbeTests();
     autocattery::tests::RunMewUiHouseMoveProbeTests();
     autocattery::tests::RunModuleRegistryTests();
+    autocattery::tests::RunPedigreeParserTests();
+    autocattery::tests::RunPairRankerTests();
     autocattery::tests::RunOrganizeWorkflowFacadeTests();
     autocattery::tests::RunProtectionPolicyTests();
     autocattery::tests::RunProtectionSidecarTests();

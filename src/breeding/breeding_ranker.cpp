@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "auto_cattery/breeding/breeding_scorer.hpp"
+#include "auto_cattery/breeding/pair_ranker.hpp"
 
 namespace autocattery::breeding {
 
@@ -51,6 +52,22 @@ Result<BreedingRanking> RankBreedingCats(
             }
             return left.cat_id < right.cat_id;
         });
+    if (snapshot.capabilities.read_genetic_stats &&
+        snapshot.capabilities.read_sexuality &&
+        snapshot.capabilities.read_relationships) {
+        auto pairs = RankBreedingPairs(snapshot);
+        if (!pairs) {
+            return {{}, pairs.code, pairs.message};
+        }
+        ranking.stage = pairs.value.stage;
+        ranking.ranked_pairs = std::move(pairs.value.ranked);
+        const auto recommended = std::ranges::find_if(
+            ranking.ranked_pairs,
+            [](const auto& pair) { return pair.eligible; });
+        if (recommended != ranking.ranked_pairs.end()) {
+            ranking.recommended_pair = *recommended;
+        }
+    }
     return {std::move(ranking)};
 }
 

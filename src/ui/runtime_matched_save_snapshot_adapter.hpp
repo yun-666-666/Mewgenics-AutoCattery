@@ -30,6 +30,9 @@ private:
     std::size_t house_cat_count_{};
     std::size_t available_room_count_{};
     std::optional<RuntimeHouseState> runtime_state_;
+    std::uint64_t room_mapping_generation_{};
+    std::optional<std::unordered_map<
+        snapshot::RoomId, RuntimePointer>> room_mapping_;
 };
 
 }  // namespace autocattery::ui
