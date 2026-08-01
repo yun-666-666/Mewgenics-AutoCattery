@@ -51,6 +51,7 @@ add_library(auto_cattery_core STATIC
     src/room_planning/balanced_move_only_assignment.cpp
     src/room_planning/balanced_move_only_context.cpp
     src/room_planning/balanced_move_only_planner.cpp
+    src/room_planning/balanced_move_only_preferences.cpp
     src/room_planning/balanced_move_only_targets.cpp
     src/room_planning/planner.cpp
     src/room_planning/validator.cpp
@@ -80,6 +81,8 @@ add_library(auto_cattery_core STATIC
     src/save_safety/test_copy_guard.cpp
     src/snapshot/cat_blob_parser.cpp
     src/snapshot/domain.cpp
+    src/snapshot/furniture_catalog.cpp
+    src/snapshot/furniture_room_attributes.cpp
     src/snapshot/house_state_parser.cpp
     src/snapshot/house_state_writer.cpp
     src/snapshot/lz4_block.cpp
@@ -215,6 +218,7 @@ if(AUTOCATTERY_BUILD_TESTS)
     enable_testing()
     add_executable(auto_cattery_tests
         tests/balanced_move_only_planner_tests.cpp
+        tests/deterministic_room_assignment_tests.cpp
         tests/breeding_ranker_tests.cpp
         tests/breeding_scorer_tests.cpp
         tests/classifier_tests.cpp
@@ -244,6 +248,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/restore_service_tests.cpp
         tests/single_cat_move_test_service_tests.cpp
         tests/file_hash_tests.cpp
+        tests/furniture_attributes_tests.cpp
         tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/module_registry_tests.cpp
@@ -289,6 +294,12 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)
     target_compile_features(snapshot_probe PRIVATE cxx_std_20)
     autocattery_enable_warnings(snapshot_probe)
+
+    add_executable(
+        room_attribute_probe tests/room_attribute_probe.cpp)
+    target_link_libraries(room_attribute_probe PRIVATE auto_cattery_core)
+    target_compile_features(room_attribute_probe PRIVATE cxx_std_20)
+    autocattery_enable_warnings(room_attribute_probe)
 
     add_executable(save_format_probe tests/save_format_probe.cpp)
     target_link_libraries(save_format_probe PRIVATE auto_cattery_core)

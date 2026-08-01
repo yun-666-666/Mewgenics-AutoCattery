@@ -1,6 +1,7 @@
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 
 #include "auto_cattery/snapshot/detail/save_database.hpp"
+#include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
 #include "auto_cattery/snapshot/detail/save_locator.hpp"
 #include "auto_cattery/snapshot/detail/snapshot_assembler.hpp"
 
@@ -34,8 +35,10 @@ Result<HouseSnapshot> Failure(
 }  // namespace
 
 SaveSnapshotAdapter::SaveSnapshotAdapter(
-    std::filesystem::path save_root)
-    : save_root_(std::move(save_root)) {}
+    std::filesystem::path save_root,
+    std::filesystem::path game_root)
+    : save_root_(std::move(save_root)),
+      game_root_(std::move(game_root)) {}
 
 Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshot(
     std::uint64_t scene_generation) {
@@ -103,6 +106,7 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
 
     std::optional<std::int32_t> current_day;
     std::vector<detail::CatStorageRecord> stored_cats;
+    std::vector<detail::FurnitureStorageRecord> stored_furniture;
     std::optional<std::vector<std::byte>> stored_house_state;
     if (!database->ReadCurrentDay(current_day, error) ||
         !database->ReadCats(stored_cats, error)) {
@@ -117,6 +121,22 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
             ErrorCode::RoomDataUnavailable,
             "house state unavailable",
             error);
+    }
+    std::vector<detail::FurniturePlacement> furniture;
+    const bool furniture_read =
+        database->ReadFurniture(stored_furniture, error) &&
+        detail::ParseFurniturePlacements(
+            stored_furniture, furniture, error);
+    if (!furniture_catalog_attempted_) {
+        furniture_catalog_attempted_ = true;
+        std::string catalog_error;
+        const bool catalog_loaded = detail::LoadFurnitureCatalog(
+            game_root_ / L"resources.gpak",
+            furniture_catalog_,
+            catalog_error);
+        if (!catalog_loaded) {
+            furniture_catalog_.clear();
+        }
     }
 
     const auto house_entries =
@@ -163,6 +183,10 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
         std::move(cats),
         house_entries.value);
     if (snapshot) {
+        if (furniture_read && !furniture_catalog_.empty()) {
+            detail::ApplyFurnitureRoomAttributes(
+                snapshot.value, furniture, furniture_catalog_);
+        }
         ++next_snapshot_id_;
     }
     return snapshot;

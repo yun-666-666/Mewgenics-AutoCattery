@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <mutex>
 #include <optional>
 
@@ -12,6 +13,9 @@ namespace autocattery::ui {
 class RuntimeMatchedSaveSnapshotAdapter final
     : public snapshot::IGameReadAdapter {
 public:
+    explicit RuntimeMatchedSaveSnapshotAdapter(
+        std::filesystem::path game_root = {});
+
     void SetRuntimeContext(
         std::size_t house_cat_count,
         std::size_t available_room_count) noexcept;

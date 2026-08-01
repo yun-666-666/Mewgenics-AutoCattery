@@ -1,6 +1,7 @@
 #include "balanced_move_only_internal.hpp"
 
 #include <algorithm>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -49,6 +50,23 @@ void InitializeRoomCounts(PlanningContext& context) {
     }
 }
 
+auto RoomPurposeKey(
+    const PlanningContext& context,
+    const snapshot::RoomId& room_id) {
+    const auto* attributes =
+        context.room_snapshots.at(room_id)->attributes
+            ? &*context.room_snapshots.at(room_id)->attributes
+            : nullptr;
+    return std::tuple{
+        attributes ? 0 : 1,
+        attributes ? -attributes->stimulation : 0.0,
+        attributes ? -attributes->comfort : 0.0,
+        attributes ? -attributes->health : 0.0,
+        attributes ? -attributes->mutation : 0.0,
+        room_id
+    };
+}
+
 }  // namespace
 
 bool BuildPlanningContext(
@@ -60,6 +78,9 @@ bool BuildPlanningContext(
         const protection::ProtectionDecision*> protections;
     for (const auto& cat : input.snapshot.cats) {
         context.cats.emplace(cat.id, &cat);
+    }
+    for (const auto& room : input.snapshot.rooms) {
+        context.room_snapshots.emplace(room.id, &room);
     }
     for (const auto& decision : input.classification.decisions) {
         context.decisions.emplace(decision.cat_id, &decision);
@@ -73,7 +94,12 @@ bool BuildPlanningContext(
             context.rooms.push_back(capability.room_id);
         }
     }
-    std::sort(context.rooms.begin(), context.rooms.end());
+    std::sort(
+        context.rooms.begin(), context.rooms.end(),
+        [&context](const auto& left, const auto& right) {
+            return RoomPurposeKey(context, left) <
+                RoomPurposeKey(context, right);
+        });
     if (context.rooms.empty()) {
         plan.validation_errors.push_back(
             "current-build-move-rooms-unavailable");
@@ -125,7 +151,23 @@ bool BuildPlanningContext(
         context.pinned_male[room_id] +=
             cat.sex == snapshot::CatSex::Male ? 1U : 0U;
     }
-    std::sort(context.movable.begin(), context.movable.end());
+    std::sort(
+        context.movable.begin(),
+        context.movable.end(),
+        [&context](snapshot::CatId left, snapshot::CatId right) {
+            const auto& left_decision = *context.decisions.at(left);
+            const auto& right_decision = *context.decisions.at(right);
+            const bool left_potential = IsPotential(left_decision);
+            const bool right_potential = IsPotential(right_decision);
+            if (left_potential != right_potential) {
+                return left_potential;
+            }
+            if (left_decision.combat_score != right_decision.combat_score) {
+                return left_decision.combat_score >
+                    right_decision.combat_score;
+            }
+            return left < right;
+        });
     return true;
 }
 

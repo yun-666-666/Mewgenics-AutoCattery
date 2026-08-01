@@ -59,7 +59,7 @@ void RunWorkflowPreviewBuilderTests() {
   AC_CHECK(
       potential_built.value.preview.recommended_combat_count == 10);
   AC_CHECK(potential_built.value.preview.breeding_core_count == 0);
-  AC_CHECK(potential_built.value.preview.planned_move_count == 12);
+  AC_CHECK(potential_built.value.preview.planned_move_count == 13);
   AC_CHECK(potential_built.value.room_plan.move_execution_allowed);
   AC_CHECK(std::ranges::all_of(
       potential_built.value.room_plan.moves,

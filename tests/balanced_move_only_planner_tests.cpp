@@ -90,7 +90,7 @@ void RunBalancedMoveOnlyPlannerTests() {
   const auto outside_built = workflow::PreviewBuilder(outside).Build(
       33, workflow::WorkflowCapability::MoveOnly, outside_state);
   AC_CHECK(static_cast<bool>(outside_built));
-  AC_CHECK(outside_built.value.room_plan.moves.size() == 4);
+  AC_CHECK(outside_built.value.room_plan.moves.size() == 5);
   const auto outside_move = std::ranges::find_if(
       outside_built.value.room_plan.moves,
       [](const auto &move) { return move.cat_id == 1; });

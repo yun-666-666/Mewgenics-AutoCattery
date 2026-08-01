@@ -65,6 +65,7 @@ std::string DigestSnapshotContent(const snapshot::HouseSnapshot& snapshot) {
     Append(canonical, snapshot.capabilities.read_age);
     Append(canonical, snapshot.capabilities.read_breeding_eligibility);
     Append(canonical, snapshot.capabilities.read_relationships);
+    Append(canonical, snapshot.capabilities.read_room_attributes);
     Append(canonical, snapshot.capabilities.read_room_capacities);
 
     auto cats = snapshot.cats;
@@ -98,22 +99,35 @@ std::string DigestSnapshotContent(const snapshot::HouseSnapshot& snapshot) {
         Append(canonical, static_cast<int>(cat.injured));
     }
 
-    std::vector<std::pair<std::string, std::vector<snapshot::CatId>>> rooms;
+    struct RoomDigest {
+        std::string id;
+        std::vector<snapshot::CatId> residents;
+        std::optional<snapshot::RoomAttributes> attributes;
+    };
+    std::vector<RoomDigest> rooms;
     rooms.reserve(snapshot.rooms.size());
     for (const auto& room : snapshot.rooms) {
         auto residents = room.residents;
         std::ranges::sort(residents);
-        rooms.emplace_back(room.id, std::move(residents));
+        rooms.push_back({room.id, std::move(residents), room.attributes});
     }
     std::ranges::sort(
         rooms,
         [](const auto& left, const auto& right) {
-            return ByteLess(left.first, right.first);
+            return ByteLess(left.id, right.id);
         });
-    for (const auto& [id, residents] : rooms) {
-        Append(canonical, id.size());
-        Append(canonical, id);
-        for (const auto resident : residents) {
+    for (const auto& room : rooms) {
+        Append(canonical, room.id.size());
+        Append(canonical, room.id);
+        Append(canonical, room.attributes.has_value());
+        if (room.attributes) {
+            Append(canonical, room.attributes->comfort);
+            Append(canonical, room.attributes->stimulation);
+            Append(canonical, room.attributes->health);
+            Append(canonical, room.attributes->mutation);
+            Append(canonical, room.attributes->appeal);
+        }
+        for (const auto resident : room.residents) {
             Append(canonical, resident);
         }
     }

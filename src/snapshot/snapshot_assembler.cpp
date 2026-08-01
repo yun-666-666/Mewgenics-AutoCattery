@@ -39,6 +39,7 @@ Result<HouseSnapshot> AssembleHouseSnapshot(
         .read_age = false,
         .read_relationships = false,
         .read_room_assignments = true,
+        .read_room_attributes = false,
         .read_room_capacities = false
     };
 

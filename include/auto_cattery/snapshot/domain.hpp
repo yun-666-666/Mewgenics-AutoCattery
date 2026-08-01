@@ -71,9 +71,20 @@ struct CatSnapshot {
     TriState injured{TriState::Unknown};
 };
 
+struct RoomAttributes {
+    double comfort{};
+    double stimulation{};
+    double health{};
+    double mutation{};
+    double appeal{};
+
+    bool operator==(const RoomAttributes&) const = default;
+};
+
 struct RoomSnapshot {
     RoomId id;
     std::vector<CatId> residents;
+    std::optional<RoomAttributes> attributes;
 };
 
 struct CapabilityMatrix {
@@ -89,6 +100,7 @@ struct CapabilityMatrix {
     bool read_breeding_eligibility{};
     bool read_relationships{};
     bool read_room_assignments{};
+    bool read_room_attributes{};
     bool read_room_capacities{};
 };
 

@@ -33,6 +33,9 @@ struct PlanningContext {
     std::unordered_map<
         snapshot::RoomId,
         const RoomCapability*> capabilities;
+    std::unordered_map<
+        snapshot::RoomId,
+        const snapshot::RoomSnapshot*> room_snapshots;
     std::vector<snapshot::CatId> movable;
     CountMap current_count;
     CountMap pinned_count;
@@ -56,6 +59,17 @@ struct PlanningContext {
     const PlanningContext& context,
     RoomPlan& plan,
     std::vector<BalancedSlot>& slots);
+
+[[nodiscard]] bool PreferOccupancyRoom(
+    const PlanningContext& context,
+    const snapshot::RoomId& left,
+    const snapshot::RoomId& right,
+    const CountMap& target);
+
+[[nodiscard]] bool PreferDevelopmentRoom(
+    const PlanningContext& context,
+    const snapshot::RoomId& left,
+    const snapshot::RoomId& right);
 
 [[nodiscard]] bool AppendMinimumCostMoves(
     const PlanningContext& context,

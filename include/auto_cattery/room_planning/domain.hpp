@@ -16,7 +16,7 @@ namespace autocattery::room_planning {
 inline constexpr char kRoomPlanningAlgorithmVersion[] =
     "capacity-aware-room-planner-v1";
 inline constexpr char kBalancedMoveOnlyAlgorithmVersion[] =
-    "current-build-balanced-move-only-v1";
+    "current-build-property-aware-cat-allocation-v3";
 
 enum class CapabilityState {
     Unknown,

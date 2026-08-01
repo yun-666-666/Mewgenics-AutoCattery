@@ -19,6 +19,10 @@ struct CatStorageRecord {
     std::vector<std::byte> blob;
 };
 
+struct FurnitureStorageRecord {
+    std::vector<std::byte> blob;
+};
+
 class SaveDatabase final {
 public:
     ~SaveDatabase();
@@ -38,6 +42,9 @@ public:
         std::string& error) const;
     bool ReadHouseState(
         std::optional<std::vector<std::byte>>& blob,
+        std::string& error) const;
+    bool ReadFurniture(
+        std::vector<FurnitureStorageRecord>& furniture,
         std::string& error) const;
 
 private:

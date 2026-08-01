@@ -28,12 +28,20 @@ void AddAvailableEmptyRooms(
                 [id](const auto& room) {
                     return room.id == id;
                 })) {
-            snapshot.rooms.push_back({.id = id});
+            snapshot::RoomSnapshot room{.id = id};
+            if (snapshot.capabilities.read_room_attributes) {
+                room.attributes = snapshot::RoomAttributes{};
+            }
+            snapshot.rooms.push_back(std::move(room));
         }
     }
 }
 
 }  // namespace
+
+RuntimeMatchedSaveSnapshotAdapter::RuntimeMatchedSaveSnapshotAdapter(
+    std::filesystem::path game_root)
+    : saves_({}, std::move(game_root)) {}
 
 void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeContext(
     std::size_t house_cat_count,

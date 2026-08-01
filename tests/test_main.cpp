@@ -15,8 +15,10 @@ void RunExecutionTransactionSuccessTests();
 void RunExecutionTransactionFailureTests();
 void RunExecutionTransactionConcurrencyTests();
 void RunFileHashTests();
+void RunFurnitureAttributesTests();
 void RunGameBuildGateTests();
 void RunBalancedMoveOnlyPlannerTests();
+void RunDeterministicRoomAssignmentTests();
 void RunBreedingRankerTests();
 void RunBreedingScorerTests();
 void RunBackupManifestTests();
@@ -79,6 +81,7 @@ int main() {
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
     try {
     autocattery::tests::RunBalancedMoveOnlyPlannerTests();
+    autocattery::tests::RunDeterministicRoomAssignmentTests();
     autocattery::tests::RunBreedingRankerTests();
     autocattery::tests::RunBreedingScorerTests();
     autocattery::tests::RunBackupManifestTests();
@@ -97,6 +100,7 @@ int main() {
     autocattery::tests::RunExecutionTransactionFailureTests();
     autocattery::tests::RunExecutionTransactionConcurrencyTests();
     autocattery::tests::RunFileHashTests();
+    autocattery::tests::RunFurnitureAttributesTests();
     autocattery::tests::RunGameBuildGateTests();
     autocattery::tests::RunCatBlobParserTests();
     autocattery::tests::RunHouseButtonControllerTests();

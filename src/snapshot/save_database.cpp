@@ -227,4 +227,31 @@ bool SaveDatabase::ReadHouseState(
     return true;
 }
 
+bool SaveDatabase::ReadFurniture(
+    std::vector<FurnitureStorageRecord>& furniture,
+    std::string& error) const {
+    Statement statement(
+        database_, "SELECT data FROM furniture ORDER BY key", error);
+    if (statement.get() == nullptr) {
+        return false;
+    }
+    const auto& api = WinSqliteApi::Instance();
+    furniture.clear();
+    for (;;) {
+        const int result = api.step(statement.get());
+        if (result == kSqliteDone) {
+            return true;
+        }
+        if (result != kSqliteRow) {
+            error = DatabaseError(database_, "furniture query failed");
+            return false;
+        }
+        FurnitureStorageRecord record;
+        if (!CopyBlob(statement.get(), 0, record.blob, error)) {
+            return false;
+        }
+        furniture.push_back(std::move(record));
+    }
+}
+
 }  // namespace autocattery::snapshot::detail

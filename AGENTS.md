@@ -6,6 +6,14 @@ Implement the Mewgenics Auto Cattery MOD one stage at a time, using
 of authoritative game values. Validate technical details against the current
 repository, current game build, runtime evidence, and reliable public sources.
 
+## Feature-first priority
+- Implement the player-visible MOD behavior explicitly requested by the user
+  before expanding validation, safety hardening, reports, or research.
+- Keep only the minimum build/test cycle needed to prove the current feature;
+  do not delay core functionality with repeated audits or safety work.
+- For an explicitly requested test-save edit, make one recoverable backup, then
+  return immediately to the MOD feature being tested.
+
 ## Non-negotiable behavior
 - Read `CODEX_TASK.md` before modifying files.
 - Implement only the current stage. Never pre-implement later stages.

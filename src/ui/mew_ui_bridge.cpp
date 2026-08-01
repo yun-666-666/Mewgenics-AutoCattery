@@ -241,7 +241,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             context.game_root / L"Mewgenics.exe");
     runtime_move_available_ = runtime_move_available;
     auto runtime_snapshot_adapter =
-        std::make_unique<RuntimeMatchedSaveSnapshotAdapter>();
+        std::make_unique<RuntimeMatchedSaveSnapshotAdapter>(
+            context.game_root);
     runtime_snapshot_adapter_ = runtime_snapshot_adapter.get();
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>(

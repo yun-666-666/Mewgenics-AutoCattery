@@ -103,8 +103,7 @@ bool AppendMinimumCostMoves(
     RoomPlan& plan) {
     constexpr std::int64_t kImpossible =
         std::numeric_limits<std::int64_t>::max() / 16;
-    constexpr std::int64_t kMoveCost = 1'000'000;
-    constexpr std::int64_t kPotentialMismatchCost = 1'000;
+    constexpr std::int64_t kRoleMismatchCost = 1'000'000;
     std::vector<std::vector<std::int64_t>> costs(
         context.movable.size(),
         std::vector<std::int64_t>(slots.size(), kImpossible));
@@ -121,13 +120,14 @@ bool AppendMinimumCostMoves(
             if (!SexMatches(cat, slot.required_sex)) {
                 continue;
             }
-            const bool already_in_room =
-                cat.room_id && *cat.room_id == slot.room_id;
+            const auto stable_distance = cat_index > slot_index
+                ? cat_index - slot_index
+                : slot_index - cat_index;
             costs[cat_index][slot_index] =
-                (already_in_room ? 0 : kMoveCost) +
                 (potential == slot.potential_preferred
                      ? 0
-                     : kPotentialMismatchCost);
+                     : kRoleMismatchCost) +
+                static_cast<std::int64_t>(stable_distance);
         }
     }
 
@@ -153,7 +153,7 @@ bool AppendMinimumCostMoves(
                 cat.id,
                 cat.room_id.value_or("Outside"),
                 target,
-                "balance room occupancy, known sex mix, and potential",
+                "restore property-ranked cat purpose assignment",
                 0,
                 true
             });

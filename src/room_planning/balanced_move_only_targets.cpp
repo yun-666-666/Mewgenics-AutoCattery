@@ -9,23 +9,6 @@
 namespace autocattery::room_planning::balanced_internal {
 namespace {
 
-using TargetKey =
-    std::tuple<std::size_t, std::int64_t, snapshot::RoomId>;
-
-TargetKey MakeTargetKey(
-    const snapshot::RoomId& room_id,
-    const CountMap& target,
-    const CountMap& current) {
-    const auto remaining = current.at(room_id) > target.at(room_id)
-        ? current.at(room_id) - target.at(room_id)
-        : 0;
-    return {
-        target.at(room_id),
-        -static_cast<std::int64_t>(remaining),
-        room_id
-    };
-}
-
 bool AllocateOccupancyTargets(
     const PlanningContext& context,
     CountMap& target,
@@ -42,8 +25,8 @@ bool AllocateOccupancyTargets(
                 continue;
             }
             if (!best ||
-                MakeTargetKey(room_id, target, context.current_count) <
-                    MakeTargetKey(*best, target, context.current_count)) {
+                PreferOccupancyRoom(
+                    context, room_id, *best, target)) {
                 best = room_id;
             }
         }
@@ -72,10 +55,7 @@ bool AllocatePotentialTargets(
                 continue;
             }
             if (!best ||
-                MakeTargetKey(
-                    room_id, target, context.current_potential) <
-                    MakeTargetKey(
-                        *best, target, context.current_potential)) {
+                PreferDevelopmentRoom(context, room_id, *best)) {
                 best = room_id;
             }
         }
@@ -98,7 +78,6 @@ void AddUnique(std::vector<std::string>& values, std::string value) {
 std::unordered_set<snapshot::RoomId> RequiredSexRooms(
     const PlanningContext& context,
     const CountMap& occupancy,
-    const CountMap& current,
     const CountMap& pinned,
     std::size_t known_count) {
     std::unordered_set<snapshot::RoomId> required;
@@ -120,14 +99,8 @@ std::unordered_set<snapshot::RoomId> RequiredSexRooms(
             if (occupancy.at(room_id) < 2 || required.contains(room_id)) {
                 continue;
             }
-            const auto key = std::tuple{
-                current.at(room_id) == 0 ? 1 : 0,
-                -static_cast<std::int64_t>(current.at(room_id)),
-                room_id};
-            if (!best || key < std::tuple{
-                    current.at(*best) == 0 ? 1 : 0,
-                    -static_cast<std::int64_t>(current.at(*best)),
-                    *best}) {
+            if (!best ||
+                PreferDevelopmentRoom(context, room_id, *best)) {
                 best = room_id;
             }
         }
@@ -154,11 +127,9 @@ bool BuildBalancedSlots(
     }
 
     const auto female_rooms = RequiredSexRooms(
-        context, occupancy, context.current_female,
-        context.pinned_female, context.known_female);
+        context, occupancy, context.pinned_female, context.known_female);
     const auto male_rooms = RequiredSexRooms(
-        context, occupancy, context.current_male,
-        context.pinned_male, context.known_male);
+        context, occupancy, context.pinned_male, context.known_male);
     slots.reserve(context.movable.size());
     for (const auto& room_id : context.rooms) {
         const auto slot_count =

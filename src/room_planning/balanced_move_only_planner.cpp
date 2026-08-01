@@ -57,7 +57,9 @@ RoomPlan PlanCurrentBuildBalancedMoveOnlyRooms(
         return plan;
     }
 
-    AddUnique(plan.limitations, "room-attributes-not-yet-readable");
+    if (!input.snapshot.capabilities.read_room_attributes) {
+        AddUnique(plan.limitations, "room-attributes-unavailable");
+    }
     AddUnique(plan.limitations, "relationship-aware-pairing-not-enabled");
     plan.fully_satisfied = true;
     plan.disposition = PlanDisposition::Complete;
