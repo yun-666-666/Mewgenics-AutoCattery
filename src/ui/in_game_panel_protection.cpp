@@ -95,8 +95,8 @@ void InGamePanelController::HandleProtectionRow(
         selected_room_.reset();
         return;
     }
-    if (row >= 1 && row <= 5) {
-        const auto index = cat_page_ * 5 + row - 1;
+    if (row >= 1 && row <= 9) {
+        const auto index = cat_page_ * 9 + row - 1;
         if (index >= protection_->cats().size()) return;
         selected_cat_ = index;
         const auto& cat = protection_->cats()[index];
@@ -110,13 +110,13 @@ void InGamePanelController::HandleProtectionRow(
         status_ = "请先明确选择一只猫";
         return;
     }
-    if (row == 6) {
+    if (row == 10) {
         const auto found = std::find(
             kLevels.begin(), kLevels.end(), selected_level_);
         const auto current = found == kLevels.end() ? 0U :
             static_cast<std::size_t>(found - kLevels.begin());
         selected_level_ = kLevels[Cycle(current, kLevels.size(), direction)];
-    } else if (row == 7) {
+    } else if (row == 11) {
         const auto rooms = protection_->rooms();
         std::size_t current{};
         if (selected_room_) {
@@ -126,12 +126,12 @@ void InGamePanelController::HandleProtectionRow(
         const auto next = Cycle(current, rooms.size() + 1, direction);
         selected_room_ = next == 0 ? std::nullopt
                                    : std::optional(rooms[next - 1]);
-    } else if (row == 8) {
+    } else if (row == 12) {
         const auto applied = protection_->Apply(
             *selected_cat_, selected_level_, selected_room_);
         status_ = applied ? "保护规则已保存"
                           : "保护保存失败：" + applied.message;
-    } else if (row == 9) {
+    } else if (row == 13) {
         const auto removed = protection_->Remove(*selected_cat_);
         status_ = removed ? "该猫的玩家保护规则已移除"
                           : "移除失败：" + removed.message;

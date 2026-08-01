@@ -50,7 +50,6 @@ private:
     bool protection_page_{};
     bool open_{};
     std::uint64_t attached_generation_{};
-    std::size_t settings_page_{};
     std::size_t cat_page_{};
     std::optional<std::size_t> selected_cat_;
     protection::ProtectionLevel selected_level_{

@@ -10,10 +10,10 @@ constexpr double kVirtualWidth = 1280.0;
 constexpr double kVirtualHeight = 720.0;
 struct Rect { double left; double top; double right; double bottom; };
 constexpr std::array<Rect, 7> kButtons{{
-    {250, 75, 500, 125}, {530, 75, 780, 125},
-    {1000, 75, 1140, 125}, {250, 610, 450, 665},
-    {465, 610, 665, 665}, {715, 610, 915, 665},
-    {930, 610, 1130, 665}
+    {165, 82, 355, 120}, {365, 82, 555, 120},
+    {990, 82, 1120, 120}, {165, 600, 345, 642},
+    {355, 600, 535, 642}, {755, 600, 935, 642},
+    {945, 600, 1125, 642}
 }};
 constexpr std::array<ManagementPanelControl, 7> kButtonControls{
     ManagementPanelControl::SettingsTab,
@@ -24,6 +24,8 @@ constexpr std::array<ManagementPanelControl, 7> kButtonControls{
     ManagementPanelControl::Apply,
     ManagementPanelControl::Remove
 };
+constexpr std::array<std::size_t, 3> kSettingStarts{0, 17, 35};
+constexpr std::array<std::size_t, 3> kSettingCounts{17, 18, 10};
 MewUiManagementPanelView* g_panel_view{};
 
 bool Contains(const Rect& rect, double x, double y) {
@@ -66,6 +68,13 @@ LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
                         static_cast<int>(hit->row));
                     g_panel_view->pending_direction_.store(hit->direction);
                 }
+            } else if (message->message == WM_MOUSEWHEEL &&
+                       g_panel_view->protection_page_.load()) {
+                const int delta = GET_WHEEL_DELTA_WPARAM(message->wParam);
+                g_panel_view->pending_control_.store(
+                    static_cast<int>(ManagementPanelControl::Scroll));
+                g_panel_view->pending_row_.store(0);
+                g_panel_view->pending_direction_.store(delta > 0 ? -1 : 1);
             }
             if (blocked) message->message = WM_NULL;
         }
@@ -108,18 +117,30 @@ MewUiManagementPanelView::HitTest(HWND window) const noexcept {
     const double x = cursor.x * kVirtualWidth / width;
     const double y = cursor.y * kVirtualHeight / height;
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
-        if (Contains(kButtons[index], x, y)) {
-            return HitResult{kButtonControls[index], 0, 0};
-        }
+        if (!Contains(kButtons[index], x, y)) continue;
+        if (!protection_page_.load() && index >= 3) return std::nullopt;
+        return HitResult{kButtonControls[index], 0, 0};
     }
-    for (std::size_t row = 0; row < 8; ++row) {
-        const Rect rectangle{210, 145 + row * 55.0,
-                             1115, 195 + row * 55.0};
-        if (!Contains(rectangle, x, y)) continue;
-        int direction = 0;
-        if (x < 510) direction = -1;
-        else if (x > 815) direction = 1;
-        return HitResult{ManagementPanelControl::Row, row, direction};
+    if (protection_page_.load()) {
+        for (std::size_t row = 0; row < 12; ++row) {
+            const Rect rectangle{165, 145 + row * 36.0,
+                                 1095, 175 + row * 36.0};
+            if (!Contains(rectangle, x, y)) continue;
+            const int direction = x < 475 ? -1 : (x > 785 ? 1 : 0);
+            return HitResult{ManagementPanelControl::Row, row, direction};
+        }
+        return std::nullopt;
+    }
+    for (std::size_t column = 0; column < 3; ++column) {
+        for (std::size_t row = 0; row < kSettingCounts[column]; ++row) {
+            const double left = 160 + column * 317.0;
+            const Rect rectangle{left, 158 + row * 25.0,
+                                 left + 300, 180 + row * 25.0};
+            if (!Contains(rectangle, x, y)) continue;
+            const int direction = x < left + 100 ? -1 : 1;
+            return HitResult{ManagementPanelControl::Row,
+                             kSettingStarts[column] + row, direction};
+        }
     }
     return std::nullopt;
 }

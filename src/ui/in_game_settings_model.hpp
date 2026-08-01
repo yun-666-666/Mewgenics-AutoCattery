@@ -18,9 +18,12 @@ public:
     [[nodiscard]] Result<void> Reload();
     [[nodiscard]] Result<void> Adjust(
         std::size_t page, std::size_t row, int direction);
+    [[nodiscard]] Result<void> AdjustFlat(
+        std::size_t index, int direction);
     [[nodiscard]] std::size_t PageCount();
     [[nodiscard]] std::string PageTitle(std::size_t page);
     [[nodiscard]] std::vector<std::string> Rows(std::size_t page);
+    [[nodiscard]] std::vector<std::string> AllRows();
 
 private:
     struct Field {

@@ -21,6 +21,7 @@ enum class ManagementPanelControl {
     Next,
     Apply,
     Remove,
+    Scroll,
     Row
 };
 
@@ -35,6 +36,7 @@ struct ManagementPanelContent {
     std::string status;
     std::vector<std::string> rows;
     bool protection_page{};
+    bool show_navigation{};
     bool show_apply{};
     bool show_remove{};
     std::optional<std::size_t> selected_row;
@@ -65,14 +67,20 @@ private:
     bool ResolveNodes() noexcept;
     bool CanTouchScene() const noexcept;
     [[nodiscard]] std::optional<HitResult> HitTest(HWND window) const noexcept;
-    void SetElement(std::size_t index, const char* text, int frame) noexcept;
+    void SetElement(
+        void* node, const char* name,
+        const char* text, int frame) noexcept;
 
     void* scene_manager_{};
     std::uint64_t generation_{};
     void* background_{};
-    std::array<void*, 15> elements_{};
+    std::array<void*, 7> fixed_nodes_{};
+    std::array<void*, 12> protection_nodes_{};
+    std::array<void*, 3> group_nodes_{};
+    std::array<void*, 45> setting_nodes_{};
     HHOOK message_hook_{};
     std::atomic_bool visible_{false};
+    std::atomic_bool protection_page_{false};
     std::atomic<int> pending_control_{-1};
     std::atomic<int> pending_row_{-1};
     std::atomic<int> pending_direction_{};

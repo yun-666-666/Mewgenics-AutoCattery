@@ -43,8 +43,8 @@ ManagementPanelContent InGamePanelController::ProtectionContent() {
     content.rows.push_back(
         "<  存档：" + saves[protection_->selected_save()].label + "  >");
     const auto cats = protection_->cats();
-    for (std::size_t visible = 0; visible < 5; ++visible) {
-        const auto index = cat_page_ * 5 + visible;
+    for (std::size_t visible = 0; visible < 9; ++visible) {
+        const auto index = cat_page_ * 9 + visible;
         content.rows.push_back(
             index < cats.size() ? CatLabel(cats[index]) : "—");
     }
@@ -53,15 +53,16 @@ ManagementPanelContent InGamePanelController::ProtectionContent() {
     content.rows.push_back(
         "<  固定房间：" + selected_room_.value_or("不固定") + "  >");
     if (selected_cat_) {
-        const auto first = cat_page_ * 5;
-        if (*selected_cat_ >= first && *selected_cat_ < first + 5) {
+        const auto first = cat_page_ * 9;
+        if (*selected_cat_ >= first && *selected_cat_ < first + 9) {
             content.selected_row = 1 + *selected_cat_ - first;
         }
         content.show_apply = true;
         content.show_remove = cats[*selected_cat_].level.has_value() ||
             cats[*selected_cat_].fixed_room.has_value();
     }
-    const auto pages = std::max<std::size_t>(1, (cats.size() + 4) / 5);
+    const auto pages = std::max<std::size_t>(1, (cats.size() + 8) / 9);
+    content.show_navigation = pages > 1;
     content.title += " · 猫列表 " + std::to_string(cat_page_ + 1) +
         "/" + std::to_string(pages);
     return content;

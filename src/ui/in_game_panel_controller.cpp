@@ -73,7 +73,6 @@ void InGamePanelController::Open(const UiContextSnapshot& context) {
     protection_page_ = false;
     if (!protection_loading_) protection_.reset();
     open_ = true;
-    settings_page_ = 0;
     cat_page_ = 0;
     selected_cat_.reset();
     selected_room_.reset();
@@ -116,26 +115,24 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         if (!protection_ && !protection_loading_) StartProtectionLoad();
         break;
     case ManagementPanelControl::Previous:
-    case ManagementPanelControl::Next: {
-        const int step = event.control == ManagementPanelControl::Next ? 1 : -1;
-        if (protection_page_) {
-            const auto count = protection_ ? protection_->cats().size() : 0;
-            const auto pages = std::max<std::size_t>(1, (count + 4) / 5);
-            cat_page_ = step > 0 ? (cat_page_ + 1) % pages
-                                 : (cat_page_ == 0 ? pages - 1 : cat_page_ - 1);
-            selected_cat_.reset();
-        } else {
-            const auto pages = std::max<std::size_t>(1, settings_.PageCount());
-            settings_page_ = step > 0 ? (settings_page_ + 1) % pages
-                : (settings_page_ == 0 ? pages - 1 : settings_page_ - 1);
-        }
+    case ManagementPanelControl::Next:
+    case ManagementPanelControl::Scroll: {
+        if (!protection_page_) break;
+        const int step = event.control == ManagementPanelControl::Scroll
+            ? event.direction
+            : (event.control == ManagementPanelControl::Next ? 1 : -1);
+        const auto count = protection_ ? protection_->cats().size() : 0;
+        const auto pages = std::max<std::size_t>(1, (count + 8) / 9);
+        cat_page_ = step > 0 ? (cat_page_ + 1) % pages
+                             : (cat_page_ == 0 ? pages - 1 : cat_page_ - 1);
+        selected_cat_.reset();
         break;
     }
     case ManagementPanelControl::Row:
         if (protection_page_) HandleProtectionRow(event.row, event.direction);
         else {
-            const auto adjusted = settings_.Adjust(
-                settings_page_, event.row, event.direction);
+            const auto adjusted = settings_.AdjustFlat(
+                event.row, event.direction);
             status_ = adjusted ? "已保存；游戏中的规则会自动热更新"
                                : "保存失败：" + adjusted.message;
         }
@@ -143,7 +140,7 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
     case ManagementPanelControl::Apply:
     case ManagementPanelControl::Remove:
         HandleProtectionRow(
-            event.control == ManagementPanelControl::Apply ? 8 : 9, 0);
+            event.control == ManagementPanelControl::Apply ? 12 : 13, 0);
         break;
     }
     if (open_) Render();
@@ -156,8 +153,11 @@ void InGamePanelController::Render() {
 }
 
 ManagementPanelContent InGamePanelController::SettingsContent() {
-    return {settings_.PageTitle(settings_page_), status_,
-            settings_.Rows(settings_page_), false, false, false, std::nullopt};
+    ManagementPanelContent content;
+    content.title = "设置";
+    content.status = status_;
+    content.rows = settings_.AllRows();
+    return content;
 }
 
 }  // namespace autocattery::ui

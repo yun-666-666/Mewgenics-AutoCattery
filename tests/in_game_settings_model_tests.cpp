@@ -22,12 +22,13 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(model.PageCount() == 8);
     AC_CHECK(model.Rows(0).size() == 8);
     AC_CHECK(model.Rows(7).size() == 2);
+    AC_CHECK(model.AllRows().size() == 45);
     AC_CHECK(model.PageTitle(0).find("1/8") != std::string::npos);
 
     SettingsFileEditor reader({{}, user});
     const auto before = reader.Load();
     AC_CHECK(static_cast<bool>(before));
-    AC_CHECK(static_cast<bool>(model.Adjust(0, 0, 1)));
+    AC_CHECK(static_cast<bool>(model.AdjustFlat(0, 1)));
     AC_CHECK(static_cast<bool>(model.Adjust(0, 3, 0)));
     AC_CHECK(static_cast<bool>(model.Adjust(6, 0, -1)));
 
@@ -43,6 +44,7 @@ void RunInGameSettingsModelTests() {
              std::max<std::size_t>(
                  1, before.value.room_planning.default_soft_capacity - 1));
     AC_CHECK(!static_cast<bool>(model.Adjust(99, 0, 1)));
+    AC_CHECK(!static_cast<bool>(model.AdjustFlat(45, 1)));
     AC_CHECK(!std::filesystem::exists(temporary));
 }
 

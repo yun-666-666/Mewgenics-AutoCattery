@@ -51,6 +51,18 @@ Result<void> InGameSettingsModel::Adjust(
     return {};
 }
 
+Result<void> InGameSettingsModel::AdjustFlat(
+    std::size_t index, int direction) {
+    auto pages = Pages();
+    for (std::size_t page = 0; page < pages.size(); ++page) {
+        if (index < pages[page].fields.size()) {
+            return Adjust(page, index, direction);
+        }
+        index -= pages[page].fields.size();
+    }
+    return {ErrorCode::ConfigInvalid, "setting selection is invalid"};
+}
+
 std::size_t InGameSettingsModel::PageCount() { return Pages().size(); }
 
 std::string InGameSettingsModel::PageTitle(std::size_t page) {
@@ -65,6 +77,15 @@ std::vector<std::string> InGameSettingsModel::Rows(std::size_t page) {
     std::vector<std::string> rows;
     if (page >= pages.size()) return rows;
     for (const auto& field : pages[page].fields) rows.push_back(Format(field));
+    return rows;
+}
+
+std::vector<std::string> InGameSettingsModel::AllRows() {
+    std::vector<std::string> rows;
+    auto pages = Pages();
+    for (const auto& page : pages) {
+        for (const auto& field : page.fields) rows.push_back(Format(field));
+    }
     return rows;
 }
 
