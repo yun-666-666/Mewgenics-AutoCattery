@@ -72,38 +72,48 @@ Result<void> MewUiManagementPanelView::Show(
     MewUI_SetModalInputBlocked(true);
     visible_.store(true);
     protection_page_.store(content.protection_page);
+    navigation_visible_.store(content.show_navigation);
+    apply_visible_.store(content.show_apply);
+    remove_visible_.store(content.show_remove);
     HoldMewUiMovieClipFrame(background_, 1);
     SetElement(fixed_nodes_[0], kFixedNames[0], "设置",
                content.protection_page ? 1 : 2);
     SetElement(fixed_nodes_[1], kFixedNames[1], "猫保护",
                content.protection_page ? 2 : 1);
     SetElement(fixed_nodes_[2], kFixedNames[2], "关闭", 1);
-    SetElement(fixed_nodes_[3], kFixedNames[3], "上一页",
+    SetElement(fixed_nodes_[3], kFixedNames[3],
+               content.show_navigation ? "上一页" : "",
                content.show_navigation ? 1 : 0);
-    SetElement(fixed_nodes_[4], kFixedNames[4], "下一页",
+    SetElement(fixed_nodes_[4], kFixedNames[4],
+               content.show_navigation ? "下一页" : "",
                content.show_navigation ? 1 : 0);
-    SetElement(fixed_nodes_[5], kFixedNames[5], "应用",
+    SetElement(fixed_nodes_[5], kFixedNames[5],
+               content.show_apply ? "应用" : "",
                content.show_apply ? 1 : 0);
-    SetElement(fixed_nodes_[6], kFixedNames[6], "移除",
+    SetElement(fixed_nodes_[6], kFixedNames[6],
+               content.show_remove ? "移除" : "",
                content.show_remove ? 1 : 0);
 
     for (std::size_t index = 0; index < protection_nodes_.size(); ++index) {
         const auto name = IndexedName("panel_protection_row_", index);
-        const bool shown = content.protection_page && index < content.rows.size();
+        const bool shown = content.protection_page &&
+            index < content.rows.size() && !content.rows[index].empty();
         const int frame = content.selected_row == index ? 2 : 1;
         SetElement(protection_nodes_[index], name.c_str(),
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
     for (std::size_t index = 0; index < group_nodes_.size(); ++index) {
         const auto name = IndexedName("panel_group_", index);
-        SetElement(group_nodes_[index], name.c_str(), kGroupNames[index],
+        SetElement(group_nodes_[index], name.c_str(),
+                   content.protection_page ? "" : kGroupNames[index],
                    content.protection_page ? 0 : 1);
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
         const auto name = IndexedName("panel_setting_row_", index);
         const bool shown = !content.protection_page && index < content.rows.size();
+        const int frame = content.selected_row == index ? 2 : 1;
         SetElement(setting_nodes_[index], name.c_str(),
-                   shown ? content.rows[index].c_str() : "", shown ? 1 : 0);
+                   shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
     MewUI_SetTextInSceneText(scene_manager_, "panel_title", content.title.c_str());
     MewUI_SetTextInSceneText(scene_manager_, "panel_status", content.status.c_str());
@@ -114,6 +124,10 @@ void MewUiManagementPanelView::Hide() noexcept {
     MewUI_SetModalInputBlocked(false);
     visible_.store(false);
     protection_page_.store(false);
+    navigation_visible_.store(false);
+    apply_visible_.store(false);
+    remove_visible_.store(false);
+    CancelNumericInput();
     pending_control_.store(-1);
     pending_row_.store(-1);
     pending_direction_.store(0);

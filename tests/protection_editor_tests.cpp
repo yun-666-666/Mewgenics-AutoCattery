@@ -74,6 +74,8 @@ void RunProtectionEditorTests() {
     AC_CHECK(model.cats().front().fixed_room == "Attic");
 
     AC_CHECK(static_cast<bool>(model.SelectSave(1)));
+    AC_CHECK(model.cats().size() == 1);
+    AC_CHECK(model.cats().front().display_name == "Beta");
     AC_CHECK(!model.cats().front().level);
     AC_CHECK(static_cast<bool>(model.Apply(
         0, protection::ProtectionLevel::NoCull, std::nullopt)));

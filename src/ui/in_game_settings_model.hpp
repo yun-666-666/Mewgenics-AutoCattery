@@ -1,7 +1,9 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -20,6 +22,10 @@ public:
         std::size_t page, std::size_t row, int direction);
     [[nodiscard]] Result<void> AdjustFlat(
         std::size_t index, int direction);
+    [[nodiscard]] std::optional<std::string> DirectValue(
+        std::size_t index);
+    [[nodiscard]] Result<void> SetFlatValue(
+        std::size_t index, std::string_view text);
     [[nodiscard]] std::size_t PageCount();
     [[nodiscard]] std::string PageTitle(std::size_t page);
     [[nodiscard]] std::vector<std::string> Rows(std::size_t page);
@@ -39,6 +45,7 @@ private:
     };
 
     [[nodiscard]] std::vector<Page> Pages();
+    [[nodiscard]] std::optional<Field> FlatField(std::size_t index);
     [[nodiscard]] std::string Format(const Field& field) const;
 
     SettingsFileEditor editor_;

@@ -1,6 +1,5 @@
 #include "in_game_panel_controller.hpp"
 
-#include <algorithm>
 #include <array>
 #include <chrono>
 
@@ -83,6 +82,32 @@ void InGamePanelController::HandleProtectionRow(
                                       : "保护数据不可用";
         return;
     }
+    if (protection_choice_ != ProtectionChoice::None) {
+        if (row == 0) {
+            protection_choice_ = ProtectionChoice::None;
+            choice_page_ = 0;
+            status_ = "已返回当前存档猫列表";
+            return;
+        }
+        if (row < 1 || row > 9) return;
+        const auto index = choice_page_ * 9 + row - 1;
+        if (protection_choice_ == ProtectionChoice::Level) {
+            if (index >= kLevels.size()) return;
+            selected_level_ = kLevels[index];
+            status_ = "已选择保护等级：" +
+                std::string(LevelName(selected_level_));
+        } else {
+            const auto rooms = protection_->rooms();
+            if (index > rooms.size()) return;
+            selected_room_ = index == 0 ? std::nullopt
+                : std::optional(rooms[index - 1]);
+            status_ = "已选择固定房间：" +
+                selected_room_.value_or("不固定");
+        }
+        protection_choice_ = ProtectionChoice::None;
+        choice_page_ = 0;
+        return;
+    }
     if (row == 0) {
         const auto count = protection_->saves().size();
         const auto next = Cycle(
@@ -93,6 +118,7 @@ void InGamePanelController::HandleProtectionRow(
         cat_page_ = 0;
         selected_cat_.reset();
         selected_room_.reset();
+        protection_choice_ = ProtectionChoice::None;
         return;
     }
     if (row >= 1 && row <= 9) {
@@ -111,21 +137,13 @@ void InGamePanelController::HandleProtectionRow(
         return;
     }
     if (row == 10) {
-        const auto found = std::find(
-            kLevels.begin(), kLevels.end(), selected_level_);
-        const auto current = found == kLevels.end() ? 0U :
-            static_cast<std::size_t>(found - kLevels.begin());
-        selected_level_ = kLevels[Cycle(current, kLevels.size(), direction)];
+        protection_choice_ = ProtectionChoice::Level;
+        choice_page_ = 0;
+        status_ = "请选择保护等级";
     } else if (row == 11) {
-        const auto rooms = protection_->rooms();
-        std::size_t current{};
-        if (selected_room_) {
-            const auto found = std::find(rooms.begin(), rooms.end(), *selected_room_);
-            if (found != rooms.end()) current = 1 + (found - rooms.begin());
-        }
-        const auto next = Cycle(current, rooms.size() + 1, direction);
-        selected_room_ = next == 0 ? std::nullopt
-                                   : std::optional(rooms[next - 1]);
+        protection_choice_ = ProtectionChoice::Room;
+        choice_page_ = 0;
+        status_ = "请选择固定房间";
     } else if (row == 12) {
         const auto applied = protection_->Apply(
             *selected_cat_, selected_level_, selected_room_);

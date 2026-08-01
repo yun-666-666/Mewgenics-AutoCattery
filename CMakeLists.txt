@@ -123,6 +123,8 @@ add_library(auto_cattery_core STATIC
     src/ui/in_game_panel_controller.cpp
     src/ui/in_game_panel_protection.cpp
     src/ui/in_game_panel_render.cpp
+    src/ui/in_game_panel_settings.cpp
+    src/ui/in_game_settings_input.cpp
     src/ui/in_game_settings_model.cpp
     src/ui/in_game_settings_pages.cpp
     src/ui/mew_ui_house_button_view.cpp
@@ -136,6 +138,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_house_detail_adapter.c
     src/ui/mew_ui_mapping_probe.c
     src/ui/mew_ui_management_panel_input.cpp
+    src/ui/mew_ui_management_panel_edit.cpp
     src/ui/mew_ui_management_panel_view.cpp
     src/ui/mew_ui_movie_clip.cpp
     src/ui/recommendation_marker_controller.cpp

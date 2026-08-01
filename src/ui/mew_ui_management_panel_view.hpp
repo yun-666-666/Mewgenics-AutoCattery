@@ -22,6 +22,9 @@ enum class ManagementPanelControl {
     Apply,
     Remove,
     Scroll,
+    BeginEdit,
+    EditChanged,
+    CommitEdit,
     Row
 };
 
@@ -29,6 +32,7 @@ struct ManagementPanelEvent {
     ManagementPanelControl control{ManagementPanelControl::Close};
     std::size_t row{};
     int direction{};
+    std::string text;
 };
 
 struct ManagementPanelContent {
@@ -52,6 +56,9 @@ public:
     [[nodiscard]] std::optional<ManagementPanelEvent> Poll();
     [[nodiscard]] bool IsAttached() const noexcept;
     [[nodiscard]] bool IsVisible() const noexcept;
+    void BeginNumericInput(std::size_t row, std::string value);
+    void CancelNumericInput() noexcept;
+    [[nodiscard]] bool IsEditing() const noexcept;
 
 private:
     struct HitResult {
@@ -64,6 +71,7 @@ private:
         int code, WPARAM remove_message, LPARAM message_pointer);
     bool InstallHook() noexcept;
     void RemoveHook() noexcept;
+    bool CaptureEditMessage(MSG* message) noexcept;
     bool ResolveNodes() noexcept;
     bool CanTouchScene() const noexcept;
     [[nodiscard]] std::optional<HitResult> HitTest(HWND window) const noexcept;
@@ -81,6 +89,12 @@ private:
     HHOOK message_hook_{};
     std::atomic_bool visible_{false};
     std::atomic_bool protection_page_{false};
+    std::atomic_bool navigation_visible_{false};
+    std::atomic_bool apply_visible_{false};
+    std::atomic_bool remove_visible_{false};
+    std::atomic<int> editing_row_{-1};
+    std::atomic_bool edit_replace_on_type_{false};
+    std::string edit_buffer_;
     std::atomic<int> pending_control_{-1};
     std::atomic<int> pending_row_{-1};
     std::atomic<int> pending_direction_{};

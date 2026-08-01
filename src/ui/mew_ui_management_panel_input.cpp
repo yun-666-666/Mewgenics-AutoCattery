@@ -11,9 +11,9 @@ constexpr double kVirtualHeight = 720.0;
 struct Rect { double left; double top; double right; double bottom; };
 constexpr std::array<Rect, 7> kButtons{{
     {165, 82, 355, 120}, {365, 82, 555, 120},
-    {990, 82, 1120, 120}, {165, 600, 345, 642},
-    {355, 600, 535, 642}, {755, 600, 935, 642},
-    {945, 600, 1125, 642}
+    {990, 82, 1120, 124}, {165, 540, 345, 585},
+    {355, 540, 535, 585}, {755, 540, 935, 585},
+    {945, 540, 1125, 585}
 }};
 constexpr std::array<ManagementPanelControl, 7> kButtonControls{
     ManagementPanelControl::SettingsTab,
@@ -43,6 +43,7 @@ std::optional<ManagementPanelEvent> MewUiManagementPanelView::Poll() {
     event.row = static_cast<std::size_t>(
         std::max(0, pending_row_.exchange(-1)));
     event.direction = pending_direction_.exchange(0);
+    event.text = edit_buffer_;
     return event;
 }
 
@@ -52,6 +53,7 @@ LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
         g_panel_view != nullptr && g_panel_view->visible_.load()) {
         auto* message = reinterpret_cast<MSG*>(message_pointer);
         if (message != nullptr) {
+            g_panel_view->CaptureEditMessage(message);
             const bool blocked = message->message == WM_LBUTTONDOWN ||
                 message->message == WM_LBUTTONUP ||
                 message->message == WM_RBUTTONDOWN ||
@@ -119,25 +121,42 @@ MewUiManagementPanelView::HitTest(HWND window) const noexcept {
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
         if (!Contains(kButtons[index], x, y)) continue;
         if (!protection_page_.load() && index >= 3) return std::nullopt;
+        if ((index == 3 || index == 4) && !navigation_visible_.load())
+            return std::nullopt;
+        if (index == 5 && !apply_visible_.load()) return std::nullopt;
+        if (index == 6 && !remove_visible_.load()) return std::nullopt;
         return HitResult{kButtonControls[index], 0, 0};
     }
     if (protection_page_.load()) {
-        for (std::size_t row = 0; row < 12; ++row) {
-            const Rect rectangle{165, 145 + row * 36.0,
-                                 1095, 175 + row * 36.0};
-            if (!Contains(rectangle, x, y)) continue;
-            const int direction = x < 475 ? -1 : (x > 785 ? 1 : 0);
-            return HitResult{ManagementPanelControl::Row, row, direction};
+        const Rect save{160, 145, 1090, 181};
+        if (Contains(save, x, y)) {
+            const int direction = x < 470 ? -1 : (x > 780 ? 1 : 0);
+            return HitResult{ManagementPanelControl::Row, 0, direction};
         }
+        for (std::size_t row = 0; row < 9; ++row) {
+            const double left = 160 + (row % 3) * 317.0;
+            const double top = 195 + (row / 3) * 80.0;
+            const Rect rectangle{left, top, left + 300, top + 62};
+            if (!Contains(rectangle, x, y)) continue;
+            return HitResult{ManagementPanelControl::Row, row + 1, 0};
+        }
+        if (Contains({160, 445, 610, 493}, x, y))
+            return HitResult{ManagementPanelControl::Row, 10, 0};
+        if (Contains({640, 445, 1090, 493}, x, y))
+            return HitResult{ManagementPanelControl::Row, 11, 0};
         return std::nullopt;
     }
     for (std::size_t column = 0; column < 3; ++column) {
         for (std::size_t row = 0; row < kSettingCounts[column]; ++row) {
             const double left = 160 + column * 317.0;
-            const Rect rectangle{left, 158 + row * 25.0,
-                                 left + 300, 180 + row * 25.0};
+            const Rect rectangle{left, 162 + row * 25.0,
+                                 left + 300, 185 + row * 25.0};
             if (!Contains(rectangle, x, y)) continue;
-            const int direction = x < left + 100 ? -1 : 1;
+            if (x >= left + 75 && x <= left + 225) {
+                return HitResult{ManagementPanelControl::BeginEdit,
+                                 kSettingStarts[column] + row, 0};
+            }
+            const int direction = x < left + 75 ? -1 : 1;
             return HitResult{ManagementPanelControl::Row,
                              kSettingStarts[column] + row, direction};
         }

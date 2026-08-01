@@ -23,6 +23,8 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(model.Rows(0).size() == 8);
     AC_CHECK(model.Rows(7).size() == 2);
     AC_CHECK(model.AllRows().size() == 45);
+    AC_CHECK(model.DirectValue(0).has_value());
+    AC_CHECK(!model.DirectValue(3).has_value());
     AC_CHECK(model.PageTitle(0).find("1/8") != std::string::npos);
 
     SettingsFileEditor reader({{}, user});
@@ -45,6 +47,15 @@ void RunInGameSettingsModelTests() {
                  1, before.value.room_planning.default_soft_capacity - 1));
     AC_CHECK(!static_cast<bool>(model.Adjust(99, 0, 1)));
     AC_CHECK(!static_cast<bool>(model.AdjustFlat(45, 1)));
+    AC_CHECK(static_cast<bool>(model.SetFlatValue(0, "23")));
+    AC_CHECK(static_cast<bool>(model.SetFlatValue(1, "12.50")));
+    AC_CHECK(!static_cast<bool>(model.SetFlatValue(0, "wrong")));
+    AC_CHECK(!static_cast<bool>(model.SetFlatValue(3, "1")));
+    const auto direct = reader.Load();
+    AC_CHECK(static_cast<bool>(direct));
+    AC_CHECK(direct.value.combat_scoring.recommended_count == 23);
+    AC_CHECK(direct.value.combat_scoring.minimum_score == 12.5);
+    AC_CHECK(direct.value.recommendation_marker.recommended_count == 23);
     AC_CHECK(!std::filesystem::exists(temporary));
 }
 

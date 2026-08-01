@@ -22,10 +22,13 @@
 - `src/ui/in_game_panel_controller.*`
 - `src/ui/in_game_panel_protection.cpp`
 - `src/ui/in_game_panel_render.cpp`
+- `src/ui/in_game_panel_settings.cpp`
 - `src/ui/in_game_settings_model.*`
+- `src/ui/in_game_settings_input.cpp`
 - `src/ui/in_game_settings_pages.cpp`
 - `src/ui/mew_ui_management_panel_view.*`
 - `src/ui/mew_ui_management_panel_input.cpp`
+- `src/ui/mew_ui_management_panel_edit.cpp`
 - `src/ui/mew_ui_bridge.cpp`
 - `tools/build_house_ui_asset.py`
 - `tools/swf_panel_layout.py`
@@ -41,13 +44,16 @@
 - SWF 构建器重新生成资产并通过 Python 语法检查。
 - Release 已通过 `tools/deploy.ps1` 部署；`tools/verify_install.ps1` 通过。
 - 新版 SWF 重复生成 SHA-256 一致：
-  `5D9BDFEE8CC96A4E83A0CFCC7442DAEC52F7A7B62D9D4DE08CB88BD3CFBCDBDB`。
+  `BB8B33CBBC669EF11AD36F94A865859A85F9DF4FACEF34A2426C27733E3AB380`。
 
 ## 游戏验收待办
 
 - 两房或三房测试存档进入 House 后，验证 F10/Esc 开关。
 - 验证设置三栏位置、文字大小、左右调整、关闭重开后仍保留。
+- 验证点击数值中间后可直接输入，首个字符替换旧值，Enter 保存、Esc 取消。
 - 验证保护页必须先选猫，并可应用/移除保护及固定房间。
+- 验证切换存档后只显示该存档的猫，猫列表为三列布局。
+- 验证保护等级和固定房间点击后显示选项页，选择后返回猫列表。
 - 验证保护猫列表可用鼠标滚轮翻页。
 - 验证面板打开时“结束一天”和其他背景游戏按钮均不可点击，关闭后恢复。
 
@@ -73,9 +79,24 @@
 - Release 已重新部署并通过安装检查，等待玩家在测试存档确认三栏布局、滚轮和
   背景按钮拦截。
 
+## 第三轮可用性修复
+
+- 玩家截图确认三栏布局已经出现，但紧凑文字过小；现按页签、分组、设置行、
+  猫卡和选择框分别放大字体，并保持文字宽度适配各自按钮框。
+- 数值设置现在保留左右区域微调，点击中间进入面板内数字输入；首个输入字符
+  替换旧值，输入过程直接显示在选中行，Enter 原子保存，Esc 取消。
+- 修复隐藏帧仍写入独立文字层导致的跨页残留；隐藏控件现在同时清空文字，且
+  不可见的翻页、应用和移除区域不再响应点击。
+- 保护模型原本就只为当前选中存档重建猫列表，本轮补充回归断言，并把显示改为
+  每页三列九猫；切换存档会清空旧选择并从新存档第一页开始。
+- 保护等级和固定房间不再左右循环，点击后进入独立选项页；点击选项即返回当前
+  存档猫列表，房间超过九项时仍可使用翻页或滚轮。
+- Debug/Release 均重新构建且各 5/5 测试通过；Release 已部署并通过安装检查。
+
 ## 风险与后续
 
-- 三栏新布局、滚轮翻页、原生按钮模态拦截和非 16:9 缩放仍需真实游戏确认。
+- 放大字体、直接输入、三列猫卡、选项页、跨页隐藏、原生按钮模态拦截和
+  非 16:9 缩放仍需真实游戏确认。
 - 本阶段没有实现真实淘汰、journal、撤销或自动队伍组成。
 - 实现提交：本报告随当前实现提交，玩家验收后在验证提交中记录哈希。
 - MewUI 依赖提交：`3cf26d8 feat: add modal native button block`。

@@ -27,12 +27,14 @@ public:
     [[nodiscard]] bool IsOpen() const noexcept;
 
 private:
+    enum class ProtectionChoice { None, Level, Room };
     using ProtectionModel = protection::ProtectionEditorModel;
     using ProtectionLoad = Result<std::shared_ptr<ProtectionModel>>;
 
     void Open(const UiContextSnapshot& context);
     void Close() noexcept;
     void Handle(const ManagementPanelEvent& event);
+    void HandleSettingsEvent(const ManagementPanelEvent& event);
     void HandleProtectionRow(std::size_t row, int direction);
     void StartProtectionLoad();
     void PollProtectionLoad();
@@ -51,6 +53,10 @@ private:
     bool open_{};
     std::uint64_t attached_generation_{};
     std::size_t cat_page_{};
+    std::size_t choice_page_{};
+    ProtectionChoice protection_choice_{ProtectionChoice::None};
+    std::optional<std::size_t> editing_setting_;
+    std::string editing_text_;
     std::optional<std::size_t> selected_cat_;
     protection::ProtectionLevel selected_level_{
         protection::ProtectionLevel::NoMove};
