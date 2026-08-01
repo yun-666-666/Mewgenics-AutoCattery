@@ -84,6 +84,21 @@ bool BuildPlanningContext(
     const std::unordered_set<snapshot::RoomId> usable(
         context.rooms.begin(), context.rooms.end());
     for (const auto& cat : input.snapshot.cats) {
+        const auto& decision = *context.decisions.at(cat.id);
+        const bool potential = IsPotential(decision);
+        const bool movable = ManagedMovable(
+            cat, decision, *protections.at(cat.id));
+        if (!cat.room_id) {
+            if (movable) {
+                context.movable.push_back(cat.id);
+                context.movable_potential += potential ? 1U : 0U;
+                context.known_female +=
+                    cat.sex == snapshot::CatSex::Female ? 1U : 0U;
+                context.known_male +=
+                    cat.sex == snapshot::CatSex::Male ? 1U : 0U;
+            }
+            continue;
+        }
         if (!cat.room_id || !usable.contains(*cat.room_id)) {
             continue;
         }
@@ -97,10 +112,8 @@ bool BuildPlanningContext(
             cat.sex == snapshot::CatSex::Female ? 1U : 0U;
         context.current_male[room_id] +=
             cat.sex == snapshot::CatSex::Male ? 1U : 0U;
-        const auto& decision = *context.decisions.at(cat.id);
-        const bool potential = IsPotential(decision);
         context.current_potential[room_id] += potential ? 1U : 0U;
-        if (ManagedMovable(cat, decision, *protections.at(cat.id))) {
+        if (movable) {
             context.movable.push_back(cat.id);
             context.movable_potential += potential ? 1U : 0U;
             continue;

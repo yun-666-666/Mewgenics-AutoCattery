@@ -33,7 +33,7 @@ Result<void> ValidateCatIdentity(
         expected.insert(cat.id);
     }
     for (const auto& cat : runtime.cats) {
-        if (cat.cat_id <= 0 || cat.component == 0 || cat.room == 0 ||
+        if (cat.cat_id <= 0 || cat.component == 0 ||
             !observed.insert(cat.cat_id).second) {
             return {ErrorCode::SnapshotInvalid,
                     "runtime House cat identity is incomplete"};
@@ -66,7 +66,8 @@ ResolveRuntimeRoomPointers(
     }
     std::vector<RuntimePointer> pointers;
     for (const auto& cat : runtime.cats) {
-        if (std::ranges::find(pointers, cat.room) == pointers.end()) {
+        if (cat.room != 0 &&
+            std::ranges::find(pointers, cat.room) == pointers.end()) {
             pointers.push_back(cat.room);
         }
     }
@@ -93,7 +94,7 @@ ResolveRuntimeRoomPointers(
     }
     for (const auto& cat : runtime.cats) {
         const auto saved = saved_rooms.find(cat.cat_id);
-        if (saved != saved_rooms.end()) {
+        if (cat.room != 0 && saved != saved_rooms.end()) {
             ++votes[saved->second][cat.room];
         }
     }

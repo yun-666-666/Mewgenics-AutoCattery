@@ -121,8 +121,10 @@ bool AppendMinimumCostMoves(
             if (!SexMatches(cat, slot.required_sex)) {
                 continue;
             }
+            const bool already_in_room =
+                cat.room_id && *cat.room_id == slot.room_id;
             costs[cat_index][slot_index] =
-                (*cat.room_id == slot.room_id ? 0 : kMoveCost) +
+                (already_in_room ? 0 : kMoveCost) +
                 (potential == slot.potential_preferred
                      ? 0
                      : kPotentialMismatchCost);
@@ -146,10 +148,10 @@ bool AppendMinimumCostMoves(
         }
         const auto& cat = *context.cats.at(context.movable[index]);
         const auto& target = slots[slot_index].room_id;
-        if (*cat.room_id != target) {
+        if (!cat.room_id || *cat.room_id != target) {
             plan.moves.push_back({
                 cat.id,
-                *cat.room_id,
+                cat.room_id.value_or("Outside"),
                 target,
                 "balance room occupancy, known sex mix, and potential",
                 0,

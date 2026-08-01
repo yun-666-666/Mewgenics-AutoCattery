@@ -74,6 +74,29 @@ void RunBalancedMoveOnlyPlannerTests() {
       32, workflow::WorkflowCapability::MoveOnly, repeated_state);
   AC_CHECK(static_cast<bool>(repeated));
   AC_CHECK(repeated.value.room_plan.moves.empty());
+
+  WorkflowReadFake outside;
+  outside.house = WorkflowHouse(8);
+  outside.house.rooms.front().id = "Floor1_Large";
+  for (auto &cat : outside.house.cats) {
+    cat.room_id = "Floor1_Large";
+  }
+  outside.house.rooms.front().residents.erase(
+      outside.house.rooms.front().residents.begin());
+  outside.house.cats.front().room_id.reset();
+  outside.house.rooms.push_back({.id = "Attic"});
+  workflow::WorkflowStateMachine outside_state;
+  AC_CHECK(outside_state.BeginPreview());
+  const auto outside_built = workflow::PreviewBuilder(outside).Build(
+      33, workflow::WorkflowCapability::MoveOnly, outside_state);
+  AC_CHECK(static_cast<bool>(outside_built));
+  AC_CHECK(outside_built.value.room_plan.moves.size() == 4);
+  const auto outside_move = std::ranges::find_if(
+      outside_built.value.room_plan.moves,
+      [](const auto &move) { return move.cat_id == 1; });
+  AC_CHECK(outside_move != outside_built.value.room_plan.moves.end());
+  AC_CHECK(outside_move->from_room == "Outside");
+  AC_CHECK(outside_move->executable);
 }
 
 }  // namespace autocattery::tests

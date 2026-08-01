@@ -7,6 +7,9 @@
 
 namespace autocattery::ui {
 
+[[nodiscard]] bool IsRuntimeMovePlanApproved(
+    const room_planning::RoomPlan& plan) noexcept;
+
 class RuntimeHouseMoveGateway final
     : public workflow::IApprovedTransactionGateway {
 public:

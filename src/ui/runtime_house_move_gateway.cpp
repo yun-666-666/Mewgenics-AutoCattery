@@ -10,6 +10,14 @@
 
 namespace autocattery::ui {
 
+bool IsRuntimeMovePlanApproved(
+    const room_planning::RoomPlan& plan) noexcept {
+    return plan.move_execution_allowed ||
+        (plan.moves.empty() && plan.fully_satisfied &&
+         plan.disposition == room_planning::PlanDisposition::Complete &&
+         plan.validation_errors.empty());
+}
+
 bool RuntimeHouseMoveGateway::Initialize(
     const std::filesystem::path& game_executable) {
     build_supported_ = static_cast<bool>(
@@ -28,7 +36,7 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
     execution::ExecutionResult result;
     if (!build_supported_ || !house_scene_manager_ ||
         choice != workflow::ExecutionChoice::MoveOnly ||
-        !bundle.room_plan.move_execution_allowed) {
+        !IsRuntimeMovePlanApproved(bundle.room_plan)) {
         Logger::Instance().Write(
             LogLevel::Warn,
             "RuntimeHouseMove",
@@ -58,6 +66,15 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
             "Room assignments changed after preview; no moves were made.");
         result.failure_reason =
             execution::FailureReason::PreconditionsChanged;
+        return result;
+    }
+    if (bundle.room_plan.moves.empty()) {
+        result.committed = true;
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RuntimeHouseMove",
+            "AC14304",
+            "Native House moves committed=0");
         return result;
     }
     const auto rooms =

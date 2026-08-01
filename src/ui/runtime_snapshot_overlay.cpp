@@ -29,6 +29,11 @@ Result<void> OverlayRuntimeHouseState(
     }
     for (auto& cat : snapshot.cats) {
         const auto current = current_rooms.find(cat.id);
+        if (current != current_rooms.end() && current->second == 0) {
+            cat.room_id.reset();
+            cat.in_adventure_box = false;
+            continue;
+        }
         const auto room = current == current_rooms.end()
             ? room_ids.end()
             : room_ids.find(current->second);

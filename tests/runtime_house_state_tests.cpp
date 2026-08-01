@@ -1,4 +1,5 @@
 #include "runtime_house_state.hpp"
+#include "runtime_house_move_gateway.hpp"
 
 #include <algorithm>
 
@@ -53,6 +54,13 @@ const snapshot::RoomSnapshot& Room(
 }  // namespace
 
 void RunRuntimeHouseStateTests() {
+    room_planning::RoomPlan no_op;
+    no_op.fully_satisfied = true;
+    no_op.disposition = room_planning::PlanDisposition::Complete;
+    AC_CHECK(ui::IsRuntimeMovePlanApproved(no_op));
+    no_op.validation_errors.push_back("synthetic-error");
+    AC_CHECK(!ui::IsRuntimeMovePlanApproved(no_op));
+
     const auto original = TwoRoomSnapshot();
     const auto unchanged = RuntimeState(100);
     AC_CHECK(ui::RuntimeHouseStateMatches(original, unchanged));
@@ -65,6 +73,15 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(ui::RuntimeHouseStateMatches(overlaid, manually_moved));
     AC_CHECK(Room(overlaid, "Floor1_Large").residents.size() == 1);
     AC_CHECK(Room(overlaid, "Attic").residents.size() == 3);
+
+    auto outside = unchanged;
+    outside.cats.front().room = 0;
+    auto outside_overlay = original;
+    AC_CHECK(static_cast<bool>(
+        ui::OverlayRuntimeHouseState(outside_overlay, outside)));
+    AC_CHECK(!outside_overlay.cats.front().room_id.has_value());
+    AC_CHECK(Room(outside_overlay, "Floor1_Large").residents.size() == 1);
+    AC_CHECK(ui::RuntimeHouseStateMatches(outside_overlay, outside));
 
     auto changed_identity = unchanged;
     changed_identity.cats.back().cat_id = 99;

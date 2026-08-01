@@ -54,7 +54,7 @@ static int AcCaptureCat(
         return 0;
     }
     room = AcMewReadHouseCatCurrentRoom(component);
-    if (cat_id <= 0 || !room) {
+    if (cat_id <= 0) {
         return 0;
     }
     state->cat_id = cat_id;
