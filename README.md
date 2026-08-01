@@ -28,6 +28,11 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 - 解锁完整繁育信息后，按七维基础属性缺口、游戏缓存 COI 和性取向选择成年
   配对；稳定全 7 前不启用技能/变异权重，稳定后才按技能、被动、疾病、普通
   变异和出生缺陷优化配对，并继续选择高刺激、其次高变异属性的繁育房。
+- 外部配置编辑器中的“管理猫保护”会自动列出本机存档与猫；只有玩家点击
+  “应用保护”才写入 `NoCull`、`NoMove`、`NoCullOrMove`、
+  `FullyUnmanaged` 或 `fixed_room`。规则绑定稳定猫指纹，不绑定某个存档文件。
+- 保护规则在预览和执行前各读取一次，期间规则发生变化会取消执行并要求
+  重新预览。
 - 不以战斗状态、是否战斗过、职业或受伤状态排除猫。
 - 8 猫和 25 猫两房存档已通过玩家实机自动分房验证，目标分别为 `4/4`
   和 `13/12`。
@@ -37,6 +42,43 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 读取、房间身份缓存与房外猫原生搬入均已由玩家确认。真实淘汰、
 详细预览仍未完成。见
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md)。
+
+### 管理猫保护
+
+运行 `Mods\AutoCattery\AutoCatterySettings.exe`，点击“管理猫保护”。选择一份
+存档只是为了列出其中的猫，不会把该存档自动设为保护来源；选择猫和保护级别
+后，必须点击“应用保护”才会写入规则。“移除保护”只删除当前猫的规则。
+
+规则保存在 `Mods\AutoCattery\config\protection.json`。仓库和安装目录的默认
+`records` 永远为空；MOD 不会自动保护或针对玩家的任何存档、CatId 或猫名。
+同一 CatId 出现在不同存档时，会以出生信息等稳定指纹区分；改名或搬房不会
+丢失保护。
+
+手动格式示例：
+
+```json
+{
+  "schema_version": 1,
+  "records": [
+    {
+      "cat_id": 123,
+      "level": "NoMove",
+      "identity_token": "由保护管理器生成"
+    },
+    {
+      "cat_id": 456,
+      "level": "NoCull",
+      "identity_token": "由保护管理器生成",
+      "fixed_room": "Attic"
+    }
+  ],
+  "blacklist": []
+}
+```
+
+建议使用保护管理器生成真实 `identity_token`，不要照抄示例文本。
+`fixed_room` 必须是当前存档实际存在的房间 ID；文件损坏或目标房不存在时，
+本次自动移动会停止。
 
 ## 构建
 

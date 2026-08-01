@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 
 #include "test_support.hpp"
 #include "workflow_test_fixture.hpp"
@@ -179,6 +181,52 @@ void RunWorkflowPreviewBuilderTests() {
   AC_CHECK(static_cast<bool>(partial_result));
   AC_CHECK(partial_result.value.preview.unplaced_count == 1);
   AC_CHECK(!partial_result.value.preview.fully_satisfied);
+
+  WorkflowReadFake protected_reader;
+  protected_reader.house = WorkflowHouse(8);
+  protected_reader.house.rooms.front().id = "Floor1_Large";
+  protected_reader.house.rooms.push_back({.id = "Attic"});
+  for (auto &cat : protected_reader.house.cats) {
+    cat.room_id = "Floor1_Large";
+  }
+  const auto protection_path = std::filesystem::temp_directory_path() /
+      "auto_cattery_move_protection_test.json";
+  {
+    std::ofstream output(protection_path, std::ios::trunc);
+    output << R"({"schema_version":1,"records":[)"
+           << R"({"cat_id":1,"level":"NoMove"},)"
+           << R"({"cat_id":2,"level":"NoCull","fixed_room":"Attic"})"
+           << R"(],"blacklist":[]})";
+  }
+  workflow::WorkflowStateMachine protected_state;
+  AC_CHECK(protected_state.BeginPreview());
+  workflow::PreviewBuilder protected_builder(
+      protected_reader, Config{}, protection_path);
+  const auto protected_plan = protected_builder.Build(
+      26, workflow::WorkflowCapability::MoveOnly, protected_state);
+  AC_CHECK(static_cast<bool>(protected_plan));
+  AC_CHECK(std::ranges::none_of(
+      protected_plan.value.room_plan.moves,
+      [](const auto &move) { return move.cat_id == 1; }));
+  const auto fixed_move = std::ranges::find_if(
+      protected_plan.value.room_plan.moves,
+      [](const auto &move) { return move.cat_id == 2; });
+  AC_CHECK(fixed_move != protected_plan.value.room_plan.moves.end());
+  if (fixed_move != protected_plan.value.room_plan.moves.end()) {
+    AC_CHECK(fixed_move->to_room == "Attic");
+  }
+  const auto digest_before = protected_builder.CaptureProtectionDigest(
+      protected_plan.value.snapshot,
+      workflow::WorkflowCapability::MoveOnly);
+  {
+    std::ofstream output(protection_path, std::ios::trunc);
+    output << R"({"schema_version":1,"records":[],"blacklist":[]})";
+  }
+  AC_CHECK(protected_builder.CaptureProtectionDigest(
+               protected_plan.value.snapshot,
+               workflow::WorkflowCapability::MoveOnly) != digest_before);
+  std::error_code ignored;
+  std::filesystem::remove(protection_path, ignored);
 
   WorkflowReadFake failing;
   failing.failure = ErrorCode::CatDataUnavailable;

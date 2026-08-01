@@ -1,9 +1,9 @@
-# CODEX CURRENT TASK - PROTECTION RULES ON CURRENT MOVEONLY
+# CODEX CURRENT TASK - PLAYER VALIDATE GENERIC PROTECTION
 
 ## Current objective
 
-把既有保护、白名单和禁止移动规则重新接入当前 build 的原生 MoveOnly 自动
-分房，同时保持已经完成的分阶段繁育与稳定全 7 遗传评分。
+让玩家在测试存档验证已经部署的通用保护管理器与当前 build 原生 MoveOnly；
+验收通过后才能进入真实淘汰、journal 和撤销。
 
 ## Required reading
 
@@ -24,6 +24,7 @@
 - 2 房 25 猫存档已提交 10 次原生移动。
 - 重复执行对已经到位的猫提交 0 次。
 - 真实淘汰仍未启用。
+- 通用保护管理器已部署，默认规则为空；只有玩家主动应用才写入稳定猫指纹。
 
 ## Current business priorities
 
@@ -46,11 +47,10 @@
 - 未确认信息必须标记为未知，并附验证方法，不能写成事实。
 - 不修改游戏原始文件、活动存档或 Steam Cloud 数据。
 
-## Completion requirements for this task
+## Completion requirements for current stage
 
-- 当前文档不再把工作流描述为 PreviewOnly。
-- 剩余业务功能有一个权威路线图。
-- Grok 研究提示词可直接复制，并要求最终输出超级详细的可追溯研究文档。
-- Debug/Release 构建和测试通过。
-- `git diff --check` 通过。
-- 只暂存本任务相关文件，创建一个本地 commit，绝不 push。
+- 在任意测试存档中，由玩家自主选择一只猫并应用 NoMove；自动整理不能移动它。
+- 为测试猫指定当前存在的固定房间；自动整理必须把它留在或移动到该房间。
+- 移除保护后，该猫恢复参与普通自动整理。
+- 主存档不用于本阶段破坏性测试，也不自动写入任何保护规则。
+- 验收通过后更新阶段状态，再开始真实淘汰实现。

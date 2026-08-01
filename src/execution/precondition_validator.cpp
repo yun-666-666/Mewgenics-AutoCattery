@@ -147,6 +147,8 @@ ApprovalResult PreconditionValidator::Validate(
             !rooms.contains(move.from_room) ||
             !rooms.contains(move.to_room) ||
             !CanMove(*policy->second) ||
+            (policy->second->fixed_room &&
+             *policy->second->fixed_room != move.to_room) ||
             !action_ids.insert(move.cat_id).second) {
             return Reject(
                 ApprovalDisposition::CancelAndRepreview,

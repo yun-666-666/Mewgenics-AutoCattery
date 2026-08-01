@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include "auto_cattery/classification/domain.hpp"
 #include "auto_cattery/config.hpp"
 #include "auto_cattery/error.hpp"
@@ -20,7 +22,12 @@ struct PreviewBundle {
 
 class PreviewBuilder final {
 public:
-  PreviewBuilder(snapshot::IGameReadAdapter &read_adapter, Config config = {});
+  PreviewBuilder(snapshot::IGameReadAdapter &read_adapter, Config config = {},
+                 std::filesystem::path protection_sidecar_path = {});
+
+  [[nodiscard]] protection::ProtectionDigest CaptureProtectionDigest(
+      const snapshot::HouseSnapshot &snapshot,
+      WorkflowCapability capability) const;
 
   [[nodiscard]] Result<PreviewBundle> Build(std::uint64_t scene_generation,
                                             WorkflowCapability capability,
@@ -29,6 +36,7 @@ public:
 private:
   snapshot::IGameReadAdapter &read_adapter_;
   Config config_;
+  std::filesystem::path protection_sidecar_path_;
 };
 
 } // namespace autocattery::workflow

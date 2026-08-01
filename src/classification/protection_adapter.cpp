@@ -27,16 +27,31 @@ CullSafetyFactsByCat BuildCullSafetyFacts(
             !sidecar.destructive_actions_blocked;
         input.blacklist_preferred = sidecar.blacklist.contains(cat.id);
 
-        const auto record = sidecar.records.find(cat.id);
         const auto identity = identity_tokens.find(cat.id);
-        if (record != sidecar.records.end()) {
-            input.sidecar_record = record->second.protection;
+        const protection::SidecarRecord* matched{};
+        bool ambiguous{};
+        for (const auto& candidate : sidecar.records) {
+            if (candidate.protection.cat_id != cat.id ||
+                (candidate.source_save_name &&
+                 *candidate.source_save_name != snapshot.source_save_name) ||
+                (!candidate.identity_token.empty() &&
+                 (identity == identity_tokens.end() ||
+                  identity->second != candidate.identity_token))) {
+                continue;
+            }
+            ambiguous = matched != nullptr;
+            if (matched == nullptr) {
+                matched = &candidate;
+            }
+        }
+        if (matched != nullptr) {
+            input.sidecar_record = matched->protection;
+            input.fixed_room = matched->fixed_room;
             input.stable_identity_confirmed =
                 snapshot.capabilities.stable_cat_id &&
-                identity != identity_tokens.end();
-            input.identity_conflict =
-                identity != identity_tokens.end() &&
-                identity->second != record->second.identity_token;
+                (matched->identity_token.empty() ||
+                 identity != identity_tokens.end());
+            input.identity_conflict = ambiguous;
         } else {
             input.stable_identity_confirmed =
                 snapshot.capabilities.stable_cat_id;

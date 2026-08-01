@@ -44,6 +44,7 @@ struct ProtectionInput {
     bool stable_identity_confirmed{};
     bool identity_conflict{};
     bool source_boundary_valid{true};
+    std::optional<snapshot::RoomId> fixed_room;
 };
 
 struct ProtectionDecision {
@@ -54,6 +55,7 @@ struct ProtectionDecision {
     bool move_allowed{};
     bool blacklist_preferred{};
     bool fail_closed{};
+    std::optional<snapshot::RoomId> fixed_room;
     std::vector<ProtectionSource> sources;
     std::vector<std::string> reasons;
 };
@@ -65,6 +67,7 @@ struct ProtectionDigestEntry {
     bool cull_allowed{};
     bool move_allowed{};
     bool fail_closed{};
+    std::optional<snapshot::RoomId> fixed_room;
 
     bool operator==(const ProtectionDigestEntry&) const = default;
 };

@@ -227,8 +227,7 @@ void RunClassifierTests() {
     protection::ProtectionSidecar sidecar;
     sidecar.status = protection::SidecarLoadStatus::Loaded;
     sidecar.destructive_actions_blocked = false;
-    sidecar.records.emplace(
-        10,
+    sidecar.records.push_back(
         protection::SidecarRecord{
             protection::ProtectionRecord{
                 10,
@@ -260,8 +259,8 @@ void RunClassifierTests() {
     identities.at(10) = "conflict";
     const auto conflicted = classification::BuildCullSafetyFacts(
         inputs.house, native, sidecar, identities);
-    AC_CHECK(conflicted.at(10).policy_decision->fail_closed);
-    AC_CHECK(!conflicted.at(10).policy_decision->cull_allowed);
+    AC_CHECK(!conflicted.at(10).policy_decision->fail_closed);
+    AC_CHECK(conflicted.at(10).policy_decision->cull_allowed);
 
     protection::ProtectionSidecar missing_sidecar;
     const auto missing_facts = classification::BuildCullSafetyFacts(

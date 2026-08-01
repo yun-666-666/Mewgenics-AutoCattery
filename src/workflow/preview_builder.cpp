@@ -8,6 +8,7 @@
 #include "auto_cattery/breeding/breeding_ranker.hpp"
 #include "auto_cattery/classification/classifier.hpp"
 #include "auto_cattery/classification/protection_adapter.hpp"
+#include "move_only_protection.hpp"
 #include "auto_cattery/execution/plan_sealer.hpp"
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/room_planning/balanced_move_only_planner.hpp"
@@ -199,8 +200,6 @@ void ApplyPotentialOnlyRoles(
     decision.breeding_pool_protected = false;
     decision.preview_cull_candidate = false;
     decision.destructive_action_allowed = false;
-    decision.protection_level = protection::ProtectionLevel::NoCull;
-    decision.move_allowed = true;
   }
   classification.quality_cull_candidates.clear();
   classification.capacity_relief_candidates.clear();
@@ -208,9 +207,33 @@ void ApplyPotentialOnlyRoles(
 
 } // namespace
 
-PreviewBuilder::PreviewBuilder(snapshot::IGameReadAdapter &read_adapter,
-                               Config config)
-    : read_adapter_(read_adapter), config_(std::move(config)) {}
+PreviewBuilder::PreviewBuilder(
+    snapshot::IGameReadAdapter &read_adapter,
+    Config config,
+    std::filesystem::path protection_sidecar_path)
+    : read_adapter_(read_adapter), config_(std::move(config)),
+      protection_sidecar_path_(std::move(protection_sidecar_path)) {}
+
+protection::ProtectionDigest PreviewBuilder::CaptureProtectionDigest(
+    const snapshot::HouseSnapshot &snapshot,
+    WorkflowCapability capability) const {
+  if (capability == WorkflowCapability::MoveOnly) {
+    return detail::BuildMoveOnlyProtections(
+        snapshot, protection_sidecar_path_).digest;
+  }
+  protection::ProtectionSidecar sidecar;
+  classification::NativeProtectionFactsByCat native;
+  classification::IdentityTokenByCat identities;
+  auto safety = classification::BuildCullSafetyFacts(
+      snapshot, native, sidecar, identities);
+  std::vector<protection::ProtectionDecision> decisions;
+  decisions.reserve(snapshot.cats.size());
+  for (const auto &cat : snapshot.cats) {
+    auto decision = *safety.at(cat.id).policy_decision;
+    decisions.push_back(std::move(decision));
+  }
+  return protection::BuildDigest(decisions);
+}
 
 Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
                                             WorkflowCapability capability,
@@ -265,31 +288,27 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
       capability == WorkflowCapability::MoveOnly &&
       EnsureMixedSexPotentialGroup(captured.value, combat.value);
 
-  protection::ProtectionSidecar sidecar;
-  classification::NativeProtectionFactsByCat native;
-  classification::IdentityTokenByCat identities;
-  auto safety = classification::BuildCullSafetyFacts(captured.value, native,
-                                                     sidecar, identities);
-  if (capability == WorkflowCapability::MoveOnly) {
-    for (const auto &cat : captured.value.cats) {
-      protection::ProtectionDecision move_only;
-      move_only.cat_id = cat.id;
-      move_only.effective_level = protection::ProtectionLevel::NoCull;
-      move_only.automatically_managed = true;
-      move_only.cull_allowed = false;
-      move_only.move_allowed = true;
-      move_only.reasons.push_back(
-          "current-build native move-only adapter");
-      safety[cat.id].protected_from_cull = snapshot::TriState::Yes;
-      safety[cat.id].policy_decision = std::move(move_only);
-    }
-  }
+  classification::CullSafetyFactsByCat safety;
   std::vector<protection::ProtectionDecision> protections;
-  protections.reserve(captured.value.cats.size());
-  for (const auto &cat : captured.value.cats) {
-    protections.push_back(*safety.at(cat.id).policy_decision);
+  protection::ProtectionDigest protection_digest;
+  if (capability == WorkflowCapability::MoveOnly) {
+    auto protected_set = detail::BuildMoveOnlyProtections(
+        captured.value, protection_sidecar_path_);
+    safety = std::move(protected_set.safety);
+    protections = std::move(protected_set.decisions);
+    protection_digest = std::move(protected_set.digest);
+  } else {
+    protection::ProtectionSidecar sidecar;
+    classification::NativeProtectionFactsByCat native;
+    classification::IdentityTokenByCat identities;
+    safety = classification::BuildCullSafetyFacts(
+        captured.value, native, sidecar, identities);
+    protections.reserve(captured.value.cats.size());
+    for (const auto &cat : captured.value.cats) {
+      protections.push_back(*safety.at(cat.id).policy_decision);
+    }
+    protection_digest = protection::BuildDigest(protections);
   }
-  const auto protection_digest = protection::BuildDigest(protections);
   auto classified = classification::ClassifyCats(
       captured.value, combat.value, breeding.value, breeding_config,
       config_.classification, safety);

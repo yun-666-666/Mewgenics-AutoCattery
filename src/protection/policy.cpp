@@ -133,6 +133,7 @@ ProtectionDecision Evaluate(
         } else if (!input.stable_identity_confirmed) {
             fail_closed("stable identity is required for sidecar records");
         } else if (!expired) {
+            decision.fixed_room = input.fixed_room;
             add_hard_protection(
                 record.level,
                 ProtectionSource::ModSidecar,
@@ -170,7 +171,8 @@ ProtectionDigest BuildDigest(
             decision->automatically_managed,
             decision->cull_allowed,
             decision->move_allowed,
-            decision->fail_closed
+            decision->fail_closed,
+            decision->fixed_room
         });
         HashU64(
             digest.value,
@@ -182,6 +184,13 @@ ProtectionDigest BuildDigest(
         HashByte(digest.value, decision->cull_allowed);
         HashByte(digest.value, decision->move_allowed);
         HashByte(digest.value, decision->fail_closed);
+        HashByte(digest.value, decision->fixed_room.has_value());
+        if (decision->fixed_room) {
+            HashU64(digest.value, decision->fixed_room->size());
+            for (const unsigned char byte : *decision->fixed_room) {
+                HashByte(digest.value, byte);
+            }
+        }
         if (!decision->cull_allowed || !decision->move_allowed ||
             !decision->automatically_managed) {
             ++digest.protected_count;

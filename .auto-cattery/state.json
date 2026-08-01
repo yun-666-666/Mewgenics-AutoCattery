@@ -93,9 +93,11 @@
       "game_validation_status": "foundation_three_save_regression_probe_passed;stable_all_seven_save_unavailable"
     },
     "17": {
-      "status": "pending_protection_rules_on_current_move_only",
-      "commit": null
+      "status": "generic_protection_editor_deployed_pending_player_validation",
+      "commit": null,
+      "capability": "GenericOptInStableIdentityProtectionEditorWithRuntimeEnforcement",
+      "game_validation_status": "automated_and_visual_validation_passed;default_rules_empty;player_test_save_validation_pending"
     }
   },
-  "updated_at": "2026-08-01T19:20:00+08:00"
+  "updated_at": "2026-08-01T21:05:00+08:00"
 }

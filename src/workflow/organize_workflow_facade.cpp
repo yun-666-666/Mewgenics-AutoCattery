@@ -3,21 +3,36 @@
 #include <utility>
 
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/protection/policy.hpp"
 
 namespace autocattery::workflow {
+namespace {
+
+std::filesystem::path ProtectionPath(
+    const std::filesystem::path& root,
+    const Config& config) {
+    return root.empty()
+        ? std::filesystem::path{}
+        : root / config.protection.sidecar_file;
+}
+
+}  // namespace
 
 OrganizeWorkflowFacade::OrganizeWorkflowFacade(
     std::unique_ptr<snapshot::IGameReadAdapter> read_adapter,
     Config config,
     WorkflowCapability capability,
-    IApprovedTransactionGateway* gateway)
+    IApprovedTransactionGateway* gateway,
+    std::filesystem::path protection_root)
     : read_adapter_(std::move(read_adapter)),
       execution_router_(capability, gateway),
-      capability_(capability) {
+      capability_(capability),
+      protection_root_(std::move(protection_root)) {
     if (read_adapter_) {
         preview_builder_ = std::make_unique<PreviewBuilder>(
             *read_adapter_,
-            std::move(config));
+            config,
+            ProtectionPath(protection_root_, config));
     }
 }
 
@@ -109,6 +124,18 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
     if (latest_preview_) {
         const auto preview = preview_store_.Read(*latest_preview_);
         if (preview) {
+            const auto current_protection =
+                preview_builder_->CaptureProtectionDigest(
+                    preview.value.snapshot, capability_);
+            if (current_protection !=
+                protection::BuildDigest(preview.value.protections)) {
+                preview_store_.Cancel(*latest_preview_);
+                state_.Cancel();
+                return {
+                    ErrorCode::OperationCancelled,
+                    "Protection rules changed; click again to preview."
+                };
+            }
             const auto outcome = execution_router_.Execute(
                 preview.value,
                 capability_ == WorkflowCapability::MoveOnly
@@ -147,7 +174,8 @@ Result<void> OrganizeWorkflowFacade::ApplyConfig(Config config) {
     }
     preview_builder_ = std::make_unique<PreviewBuilder>(
         *read_adapter_,
-        std::move(config));
+        config,
+        ProtectionPath(protection_root_, config));
     preview_store_.InvalidateAll();
     latest_preview_.reset();
     return {};

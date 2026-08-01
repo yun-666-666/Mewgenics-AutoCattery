@@ -45,6 +45,9 @@ add_library(auto_cattery_core STATIC
     src/execution/transaction_executor.cpp
     src/protection/policy.cpp
     src/protection/sidecar.cpp
+    src/protection/sidecar_writer.cpp
+    src/protection/identity.cpp
+    src/protection/editor_model.cpp
     src/recommendation/candidate_source.cpp
     src/recommendation/mapping_probe.cpp
     src/recommendation/ranking_provider.cpp
@@ -54,6 +57,7 @@ add_library(auto_cattery_core STATIC
     src/room_planning/balanced_move_only_assignment.cpp
     src/room_planning/balanced_move_only_breeding.cpp
     src/room_planning/balanced_move_only_context.cpp
+    src/room_planning/balanced_move_only_fixed.cpp
     src/room_planning/balanced_move_only_planner.cpp
     src/room_planning/balanced_move_only_preferences.cpp
     src/room_planning/balanced_move_only_targets.cpp
@@ -104,6 +108,7 @@ add_library(auto_cattery_core STATIC
     src/snapshot/win_sqlite_api.cpp
     src/workflow/organize_workflow_facade.cpp
     src/workflow/digests.cpp
+    src/workflow/move_only_protection.cpp
     src/workflow/execution_router.cpp
     src/workflow/preview_builder.cpp
     src/workflow/preview_store.cpp
@@ -175,6 +180,8 @@ endforeach()
 
 add_executable(AutoCatterySettings WIN32
     src/settings_app/settings_app.cpp
+    src/settings_app/protection_editor.cpp
+    src/settings_app/protection_editor_controls.cpp
     src/settings_app/settings_form.cpp
     src/settings_app/settings_form_data.cpp
     src/settings_app/settings_form_schema.cpp
@@ -235,6 +242,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/breeding_scorer_tests.cpp
         tests/classifier_tests.cpp
         tests/protection_policy_tests.cpp
+        tests/protection_editor_tests.cpp
         tests/protection_sidecar_tests.cpp
         tests/recommendation_mapping_probe_tests.cpp
         tests/recommendation_ranking_provider_tests.cpp

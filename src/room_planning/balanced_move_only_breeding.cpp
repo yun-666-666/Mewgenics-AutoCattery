@@ -73,7 +73,13 @@ void AssignBreedingPairSlots(
         if (slot == slots.end()) {
             AddUnique(plan.limitations, "breeding-pair-sex-slot-unavailable");
             for (auto& candidate : slots) {
-                candidate.preferred_cat.reset();
+                if (candidate.preferred_cat &&
+                    std::ranges::find(
+                        context.breeding_pair,
+                        *candidate.preferred_cat) !=
+                        context.breeding_pair.end()) {
+                    candidate.preferred_cat.reset();
+                }
             }
             return;
         }

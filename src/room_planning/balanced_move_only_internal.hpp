@@ -40,6 +40,7 @@ struct PlanningContext {
         const snapshot::RoomSnapshot*> room_snapshots;
     std::vector<snapshot::CatId> movable;
     std::vector<snapshot::CatId> breeding_pair;
+    std::unordered_map<snapshot::CatId, snapshot::RoomId> fixed_rooms;
     bool breeding_stats_stable{};
     CountMap current_count;
     CountMap pinned_count;
@@ -96,6 +97,11 @@ struct PlanningContext {
 void AssignBreedingPairSlots(
     const PlanningContext& context,
     const std::optional<snapshot::RoomId>& target,
+    RoomPlan& plan,
+    std::vector<BalancedSlot>& slots);
+
+void AssignFixedRoomSlots(
+    const PlanningContext& context,
     RoomPlan& plan,
     std::vector<BalancedSlot>& slots);
 

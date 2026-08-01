@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "auto_cattery/settings_file_editor.hpp"
+#include "protection_editor.hpp"
 #include "settings_form.hpp"
 #include "settings_form_schema.hpp"
 
@@ -18,10 +19,11 @@ constexpr wchar_t kWindowClass[] = L"AutoCattery.Settings.Window";
 constexpr wchar_t kWindowTitle[] = L"AutoCattery 游戏外规则编辑器";
 
 struct AppState {
-    explicit AppState(SettingsFilePaths paths)
-        : editor(std::move(paths)) {}
+    AppState(SettingsFilePaths paths, std::filesystem::path config_root)
+        : editor(std::move(paths)), root(std::move(config_root)) {}
 
     SettingsFileEditor editor;
+    std::filesystem::path root;
     Config config;
     HFONT font{};
 };
@@ -44,6 +46,22 @@ std::wstring Utf8ToWide(std::string_view text) {
 
 void SetStatus(HWND window, const wchar_t* text) {
     SetDlgItemTextW(window, kStatusLabelId, text);
+}
+
+void LaunchProtectionEditor(HWND window, const AppState& state) {
+    std::wstring executable(32768, L'\0');
+    const auto length = GetModuleFileNameW(
+        nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+    executable.resize(length);
+    const std::wstring arguments =
+        L"--protection --config-root \"" + state.root.wstring() + L"\"";
+    const auto launched = reinterpret_cast<INT_PTR>(ShellExecuteW(
+        window, L"open", executable.c_str(), arguments.c_str(),
+        state.root.c_str(), SW_SHOWNORMAL));
+    SetStatus(
+        window,
+        launched > 32 ? L"已打开通用猫保护管理。"
+                      : L"无法打开猫保护管理。" );
 }
 
 bool LoadIntoForm(HWND window, AppState& state, bool show_error) {
@@ -131,6 +149,10 @@ LRESULT CALLBACK WindowProcedure(
                 LoadIntoForm(window, *state, true);
                 return 0;
             }
+            if (LOWORD(wparam) == kProtectionButtonId) {
+                LaunchProtectionEditor(window, *state);
+                return 0;
+            }
         }
         break;
     case WM_DESTROY:
@@ -155,10 +177,24 @@ std::filesystem::path ExecutableDirectory() {
 }
 
 std::filesystem::path ConfigRoot(int argument_count, wchar_t** arguments) {
-    if (argument_count >= 3 && std::wstring_view(arguments[1]) == L"--config-root") {
-        return std::filesystem::absolute(arguments[2]);
+    for (int index = 1; index + 1 < argument_count; ++index) {
+        if (std::wstring_view(arguments[index]) == L"--config-root") {
+            return std::filesystem::absolute(arguments[index + 1]);
+        }
     }
     return ExecutableDirectory();
+}
+
+bool HasArgument(
+    int argument_count,
+    wchar_t** arguments,
+    std::wstring_view expected) {
+    for (int index = 1; index < argument_count; ++index) {
+        if (std::wstring_view(arguments[index]) == expected) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int ValidateCommand(int argument_count, wchar_t** arguments) {
@@ -189,7 +225,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
         return validation;
     }
     const auto root = ConfigRoot(argument_count, arguments);
+    const bool protection_editor = HasArgument(
+        argument_count, arguments, L"--protection");
     LocalFree(arguments);
+
+    if (protection_editor) {
+        return RunProtectionEditor(instance, show_command, root);
+    }
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     WNDCLASSEXW window_class{};
@@ -204,10 +246,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
         return 2;
     }
 
-    AppState state({
-        root / L"config" / L"default_config.json",
-        root / L"config" / L"user_config.json"
-    });
+    AppState state(
+        {
+            root / L"config" / L"default_config.json",
+            root / L"config" / L"user_config.json"
+        },
+        root);
     auto* window = CreateWindowExW(
         0, kWindowClass, kWindowTitle,
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,

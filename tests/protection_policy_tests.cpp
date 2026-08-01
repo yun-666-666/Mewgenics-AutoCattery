@@ -111,6 +111,21 @@ void RunProtectionPolicyTests() {
     AC_CHECK(
         protection::Recheck(digest_before, digest_before) ==
         protection::RecheckResult::Unchanged);
+
+    preview[0].fixed_room = "Attic";
+    AC_CHECK(protection::BuildDigest(preview) != digest_after);
+
+    protection::ProtectionInput expired_fixed;
+    expired_fixed.cat_id = 9;
+    expired_fixed.source_boundary_valid = true;
+    expired_fixed.stable_identity_confirmed = true;
+    expired_fixed.fixed_room = "Attic";
+    expired_fixed.sidecar_record = protection::ProtectionRecord{
+        .cat_id = 9,
+        .level = protection::ProtectionLevel::NoCull,
+        .expires_on_day = 2
+    };
+    AC_CHECK(!protection::Evaluate(expired_fixed, 3).fixed_room);
 }
 
 }  // namespace autocattery::tests

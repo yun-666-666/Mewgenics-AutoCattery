@@ -253,7 +253,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                 : workflow::WorkflowCapability::PreviewOnly,
             runtime_move_available
                 ? runtime_move_gateway_.get()
-                : nullptr);
+                : nullptr,
+            context.mod_root / L"config");
     house_button_controller_ = std::make_unique<HouseButtonController>(
         *house_button_view_,
         *organize_workflow_,

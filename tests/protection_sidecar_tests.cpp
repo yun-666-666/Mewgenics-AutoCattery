@@ -57,6 +57,14 @@ void RunProtectionSidecarTests() {
         R"({"cat_id":1,"level":"NoMove","identity_token":"a"})"
         R"(],"blacklist":[]})",
         protection::SidecarLoadStatus::InvalidSchema);
+
+    const auto reused_ids = protection::ParseProtectionSidecar(
+        R"({"schema_version":1,"records":[)"
+        R"({"cat_id":1,"level":"NoMove","identity_token":"cat-a"},)"
+        R"({"cat_id":1,"level":"NoCull","identity_token":"cat-b"})"
+        R"(],"blacklist":[]})");
+    AC_CHECK(reused_ids.status == protection::SidecarLoadStatus::Loaded);
+    AC_CHECK(reused_ids.records.size() == 2);
     CheckClosed(
         R"({"schema_version":1,"records":[)"
         R"({"cat_id":18446744073709551615,"level":"NoCull",)"
@@ -80,9 +88,20 @@ void RunProtectionSidecarTests() {
         R"(],"blacklist":[7]})");
     AC_CHECK(valid.status == protection::SidecarLoadStatus::Loaded);
     AC_CHECK(!valid.destructive_actions_blocked);
-    AC_CHECK(valid.records.at(7).protection.level ==
+    AC_CHECK(valid.records.at(0).protection.level ==
              protection::ProtectionLevel::FullyUnmanaged);
     AC_CHECK(valid.blacklist.contains(7));
+
+    const auto fixed = protection::ParseProtectionSidecar(
+        R"({"schema_version":1,"records":[)"
+        R"({"cat_id":8,"level":"NoCull","fixed_room":"Attic",)"
+        R"("source_save_name":"fixture-campaign.sav"})"
+        R"(],"blacklist":[]})");
+    AC_CHECK(fixed.status == protection::SidecarLoadStatus::Loaded);
+    AC_CHECK(fixed.records.at(0).identity_token.empty());
+    AC_CHECK(fixed.records.at(0).fixed_room == "Attic");
+    AC_CHECK(
+        fixed.records.at(0).source_save_name == "fixture-campaign.sav");
 
     const auto missing = protection::LoadProtectionSidecar(
         std::filesystem::temp_directory_path() /
@@ -101,8 +120,8 @@ void RunProtectionSidecarTests() {
     const auto repeated =
         protection::ParseProtectionSidecar(thousand_json);
     AC_CHECK(repeated.records.size() == thousand.records.size());
-    AC_CHECK(repeated.records.at(1000).identity_token ==
-             thousand.records.at(1000).identity_token);
+    AC_CHECK(repeated.records.at(999).identity_token ==
+             thousand.records.at(999).identity_token);
 }
 
 }  // namespace autocattery::tests

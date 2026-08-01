@@ -14,7 +14,19 @@ bool AllocateOccupancyTargets(
     CountMap& target,
     RoomPlan& plan) {
     target = context.pinned_count;
-    for (std::size_t remaining = context.movable.size();
+    for (const auto& [cat_id, room_id] : context.fixed_rooms) {
+        static_cast<void>(cat_id);
+        const auto& capability = *context.capabilities.at(room_id);
+        if (capability.confirmed_hard_capacity &&
+            target[room_id] >= *capability.confirmed_hard_capacity) {
+            plan.validation_errors.push_back(
+                "fixed-protection-room-capacity-insufficient");
+            return false;
+        }
+        ++target[room_id];
+    }
+    for (std::size_t remaining =
+             context.movable.size() - context.fixed_rooms.size();
          remaining > 0;
          --remaining) {
         std::optional<snapshot::RoomId> best;
@@ -170,6 +182,7 @@ bool BuildBalancedSlots(
         }
     }
     if (slots.size() == context.movable.size()) {
+        AssignFixedRoomSlots(context, plan, slots);
         AssignBreedingPairSlots(context, breeding_target, plan, slots);
         return true;
     }

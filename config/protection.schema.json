@@ -10,7 +10,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["cat_id", "level", "identity_token"],
+        "required": ["cat_id", "level"],
         "properties": {
           "cat_id": {"type": "integer", "minimum": 1},
           "level": {
@@ -26,6 +26,21 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 256
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "fixed_room": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "source_save_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[^/\\\\]+$"
           },
           "reason": {"type": "string", "maxLength": 1024},
           "expires_on_day": {

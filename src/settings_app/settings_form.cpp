@@ -92,6 +92,9 @@ void CreateSettingsForm(HWND parent, HFONT font) {
         parent, L"BUTTON", L"重新读取", BS_PUSHBUTTON | WS_TABSTOP, 0,
         906, 650, 120, 34, kReloadButtonId, font);
     AddControl(
+        parent, L"BUTTON", L"管理猫保护", BS_PUSHBUTTON | WS_TABSTOP, 0,
+        754, 650, 140, 34, kProtectionButtonId, font);
+    AddControl(
         parent, L"BUTTON", L"保存配置", BS_DEFPUSHBUTTON | WS_TABSTOP, 0,
         1038, 650, 140, 34, kSaveButtonId, font);
 }

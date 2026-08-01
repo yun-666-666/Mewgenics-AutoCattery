@@ -114,6 +114,15 @@ bool BuildPlanningContext(
         const bool potential = IsPotential(decision);
         const bool movable = ManagedMovable(
             cat, decision, *protections.at(cat.id));
+        const auto& policy = *protections.at(cat.id);
+        if (policy.fixed_room && !usable.contains(*policy.fixed_room)) {
+            plan.validation_errors.push_back(
+                "fixed-protection-room-unavailable");
+            return false;
+        }
+        if (movable && policy.fixed_room) {
+            context.fixed_rooms.emplace(cat.id, *policy.fixed_room);
+        }
         if (!cat.room_id) {
             if (movable) {
                 context.movable.push_back(cat.id);

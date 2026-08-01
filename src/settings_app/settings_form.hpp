@@ -12,6 +12,7 @@ namespace autocattery::settings_app {
 inline constexpr int kSaveButtonId = 1001;
 inline constexpr int kReloadButtonId = 1002;
 inline constexpr int kStatusLabelId = 1003;
+inline constexpr int kProtectionButtonId = 1004;
 
 void CreateSettingsForm(HWND parent, HFONT font);
 void PopulateSettingsForm(HWND parent, const Config& config);

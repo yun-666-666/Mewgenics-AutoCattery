@@ -37,6 +37,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'config\default_config.json') -De
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\config.schema.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\scene_signatures.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\protection.schema.json') -Destination (Join-Path $dist 'config') -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'config\protection.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\data\text\combined.csv.append') -Destination (Join-Path $dist 'data\text') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\localization\strings.json') -Destination (Join-Path $dist 'localization') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\swfs\auto_cattery_house.swf') -Destination (Join-Path $dist 'swfs') -Force

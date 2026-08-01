@@ -125,11 +125,12 @@ ProtectionSidecar ParseProtectionSidecar(std::string_view contents) {
             !HasOnlyKeys(
                 entry,
                 {"cat_id", "level", "identity_token", "reason",
-                 "expires_on_day"}) ||
+                 "expires_on_day", "fixed_room", "source_save_name",
+                 "display_name"}) ||
             !entry.contains("cat_id") || !ValidCatId(entry["cat_id"]) ||
             !entry.contains("level") || !entry["level"].is_string() ||
-            !entry.contains("identity_token") ||
-            !entry["identity_token"].is_string()) {
+            (entry.contains("identity_token") &&
+             !entry["identity_token"].is_string())) {
             return Failed(
                 SidecarLoadStatus::InvalidSchema,
                 "sidecar protection record is invalid");
@@ -137,20 +138,68 @@ ProtectionSidecar ParseProtectionSidecar(std::string_view contents) {
         const auto cat_id = entry["cat_id"].get<snapshot::CatId>();
         const auto level =
             ParseLevel(entry["level"].get_ref<const std::string&>());
-        const auto& identity =
-            entry["identity_token"].get_ref<const std::string&>();
-        if (!level.has_value() || identity.empty() ||
-            identity.size() > 256 ||
-            result.records.contains(cat_id)) {
+        const auto identity = entry.contains("identity_token")
+            ? entry["identity_token"].get<std::string>()
+            : std::string{};
+        const bool duplicate = std::ranges::any_of(
+            result.records,
+            [&](const auto& existing) {
+                if (!identity.empty()) {
+                    return existing.identity_token == identity;
+                }
+                return existing.protection.cat_id == cat_id &&
+                    existing.identity_token.empty();
+            });
+        if (!level.has_value() || identity.size() > 256 || duplicate) {
             return Failed(
                 SidecarLoadStatus::InvalidSchema,
-                "sidecar has an invalid level, identity, or duplicate CatId");
+                "sidecar has an invalid level or duplicate identity");
         }
 
         SidecarRecord record;
         record.protection.cat_id = cat_id;
         record.protection.level = *level;
         record.identity_token = identity;
+        if (entry.contains("display_name")) {
+            if (!entry["display_name"].is_string() ||
+                entry["display_name"].get_ref<const std::string&>().size() >
+                    256) {
+                return Failed(
+                    SidecarLoadStatus::InvalidSchema,
+                    "sidecar display name is invalid");
+            }
+            record.display_name = entry["display_name"].get<std::string>();
+        }
+        if (entry.contains("fixed_room")) {
+            if (!entry["fixed_room"].is_string()) {
+                return Failed(
+                    SidecarLoadStatus::InvalidSchema,
+                    "sidecar fixed room is invalid");
+            }
+            const auto room = entry["fixed_room"].get<std::string>();
+            if (room.empty() || room.size() > 128) {
+                return Failed(
+                    SidecarLoadStatus::InvalidSchema,
+                    "sidecar fixed room is invalid");
+            }
+            record.fixed_room = room;
+        }
+        if (entry.contains("source_save_name")) {
+            if (!entry["source_save_name"].is_string()) {
+                return Failed(
+                    SidecarLoadStatus::InvalidSchema,
+                    "sidecar source save name is invalid");
+            }
+            const auto name = entry["source_save_name"].get<std::string>();
+            if (name.empty() || name.size() > 128 ||
+                name.find('/') != std::string::npos ||
+                name.find('\\') != std::string::npos) {
+                return Failed(
+                    SidecarLoadStatus::InvalidSchema,
+                    "sidecar source save name is invalid");
+            }
+            record.source_save_name = name;
+        }
         if (entry.contains("reason")) {
             if (!entry["reason"].is_string() ||
                 entry["reason"].get_ref<const std::string&>().size() > 1024) {
@@ -189,7 +238,7 @@ ProtectionSidecar ParseProtectionSidecar(std::string_view contents) {
             }
             record.protection.expires_on_day = expiry;
         }
-        result.records.emplace(cat_id, std::move(record));
+        result.records.push_back(std::move(record));
     }
 
     for (const auto& entry : root["blacklist"]) {

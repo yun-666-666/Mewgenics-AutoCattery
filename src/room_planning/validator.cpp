@@ -92,6 +92,11 @@ PlanningValidation ValidateInput(const RoomPlanningInput& input) {
             }
         }
     }
+    for (const auto& policy : input.protections) {
+        if (policy.fixed_room && !room_ids.contains(*policy.fixed_room)) {
+            AddUnique(validation.errors, "fixed-protection-room-unknown");
+        }
+    }
 
     std::unordered_set<snapshot::RoomId> capability_ids;
     for (const auto& capability : input.room_capabilities) {

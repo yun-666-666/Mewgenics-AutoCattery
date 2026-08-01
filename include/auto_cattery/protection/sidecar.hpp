@@ -3,9 +3,10 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
+#include "auto_cattery/error.hpp"
 #include "auto_cattery/protection/domain.hpp"
 
 namespace autocattery::protection {
@@ -26,12 +27,15 @@ enum class SidecarLoadStatus {
 struct SidecarRecord {
     ProtectionRecord protection;
     std::string identity_token;
+    std::string display_name;
+    std::optional<snapshot::RoomId> fixed_room;
+    std::optional<std::string> source_save_name;
 };
 
 struct ProtectionSidecar {
     SidecarLoadStatus status{SidecarLoadStatus::Missing};
     bool destructive_actions_blocked{true};
-    std::unordered_map<snapshot::CatId, SidecarRecord> records;
+    std::vector<SidecarRecord> records;
     std::unordered_set<snapshot::CatId> blacklist;
     std::string limitation;
 };
@@ -41,5 +45,17 @@ struct ProtectionSidecar {
 
 [[nodiscard]] ProtectionSidecar LoadProtectionSidecar(
     const std::filesystem::path& path);
+
+[[nodiscard]] Result<void> SaveProtectionSidecar(
+    const std::filesystem::path& path,
+    const ProtectionSidecar& sidecar);
+
+void UpsertProtectionRecord(
+    ProtectionSidecar& sidecar,
+    SidecarRecord record);
+
+bool RemoveProtectionRecord(
+    ProtectionSidecar& sidecar,
+    std::string_view identity_token);
 
 }  // namespace autocattery::protection

@@ -45,6 +45,7 @@ void RunPedigreeParserTests();
 void RunPairRankerTests();
 void RunOrganizeWorkflowFacadeTests();
 void RunProtectionPolicyTests();
+void RunProtectionEditorTests();
 void RunProtectionSidecarTests();
 void RunRecommendationMappingProbeTests();
 void RunRecommendationRankingProviderTests();
@@ -120,6 +121,7 @@ int main() {
     autocattery::tests::RunPairRankerTests();
     autocattery::tests::RunOrganizeWorkflowFacadeTests();
     autocattery::tests::RunProtectionPolicyTests();
+    autocattery::tests::RunProtectionEditorTests();
     autocattery::tests::RunProtectionSidecarTests();
     autocattery::tests::RunRecommendationMappingProbeTests();
     autocattery::tests::RunRecommendationRankingProviderTests();

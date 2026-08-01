@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 
@@ -18,7 +19,8 @@ public:
         std::unique_ptr<snapshot::IGameReadAdapter> read_adapter = {},
         Config config = {},
         WorkflowCapability capability = WorkflowCapability::PreviewOnly,
-        IApprovedTransactionGateway* gateway = nullptr);
+        IApprovedTransactionGateway* gateway = nullptr,
+        std::filesystem::path protection_root = {});
     virtual ~OrganizeWorkflowFacade() = default;
     [[nodiscard]] virtual Result<OrganizePreview> BuildPreview(
         std::uint64_t scene_generation);
@@ -41,6 +43,7 @@ private:
     WorkflowStateMachine state_;
     ExecutionRouter execution_router_;
     WorkflowCapability capability_;
+    std::filesystem::path protection_root_;
     std::optional<PreviewId> latest_preview_;
 };
 
