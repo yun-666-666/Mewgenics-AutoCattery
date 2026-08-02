@@ -139,7 +139,11 @@ def hidden_default_frame_sprite(
     pressed_shape_id: int,
 ) -> bytes:
     """Build a panel sprite whose initial timeline frame is empty."""
-    output = bytearray(struct.pack("<HH", character_id, 4))
+    # MewUI instantiates injected clips on timeline frame index 2. Keep that
+    # frame hidden as well; visible artwork starts at index 3 after F10.
+    output = bytearray(struct.pack("<HH", character_id, 5))
+    output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
+    output.extend(_encode_tag(SHOW_FRAME, b""))
     output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(_encode_tag(SHOW_FRAME, b""))
     output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))

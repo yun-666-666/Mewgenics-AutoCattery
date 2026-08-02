@@ -34,10 +34,6 @@ void InGamePanelController::Poll(
         return;
     }
     house_scene_manager_ = house_scene_manager;
-    // Lock only the panel movie clips on the first ready tick. This removes
-    // the SWF's transient default artwork without resolving text nodes or
-    // installing the input hook on large saves.
-    view_.PrimeHidden(context);
     if (view_.IsAttached() &&
         context.scene_generation != attached_generation_) {
         Detach();
