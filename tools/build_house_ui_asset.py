@@ -50,6 +50,7 @@ BUTTON_ROPE_DEPTH = 1
 BUTTON_BACKGROUND_DEPTH = 5
 BUTTON_ICON_DEPTH = 6
 BUTTON_LABEL_DEPTH = 8
+BUTTON_ICON_PLACEMENT_COUNT = 4
 DEFINITION_TAGS = frozenset({
     2, 6, 7, 10, 11, 20, 21, 22, 32, 33, 34, 35, 36, 37,
     39, 46, 48, 60, 73, 75, 83, 84, 87, 88, 90, 91,
@@ -494,6 +495,26 @@ def make_recommendation_row_sprite(
     return bytes(output)
 
 
+def remove_button_icon(body: bytes) -> tuple[bytes, int]:
+    """Remove the shared trash-can artwork while preserving button behavior."""
+    sprite_header = body[:4]
+    kept = bytearray(sprite_header)
+    removed = 0
+    for code, tag_start, body_start, tag_end in read_tags(body, 4, len(body)):
+        if code == PLACE_OBJECT_2:
+            depth = struct.unpack_from("<H", body, body_start + 1)[0]
+            if depth == BUTTON_ICON_DEPTH:
+                removed += 1
+                continue
+        kept.extend(body[tag_start:tag_end])
+    if removed != BUTTON_ICON_PLACEMENT_COUNT:
+        raise ValueError(
+            "unexpected button icon placement count: "
+            f"expected={BUTTON_ICON_PLACEMENT_COUNT} removed={removed}"
+        )
+    return bytes(kept), removed
+
+
 def make_recommendation_text_definition(
     body: bytes,
     character_id: int,
@@ -856,7 +877,8 @@ def build(source: Path, destination: Path) -> None:
             and struct.unpack_from("<H", body, 0)[0] ==
                 overlay_button_character_id
         ):
-            output.extend(swf[tag_start:tag_end])
+            iconless_body, _ = remove_button_icon(body)
+            output.extend(encode_tag(code, iconless_body))
             output.extend(encode_tag(
                 DEFINE_BITS_LOSSLESS_2,
                 make_paper_bitmap(
