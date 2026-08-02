@@ -53,6 +53,7 @@ struct ManagementPanelContent {
 class MewUiManagementPanelView final {
 public:
     ~MewUiManagementPanelView();
+    bool PrimeHidden(const UiContextSnapshot& context) noexcept;
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
     Result<void> Show(const ManagementPanelContent& content);
@@ -90,6 +91,8 @@ private:
 
     void* scene_manager_{};
     std::uint64_t generation_{};
+    void* primed_scene_manager_{};
+    std::uint64_t primed_generation_{};
     void* background_{};
     std::array<Element, 8> fixed_nodes_{};
     std::array<Element, 12> list_nodes_{};

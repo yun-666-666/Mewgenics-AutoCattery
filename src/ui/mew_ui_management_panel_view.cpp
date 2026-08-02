@@ -25,6 +25,37 @@ std::string IndexedName(const char* prefix, std::size_t index) {
 
 MewUiManagementPanelView::~MewUiManagementPanelView() { Detach(); }
 
+bool MewUiManagementPanelView::PrimeHidden(
+    const UiContextSnapshot& context) noexcept {
+    auto* scene = MewUI_GetSceneByName(context.scene_name.c_str());
+    if (scene == nullptr || MewUI_IsSceneReadyForUITick(scene) == 0 ||
+        MewUI_IsSceneDestroying(scene) != 0) {
+        return false;
+    }
+    if (primed_scene_manager_ == scene &&
+        primed_generation_ == context.scene_generation) {
+        return true;
+    }
+
+    std::size_t hidden{};
+    auto hide = [&](const std::string& name) {
+        auto* node = MewUI_FindNodeInSceneByName(scene, name.c_str());
+        if (node != nullptr && HoldMewUiMovieClipFrame(node, 0)) ++hidden;
+    };
+    hide("panel_background");
+    for (const auto* name : kFixedNames) hide(name);
+    for (std::size_t index = 0; index < 12; ++index)
+        hide(IndexedName("panel_protection_row_", index));
+    for (std::size_t index = 0; index < 3; ++index)
+        hide(IndexedName("panel_group_", index));
+    for (std::size_t index = 0; index < 47; ++index)
+        hide(IndexedName("panel_setting_row_", index));
+
+    primed_scene_manager_ = scene;
+    primed_generation_ = context.scene_generation;
+    return hidden != 0;
+}
+
 Result<void> MewUiManagementPanelView::Attach(
     const UiContextSnapshot& context) {
     auto* scene = MewUI_GetSceneByName(context.scene_name.c_str());
@@ -54,6 +85,8 @@ void MewUiManagementPanelView::Detach() noexcept {
     RemoveHook();
     scene_manager_ = nullptr;
     generation_ = 0;
+    primed_scene_manager_ = nullptr;
+    primed_generation_ = 0;
     background_ = nullptr;
     ResetElements();
 }
