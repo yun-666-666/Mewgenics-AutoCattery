@@ -38,6 +38,11 @@ void InGamePanelController::Poll(
         context.scene_generation != attached_generation_) {
         Detach();
     }
+    // Keep large House saves free of panel node lookups until the player
+    // requests the panel. F10 still attaches on demand below.
+    if (!view_.IsAttached() && !f10_pressed && !open_) {
+        return;
+    }
     if (!view_.IsAttached()) {
         const auto attached = view_.Attach(context);
         if (!attached) {
