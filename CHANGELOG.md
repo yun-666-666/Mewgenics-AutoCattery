@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3 - 2026-08-02
+
+- Fixed F10 management-panel clicks on smaller screens and mixed-DPI Windows
+  setups by using the mouse message's client coordinates consistently.
+- Added virtual-viewport coordinate regression coverage for widescreen, 4:3,
+  and boundary inputs.
+- Kept the existing F10 pages, MoveOnly workflow, protection model, and external
+  settings editor unchanged.
+
 ## 0.5.2 - 2026-08-02
 
 - Removed the trash-can artwork from the House Auto-Organize and combat-marker
