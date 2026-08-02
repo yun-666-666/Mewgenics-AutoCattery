@@ -51,6 +51,20 @@ native move or probe can fail safely and log the reason while the panel,
 read-only preview, and external editor remain available. After a game update,
 preview first and do not repeat movement until the result and log look correct.
 
+## Installation
+
+For a Windows release archive:
+
+1. Copy the contents of `Mewjector\\mods` into the game's `mods` folder.
+2. Copy `Mewtator\\AutoCattery` into the Mewtator mod folder and enable
+   `AutoCattery` in `modlist.txt`.
+3. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
+   are prerequisites.
+
+The runtime DLL is installed at `Mewgenics\\Mods\\AutoCattery.dll`. Configuration
+and logs are in `Mewgenics\\Mods\\AutoCattery\\`. The button SWF and text patch
+are supplied by the enabled Mewtator data mod.
+
 ## F10 management panel
 
 See the bilingual [button-by-button user guide](docs/USER_GUIDE.md) for every
@@ -87,6 +101,20 @@ which cats to list. Select a cat, choose a level or fixed room, and press
 **Apply**. **Remove** deletes only that cat's player rule. Rules are stored in
 `Mewgenics\\Mods\\AutoCattery\\config\\protection.json`; the default records list
 is empty and no player save or CatId is pre-protected.
+
+## Validation evidence
+
+- On 2026-07-30, the 8-cat save selected the 8-cat snapshot and committed 6 native
+  moves; the 25-cat save selected the 25-cat snapshot and committed 10 native
+  moves. Repeating the operation committed 0 moves.
+- On 2026-08-01, the player confirmed two-room results of `4/4` for 8 cats and
+  `13/12` for 25 cats, plus a 25-cat three-room result of `9/8/8` after manually
+  swapping cats.
+- Debug and Release builds both pass all 5 CTest checks, DLL-load smoke tests,
+  and x64 validation. These are repository/build checks; visual F10 performance
+  on every 25/79-cat save still needs player confirmation after updates.
+- Real culling, automatic day advance, and automatic expedition selection remain
+  disabled.
 
 ## Build and deploy
 
