@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '0.5.0',
+    [string]$Version = '0.5.1',
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release'
 )
@@ -48,7 +48,8 @@ $documentation = @(
     'CHANGELOG.md',
     'THIRD_PARTY_NOTICES.md',
     'docs\GAME_VALUE_REFERENCE.md',
-    'docs\RELEASE_NOTES_v0.5.0.md'
+    'docs\USER_GUIDE.md',
+    "docs\RELEASE_NOTES_v$Version.md"
 )
 foreach ($document in $documentation) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $document) -Destination $docsRoot

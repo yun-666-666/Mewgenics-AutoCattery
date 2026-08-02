@@ -78,12 +78,25 @@ MOD 不再用固定文件大小或 SHA-256 阻止启用。启动时只确认游�
 
 ## 安装
 
+请在 GitHub Releases 下载 `AutoCattery-vX.Y.Z-Windows-x64.zip`。不要下载
+`AutoCattery-vX.Y.Z-source.zip`：`source.zip` 是给开发者查看和自行编译的源码包，
+不能直接解压到游戏 `mods` 目录，也不会被 Mewjector 当作已安装 MOD。
+
 Windows 发布包安装步骤：
 
-1. 将 `Mewjector\\mods` 中的内容复制到游戏的 `mods` 文件夹。
-2. 将 `Mewtator\\AutoCattery` 复制到 Mewtator MOD 文件夹，并在 `modlist.txt`
-   中启用 `AutoCattery`。
-3. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件。
+1. 解压 `Windows-x64.zip`。不要再套一层压缩包目录到 `mods` 中。
+2. 将压缩包内 `Mewjector\\mods\\AutoCattery.dll` 和
+   `Mewjector\\mods\\AutoCattery\\` 复制到游戏根目录的 `mods\\`（或
+   Mewjector 实际扫描的同名目录）。
+3. 将压缩包内 `Mewtator\\AutoCattery\\` 复制到 Mewtator 的 `mod_folder`，
+   并在该目录的 `modlist.txt` 中加入一行 `AutoCattery`。
+4. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件，
+   只从 Steam 直接启动不会加载 Mewtator 数据 MOD。
+
+进入 `House` 后按 `F10` 打开面板。第一次点击“自动整理猫舍”只生成预览，确认
+房间和猫的来源/目标后再次点击才执行 MoveOnly；按 `Esc` 或“关闭”退出面板。
+设置、猫保护、完整预览和每个设置项的影响见
+[`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)。
 
 运行时 DLL 位于 `Mewgenics\\Mods\\AutoCattery.dll`，配置和日志位于
 `Mewgenics\\Mods\\AutoCattery\\`。按钮 SWF 和文本补丁由已启用的 Mewtator

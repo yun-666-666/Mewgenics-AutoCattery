@@ -93,13 +93,28 @@ log look correct. Report problems using the issue-feedback process below.
 
 ## Installation
 
+Download `AutoCattery-vX.Y.Z-Windows-x64.zip` from GitHub Releases. Do not download
+`AutoCattery-vX.Y.Z-source.zip` for installation: it is a source archive for
+developers who want to inspect or build the MOD, cannot be placed directly in the
+game's `mods` folder, and is not loaded by Mewjector as an installed MOD.
+
 For a Windows release archive:
 
-1. Copy the contents of `Mewjector\\mods` into the game's `mods` folder.
-2. Copy `Mewtator\\AutoCattery` into the Mewtator mod folder and enable
-   `AutoCattery` in `modlist.txt`.
-3. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
-   are prerequisites.
+1. Extract `Windows-x64.zip`; do not place the archive's outer folder as an extra
+   nested level inside `mods`.
+2. Copy `Mewjector\\mods\\AutoCattery.dll` and
+   `Mewjector\\mods\\AutoCattery\\` from the archive into the game's `mods\\`
+   folder (or the same directory scanned by Mewjector).
+3. Copy `Mewtator\\AutoCattery\\` into the Mewtator `mod_folder`, then add one
+   line containing `AutoCattery` to that folder's `modlist.txt`.
+4. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
+   are prerequisites; launching only from Steam does not load the Mewtator data MOD.
+
+In `House`, press `F10` to open the panel. The first **Auto-Organize Cattery** click
+creates a preview; review the room and cat source/target details, then click again to
+run MoveOnly. Press `Esc` or **Close** to leave the panel. The Settings, Cat Protection,
+Full Preview, and every setting's effect are described in
+[`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
 
 The runtime DLL is installed at `Mewgenics\\Mods\\AutoCattery.dll`. Configuration
 and logs are in `Mewgenics\\Mods\\AutoCattery\\`. The button SWF and text patch

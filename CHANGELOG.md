@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 - 2026-08-02
+
+- Clarified that `source.zip` is for developers and that `Windows-x64.zip` is the
+  installable release package.
+- Added exact Mewjector/Mewtator copy paths and F10 usage steps to both READMEs.
+- Included the bilingual User Guide and version-matched release notes in binary
+  release documentation.
+- Kept runtime behavior unchanged; this release only improves packaging and user
+  guidance.
+
 ## 0.5.0 - 2026-08-02
 
 - Added a top-level Full Preview page to the F10 management panel.
