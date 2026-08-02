@@ -174,9 +174,9 @@
   `combat_available=8`、`combat_spent=0`、`dead=0`、`stable_ids=1`、
   `stable_ranking=1`，证明出战箱中的猫仍被解析。
 - Release DLL 已部署：
-  `D:\steam\steam\steamapps\common\Mewgenics\Mods\AutoCattery.dll`
+  `<GAME_ROOT>\Mods\AutoCattery.dll`
 - Mewtator UI 数据 MOD 已部署并启用：
-  `D:\steam\steam\steamapps\common\Mewgenics\Mewtator\mods\AutoCattery`
+  `<GAME_ROOT>\Mewtator\mods\AutoCattery`
 - 构建与安装 DLL 均为 751616 bytes，SHA-256 均为
   `15B663F31818DCA4674D9D58CBC956E360A11147077B36EB0DA81FCC9CD3A832`。
 - 源与安装 SWF 均为 751211 bytes，SHA-256 均为

@@ -72,9 +72,9 @@
   `phase13_unit_tests` 1.06 秒、`phase13_dll_load_smoke` 0.06 秒、
   `phase13_settings_editor_validate` 0.05 秒，3/3 通过。
 - `.\tools\deploy.ps1 -GameRoot
-  'D:\steam\steam\steamapps\common\Mewgenics' -Configuration Release`：通过。
+  '<GAME_ROOT>' -Configuration Release`：通过。
 - `.\tools\verify_install.ps1 -GameRoot
-  'D:\steam\steam\steamapps\common\Mewgenics'`：通过。
+  '<GAME_ROOT>'`：通过。
 - Release DLL 的源文件和安装文件均为 809984 bytes，SHA-256 均为
   `B60CE2B41738819F2A5DEBC02DF2BD118F64C76FF9D16C1E92315D7EEFF1BD6A`。
 - Release 外部设置程序的源文件和安装文件均为 316928 bytes，SHA-256 均为

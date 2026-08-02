@@ -3,7 +3,7 @@
 [English](README_EN.md)
 
 AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
-本项目由 **OpenAI GPT-5.6** 根据 wordy 的需求、代码审查和玩家实机反馈制作；
+本项目由 **OpenAI GPT-5.6** 根据项目需求、代码审查和玩家实机反馈制作；
 它不是游戏官方组件，也不会修改游戏原始文件、Steam Cloud 或玩家存档数据库。
 
 ## 当前能力
@@ -76,7 +76,20 @@ MOD 不再用固定文件大小或 SHA-256 阻止启用。启动时只确认游�
 和外部编辑器仍可使用。版本更新后请先预览，不要在未确认日志和结果前连续执行
 移动；遇到异常请按“数据反馈”提交压缩包。
 
-### 可选猫数据
+## 安装
+
+Windows 发布包安装步骤：
+
+1. 将 `Mewjector\\mods` 中的内容复制到游戏的 `mods` 文件夹。
+2. 将 `Mewtator\\AutoCattery` 复制到 Mewtator MOD 文件夹，并在 `modlist.txt`
+   中启用 `AutoCattery`。
+3. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件。
+
+运行时 DLL 位于 `Mewgenics\\Mods\\AutoCattery.dll`，配置和日志位于
+`Mewgenics\\Mods\\AutoCattery\\`。按钮 SWF 和文本补丁由已启用的 Mewtator
+数据 MOD 提供。
+
+## 可选猫数据和数据反馈
 
 此功能默认关闭。开启后，每次成功生成新预览会按快照摘要写入一份 JSON，重复
 快照不会无限重复写入。数据包括 CatId、房间、性别、年龄阶段、基础属性、技能/
@@ -97,7 +110,7 @@ MOD 不再用固定文件大小或 SHA-256 阻止启用。启动时只确认游�
 收集文件是为了让我分析规划和性能路径；它不包含猫名、存档名/路径、系统用户名、
 机器 ID 或账号 ID。上传前仍请玩家自行检查压缩包内容，确认没有额外文件。
 
-### 管理猫保护
+## 管理猫保护
 
 运行 `Mods\AutoCattery\AutoCatterySettings.exe`，点击“管理猫保护”。选择一份
 存档只是为了列出其中的猫，不会把该存档自动设为保护来源；选择猫和保护级别
@@ -144,8 +157,8 @@ MOD 不再用固定文件大小或 SHA-256 阻止启用。启动时只确认游�
 ## 部署
 
 ```powershell
-.\tools\deploy.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'
-.\tools\verify_install.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'
+.\tools\deploy.ps1 -GameRoot '<GAME_ROOT>'
+.\tools\verify_install.ps1 -GameRoot '<GAME_ROOT>'
 ```
 
 Mewjector 只扫描游戏目录下即时的 `Mods`/`mods` DLL，因此运行 DLL 位于：
@@ -161,35 +174,6 @@ Mewgenics\Mods\AutoCattery\
 ```
 
 按钮 SWF 与文本补丁仍由已启用的 Mewtator 数据 MOD 提供。
-
-## 当前验证证据
-
-- 当前运行时验证样本（不是启用限制）：
-  - 大小：`21,981,184` bytes
-  - SHA-256：`C3A41E436A93FA58CD386EC46DAD5C2A6F21A583D33C3A57A15A2604C726439E`
-  - 这些值只用于解释已验证证据；MOD 不会因为未来文件大小或 SHA-256 改变而拒绝启用。
-- 2026-07-30 玩家验证：
-  - 8 猫存档正确选择 8 猫快照，原生移动提交 6 只。
-  - 25 猫存档正确选择 25 猫快照，原生移动提交 10 只。
-  - 重复执行提交 0 只，不重复移动已到位的猫。
-- 2026-08-01 玩家与自动化验证：
-  - 25 猫两房目标 `13/12`，8 猫两房目标 `4/4`。
-  - 10 猫四房目标 `3/3/2/2`。
-  - 两份两房存档首次均提交 2 次移动，重复执行提交 0 次。
-  - 玩家手动搬猫暴露旧预览仍使用未保存 `house_state` 的问题；实时房间覆盖
-    和执行前全量失效门已通过自动化验证并部署，待玩家复测。
-  - 最新日志确认房外猫的当前房间指针为 null，旧实现因此以 `AC14318`
-    拒绝预览；房外未分配路径已修复、测试并部署，待玩家实机确认。
-  - 25 猫三房属性分配与人数不变的手动换猫修复已由玩家确认通过。
-  - 主存档只读探针确认完整 COI 表和性取向分类可读；自动配对原路径由玩家
-    报告通过。
-  - 离线探针确认未解锁属性界面的 25/8 猫档仍分别保存 175/56 个七项基础
-    属性值，合理范围均为 3–7；性取向和亲缘仍保持关闭。
-  - 玩家确认 8/25 猫基础属性默认读取、连续整理稳定和房外猫自动搬入均通过；
-    最新日志中房外状态直接原生提交，旧 `AC14303 invoked=0` 未再出现。
-  - Debug/Release CTest 均为 5/5 通过。
-
-历史阶段文档仅记录当时证据，不应覆盖本 README 和当前路线图。
 
 ## 致谢与参考
 
@@ -207,7 +191,7 @@ Mewgenics\Mods\AutoCattery\
 - **Push To Meow**：作为 MOD 目录结构、加载兼容性和发布形态的参考。
 - **Quick-Cleanup**：作为房间整理工具的用户流程和安全提示参考。
 
-本 MOD 的代码和文档由 **OpenAI GPT-5.6** 在 wordy 的产品方向和实机验证指导下
+本 MOD 的代码和文档由 **OpenAI GPT-5.6** 在项目方向和实机验证指导下
 制作。完整第三方许可与版本记录见 [`ACKNOWLEDGEMENTS.md`](ACKNOWLEDGEMENTS.md)
 和 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。按钮逐项说明见
 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)。

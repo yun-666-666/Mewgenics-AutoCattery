@@ -14,7 +14,7 @@ It does not test a Stage 04 button yet and does not authorize Stage 05.
 
 Each `F8` press creates a timestamped JSON file under:
 
-`D:\steam\steam\steamapps\common\Mewgenics\Mods\AutoCattery\diagnostics`
+`<GAME_ROOT>\Mods\AutoCattery\diagnostics`
 
 The JSON contains only scene/component metadata, pointer identities, component
 flags, and button roles/states. It excludes textures, scripts, game assets,

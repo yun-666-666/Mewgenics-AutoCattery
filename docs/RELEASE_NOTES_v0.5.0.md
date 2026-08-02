@@ -19,7 +19,7 @@ The release adds a complete per-cat move preview, before/after room and sex
 ratios, cached F10 panel rendering, Chinese/English selection, and opt-in,
 privacy-minimized local planning diagnostics.
 
-本 MOD 的实现由 OpenAI GPT-5.6 在 wordy 的需求与实机验证指导下独立完成。
+本 MOD 的实现由 OpenAI GPT-5.6 在项目需求与实机验证指导下完成。
 感谢 Mewjector、MewUI API、JSON for Modern C++、AutoCattery Codex Toolkit、
 Push To Meow、Quick-Cleanup 与 Mewgenics MOD 社区。
 

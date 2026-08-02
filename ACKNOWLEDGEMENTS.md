@@ -18,7 +18,7 @@
 - **Push To Meow**：参考 MOD 目录结构、加载兼容性和发布形态。
 - **Quick-Cleanup**：参考房间整理工具的用户流程和安全提示。
 
-本 MOD 的代码、界面接入、文档和测试由 **OpenAI GPT-5.6** 在 wordy 的产品方向
+本 MOD 的代码、界面接入、文档和测试由 **OpenAI GPT-5.6** 在项目方向
 与玩家实机验证指导下制作。玩家反馈、日志和可选诊断数据只在玩家主动提供时用于
 修复性能与规划问题。
 
@@ -46,6 +46,6 @@ data:
   messaging.
 
 The code, UI integration, documentation, and tests were made by
-**OpenAI GPT-5.6** under wordy's product direction and hands-on validation.
+**OpenAI GPT-5.6** under the project's direction and hands-on validation.
 Player feedback, logs, and optional diagnostics are used for performance and
 planning fixes only when the player chooses to provide them.

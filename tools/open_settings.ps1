@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$GameRoot = 'D:\steam\steam\steamapps\common\Mewgenics'
+    [Parameter(Mandatory = $true)]
+    [string]$GameRoot
 )
 
 $ErrorActionPreference = 'Stop'

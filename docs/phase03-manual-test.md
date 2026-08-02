@@ -9,8 +9,8 @@ selects saves and navigates gameplay.
 
    ```powershell
    .\tools\build.ps1 -Configuration Release
-   .\tools\deploy.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'
-   .\tools\verify_install.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'
+   .\tools\deploy.ps1 -GameRoot '<GAME_ROOT>'
+   .\tools\verify_install.ps1 -GameRoot '<GAME_ROOT>'
    ```
 
 2. Start Mewtator and launch Mewgenics from it. Launching directly from Steam

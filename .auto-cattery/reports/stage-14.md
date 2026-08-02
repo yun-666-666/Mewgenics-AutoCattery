@@ -172,8 +172,8 @@
 
 - `.\tools\build.ps1 -Configuration Debug`：5/5 通过。
 - `.\tools\build.ps1 -Configuration Release`：5/5 通过。
-- `.\tools\deploy.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'`。
-- `.\tools\verify_install.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics'`：通过。
+- `.\tools\deploy.ps1 -GameRoot '<GAME_ROOT>'`。
+- `.\tools\verify_install.ps1 -GameRoot '<GAME_ROOT>'`：通过。
 
 本轮本地 commit：以最终回复中的提交哈希为准。
 
