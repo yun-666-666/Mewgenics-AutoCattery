@@ -38,11 +38,6 @@ void InGamePanelController::Poll(
         context.scene_generation != attached_generation_) {
         Detach();
     }
-    // The panel is intentionally lazy: entering a large House must not make
-    // dozens of SWF node lookups and writes before the player asks for F10.
-    if (!view_.IsAttached() && !f10_pressed && !open_) {
-        return;
-    }
     if (!view_.IsAttached()) {
         const auto attached = view_.Attach(context);
         if (!attached) {
