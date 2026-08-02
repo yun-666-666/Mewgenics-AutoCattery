@@ -35,6 +35,13 @@ Result<void> MewUiManagementPanelView::Attach(
     }
     scene_manager_ = scene;
     generation_ = context.scene_generation;
+    panel_root_ = MewUI_FindNodeInSceneByName(scene_manager_, "panel_root");
+    if (panel_root_ == nullptr || !HoldMewUiMovieClipFrame(panel_root_, 3)) {
+        Detach();
+        return {ErrorCode::UiNodeNotFound,
+                "F10 panel root is missing from the House SWF"};
+    }
+    panel_root_visible_ = true;
     if (!ResolveNodes()) {
         Detach();
         return {ErrorCode::UiNodeNotFound,
@@ -54,6 +61,8 @@ void MewUiManagementPanelView::Detach() noexcept {
     RemoveHook();
     scene_manager_ = nullptr;
     generation_ = 0;
+    panel_root_ = nullptr;
+    panel_root_visible_ = false;
     background_ = nullptr;
     ResetElements();
 }
@@ -121,6 +130,9 @@ Result<void> MewUiManagementPanelView::Show(
     // Publish the background only after all cached rows have been populated.
     // This prevents a visible frame of empty SWF rectangles while the text
     // elements are being updated on the game UI thread.
+    if (!panel_root_visible_ && HoldMewUiMovieClipFrame(panel_root_, 3)) {
+        panel_root_visible_ = true;
+    }
     HoldMewUiMovieClipFrame(background_, 3);
     return {};
 }
@@ -155,10 +167,14 @@ void MewUiManagementPanelView::Hide() noexcept {
     }
     SetElement(title_, "", 0);
     SetElement(status_, "", 0);
+    if (panel_root_visible_ && HoldMewUiMovieClipFrame(panel_root_, 0)) {
+        panel_root_visible_ = false;
+    }
 }
 
 bool MewUiManagementPanelView::IsAttached() const noexcept {
-    return scene_manager_ != nullptr && background_ != nullptr;
+    return scene_manager_ != nullptr && panel_root_ != nullptr &&
+        background_ != nullptr;
 }
 
 bool MewUiManagementPanelView::IsVisible() const noexcept {

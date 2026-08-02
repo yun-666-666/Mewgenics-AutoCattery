@@ -22,6 +22,7 @@ import zlib
 
 from swf_panel_shapes import (
     hidden_default_frame_sprite,
+    panel_root_sprite,
     rectangle_shape,
 )
 from swf_panel_layout import (
@@ -46,6 +47,7 @@ RECOMMENDATION_MARKER = b"recommend_button\x00"
 # Keep the cloned button beside the original button at depth 18.  Higher
 # native House HUD layers must remain in front of both buttons' hanging ropes.
 RECOMMENDATION_DEPTH = 19
+PANEL_ROOT_DEPTH = 60
 RECOMMENDATION_ROW_DEPTH = 40
 RECOMMENDATION_TEXT_DEPTH = 50
 RECOMMENDATION_ITEM_COUNT = 4
@@ -546,12 +548,14 @@ def filter_overlay_sprite(
     panel_control_character_id: int,
     panel_text_character_id: int,
     panel_compact_text_character_id: int,
-) -> tuple[bytes, int, int, int]:
+    panel_root_character_id: int,
+) -> tuple[bytes, bytes, int, int, int]:
     sprite_header = body[:4]
     kept = bytearray(sprite_header)
     removed = 0
     relocated = 0
     cloned = 0
+    panel_tags: list[bytes] = []
     tags = list(read_tags(body, 4, len(body)))
     source_button_body = None
     source_text_body = None
@@ -590,6 +594,8 @@ def filter_overlay_sprite(
         raise ValueError("recommendation depth is already occupied")
 
     for code, tag_start, body_start, tag_end in tags:
+        if code == END:
+            continue
         raw_tag = body[tag_start:tag_end]
         if code == PLACE_OBJECT_2 and any(
             name in raw_tag for name in REMOVED_NAMES
@@ -684,7 +690,7 @@ def filter_overlay_sprite(
                 TARGET_MARKER, b"panel_background\x00", 1))
             background = bytearray(relocate_matrix(
                 bytes(background), *PANEL_BACKGROUND_TRANSFORM))
-            kept.extend(encode_tag(code, bytes(background)))
+            panel_tags.append(encode_tag(code, bytes(background)))
             cloned += 1
             for index, (name, row_transform, text_transform) in enumerate(
                 PANEL_PROTECTION_ELEMENTS
@@ -698,7 +704,7 @@ def filter_overlay_sprite(
                     TARGET_MARKER, name.encode() + b"\x00", 1))
                 panel_row = bytearray(relocate_matrix(
                     bytes(panel_row), *row_transform))
-                kept.extend(encode_tag(code, bytes(panel_row)))
+                panel_tags.append(encode_tag(code, bytes(panel_row)))
 
                 panel_text = bytearray(with_character_id(
                     source_text_body,
@@ -710,7 +716,7 @@ def filter_overlay_sprite(
                     f"{name}_text".encode() + b"\x00", 1))
                 panel_text = bytearray(relocate_matrix(
                     bytes(panel_text), *text_transform))
-                kept.extend(encode_tag(code, bytes(panel_text)))
+                panel_tags.append(encode_tag(code, bytes(panel_text)))
                 cloned += 2
             for index, (name, row_transform, text_transform) in enumerate(
                 PANEL_COMPACT_ELEMENTS
@@ -724,7 +730,7 @@ def filter_overlay_sprite(
                     TARGET_MARKER, name.encode() + b"\x00", 1))
                 panel_row = bytearray(relocate_matrix(
                     bytes(panel_row), *row_transform))
-                kept.extend(encode_tag(code, bytes(panel_row)))
+                panel_tags.append(encode_tag(code, bytes(panel_row)))
 
                 panel_text = bytearray(with_character_id(
                     source_text_body,
@@ -736,7 +742,7 @@ def filter_overlay_sprite(
                     f"{name}_text".encode() + b"\x00", 1))
                 panel_text = bytearray(relocate_matrix(
                     bytes(panel_text), *text_transform))
-                kept.extend(encode_tag(code, bytes(panel_text)))
+                panel_tags.append(encode_tag(code, bytes(panel_text)))
                 cloned += 2
             for index, (name, transform) in enumerate(PANEL_TEXTS):
                 panel_text = bytearray(with_character_id(
@@ -749,9 +755,22 @@ def filter_overlay_sprite(
                     b"test_text\x00", name.encode() + b"\x00", 1))
                 panel_text = bytearray(relocate_matrix(
                     bytes(panel_text), *transform))
-                kept.extend(encode_tag(code, bytes(panel_text)))
+                panel_tags.append(encode_tag(code, bytes(panel_text)))
                 cloned += 1
-    return bytes(kept), removed, relocated, cloned
+    panel_root = bytearray(source_button_body)
+    struct.pack_into("<H", panel_root, 1, PANEL_ROOT_DEPTH)
+    panel_root = bytearray(bytes(panel_root).replace(
+        TARGET_MARKER, b"panel_root\x00", 1))
+    panel_root = bytearray(relocate_matrix(bytes(panel_root), 0.0, 0.0, 1.0))
+    kept.extend(encode_tag(PLACE_OBJECT_2, bytes(panel_root)))
+    kept.extend(encode_tag(END, b""))
+    return (
+        bytes(kept),
+        panel_root_sprite(panel_root_character_id, panel_tags),
+        removed,
+        relocated,
+        cloned,
+    )
 
 
 def build(source: Path, destination: Path) -> None:
@@ -840,7 +859,8 @@ def build(source: Path, destination: Path) -> None:
     panel_control_character_id = paper_bitmap_character_id + 9
     panel_text_character_id = paper_bitmap_character_id + 10
     panel_compact_text_character_id = paper_bitmap_character_id + 11
-    if panel_compact_text_character_id > 0xFFFF:
+    panel_root_character_id = paper_bitmap_character_id + 12
+    if panel_root_character_id > 0xFFFF:
         raise ValueError("no SWF character id remains for recommendation rows")
 
     output = bytearray(swf[:start])
@@ -851,6 +871,7 @@ def build(source: Path, destination: Path) -> None:
     removed = 0
     relocated = 0
     cloned = 0
+    panel_root_definition = None
 
     for code, tag_start, body_start, tag_end in tags:
         body = swf[body_start:tag_end]
@@ -954,7 +975,7 @@ def build(source: Path, destination: Path) -> None:
         if code == DEFINE_SPRITE and TARGET_MARKER in body:
             if found:
                 raise ValueError("more than one overlay sprite was found")
-            body, removed, relocated, cloned = (
+            body, panel_root_definition, removed, relocated, cloned = (
                 filter_overlay_sprite(
                     body,
                     recommendation_row_character_id,
@@ -963,8 +984,10 @@ def build(source: Path, destination: Path) -> None:
                     panel_control_character_id,
                     panel_text_character_id,
                     panel_compact_text_character_id,
+                    panel_root_character_id,
                 )
             )
+            output.extend(encode_tag(DEFINE_SPRITE, panel_root_definition))
             output.extend(encode_tag(code, body))
             found = True
         else:
@@ -975,6 +998,7 @@ def build(source: Path, destination: Path) -> None:
         or not cloned_row_sprite
         or not cloned_text_definition
         or not cloned_panel_definitions
+        or panel_root_definition is None
         or removed != len(REMOVED_NAMES)
         or relocated != len(RELOCATED_TRANSFORMS)
         or cloned != (

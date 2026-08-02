@@ -90,6 +90,8 @@ private:
 
     void* scene_manager_{};
     std::uint64_t generation_{};
+    void* panel_root_{};
+    bool panel_root_visible_{};
     void* background_{};
     std::array<Element, 8> fixed_nodes_{};
     std::array<Element, 12> list_nodes_{};

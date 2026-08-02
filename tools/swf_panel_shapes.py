@@ -156,3 +156,19 @@ def hidden_default_frame_sprite(
     output.extend(_encode_tag(SHOW_FRAME, b""))
     output.extend(_encode_tag(END, b""))
     return bytes(output)
+
+
+def panel_root_sprite(character_id: int, child_tags: list[bytes]) -> bytes:
+    """Build a root panel clip with no children on its initial frames."""
+    output = bytearray(struct.pack("<HH", character_id, 5))
+    for _ in range(3):
+        output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
+        output.extend(_encode_tag(SHOW_FRAME, b""))
+    for tag in child_tags:
+        output.extend(tag)
+    output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
+    output.extend(_encode_tag(SHOW_FRAME, b""))
+    output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
+    output.extend(_encode_tag(SHOW_FRAME, b""))
+    output.extend(_encode_tag(END, b""))
+    return bytes(output)
