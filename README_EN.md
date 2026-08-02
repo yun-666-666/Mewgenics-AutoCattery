@@ -87,6 +87,23 @@ Download `AutoCattery-vX.Y.Z-Windows-x64.zip` from GitHub Releases.
 `AutoCattery-vX.Y.Z-source.zip` contains the source code so that the MOD can be
 modified.
 
+### Install prerequisites
+
+AutoCattery requires [Mewjector](https://github.com/githubuser508/mewjector) and
+[Mewtator](https://github.com/dancomstock/mewtator) to be installed and enabled first:
+
+1. Follow the [Mewjector](https://github.com/githubuser508/mewjector) release
+   instructions to install it in the Mewgenics game root. Confirm that `version.dll`
+   is next to `Mewgenics.exe` and keep the game's `mods\\` folder.
+2. Follow the [Mewtator](https://github.com/dancomstock/mewtator) release instructions
+   and run it once. Confirm that
+   `Mewtator\\config.json` exists in the game root. Set `mod_folder` to Mewtator's
+   `mods\\` folder (usually `Mewtator\\mods`) and use that directory's
+   `modlist.txt` to manage data MODs.
+3. After both prerequisites work, install AutoCattery as described below. Launch
+   Mewgenics through Mewtator; launching directly from Steam does not load the
+   Mewtator data MOD.
+
 For a Windows release archive:
 
 1. Extract `Windows-x64.zip`; do not place the archive's outer folder as an extra
@@ -94,8 +111,9 @@ For a Windows release archive:
 2. Copy `Mewjector\\mods\\AutoCattery.dll` and
    `Mewjector\\mods\\AutoCattery\\` from the archive into the game's `mods\\`
    folder (or the same directory scanned by Mewjector).
-3. Copy `Mewtator\\AutoCattery\\` into the Mewtator `mod_folder`, then add one
-   line containing `AutoCattery` to that folder's `modlist.txt`.
+3. Copy `Mewtator\\AutoCattery\\` into the Mewtator `mods\\` folder so the result
+   is `Mewtator\\mods\\AutoCattery\\`, then add one line containing `AutoCattery`
+   to that folder's `modlist.txt`.
 4. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
    are prerequisites; launching only from Steam does not load the Mewtator data MOD.
 

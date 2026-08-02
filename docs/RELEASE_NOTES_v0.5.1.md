@@ -16,7 +16,11 @@ Use `AutoCattery-v0.5.1-Windows-x64.zip` for installation. The
 `AutoCattery-v0.5.1-source.zip` archive contains source code and development files;
 it must not be copied directly into the game's `mods` directory.
 
+Before installing AutoCattery, install [Mewjector](https://github.com/githubuser508/mewjector)
+and [Mewtator](https://github.com/dancomstock/mewtator) according to their release
+instructions. Mewjector must provide `version.dll` beside `Mewgenics.exe`; Mewtator
+must have `Mewtator/config.json` with `mod_folder` set to the Mewtator `mods` folder.
 After extracting the Windows package, copy the contents of `Mewjector/mods` to the
-game's `mods` folder, copy `Mewtator/AutoCattery` to the Mewtator `mod_folder`, add
-`AutoCattery` to `modlist.txt`, and launch through Mewtator. In House, press `F10`,
-preview first, and click again only after reviewing the plan.
+game's `mods` folder, copy `Mewtator/AutoCattery` into `Mewtator/mods`, add
+`AutoCattery` to `Mewtator/mods/modlist.txt`, and launch through Mewtator. In House,
+press `F10`, preview first, and click again only after reviewing the plan.

@@ -73,14 +73,30 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 请在 GitHub Releases 下载 `AutoCattery-vX.Y.Z-Windows-x64.zip`。
 `AutoCattery-vX.Y.Z-source.zip`：`source.zip` 是源码内容，方便对MOD做出更改。
 
+### 安装前置 MOD
+
+AutoCattery 需要先安装并启用 [Mewjector](https://github.com/githubuser508/mewjector)
+和 [Mewtator](https://github.com/dancomstock/mewtator)：
+
+1. 按 [Mewjector](https://github.com/githubuser508/mewjector) 的发布说明将它安装到
+   Mewgenics 游戏根目录，确认
+   `version.dll` 与 `Mewgenics.exe` 同级，并保留游戏根目录的 `mods\\` 文件夹。
+2. 按 [Mewtator](https://github.com/dancomstock/mewtator) 的发布说明安装并运行一次，确认游戏根目录存在
+   `Mewtator\\config.json`。将其中的 `mod_folder` 设置为 Mewtator 的
+   `mods\\` 文件夹（通常是 `Mewtator\\mods`），并在该目录使用
+   `modlist.txt` 管理数据 MOD。
+3. 确认两个前置 MOD 可以正常工作后，再按下面步骤安装 AutoCattery；完成后
+   必须通过 Mewtator 启动 Mewgenics，直接从 Steam 启动不会加载 Mewtator 数据 MOD。
+
 Windows 发布包安装步骤：
 
 1. 解压 `Windows-x64.zip`。不要再套一层压缩包目录到 `mods` 中。
 2. 将压缩包内 `Mewjector\\mods\\AutoCattery.dll` 和
    `Mewjector\\mods\\AutoCattery\\` 复制到游戏根目录的 `mods\\`（或
    Mewjector 实际扫描的同名目录）。
-3. 将压缩包内 `Mewtator\\AutoCattery\\` 复制到 Mewtator 的 `mod_folder`，
-   并在该目录的 `modlist.txt` 中加入一行 `AutoCattery`。
+3. 将压缩包内 `Mewtator\\AutoCattery\\` 复制到 Mewtator 的 `mods\\` 文件夹，
+   使它成为 `Mewtator\\mods\\AutoCattery\\`；并在该目录的 `modlist.txt` 中
+   加入一行 `AutoCattery`。
 4. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件，
    只从 Steam 直接启动不会加载 Mewtator 数据 MOD。
 
