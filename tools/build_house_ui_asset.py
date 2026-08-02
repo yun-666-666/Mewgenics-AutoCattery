@@ -51,6 +51,7 @@ BUTTON_BACKGROUND_DEPTH = 5
 BUTTON_ICON_DEPTH = 6
 BUTTON_LABEL_DEPTH = 8
 BUTTON_ICON_PLACEMENT_COUNT = 4
+BUTTON_LABEL_HORIZONTAL_SHIFT = -30.0
 DEFINITION_TAGS = frozenset({
     2, 6, 7, 10, 11, 20, 21, 22, 32, 33, 34, 35, 36, 37,
     39, 46, 48, 60, 73, 75, 83, 84, 87, 88, 90, 91,
@@ -515,6 +516,55 @@ def remove_button_icon(body: bytes) -> tuple[bytes, int]:
     return bytes(kept), removed
 
 
+def matrix_translation(body: bytes) -> tuple[float, float]:
+    if not body[0] & 0x04:
+        raise ValueError("button label has no transform matrix")
+    matrix_start = 3 + (2 if body[0] & 0x02 else 0)
+    reader = BitReader(body, matrix_start * 8)
+    if reader.unsigned(1):
+        scale_bits = reader.unsigned(5)
+        reader.signed(scale_bits)
+        reader.signed(scale_bits)
+    if reader.unsigned(1):
+        rotate_bits = reader.unsigned(5)
+        reader.signed(rotate_bits)
+        reader.signed(rotate_bits)
+    translate_bits = reader.unsigned(5)
+    return (
+        reader.signed(translate_bits) / 20.0,
+        reader.signed(translate_bits) / 20.0,
+    )
+
+
+def center_button_labels(body: bytes) -> tuple[bytes, int]:
+    sprite_header = body[:4]
+    kept = bytearray(sprite_header)
+    recentered = 0
+    for code, tag_start, body_start, tag_end in read_tags(body, 4, len(body)):
+        raw_tag = body[tag_start:tag_end]
+        if code == PLACE_OBJECT_2:
+            tag_body = body[body_start:tag_end]
+            depth = struct.unpack_from("<H", tag_body, 1)[0]
+            if depth == BUTTON_LABEL_DEPTH:
+                x, y = matrix_translation(tag_body)
+                raw_tag = encode_tag(
+                    code,
+                    relocate_matrix(
+                        tag_body,
+                        x + BUTTON_LABEL_HORIZONTAL_SHIFT,
+                        y,
+                        None,
+                    ),
+                )
+                recentered += 1
+        kept.extend(raw_tag)
+    if recentered != 4:
+        raise ValueError(
+            f"expected four button label placements, recentered={recentered}"
+        )
+    return bytes(kept), recentered
+
+
 def make_recommendation_text_definition(
     body: bytes,
     character_id: int,
@@ -878,6 +928,7 @@ def build(source: Path, destination: Path) -> None:
                 overlay_button_character_id
         ):
             iconless_body, _ = remove_button_icon(body)
+            iconless_body, _ = center_button_labels(iconless_body)
             output.extend(encode_tag(code, iconless_body))
             output.extend(encode_tag(
                 DEFINE_BITS_LOSSLESS_2,
