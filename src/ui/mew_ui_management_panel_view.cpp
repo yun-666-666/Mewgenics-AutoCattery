@@ -1,6 +1,7 @@
 #include "mew_ui_management_panel_view.hpp"
 
 #include <array>
+#include <chrono>
 #include <string>
 
 #include "mew_ui_movie_clip.hpp"
@@ -27,6 +28,7 @@ MewUiManagementPanelView::~MewUiManagementPanelView() { Detach(); }
 
 Result<void> MewUiManagementPanelView::Attach(
     const UiContextSnapshot& context) {
+    const auto started = std::chrono::steady_clock::now();
     auto* scene = MewUI_GetSceneByName(context.scene_name.c_str());
     if (scene == nullptr || MewUI_IsSceneReadyForUITick(scene) == 0 ||
         MewUI_IsSceneDestroying(scene) != 0) {
@@ -46,6 +48,10 @@ Result<void> MewUiManagementPanelView::Attach(
                 "F10 panel input hook could not be installed"};
     }
     Hide();
+    last_attach_elapsed_us_ = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - started)
+            .count());
     return {};
 }
 
@@ -54,15 +60,20 @@ void MewUiManagementPanelView::Detach() noexcept {
     RemoveHook();
     scene_manager_ = nullptr;
     generation_ = 0;
+    root_node_ = nullptr;
     background_ = nullptr;
     ResetElements();
+    resolve_mode_ = "unresolved";
 }
 
 Result<void> MewUiManagementPanelView::Show(
     const ManagementPanelContent& content) {
+    const auto started = std::chrono::steady_clock::now();
     if (!CanTouchScene()) {
         return {ErrorCode::SceneUnavailable, "House panel scene expired"};
     }
+    changed_text_count_ = 0;
+    changed_frame_count_ = 0;
     MewUI_SetModalInputBlocked(true);
     visible_.store(true);
     page_.store(static_cast<int>(content.page));
@@ -115,6 +126,12 @@ Result<void> MewUiManagementPanelView::Show(
     }
     SetElement(title_, content.title.c_str(), 0);
     SetElement(status_, content.status.c_str(), 0);
+    last_render_elapsed_us_ = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - started)
+            .count());
+    last_changed_text_count_ = changed_text_count_;
+    last_changed_frame_count_ = changed_frame_count_;
     return {};
 }
 
@@ -152,7 +169,78 @@ bool MewUiManagementPanelView::IsVisible() const noexcept {
     return visible_.load();
 }
 
+const char* MewUiManagementPanelView::ResolveMode() const noexcept {
+    return resolve_mode_;
+}
+
+std::uint64_t MewUiManagementPanelView::LastAttachElapsedUs() const noexcept {
+    return last_attach_elapsed_us_;
+}
+
+std::uint64_t MewUiManagementPanelView::LastRenderElapsedUs() const noexcept {
+    return last_render_elapsed_us_;
+}
+
+std::uint32_t MewUiManagementPanelView::LastChangedTextCount() const noexcept {
+    return last_changed_text_count_;
+}
+
+std::uint32_t MewUiManagementPanelView::LastChangedFrameCount() const noexcept {
+    return last_changed_frame_count_;
+}
+
 bool MewUiManagementPanelView::ResolveNodes() noexcept {
+    root_node_ = MewUI_FindRootNodeInSceneByName(
+        scene_manager_, "panel_background", &background_);
+    if (root_node_ != nullptr && background_ != nullptr &&
+        ResolveNodesInRoot(root_node_)) {
+        resolve_mode_ = "root";
+        return true;
+    }
+
+    // Keep the old scene-wide lookup as a compatibility path for older SWFs.
+    root_node_ = nullptr;
+    background_ = nullptr;
+    ResetElements();
+    if (!ResolveNodesBySceneScan()) return false;
+    resolve_mode_ = "scene-fallback";
+    return true;
+}
+
+bool MewUiManagementPanelView::ResolveNodesInRoot(void* root_node) noexcept {
+    if (root_node == nullptr || background_ == nullptr) return false;
+    auto find = [root_node](const std::string& name) {
+        return MewUI_FindChildInRootByName(root_node, name.c_str());
+    };
+    auto resolve = [this](auto& nodes, const char* prefix) {
+        for (std::size_t index = 0; index < nodes.size(); ++index) {
+            const auto name = IndexedName(prefix, index);
+            nodes[index].clip = MewUI_FindChildInRootByName(
+                root_node_, name.c_str());
+            nodes[index].text = MewUI_FindChildInRootByName(
+                root_node_, (name + "_text").c_str());
+            if (nodes[index].clip == nullptr || nodes[index].text == nullptr)
+                return false;
+        }
+        return true;
+    };
+    for (std::size_t index = 0; index < fixed_nodes_.size(); ++index) {
+        fixed_nodes_[index].clip = find(kFixedNames[index]);
+        fixed_nodes_[index].text = find(
+            std::string(kFixedNames[index]) + "_text");
+        if (fixed_nodes_[index].clip == nullptr ||
+            fixed_nodes_[index].text == nullptr)
+            return false;
+    }
+    title_.text = find("panel_title");
+    status_.text = find("panel_status");
+    return resolve(list_nodes_, "panel_protection_row_") &&
+        resolve(group_nodes_, "panel_group_") &&
+        resolve(setting_nodes_, "panel_setting_row_") &&
+        title_.text != nullptr && status_.text != nullptr;
+}
+
+bool MewUiManagementPanelView::ResolveNodesBySceneScan() noexcept {
     background_ = MewUI_FindNodeInSceneByName(scene_manager_, "panel_background");
     if (background_ == nullptr) return false;
     auto resolve = [this](auto& nodes, const char* prefix) {
@@ -197,10 +285,12 @@ void MewUiManagementPanelView::SetElement(
     if (element.text != nullptr && element.rendered_text != text) {
         MewUI_SetTextElementText(element.text, text);
         element.rendered_text = text;
+        ++changed_text_count_;
     }
     if (element.clip != nullptr && element.rendered_frame != frame) {
         HoldMewUiMovieClipFrame(element.clip, frame);
         element.rendered_frame = frame;
+        ++changed_frame_count_;
     }
 }
 

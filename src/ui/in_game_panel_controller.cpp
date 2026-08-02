@@ -54,7 +54,10 @@ void InGamePanelController::Poll(
         attached_generation_ = context.scene_generation;
         Logger::Instance().Write(
             LogLevel::Info, "ManagementPanel", "AC18000",
-            "House panel nodes attached and held on the hidden frame.");
+            "House panel nodes attached and held on the hidden frame; mode=" +
+                std::string(view_.ResolveMode()) +
+                " attach_us=" +
+                std::to_string(view_.LastAttachElapsedUs()));
     }
     if (f10_pressed) {
         if (open_) Close();
@@ -228,7 +231,18 @@ void InGamePanelController::Render() {
             ? PreviewContent() : SettingsContent());
     content.group_titles = settings_.GroupTitles();
     const auto shown = view_.Show(content);
-    if (!shown) Detach();
+    if (!shown) {
+        Detach();
+        return;
+    }
+    Logger::Instance().Write(
+        LogLevel::Info, "ManagementPanel", "AC18004",
+        "F10 panel render completed; elapsed_us=" +
+            std::to_string(view_.LastRenderElapsedUs()) +
+            " changed_text=" +
+            std::to_string(view_.LastChangedTextCount()) +
+            " changed_frames=" +
+            std::to_string(view_.LastChangedFrameCount()));
 }
 
 ManagementPanelContent InGamePanelController::SettingsContent() {

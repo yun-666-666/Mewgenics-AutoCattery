@@ -38,6 +38,21 @@ void RunGameBuildGateTests() {
         L"SyntheticGame.exe", 14, std::string(64, '0'), "wrong"
     });
     AC_CHECK(!wrong_hash.Verify(executable));
+
+    const auto compatible_executable = root / "Mewgenics.exe";
+    std::filesystem::copy_file(
+        executable, compatible_executable,
+        std::filesystem::copy_options::overwrite_existing);
+    const auto compatible =
+        save_safety::CurrentMewgenicsBuildGate().Verify(compatible_executable);
+    AC_CHECK(static_cast<bool>(compatible));
+    AC_CHECK(compatible.value == "mewgenics-compatible-executable");
+
+    const auto wrong_name = root / "OtherGame.exe";
+    std::filesystem::copy_file(
+        executable, wrong_name,
+        std::filesystem::copy_options::overwrite_existing);
+    AC_CHECK(!save_safety::CurrentMewgenicsBuildGate().Verify(wrong_name));
     AC_CHECK(!gate.Verify(root / "missing.exe"));
     std::filesystem::remove_all(root);
 }

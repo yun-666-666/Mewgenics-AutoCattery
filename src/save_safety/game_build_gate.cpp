@@ -33,15 +33,30 @@ Result<std::string> ExactGameBuildGate::Verify(
     return {expected_.identity};
 }
 
-ExactGameBuildGate CurrentMewgenicsBuildGate() {
-    return ExactGameBuildGate({
-        .executable_name = L"Mewgenics.exe",
-        .byte_size = 21'981'184,
-        .sha256 =
-            "C3A41E436A93FA58CD386EC46DAD5C2A6F21A583D33C3A57A15A2604C726439E",
-        .identity =
-            "mewgenics-sha256-c3a41e436a93fa58cd386ec46dad5c2a6f21a583d33c3a57a15a2604c726439e"
-    });
+Result<std::string> MewgenicsExecutableGate::Verify(
+    const std::filesystem::path& executable) const {
+    std::error_code error;
+    const auto canonical = std::filesystem::weakly_canonical(executable, error);
+    const DWORD attributes = error
+        ? INVALID_FILE_ATTRIBUTES
+        : GetFileAttributesW(canonical.c_str());
+    if (error || attributes == INVALID_FILE_ATTRIBUTES ||
+        (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+        (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
+        _wcsicmp(canonical.filename().c_str(), L"Mewgenics.exe") != 0 ||
+        !std::filesystem::is_regular_file(canonical, error) || error) {
+        return {{}, ErrorCode::UnsupportedGameBuild,
+            "a regular Mewgenics.exe file is required"};
+    }
+
+    // Do not hash or compare against a pinned build here. The native adapters
+    // perform pointer/signature checks at each call and report a safe failure
+    // when a future executable no longer matches their verified layout.
+    return {"mewgenics-compatible-executable"};
+}
+
+MewgenicsExecutableGate CurrentMewgenicsBuildGate() {
+    return {};
 }
 
 }  // namespace autocattery::save_safety

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -60,6 +61,11 @@ public:
     [[nodiscard]] std::optional<ManagementPanelEvent> Poll();
     [[nodiscard]] bool IsAttached() const noexcept;
     [[nodiscard]] bool IsVisible() const noexcept;
+    [[nodiscard]] const char* ResolveMode() const noexcept;
+    [[nodiscard]] std::uint64_t LastAttachElapsedUs() const noexcept;
+    [[nodiscard]] std::uint64_t LastRenderElapsedUs() const noexcept;
+    [[nodiscard]] std::uint32_t LastChangedTextCount() const noexcept;
+    [[nodiscard]] std::uint32_t LastChangedFrameCount() const noexcept;
     void BeginNumericInput(std::size_t row, std::string value);
     void CancelNumericInput() noexcept;
     [[nodiscard]] bool IsEditing() const noexcept;
@@ -83,6 +89,8 @@ private:
     void RemoveHook() noexcept;
     bool CaptureEditMessage(MSG* message) noexcept;
     bool ResolveNodes() noexcept;
+    bool ResolveNodesInRoot(void* root_node) noexcept;
+    bool ResolveNodesBySceneScan() noexcept;
     bool CanTouchScene() const noexcept;
     [[nodiscard]] std::optional<HitResult> HitTest(HWND window) const noexcept;
     void SetElement(Element& element, const char* text, int frame) noexcept;
@@ -90,6 +98,7 @@ private:
 
     void* scene_manager_{};
     std::uint64_t generation_{};
+    void* root_node_{};
     void* background_{};
     std::array<Element, 8> fixed_nodes_{};
     std::array<Element, 12> list_nodes_{};
@@ -109,6 +118,13 @@ private:
     std::atomic<int> pending_control_{-1};
     std::atomic<int> pending_row_{-1};
     std::atomic<int> pending_direction_{};
+    const char* resolve_mode_{"unresolved"};
+    std::uint64_t last_attach_elapsed_us_{};
+    std::uint64_t last_render_elapsed_us_{};
+    std::uint32_t last_changed_text_count_{};
+    std::uint32_t last_changed_frame_count_{};
+    std::uint32_t changed_text_count_{};
+    std::uint32_t changed_frame_count_{};
 };
 
 }  // namespace autocattery::ui

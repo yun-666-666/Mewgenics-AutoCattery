@@ -73,3 +73,21 @@
   -Configuration Release`：成功，已部署到 Mewjector 与 Mewtator AutoCattery。
 - 实机视觉和 79 猫打开面板的体感仍待玩家复测；若仍有延迟，下一步只采集
   `AC18002` 到首帧显示的耗时，不扩大功能范围。
+
+## 2026-08-02 发布与兼容性补充
+
+- `src/save_safety/game_build_gate.cpp` 不再用固定文件大小或 SHA-256 阻止
+  MOD 启用；运行时只确认目标是正规的 `Mewgenics.exe`。
+- 原生适配器仍逐次检查指针、组件和调用结果；未知游戏布局会安全失败，
+  保留面板、只读预览和外部编辑器，不把未来版本误报为已验证兼容。
+- README、README_EN、ACKNOWLEDGEMENTS、THIRD_PARTY_NOTICES 和
+  `docs/USER_GUIDE.md` 已同步说明 F10 各按钮、数据收集 ZIP→GitHub Issues
+  流程、参考 MOD 内容以及 OpenAI GPT-5.6 制作声明。
+- `tools/build.ps1 -Configuration Release`：成功，CTest `5/5`、DLL load
+  smoke、x64 校验通过。
+- `tools/build.ps1 -Configuration Debug`：成功，CTest `5/5`、DLL load smoke、
+  x64 校验通过。
+- `tools/deploy.ps1 -GameRoot D:\\steam\\steam\\steamapps\\common\\Mewgenics
+  -Configuration Release` 与 `tools/verify_install.ps1`：成功。
+- 当前回合未完成 F10/House 视觉实机复测；因此不能把新版本兼容性或 25/79 猫
+  流畅度写成已由实机证明。

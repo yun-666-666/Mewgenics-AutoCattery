@@ -33,6 +33,15 @@ private:
     GameBuildFingerprint expected_;
 };
 
-[[nodiscard]] ExactGameBuildGate CurrentMewgenicsBuildGate();
+// Runtime adapters are build-sensitive, but the MOD must not refuse to load
+// solely because a new game executable has a different fingerprint. Native
+// calls still validate their own pointers/signatures and fail closed.
+class MewgenicsExecutableGate final : public IGameBuildGate {
+public:
+    [[nodiscard]] Result<std::string> Verify(
+        const std::filesystem::path& executable) const override;
+};
+
+[[nodiscard]] MewgenicsExecutableGate CurrentMewgenicsBuildGate();
 
 }  // namespace autocattery::save_safety

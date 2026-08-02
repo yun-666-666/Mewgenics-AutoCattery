@@ -17,7 +17,7 @@
 ## MewUI API
 
 - Source: https://github.com/Pseudonym-Tim/mewgenics-ui-api
-- Revision: `3cf26d8bcc496bba356ce9029cc81ff2b6447ddd`
+- Revision: `f4ad83b` (local AutoCattery patch based on the upstream API)
 - Version: `1.2.0`
 - License: MIT
 - Use: compiled-in scene-ready and UI lifecycle API.

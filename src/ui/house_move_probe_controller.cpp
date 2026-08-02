@@ -57,7 +57,7 @@ HouseMoveProbeEvent HouseMoveProbeController::Poll(
         }
         if (!build_supported_) {
             return {HouseMoveProbeEventKind::Rejected,
-                "F9 probe rejected: current game build is not an exact match"};
+                "F9 probe rejected: Mewgenics.exe could not be verified"};
         }
         if (mapper_.Loading()) {
             return {HouseMoveProbeEventKind::Rejected,
@@ -72,7 +72,7 @@ HouseMoveProbeEvent HouseMoveProbeController::Poll(
         previous_left_down_ = left_mouse_down;
         mapper_.Start(scene_generation_);
         return {HouseMoveProbeEventKind::Loading,
-            "F9 read-only move probe loading exact HouseCat mapping"};
+            "F9 read-only move probe loading current-runtime HouseCat mapping"};
     }
     if (!enabled_) {
         return {};
