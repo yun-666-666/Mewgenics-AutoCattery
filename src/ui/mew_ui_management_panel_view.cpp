@@ -69,7 +69,6 @@ Result<void> MewUiManagementPanelView::Show(
     navigation_visible_.store(content.show_navigation);
     apply_visible_.store(content.show_apply);
     remove_visible_.store(content.show_remove);
-    HoldMewUiMovieClipFrame(background_, 1);
     const bool english = !content.group_titles.empty() &&
         content.group_titles.front() == "Combat Scoring";
     SetElement(fixed_nodes_[0], english ? "Settings" : "设置",
@@ -115,6 +114,10 @@ Result<void> MewUiManagementPanelView::Show(
     }
     SetElement(title_, content.title.c_str(), 0);
     SetElement(status_, content.status.c_str(), 0);
+    // Publish the background only after all cached rows have been populated.
+    // This prevents a visible frame of empty SWF rectangles while the text
+    // elements are being updated on the game UI thread.
+    HoldMewUiMovieClipFrame(background_, 1);
     return {};
 }
 
@@ -131,9 +134,22 @@ void MewUiManagementPanelView::Hide() noexcept {
     pending_direction_.store(0);
     if (!CanTouchScene()) return;
     HoldMewUiMovieClipFrame(background_, 0);
-    // The panel is already on its hidden frame. Keep cached text intact so
-    // closing and reopening does not synchronously rewrite every row; Show()
-    // still updates every visible/hidden row when the page is rendered.
+    // Keep cached text intact for fast reopening, but hide every independent
+    // control clip. The background alone does not cover these nodes.
+    for (auto& node : fixed_nodes_) {
+        SetElement(node, node.rendered_text.c_str(), 0);
+    }
+    for (auto& node : list_nodes_) {
+        SetElement(node, node.rendered_text.c_str(), 0);
+    }
+    for (auto& node : group_nodes_) {
+        SetElement(node, node.rendered_text.c_str(), 0);
+    }
+    for (auto& node : setting_nodes_) {
+        SetElement(node, node.rendered_text.c_str(), 0);
+    }
+    SetElement(title_, title_.rendered_text.c_str(), 0);
+    SetElement(status_, status_.rendered_text.c_str(), 0);
 }
 
 bool MewUiManagementPanelView::IsAttached() const noexcept {
