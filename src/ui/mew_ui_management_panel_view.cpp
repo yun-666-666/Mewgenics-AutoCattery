@@ -121,7 +121,7 @@ Result<void> MewUiManagementPanelView::Show(
     // Publish the background only after all cached rows have been populated.
     // This prevents a visible frame of empty SWF rectangles while the text
     // elements are being updated on the game UI thread.
-    HoldMewUiMovieClipFrame(background_, 1);
+    HoldMewUiMovieClipFrame(background_, 2);
     return {};
 }
 
