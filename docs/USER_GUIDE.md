@@ -1,179 +1,236 @@
 # AutoCattery 操作手册 / User Guide
 
-本文与 README 同步说明 F10 面板的每个按钮、行和输入方式。面板只在 House
-场景可用；离开 House、读取存档或保存进行中时，面板会自动隐藏。
+本文解释 F10 管理面板中每个按钮、数据行和开关的实际含义。面板只在 House
+场景可用；离开 House、切换存档或场景刷新时，旧预览会失效。
 
 ## 中文
 
-### 打开与关闭
+### 面板按钮
 
-| 控件 | 作用 | 改变了什么 |
+| 控件 | 作用 | 会改变什么 |
 | --- | --- | --- |
-| `F10` | 打开或关闭面板 | 只改变面板可见性，不改变猫或设置 |
-| `Esc` | 关闭面板 | 取消正在输入的数值；再次按下才关闭面板 |
-| `设置` | 显示规划和安全设置 | 切换页不会执行移动 |
-| `猫保护` | 读取本机存档并管理玩家保护规则 | 只写入明确应用的保护规则 |
-| `完整预览` | 查看最近一次有效预览 | 只读，不会移动猫 |
+| `F10` | 打开或关闭管理面板 | 只改变面板可见性，不改变猫或配置 |
+| `Esc` | 关闭面板 | 编辑数字时先取消编辑；再次按下才关闭面板 |
+| `设置` | 打开设置页 | 只显示设置，不执行整理 |
+| `猫保护` | 打开保护页 | 只读取本机存档列表和猫；只有点击应用才写规则 |
+| `完整预览` | 打开最近一次有效预览 | 只读，不移动或淘汰猫 |
 | `关闭` | 关闭面板 | 恢复 House 的鼠标和滚轮输入 |
 
-### 设置页
+设置行的操作方式：点击左侧减少数值，点击右侧增加数值，点击中间直接输入；
+按 `Enter` 提交，按 `Esc` 取消。布尔开关点击任意侧都会切换。提交后写入
+`user_config.json`，新预览会使用新值；已经生成的旧预览不会被悄悄改写。
 
-设置按“战斗评分与推荐”“繁育评分与分类”“房间、安全与 MOD”分组。每行的
-数值或开关会立即保存到 `user_config.json`，游戏规则随后热更新。
+### 设置页：战斗评分
 
-| 操作 | 作用 | 改变了什么 |
+| 面板行 | 含义和改变效果 |
+| --- | --- |
+| `推荐猫数量`（默认 8，1-100） | 战斗评分排序中标记为“推荐”的猫数。它不是自动组队数量，也不会自动让猫出征。 |
+| `最低战斗分数`（默认 0） | 分数低于此值的猫不进入战斗合格列表；提高它会减少候选，降低它会放宽候选。 |
+| `最少已知属性`（默认 7，0-7） | 一只猫至少要有多少项已确认的七项基础属性才可参与战斗评分。设为 7 时，缺任一项都会被排除。 |
+| `排除幼猫`（默认开） | 开启时幼猫不进入战斗推荐；关闭只取消这一层年龄过滤。 |
+| `排除受伤猫`（默认关） | 开启时已确认受伤的猫不进入战斗推荐；未知受伤状态在要求确认资格时仍会被拦截。 |
+| `要求资格已确认`（默认开） | 未确认战斗可用性、年龄等字段时按不合格处理；关闭后仍会保留数据限制提示，不会把未知当成已确认事实。 |
+| `缺失属性惩罚`（默认 0） | 每缺少一项战斗评分所需的遗传/遗传加成/装备来源，分数扣除此值。它不会补齐缺失数据。 |
+| `受伤惩罚`（默认 0） | 不排除受伤猫时，对已确认受伤的猫额外扣分。 |
+| `力量/敏捷/体质/智力/速度/魅力/幸运权重`（默认各 1） | 七项属性总值分别乘以对应权重后相加。权重为 0 表示该属性不影响分数，负值会反向偏好。 |
+| `推荐显示分数`、`推荐显示排名`（默认开） | 控制 House 中推荐标记是否显示分数和名次；只影响显示，不改变排序。 |
+
+战斗分数使用已确认的遗传值、遗传加成和装备加成；移动能力和基础攻击只会被
+识别，当前没有通用默认分，因此不会凭空给它们加分。
+
+### 设置页：繁育与分类
+
+| 面板行 | 含义和改变效果 |
+| --- | --- |
+| `核心繁育猫数`（默认 4） | 从繁育合格排序的前 N 只建立核心池。推荐配对的两只猫也会被纳入核心判断；它不是自动繁育次数。 |
+| `后备繁育猫数`（默认 4） | 排在核心池之后的 N 只建立后备池。它们是核心猫不足或需要替换时的保留对象。 |
+| `最低繁育分数`（默认 0） | 低于此分数的猫不进入繁育合格排序。 |
+| `繁育最少已知属性`（默认 7，0-7） | 繁育评分至少需要多少项已确认基础属性。**截图中的 `7` 表示七项全部已知；缺一项就会显示限制并不能成为合格繁育候选。** |
+| `繁育资格已确认`（默认开） | 未确认成年、可繁育等字段时不把猫当成合格繁育候选；关闭只放宽资格门，不会伪造未知字段。 |
+| `繁育缺失属性惩罚`（默认 0，步进 0.25） | 每缺少一项基础属性，繁育分数扣除此值。**截图中的 `0.25` 意味着每缺一项扣 0.25 分；但当“繁育最少已知属性”为 7 时，缺失属性的猫已经因资格不足被排除，所以该惩罚主要在你把门槛调低后才会影响排序。** |
+| `繁育力量/敏捷/体质/智力/速度/魅力/幸运权重`（默认各 1） | 七项可遗传基础属性的加权和。稳定全 7 前，这些权重主导繁育评分；稳定全 7 后才会叠加已确认的技能槽和特征权重。 |
+| `战斗分类优先`（默认关） | 一只猫同时进入战斗推荐和核心繁育池时，开启则把主角色显示为战斗推荐，关闭则显示为繁育核心；两个池仍都会保留。 |
+| `最低战斗保留池`（默认 8） | 分类器至少保留多少只**战斗评分合格且排序靠前**的猫不作为普通候选。**截图中的 `8` 不是强制组成 8 人队，也不是当前猫数；它是安全保留下限。**实际保留数为 `max(推荐猫数量, 此值)`，但不会把不合格或未知猫硬塞进池子；合格猫不足时只给出警告并停止危险淘汰。** |
+| `最低繁育保留池`（默认 8） | 与战斗保留池相同，但对象是繁育评分合格的猫。它保证繁育候选不足时不继续把普通猫当成可淘汰对象。 |
+| `最低普通保留数`（默认 4） | 在战斗池和繁育池之外，按综合分数再保留的普通猫数量，用于避免把所有非核心猫都视为淘汰候选。 |
+| `禁止淘汰置信度`（默认 0.85，0-1） | 数据置信度低于此值的猫不得进入淘汰预览。它只提高安全门槛，不会提高评分。 |
+
+“保留池”是分类和安全边界，不是立即执行的动作。当前 MOD 的真实淘汰仍关闭；
+即使分类器列出候选，也不会绕过预览、保护和执行开关删除猫。
+
+### 设置页：房间、安全与 MOD
+
+| 面板行 | 含义和改变效果 |
+| --- | --- |
+| `默认软容量`（默认 4） | 没有实测房间软容量时用于规划的舒适人数参考，不覆盖已确认的硬容量。 |
+| `允许软容量溢出`（默认开） | 允许规划在软容量上方继续分配；硬容量仍不可超过。 |
+| `每房最大软溢出`（默认 2） | 单个房间最多超过软容量多少只；超过则计划报告容量缺口。 |
+| `优先单一战斗房`（默认开） | 尽量把战斗推荐猫集中到一个已验证普通房，减少多房分散；不是自动选择出征队。 |
+| `繁育配对保持同房`（默认开） | 推荐配对存在时尽量安排在同一房间。 |
+| `避免近亲配对`（默认开） | 有已确认亲缘信息时避开近亲；亲缘未知不会被当作安全。 |
+| `尽量分开幼猫`（默认开） | 在容量允许时减少幼猫与成年繁育房混放。 |
+| `只读模式`（默认开） | 只生成预览和诊断，不提交原生移动。需要实际移动时必须明确关闭。 |
+| `应用前创建备份`（默认开） | 执行写操作前创建备份；备份失败会阻止执行。 |
+| `单击执行模式`（默认关） | 关闭时第一次点击预览、第二次点击执行；开启会把两步合成一次，风险更高。 |
+| `界面语言`（默认中文） | 只切换 AutoCattery 面板文字，不翻译游戏本体；选择会持久化。 |
+| `收集猫数据（默认关闭）` | 开启后在本机生成去除猫名、存档路径、用户名、机器 ID 和账号 ID 的技术快照；不会自动联网。 |
+
+### House 自动整理按钮
+
+| 点击次数 | 作用 | 结果 |
 | --- | --- | --- |
-| 点击行左侧 | 数值减小；开关切换一次 | 改变该行配置并保存 |
-| 点击行右侧 | 数值增大；开关切换一次 | 改变该行配置并保存 |
-| 点击行中间 | 开始直接输入数值 | 只进入编辑状态，不立即写入 |
-| 输入数字后按 `Enter` | 提交数值 | 校验范围后保存；无效输入不会覆盖旧值 |
-| 编辑时按 `Esc` | 取消输入 | 恢复编辑前的值 |
-| `上一页` / `下一页` | 浏览设置分组的分页 | 只改变当前显示页 |
+| 第一次 | 刷新当前运行时猫、房间、保护规则和配置，生成预览 | 不移动猫，可在“完整预览”查看 |
+| 第二次 | 再次校验实时状态后执行 MoveOnly | 只移动目标房不同的猫，已到位的猫跳过 |
 
-重点设置包括推荐猫数量、七项属性权重、繁育保留池、房间软容量、只读模式、
-应用前备份、单击执行模式、界面语言和“收集猫数据”。“单击执行模式（危险）”
-会把原本的“第一次预览、第二次执行”缩短为一次点击；除非你明确理解风险，建议
-保持关闭。
+玩家手动搬猫、换存档、场景刷新或配置/保护规则变化后，旧预览会失效并要求重新
+预览。真实淘汰、自动推进天数和自动选择出征队不属于此按钮。
 
 ### 猫保护页
 
-1. 点击顶部“存档”行左侧或右侧，选择要列出猫的本机存档。选择存档不会自动
-   把它设为执行来源。
-2. 点击一张猫卡片，明确选择一只猫。没有选猫时，保护按钮不会写入任何规则。
-3. 点击“保护等级”，选择以下级别之一：
-   - `禁止淘汰`：规划器不得把这只猫列为淘汰对象。
-   - `禁止移动`：自动整理不得移动这只猫。
-   - `禁止淘汰和移动`：同时禁止淘汰和移动。
-   - `完全不管理`：自动流程完全跳过这只猫。
-4. 点击“固定房间”，选择 `不固定` 或当前存档已有的普通房间。固定房间会把
-     这只猫的目标锁在指定房间；目标房不存在时本次操作会安全停止。
-5. 点击“应用保护”才写入规则。点击“移除保护”只移除当前已选猫的玩家规则。
-6. 猫超过 9 只时，用“上一页”“下一页”或鼠标滚轮翻页；翻页后需要重新点击
-   猫卡片，避免把保护等级应用到另一只猫。
+选择存档只用于列出猫，不会自动把它设为执行来源。必须先点击一只猫，再选择保护
+等级或固定房间，最后点击“应用保护”才会写入规则：
 
-保护规则写入 `Mewgenics\\Mods\\AutoCattery\\config\\protection.json`。默认规则为空，
-不会自动保护任何 CatId、猫名或存档。
+- `禁止淘汰`：不列入淘汰候选。
+- `禁止移动`：整理时不移动。
+- `禁止淘汰和移动`：同时禁止两项。
+- `完全不管理`：自动流程跳过该猫。
+- `固定房间`：把目标房锁为当前存档中已存在的普通房；房间不存在时安全停止。
 
-### 完整预览页
+`移除保护`只删除当前选中猫的规则。规则写入
+`Mewgenics\\Mods\\AutoCattery\\config\\protection.json`；默认记录为空。
 
-| 控件 | 作用 | 改变了什么 |
-| --- | --- | --- |
-| `上一页` / `下一页` | 浏览房间汇总和逐猫移动详情 | 只改变显示内容 |
-| 猫详情行 | 显示来源、目标、性别、潜力和原因 | 不可编辑，不会移动猫 |
-| `关闭` | 返回 House | 不执行预览中的动作 |
+### 完整预览页和数据反馈
 
-如果显示“暂无预览”，请关闭 F10，在 House 点击一次“自动整理猫舍”生成预览，
-再重新打开 F10。预览后如果玩家手动搬猫、换存档或场景刷新，旧预览会失效，
-执行按钮不会绕过这个检查。
+完整预览只显示房间人数变化、性别比例、每只猫的来源/目标/性别/潜力/原因，不能
+直接编辑或执行。遇到卡顿或错误时，打开“收集猫数据”，复现问题，退出游戏后把
+`Mewgenics\\Mods\\AutoCattery\\AutoCatteryData` 压缩为 ZIP，上传到
+[GitHub Issues](https://github.com/yun-666-666/Mewgenics-AutoCattery/issues)。Issue
+请写游戏版本、猫数量、复现步骤、预期和实际结果；只上传该目录中的 JSON 技术快照，
+不要上传存档、整个游戏目录、账号截图或其他个人文件，上传后关闭收集开关。
 
-### House 中的自动整理按钮
+### 游戏版本
 
-| 点击次数 | 作用 | 改变了什么 |
-| --- | --- | --- |
-| 第一次点击 | 读取当前运行时猫、房间、保护和设置，生成预览 | 不移动猫；可回到 F10 查看 |
-| 第二次点击 | 重新校验预览和实时状态后执行 MoveOnly | 只移动需要改变房间的猫；已在目标房的猫跳过 |
-
-只读模式或原生适配器失败时，执行会被拒绝并写日志，不会偷偷修改存档。真实淘汰、
-自动推进天数和自动组建出征队伍不属于此按钮。
-
-### 数据收集和 GitHub Issue
-
-数据收集默认关闭。需要协助分析卡顿或错误时：打开 F10 设置中的“收集猫数据”，
-复现问题，退出游戏，把 `Mewgenics\\Mods\\AutoCattery\\AutoCatteryData` 压缩为 ZIP，
-在 [GitHub Issues](https://github.com/yun-666-666/Mewgenics-AutoCattery/issues) 新建
-Issue 并附加 ZIP。说明游戏版本、猫数量、复现步骤、预期结果和实际结果，然后关闭
-数据收集。上传前检查压缩包，只保留该目录中的 JSON 技术快照；不要上传存档、整个
-游戏目录、账号截图或其他个人文件。
+MOD 不再用固定文件大小或 SHA-256 阻止启用。启动只确认存在正规的
+`Mewgenics.exe`；原生适配器运行时仍逐项检查指针、组件和调用结果。新版内部布局
+变化时，移动/探针会安全失败并记录日志，面板、只读预览和外部编辑器仍可用。
 
 ## English
 
-This guide mirrors the Chinese section. The F10 panel is available only in House;
-it hides automatically while leaving House, loading a save, or saving.
+This guide mirrors the Chinese section. The panel is available only in House. Leaving
+House, changing saves, or refreshing the scene invalidates an old preview.
 
-### Open and close
+### Panel buttons
 
 | Control | Action | What changes |
 | --- | --- | --- |
-| `F10` | Open or close the panel | Visibility only; cats and settings do not change |
-| `Esc` | Close the panel | Cancels numeric input first; press again to close |
-| `Settings` | Show planning and safety settings | Page changes never move cats |
-| `Cat Protection` | Read local saves and manage player rules | Only explicitly applied rules are written |
-| `Full Preview` | View the latest valid preview | Read-only; no cat is moved |
+| `F10` | Open or close the management panel | Visibility only; cats and settings do not change |
+| `Esc` | Close the panel | Cancels numeric editing first; press again to close |
+| `Settings` | Open Settings | Display only; no organization is executed |
+| `Cat Protection` | Open protection controls | Reads local saves and cats; writes only after Apply |
+| `Full Preview` | Open the latest valid preview | Read-only; no movement or culling |
 | `Close` | Close the panel | Restores House mouse and wheel input |
 
-### Settings page
+For a setting row, click the left side to decrease, the right side to increase, or the
+middle to type a value. Press `Enter` to commit or `Esc` to cancel. Boolean switches
+toggle from either side. Values are saved to `user_config.json`; a new preview uses
+them, while an existing preview is never silently rewritten.
 
-Settings are grouped as Combat Scoring & Recommendations, Breeding &
-Classification, and Rooms, Safety & MOD. Every row is saved to `user_config.json`
-immediately and game rules hot-reload afterward.
+### Settings: Combat Scoring
 
-| Operation | Action | What changes |
+| Row | Meaning and effect |
+| --- | --- |
+| `Recommended cats` (default 8, 1-100) | Number of top eligible combat cats marked as recommended. It is not an auto-created team or expedition size. |
+| `Minimum combat score` (default 0) | Cats below this score are excluded from the eligible combat ranking. |
+| `Minimum known stats` (default 7, 0-7) | Required count of confirmed base stats. At 7, any missing one excludes the cat. |
+| `Exclude kittens` (on) | Excludes kittens from combat recommendations. |
+| `Exclude injured cats` (off) | Excludes confirmed injured cats when enabled; unknown injury remains blocked when eligibility confirmation is required. |
+| `Require confirmed eligibility` (on) | Treats unconfirmed combat availability or age as ineligible; it never turns unknown data into a confirmed fact. |
+| `Missing stat penalty` (0) | Subtracts this amount for each missing genetic, heredity, or equipment source. It does not invent the value. |
+| `Injury penalty` (0) | Extra score deduction for confirmed injuries when injured cats are not excluded. |
+| `Strength/Dexterity/Constitution/Intelligence/Speed/Charisma/Luck weight` (1 each) | Multiplies each stat's total before adding it to the combat score. Zero ignores a stat; a negative value reverses its preference. |
+| `Show recommendation score` and `Show recommendation rank` (on) | Controls marker text only; it does not change ranking. |
+
+Combat scoring uses confirmed genetic values, heredity bonuses, and equipment bonuses.
+Movement and basic-attack slots are identified but have no universal default score.
+
+### Settings: Breeding and Classification
+
+| Row | Meaning and effect |
+| --- | --- |
+| `Core breeders` (default 4) | Takes the first N eligible cats in the breeding ranking as the core pool. A recommended pair is also included in the core decision; this is not a breeding count. |
+| `Reserve breeders` (default 4) | Takes the next N eligible cats after the core as a replacement pool. |
+| `Minimum breeding score` (0) | Excludes cats below this score from the eligible breeding ranking. |
+| `Breeding known stats` (default 7, 0-7) | Required count of confirmed base stats. **The screenshot value `7` means all seven must be known; a cat missing one is limited and cannot be an eligible breeder.** |
+| `Confirmed breeding eligibility` (on) | Requires confirmed adult/breeding availability. Disabling the gate does not fabricate unknown fields. |
+| `Breeding missing penalty` (0, step 0.25) | Subtracts this amount for every missing base stat. **The screenshot value `0.25` means minus 0.25 per missing stat. With known stats set to 7, missing-stat cats are already excluded, so this mainly affects ordering after lowering that gate.** |
+| `Breeding Strength/Dexterity/Constitution/Intelligence/Speed/Charisma/Luck weight` (1 each) | Weighted sum of heritable base stats. Before stable all-seven breeding, these dominate; after that stage, confirmed ability and trait weights are added. |
+| `Combat role first` (off) | For a cat in both the combat recommendation and breeding core, chooses Combat as the displayed primary role when enabled; both pools still retain the cat. |
+| `Minimum combat pool` (default 8) | Keeps at least this many **eligible, highest-ranked combat cats** out of the general pool. **The screenshot value `8` is not an eight-cat team and not the current cat count.** The actual target is `max(Recommended cats, this value)`. Ineligible or unknown cats are never forced into the pool; too few eligible cats produces a warning and blocks unsafe culling. |
+| `Minimum breeding pool` (default 8) | The same safety boundary for eligible breeding cats. |
+| `Minimum general reserve` (default 4) | Keeps this many additional cats outside both specialized pools, ordered by combined score. |
+| `No-cull confidence` (default 0.85, 0-1) | Cats below this confidence cannot enter a cull preview. It raises a safety threshold, not a score. |
+
+A retained pool is a classification and safety boundary, not an immediate action. Real
+culling is disabled; even a listed candidate cannot bypass preview, protection, or the
+execution gates.
+
+### Settings: Rooms, Safety, and MOD
+
+| Row | Meaning and effect |
+| --- | --- |
+| `Default soft capacity` (4) | Planning reference when no measured soft capacity is available; it never overrides known hard capacity. |
+| `Allow soft overflow` (on) | Allows planning above soft capacity while still respecting hard capacity. |
+| `Maximum room overflow` (2) | Maximum soft-capacity overflow per room before reporting a capacity gap. |
+| `Prefer one combat room` (on) | Tries to stage combat recommendations in one verified ordinary room; it does not select an expedition team. |
+| `Keep breeding pair together` (on) | Tries to place a recommended pair in the same room. |
+| `Avoid inbreeding pairs` (on) | Avoids confirmed close relatives; unknown relationships are not treated as safe. |
+| `Separate kittens when possible` (on) | Reduces mixing kittens with adult breeding rooms when capacity allows. |
+| `Read-only mode` (on) | Generates previews and diagnostics only; native movement is not submitted. |
+| `Create backup before apply` (on) | Creates a backup before a write; backup failure blocks the write. |
+| `Single-click execution` (off) | Off means first click previews and second click applies; on combines both steps and is riskier. |
+| `Interface language` (Chinese) | Changes AutoCattery text only, not the base game; the choice is persisted. |
+| `Collect cat data (off by default)` | Writes local technical snapshots without names, save paths, usernames, machine IDs, or account IDs; nothing is uploaded automatically. |
+
+### Auto-Organize Cattery
+
+| Click | Action | Result |
 | --- | --- | --- |
-| Click the left side of a row | Decrease a number; toggle a switch | Saves that setting |
-| Click the right side of a row | Increase a number; toggle a switch | Saves that setting |
-| Click the middle of a row | Start direct numeric input | Enters edit mode only |
-| Type a number and press `Enter` | Commit the number | Range-checks and saves; invalid input is rejected |
-| Press `Esc` while editing | Cancel input | Keeps the value from before editing |
-| `Previous` / `Next` | Browse setting pages | Changes only the visible page |
+| First | Refresh live cats, rooms, protection, and settings, then build a preview | No cat moves; inspect it in Full Preview |
+| Second | Revalidate live state and run MoveOnly | Moves only cats whose target room differs; cats already in place are skipped |
 
-Important settings include recommended count, seven-stat weights, breeding
-reserve pools, room soft capacity, read-only mode, backup-before-apply,
-single-click execution, interface language, and **Collect cat data**. The
-**Single-click execution (dangerous)** option changes the normal two-step
-preview-then-apply flow into one click; keep it off unless you understand the
-risk.
+Manual movement, save changes, scene refreshes, or changed settings/protection invalidate
+the old preview. Real culling, automatic day advance, and automatic expedition selection
+are outside this button.
 
-### Cat Protection page
+### Cat Protection
 
-1. Click the left or right side of the top **Save** row to choose a local save to
-   list. This does not make it the execution source.
-2. Click one cat card to select exactly one cat. Protection buttons write nothing
-   until a cat is selected.
-3. Click **Protection** and choose one level:
-   - `No Cull`: never include this cat in a cull candidate.
-   - `No Move`: never move this cat during automatic organization.
-   - `No Cull or Move`: both restrictions apply.
-   - `Fully Unmanaged`: skip this cat in the automatic workflow.
-4. Click **Fixed room** and choose `Not fixed` or an ordinary room present in the
-     selected save. A fixed target that does not exist stops the operation safely.
-5. Click **Apply Protection** to write the rule. **Remove Protection** removes
-   only the selected cat's player rule.
-6. With more than nine cats, use `Previous`, `Next`, or the mouse wheel to page;
-   select the cat again after paging so a rule cannot be applied to another cat.
+Selecting a save only chooses which cats to list. Select one cat, choose a level or fixed
+room, then click `Apply Protection` to write a rule:
 
-Rules are stored in `Mewgenics\\Mods\\AutoCattery\\config\\protection.json`. The default
-records list is empty; no CatId, cat name, or save is protected automatically.
+- `No Cull`: never include the cat in cull candidates.
+- `No Move`: never move the cat during organization.
+- `No Cull or Move`: both restrictions.
+- `Fully Unmanaged`: skip the cat in the automatic workflow.
+- `Fixed room`: lock the target to an existing ordinary room; a missing room stops safely.
 
-### Full Preview page
+`Remove Protection` removes only the selected cat's rule. Rules are stored in
+`Mewgenics\\Mods\\AutoCattery\\config\\protection.json`; the default record list is empty.
 
-| Control | Action | What changes |
-| --- | --- | --- |
-| `Previous` / `Next` | Browse room summaries and cat-move details | Display only |
-| Cat detail row | Shows source, target, sex, potential, and reason | Not editable; no movement |
-| `Close` | Return to House | Does not execute preview actions |
+### Full Preview and issue feedback
 
-If it says **No preview**, close F10, click **Auto-Organize Cattery** once in
-House, and reopen F10. If the player moves a cat, changes saves, or the scene
-refreshes after preview, the preview becomes stale and cannot bypass validation.
+Full Preview shows room totals, sex ratios, and each planned cat's source, target, sex,
+potential, and reason. It cannot edit or execute a plan. For lag or errors, enable
+`Collect cat data`, reproduce the issue, exit the game, compress
+`Mewgenics\\Mods\\AutoCattery\\AutoCatteryData` into a ZIP, and attach it to a new
+[GitHub Issue](https://github.com/yun-666-666/Mewgenics-AutoCattery/issues). Include game
+version, cat count, reproduction steps, expected result, and actual result. Upload only
+the JSON technical snapshots from that directory, never saves, the whole game directory,
+account screenshots, or other personal files; turn collection off afterward.
 
-### Auto-Organize Cattery in House
+### Game version
 
-| Click | Action | What changes |
-| --- | --- | --- |
-| First click | Read live cats, rooms, protection, and settings and create a preview | No cat moves |
-| Second click | Revalidate the preview and live state, then run MoveOnly | Moves only cats whose room must change; skips cats already in target rooms |
-
-Read-only mode or a failed native adapter rejects execution and writes a log; it
-does not silently edit saves. Real culling, automatic day advance, and automatic
-expedition-team selection are outside this button.
-
-### Data collection and GitHub Issues
-
-Collection is off by default. To request help with lag or incorrect behavior,
-enable **Collect cat data** in F10 Settings, reproduce the problem, exit the
-game, and compress `Mewgenics\\Mods\\AutoCattery\\AutoCatteryData` into a ZIP. Open a
-[GitHub Issue](https://github.com/yun-666-666/Mewgenics-AutoCattery/issues), include
-the game version, cat count, reproduction steps, expected result, and actual
-result, and attach the ZIP. Turn collection off afterward. Inspect the archive
-first and keep only JSON technical snapshots from that directory; do not upload
-saves, the whole game directory, account screenshots, or other personal files.
+The MOD no longer refuses to enable because `Mewgenics.exe` has a fixed size or SHA-256.
+Startup only checks for a regular executable; native adapters still validate pointers,
+components, and call results at runtime. A changed internal layout can safely reject a
+move/probe and log the reason while the panel, read-only preview, and external editor
+remain available.
