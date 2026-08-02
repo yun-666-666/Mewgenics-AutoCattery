@@ -69,6 +69,10 @@ Result<void> MewUiManagementPanelView::Show(
     navigation_visible_.store(content.show_navigation);
     apply_visible_.store(content.show_apply);
     remove_visible_.store(content.show_remove);
+    // Keep the whole composition hidden while text and control frames are
+    // being changed. The background is published only after all rows below
+    // are ready.
+    HoldMewUiMovieClipFrame(background_, 0);
     const bool english = !content.group_titles.empty() &&
         content.group_titles.front() == "Combat Scoring";
     SetElement(fixed_nodes_[0], english ? "Settings" : "设置",
@@ -134,22 +138,23 @@ void MewUiManagementPanelView::Hide() noexcept {
     pending_direction_.store(0);
     if (!CanTouchScene()) return;
     HoldMewUiMovieClipFrame(background_, 0);
-    // Keep cached text intact for fast reopening, but hide every independent
-    // control clip. The background alone does not cover these nodes.
+    // Hide every independent control clip and clear the independent text
+    // nodes. The background alone does not cover these nodes, and text
+    // elements are not children of the movie-clip frame.
     for (auto& node : fixed_nodes_) {
-        SetElement(node, node.rendered_text.c_str(), 0);
+        SetElement(node, "", 0);
     }
     for (auto& node : list_nodes_) {
-        SetElement(node, node.rendered_text.c_str(), 0);
+        SetElement(node, "", 0);
     }
     for (auto& node : group_nodes_) {
-        SetElement(node, node.rendered_text.c_str(), 0);
+        SetElement(node, "", 0);
     }
     for (auto& node : setting_nodes_) {
-        SetElement(node, node.rendered_text.c_str(), 0);
+        SetElement(node, "", 0);
     }
-    SetElement(title_, title_.rendered_text.c_str(), 0);
-    SetElement(status_, status_.rendered_text.c_str(), 0);
+    SetElement(title_, "", 0);
+    SetElement(status_, "", 0);
 }
 
 bool MewUiManagementPanelView::IsAttached() const noexcept {
