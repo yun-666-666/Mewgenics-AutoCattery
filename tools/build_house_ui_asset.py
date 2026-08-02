@@ -20,7 +20,10 @@ from pathlib import Path
 import struct
 import zlib
 
-from swf_panel_shapes import rectangle_shape, three_frame_sprite
+from swf_panel_shapes import (
+    hidden_default_frame_sprite,
+    rectangle_shape,
+)
 from swf_panel_layout import (
     PANEL_BACKGROUND_TRANSFORM,
     PANEL_COMPACT_ELEMENTS,
@@ -897,7 +900,7 @@ def build(source: Path, destination: Path) -> None:
             ))
             output.extend(encode_tag(
                 DEFINE_SPRITE,
-                three_frame_sprite(
+                hidden_default_frame_sprite(
                     panel_background_character_id,
                     panel_background_shape_id,
                     panel_background_shape_id),
@@ -916,7 +919,7 @@ def build(source: Path, destination: Path) -> None:
             ))
             output.extend(encode_tag(
                 DEFINE_SPRITE,
-                three_frame_sprite(
+                hidden_default_frame_sprite(
                     panel_control_character_id,
                     panel_control_normal_shape_id,
                     panel_control_pressed_shape_id),

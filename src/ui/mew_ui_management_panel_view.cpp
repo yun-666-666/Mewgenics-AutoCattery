@@ -76,29 +76,29 @@ Result<void> MewUiManagementPanelView::Show(
     const bool english = !content.group_titles.empty() &&
         content.group_titles.front() == "Combat Scoring";
     SetElement(fixed_nodes_[0], english ? "Settings" : "设置",
-               content.page == ManagementPanelPage::Settings ? 2 : 1);
+               content.page == ManagementPanelPage::Settings ? 3 : 2);
     SetElement(fixed_nodes_[1], english ? "Cat Protection" : "猫保护",
-               content.page == ManagementPanelPage::Protection ? 2 : 1);
+               content.page == ManagementPanelPage::Protection ? 3 : 2);
     SetElement(fixed_nodes_[2], english ? "Full Preview" : "完整预览",
-               content.page == ManagementPanelPage::Preview ? 2 : 1);
-    SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 1);
+               content.page == ManagementPanelPage::Preview ? 3 : 2);
+    SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 2);
     SetElement(fixed_nodes_[4],
                content.show_navigation ? (english ? "Previous" : "上一页") : "",
-               content.show_navigation ? 1 : 0);
+               content.show_navigation ? 2 : 0);
     SetElement(fixed_nodes_[5],
                content.show_navigation ? (english ? "Next" : "下一页") : "",
-               content.show_navigation ? 1 : 0);
+               content.show_navigation ? 2 : 0);
     SetElement(fixed_nodes_[6],
                content.show_apply ? (english ? "Apply" : "应用") : "",
-               content.show_apply ? 1 : 0);
+               content.show_apply ? 2 : 0);
     SetElement(fixed_nodes_[7],
                content.show_remove ? (english ? "Remove" : "移除") : "",
-               content.show_remove ? 1 : 0);
+               content.show_remove ? 2 : 0);
 
     for (std::size_t index = 0; index < list_nodes_.size(); ++index) {
         const bool shown = content.page != ManagementPanelPage::Settings &&
             index < content.rows.size() && !content.rows[index].empty();
-        const int frame = content.selected_row == index ? 2 : 1;
+        const int frame = content.selected_row == index ? 3 : 2;
         SetElement(list_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
@@ -107,12 +107,12 @@ Result<void> MewUiManagementPanelView::Show(
             index < content.group_titles.size();
         SetElement(group_nodes_[index],
                    shown ? content.group_titles[index].c_str() : "",
-                   shown ? 1 : 0);
+                   shown ? 2 : 0);
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
         const bool shown = content.page == ManagementPanelPage::Settings &&
             index < content.rows.size();
-        const int frame = content.selected_row == index ? 2 : 1;
+        const int frame = content.selected_row == index ? 3 : 2;
         SetElement(setting_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
