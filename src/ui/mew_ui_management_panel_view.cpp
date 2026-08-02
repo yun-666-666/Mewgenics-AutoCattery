@@ -35,13 +35,6 @@ Result<void> MewUiManagementPanelView::Attach(
     }
     scene_manager_ = scene;
     generation_ = context.scene_generation;
-    panel_root_ = MewUI_FindNodeInSceneByName(scene_manager_, "panel_root");
-    if (panel_root_ == nullptr || !HoldMewUiMovieClipFrame(panel_root_, 3)) {
-        Detach();
-        return {ErrorCode::UiNodeNotFound,
-                "F10 panel root is missing from the House SWF"};
-    }
-    panel_root_visible_ = true;
     if (!ResolveNodes()) {
         Detach();
         return {ErrorCode::UiNodeNotFound,
@@ -61,8 +54,6 @@ void MewUiManagementPanelView::Detach() noexcept {
     RemoveHook();
     scene_manager_ = nullptr;
     generation_ = 0;
-    panel_root_ = nullptr;
-    panel_root_visible_ = false;
     background_ = nullptr;
     ResetElements();
 }
@@ -78,36 +69,33 @@ Result<void> MewUiManagementPanelView::Show(
     navigation_visible_.store(content.show_navigation);
     apply_visible_.store(content.show_apply);
     remove_visible_.store(content.show_remove);
-    // Keep the whole composition hidden while text and control frames are
-    // being changed. The background is published only after all rows below
-    // are ready.
-    HoldMewUiMovieClipFrame(background_, 0);
+    HoldMewUiMovieClipFrame(background_, 1);
     const bool english = !content.group_titles.empty() &&
         content.group_titles.front() == "Combat Scoring";
     SetElement(fixed_nodes_[0], english ? "Settings" : "设置",
-               content.page == ManagementPanelPage::Settings ? 4 : 3);
+               content.page == ManagementPanelPage::Settings ? 2 : 1);
     SetElement(fixed_nodes_[1], english ? "Cat Protection" : "猫保护",
-               content.page == ManagementPanelPage::Protection ? 4 : 3);
+               content.page == ManagementPanelPage::Protection ? 2 : 1);
     SetElement(fixed_nodes_[2], english ? "Full Preview" : "完整预览",
-               content.page == ManagementPanelPage::Preview ? 4 : 3);
-    SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 3);
+               content.page == ManagementPanelPage::Preview ? 2 : 1);
+    SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 1);
     SetElement(fixed_nodes_[4],
                content.show_navigation ? (english ? "Previous" : "上一页") : "",
-               content.show_navigation ? 3 : 0);
+               content.show_navigation ? 1 : 0);
     SetElement(fixed_nodes_[5],
                content.show_navigation ? (english ? "Next" : "下一页") : "",
-               content.show_navigation ? 3 : 0);
+               content.show_navigation ? 1 : 0);
     SetElement(fixed_nodes_[6],
                content.show_apply ? (english ? "Apply" : "应用") : "",
-               content.show_apply ? 3 : 0);
+               content.show_apply ? 1 : 0);
     SetElement(fixed_nodes_[7],
                content.show_remove ? (english ? "Remove" : "移除") : "",
-               content.show_remove ? 3 : 0);
+               content.show_remove ? 1 : 0);
 
     for (std::size_t index = 0; index < list_nodes_.size(); ++index) {
         const bool shown = content.page != ManagementPanelPage::Settings &&
             index < content.rows.size() && !content.rows[index].empty();
-        const int frame = content.selected_row == index ? 4 : 3;
+        const int frame = content.selected_row == index ? 2 : 1;
         SetElement(list_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
@@ -116,24 +104,17 @@ Result<void> MewUiManagementPanelView::Show(
             index < content.group_titles.size();
         SetElement(group_nodes_[index],
                    shown ? content.group_titles[index].c_str() : "",
-                   shown ? 3 : 0);
+                   shown ? 1 : 0);
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
         const bool shown = content.page == ManagementPanelPage::Settings &&
             index < content.rows.size();
-        const int frame = content.selected_row == index ? 4 : 3;
+        const int frame = content.selected_row == index ? 2 : 1;
         SetElement(setting_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
     SetElement(title_, content.title.c_str(), 0);
     SetElement(status_, content.status.c_str(), 0);
-    // Publish the background only after all cached rows have been populated.
-    // This prevents a visible frame of empty SWF rectangles while the text
-    // elements are being updated on the game UI thread.
-    if (!panel_root_visible_ && HoldMewUiMovieClipFrame(panel_root_, 3)) {
-        panel_root_visible_ = true;
-    }
-    HoldMewUiMovieClipFrame(background_, 3);
     return {};
 }
 
@@ -150,31 +131,21 @@ void MewUiManagementPanelView::Hide() noexcept {
     pending_direction_.store(0);
     if (!CanTouchScene()) return;
     HoldMewUiMovieClipFrame(background_, 0);
-    // Hide every independent control clip and clear the independent text
-    // nodes. The background alone does not cover these nodes, and text
-    // elements are not children of the movie-clip frame.
-    for (auto& node : fixed_nodes_) {
-        SetElement(node, "", 0);
+    for (std::size_t index = 0; index < fixed_nodes_.size(); ++index)
+        SetElement(fixed_nodes_[index], "", 0);
+    for (auto& node : list_nodes_) SetElement(node, "", 0);
+    for (std::size_t index = 0; index < group_nodes_.size(); ++index) {
+        SetElement(group_nodes_[index], "", 0);
     }
-    for (auto& node : list_nodes_) {
-        SetElement(node, "", 0);
-    }
-    for (auto& node : group_nodes_) {
-        SetElement(node, "", 0);
-    }
-    for (auto& node : setting_nodes_) {
-        SetElement(node, "", 0);
+    for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
+        SetElement(setting_nodes_[index], "", 0);
     }
     SetElement(title_, "", 0);
     SetElement(status_, "", 0);
-    if (panel_root_visible_ && HoldMewUiMovieClipFrame(panel_root_, 0)) {
-        panel_root_visible_ = false;
-    }
 }
 
 bool MewUiManagementPanelView::IsAttached() const noexcept {
-    return scene_manager_ != nullptr && panel_root_ != nullptr &&
-        background_ != nullptr;
+    return scene_manager_ != nullptr && background_ != nullptr;
 }
 
 bool MewUiManagementPanelView::IsVisible() const noexcept {
