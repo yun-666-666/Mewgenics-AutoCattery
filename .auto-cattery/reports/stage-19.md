@@ -59,3 +59,17 @@
 - 本地提交：本报告所在的 Stage 19 提交（最终 hash 见 `git log -1`）。
 - 是否 push：是（用户明确要求发布 v0.5.0；发布后以 GitHub 远端和 Release
   校验为准）。
+
+## 2026-08-02 后续修复
+
+- 图片中的 `HOUSE.RECOMMEND_ROW` 占位文本来自面板把动态字符串误当作
+  localization key；`src/ui/mew_ui_management_panel_view.cpp` 现在使用缓存的
+  文本节点和 direct-text API，空字符串也能正确清理旧内容。
+- `third_party/mew_ui_api` 新增 `MewUI_SetTextElementText`，本地提交
+  `9766e8e`；主仓库只更新对应子模块指针和面板调用。
+- `tools/build.ps1 -Configuration Release`：成功；CTest 5/5、DLL load smoke、
+  x64 校验通过。
+- `tools/deploy.ps1 -GameRoot D:\\steam\\steam\\steamapps\\common\\Mewgenics
+  -Configuration Release`：成功，已部署到 Mewjector 与 Mewtator AutoCattery。
+- 实机视觉和 79 猫打开面板的体感仍待玩家复测；若仍有延迟，下一步只采集
+  `AC18002` 到首帧显示的耗时，不扩大功能范围。

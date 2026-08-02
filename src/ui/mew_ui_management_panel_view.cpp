@@ -195,10 +195,7 @@ bool MewUiManagementPanelView::CanTouchScene() const noexcept {
 void MewUiManagementPanelView::SetElement(
     Element& element, const char* text, int frame) noexcept {
     if (element.text != nullptr && element.rendered_text != text) {
-        MewUI_SetTextElementFromLocalizationKeyValue(
-            element.text,
-            "house.recommend_row",
-            text);
+        MewUI_SetTextElementText(element.text, text);
         element.rendered_text = text;
     }
     if (element.clip != nullptr && element.rendered_frame != frame) {
