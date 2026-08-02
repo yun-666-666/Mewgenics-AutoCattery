@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <array>
 
+#include <windowsx.h>
+
+#include "auto_cattery/ui/virtual_viewport.hpp"
+
 namespace autocattery::ui {
 namespace {
 
-constexpr double kVirtualWidth = 1280.0;
-constexpr double kVirtualHeight = 720.0;
 struct Rect { double left; double top; double right; double bottom; };
 constexpr std::array<Rect, 8> kButtons{{
     {165, 82, 355, 120}, {365, 82, 555, 120},
@@ -64,7 +66,10 @@ LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
                 message->message == WM_MBUTTONUP ||
                 message->message == WM_MOUSEWHEEL;
             if (message->message == WM_LBUTTONUP) {
-                const auto hit = g_panel_view->HitTest(message->hwnd);
+                const POINT client_point{
+                    GET_X_LPARAM(message->lParam), GET_Y_LPARAM(message->lParam)};
+                const auto hit = g_panel_view->HitTest(
+                    message->hwnd, client_point);
                 if (hit) {
                     g_panel_view->pending_control_.store(
                         static_cast<int>(hit->control));
@@ -109,18 +114,18 @@ void MewUiManagementPanelView::RemoveHook() noexcept {
 }
 
 std::optional<MewUiManagementPanelView::HitResult>
-MewUiManagementPanelView::HitTest(HWND window) const noexcept {
+MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcept {
     if (window == nullptr || !visible_.load()) return std::nullopt;
-    POINT cursor{};
     RECT client{};
-    if (GetCursorPos(&cursor) == 0 ||
-        ScreenToClient(window, &cursor) == 0 ||
-        GetClientRect(window, &client) == 0) return std::nullopt;
+    if (GetClientRect(window, &client) == 0) return std::nullopt;
     const auto width = static_cast<double>(client.right - client.left);
     const auto height = static_cast<double>(client.bottom - client.top);
-    if (width <= 0 || height <= 0) return std::nullopt;
-    const double x = cursor.x * kVirtualWidth / width;
-    const double y = cursor.y * kVirtualHeight / height;
+    const auto point = MapClientToVirtualViewport(
+        {static_cast<double>(client_point.x), static_cast<double>(client_point.y)},
+        width, height);
+    if (!point) return std::nullopt;
+    const double x = point->x;
+    const double y = point->y;
     const auto page = static_cast<ManagementPanelPage>(page_.load());
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
         if (!Contains(kButtons[index], x, y)) continue;

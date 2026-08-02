@@ -307,6 +307,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/house_button_controller_tests.cpp
         tests/in_game_settings_model_tests.cpp
         tests/in_game_preview_model_tests.cpp
+        tests/virtual_viewport_tests.cpp
         tests/runtime_house_state_tests.cpp
         tests/house_state_parser_tests.cpp
         tests/house_state_writer_tests.cpp

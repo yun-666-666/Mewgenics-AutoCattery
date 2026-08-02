@@ -92,7 +92,8 @@ private:
     bool ResolveNodesInRoot(void* root_node) noexcept;
     bool ResolveNodesBySceneScan() noexcept;
     bool CanTouchScene() const noexcept;
-    [[nodiscard]] std::optional<HitResult> HitTest(HWND window) const noexcept;
+    [[nodiscard]] std::optional<HitResult> HitTest(
+        HWND window, POINT client_point) const noexcept;
     void SetElement(Element& element, const char* text, int frame) noexcept;
     void ResetElements() noexcept;
 
