@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2 - 2026-08-02
+
+- Removed the trash-can artwork from the House Auto-Organize and combat-marker
+  buttons while keeping their text and click behavior.
+- Centered the button labels after removing the icon space.
+- Kept the prerequisite installation links and Mewtator `mods` path explicit in
+  the bilingual installation documentation.
+
 ## 0.5.1 - 2026-08-02
 
 - Clarified that `source.zip` is for developers and that `Windows-x64.zip` is the
