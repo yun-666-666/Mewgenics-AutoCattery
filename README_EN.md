@@ -81,16 +81,6 @@ For large saves, the panel resolves native MewUI text nodes once when attached a
 updates only changed text and frames instead of rescanning the entire House scene
 for every row and refresh.
 
-### Game-version compatibility
-
-The MOD no longer refuses to enable because `Mewgenics.exe` has a different file
-size or SHA-256. Startup only checks for a regular `Mewgenics.exe`; native adapters
-still validate pointers, components, and call results at runtime. If a future game
-changes its internal layout, native movement or probes can fail safely and log the
-reason while the panel, read-only preview, and external editor remain available.
-After a game update, preview first and do not repeat movement until the result and
-log look correct. Report problems using the issue-feedback process below.
-
 ## Installation
 
 Download `AutoCattery-vX.Y.Z-Windows-x64.zip` from GitHub Releases.
