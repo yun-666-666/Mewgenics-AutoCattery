@@ -93,10 +93,9 @@ log look correct. Report problems using the issue-feedback process below.
 
 ## Installation
 
-Download `AutoCattery-vX.Y.Z-Windows-x64.zip` from GitHub Releases. Do not download
-`AutoCattery-vX.Y.Z-source.zip` for installation: it is a source archive for
-developers who want to inspect or build the MOD, cannot be placed directly in the
-game's `mods` folder, and is not loaded by Mewjector as an installed MOD.
+Download `AutoCattery-vX.Y.Z-Windows-x64.zip` from GitHub Releases.
+`AutoCattery-vX.Y.Z-source.zip` contains the source code so that the MOD can be
+modified.
 
 For a Windows release archive:
 

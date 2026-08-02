@@ -78,9 +78,8 @@ MOD 不再用固定文件大小或 SHA-256 阻止启用。启动时只确认游�
 
 ## 安装
 
-请在 GitHub Releases 下载 `AutoCattery-vX.Y.Z-Windows-x64.zip`。不要下载
-`AutoCattery-vX.Y.Z-source.zip`：`source.zip` 是给开发者查看和自行编译的源码包，
-不能直接解压到游戏 `mods` 目录，也不会被 Mewjector 当作已安装 MOD。
+请在 GitHub Releases 下载 `AutoCattery-vX.Y.Z-Windows-x64.zip`。
+`AutoCattery-vX.Y.Z-source.zip`：`source.zip` 是源码内容，方便对MOD做出更改。
 
 Windows 发布包安装步骤：
 
