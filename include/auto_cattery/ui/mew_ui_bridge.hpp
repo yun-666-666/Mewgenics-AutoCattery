@@ -76,6 +76,8 @@ private:
     std::chrono::steady_clock::time_point next_house_attach_retry_{};
     std::chrono::steady_clock::time_point
         next_recommendation_attach_retry_{};
+    std::uint64_t house_ready_generation_{};
+    std::chrono::steady_clock::time_point house_ready_since_{};
     std::atomic_bool ready_logged_{false};
     recommendation::MappingProbeSession mapping_probe_session_;
     bool mapping_probe_logged_{};

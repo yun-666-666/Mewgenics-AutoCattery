@@ -48,6 +48,7 @@ constexpr std::size_t kSceneProbeCapacity = 64;
 constexpr std::size_t kMappingRecordCapacity = 128;
 constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
+constexpr auto kHouseUiSettleDelay = std::chrono::milliseconds(750);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
 constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
 
@@ -131,6 +132,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     mapping_snapshot_next_attempt_ = {};
     next_house_attach_retry_ = {};
     next_recommendation_attach_retry_ = {};
+    house_ready_generation_ = 0;
+    house_ready_since_ = {};
     house_button_view_ = std::make_unique<MewUiHouseButtonView>();
     management_panel_view_ =
         std::make_unique<MewUiManagementPanelView>();
@@ -567,6 +570,13 @@ void MewUiBridge::OnTick() {
         context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress;
+    if (!house_ready) {
+        house_ready_generation_ = 0;
+        house_ready_since_ = {};
+    } else if (house_ready_generation_ != context.scene_generation) {
+        house_ready_generation_ = context.scene_generation;
+        house_ready_since_ = now;
+    }
     const auto active_config = config_runtime_
         ? config_runtime_->Current()
         : Config{};
@@ -618,6 +628,8 @@ void MewUiBridge::OnTick() {
 
     if (recommendation_button_enabled &&
         house_ready &&
+        house_ready_since_.time_since_epoch().count() != 0 &&
+        now - house_ready_since_ >= kHouseUiSettleDelay &&
         recommendation_marker_controller_->ShouldShow() &&
         !recommendation_marker_controller_->IsAttached() &&
         (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||

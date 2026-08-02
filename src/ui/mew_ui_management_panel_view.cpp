@@ -131,17 +131,9 @@ void MewUiManagementPanelView::Hide() noexcept {
     pending_direction_.store(0);
     if (!CanTouchScene()) return;
     HoldMewUiMovieClipFrame(background_, 0);
-    for (std::size_t index = 0; index < fixed_nodes_.size(); ++index)
-        SetElement(fixed_nodes_[index], "", 0);
-    for (auto& node : list_nodes_) SetElement(node, "", 0);
-    for (std::size_t index = 0; index < group_nodes_.size(); ++index) {
-        SetElement(group_nodes_[index], "", 0);
-    }
-    for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
-        SetElement(setting_nodes_[index], "", 0);
-    }
-    SetElement(title_, "", 0);
-    SetElement(status_, "", 0);
+    // The panel is already on its hidden frame. Keep cached text intact so
+    // closing and reopening does not synchronously rewrite every row; Show()
+    // still updates every visible/hidden row when the page is rendered.
 }
 
 bool MewUiManagementPanelView::IsAttached() const noexcept {
