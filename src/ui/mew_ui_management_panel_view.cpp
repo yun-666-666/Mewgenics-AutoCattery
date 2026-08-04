@@ -5,6 +5,7 @@
 #include <string>
 
 #include "mew_ui_movie_clip.hpp"
+#include "mew_ui_safe_node_lookup.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
 #endif
@@ -206,34 +207,28 @@ std::uint32_t MewUiManagementPanelView::LastChangedFrameCount() const noexcept {
 }
 
 bool MewUiManagementPanelView::ResolveNodes() noexcept {
-    root_node_ = MewUI_FindRootNodeInSceneByName(
-        scene_manager_, "panel_background", &background_);
+    const auto match = FindSceneUiNode(scene_manager_, "panel_background");
+    root_node_ = match.root;
+    background_ = match.node;
     if (root_node_ != nullptr && background_ != nullptr &&
         ResolveNodesInRoot(root_node_)) {
-        resolve_mode_ = "root";
+        resolve_mode_ = "safe-root";
         return true;
     }
-
-    // Keep the old scene-wide lookup as a compatibility path for older SWFs.
-    root_node_ = nullptr;
-    background_ = nullptr;
-    ResetElements();
-    if (!ResolveNodesBySceneScan()) return false;
-    resolve_mode_ = "scene-fallback";
-    return true;
+    return false;
 }
 
 bool MewUiManagementPanelView::ResolveNodesInRoot(void* root_node) noexcept {
     if (root_node == nullptr || background_ == nullptr) return false;
     auto find = [root_node](const std::string& name) {
-        return MewUI_FindChildInRootByName(root_node, name.c_str());
+        return MewUI_FindChildByName(root_node, name.c_str());
     };
     auto resolve = [this](auto& nodes, const char* prefix) {
         for (std::size_t index = 0; index < nodes.size(); ++index) {
             const auto name = IndexedName(prefix, index);
-            nodes[index].clip = MewUI_FindChildInRootByName(
+            nodes[index].clip = MewUI_FindChildByName(
                 root_node_, name.c_str());
-            nodes[index].text = MewUI_FindChildInRootByName(
+            nodes[index].text = MewUI_FindChildByName(
                 root_node_, (name + "_text").c_str());
             if (nodes[index].clip == nullptr || nodes[index].text == nullptr)
                 return false;
@@ -250,39 +245,6 @@ bool MewUiManagementPanelView::ResolveNodesInRoot(void* root_node) noexcept {
     }
     title_.text = find("panel_title");
     status_.text = find("panel_status");
-    return resolve(list_nodes_, "panel_protection_row_") &&
-        resolve(group_nodes_, "panel_group_") &&
-        resolve(setting_nodes_, "panel_setting_row_") &&
-        title_.text != nullptr && status_.text != nullptr;
-}
-
-bool MewUiManagementPanelView::ResolveNodesBySceneScan() noexcept {
-    background_ = MewUI_FindNodeInSceneByName(scene_manager_, "panel_background");
-    if (background_ == nullptr) return false;
-    auto resolve = [this](auto& nodes, const char* prefix) {
-        for (std::size_t index = 0; index < nodes.size(); ++index) {
-            const auto name = IndexedName(prefix, index);
-            nodes[index].clip = MewUI_FindNodeInSceneByName(
-                scene_manager_, name.c_str());
-            nodes[index].text = MewUI_FindNodeInSceneByName(
-                scene_manager_, (name + "_text").c_str());
-            if (nodes[index].clip == nullptr || nodes[index].text == nullptr)
-                return false;
-        }
-        return true;
-    };
-    for (std::size_t index = 0; index < fixed_nodes_.size(); ++index) {
-        fixed_nodes_[index].clip = MewUI_FindNodeInSceneByName(
-            scene_manager_, kFixedNames[index]);
-        fixed_nodes_[index].text = MewUI_FindNodeInSceneByName(
-            scene_manager_,
-            (std::string(kFixedNames[index]) + "_text").c_str());
-        if (fixed_nodes_[index].clip == nullptr ||
-            fixed_nodes_[index].text == nullptr)
-            return false;
-    }
-    title_.text = MewUI_FindNodeInSceneByName(scene_manager_, "panel_title");
-    status_.text = MewUI_FindNodeInSceneByName(scene_manager_, "panel_status");
     return resolve(list_nodes_, "panel_protection_row_") &&
         resolve(group_nodes_, "panel_group_") &&
         resolve(setting_nodes_, "panel_setting_row_") &&

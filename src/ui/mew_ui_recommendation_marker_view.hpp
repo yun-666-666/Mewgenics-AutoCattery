@@ -55,6 +55,7 @@ private:
     void ResetSceneState() noexcept;
 
     void* scene_manager_{};
+    void* root_node_{};
     void* button_{};
     std::uint64_t attached_generation_{};
     std::array<void*, 4> item_nodes_{};

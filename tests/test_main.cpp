@@ -43,6 +43,7 @@ void RunVirtualViewportTests();
 void RunLz4BlockTests();
 void RunMewUiHouseCatProbeTests();
 void RunMewUiHouseMoveProbeTests();
+void RunMewUiSafeNodeLookupTests();
 void RunModuleRegistryTests();
 void RunMutationCatalogTests();
 void RunPedigreeParserTests();
@@ -123,6 +124,7 @@ int main() {
     autocattery::tests::RunLz4BlockTests();
     autocattery::tests::RunMewUiHouseCatProbeTests();
     autocattery::tests::RunMewUiHouseMoveProbeTests();
+    autocattery::tests::RunMewUiSafeNodeLookupTests();
     autocattery::tests::RunModuleRegistryTests();
     autocattery::tests::RunMutationCatalogTests();
     autocattery::tests::RunPedigreeParserTests();

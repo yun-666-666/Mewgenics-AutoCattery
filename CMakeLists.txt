@@ -156,6 +156,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_bridge.cpp
     src/ui/mew_ui_config_binding.cpp
     src/ui/mew_ui_scene_components.c
+    src/ui/mew_ui_safe_node_lookup.cpp
     src/ui/mew_ui_scene_probe.c
 )
 target_link_libraries(auto_cattery_core PUBLIC mew_ui_api bcrypt)
@@ -276,6 +277,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/lz4_block_tests.cpp
         tests/mew_ui_house_cat_probe_tests.cpp
         tests/mew_ui_house_move_probe_tests.cpp
+        tests/mew_ui_safe_node_lookup_tests.cpp
         tests/house_move_probe_session_tests.cpp
         tests/snapshot_domain_tests.cpp
         tests/snapshot_assembler_tests.cpp

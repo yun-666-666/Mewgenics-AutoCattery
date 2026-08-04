@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed severe post-battle House lag caused by the UI compatibility lookup
+  calling the game's exception-heavy root-owned child routine across thousands
+  of House components. AutoCattery now validates and deduplicates component
+  roots, uses the direct child lookup, caches the matched SWF root, and fails
+  closed instead of falling back to a scene-wide scan.
 - Added a player-selectable `0`–`99` level-up reroll count to the F10 Settings
   page. The default remains 3; changes rewrite all 14 player-class data patches
   and take effect after restarting the game.

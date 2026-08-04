@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 MewPodVectorPtr* AcMewGetValidatedSceneComponents(void* scene_manager);
+void* AcMewGetValidatedComponentRoot(void* component);
 
 #ifdef __cplusplus
 }

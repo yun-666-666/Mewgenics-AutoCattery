@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "mew_ui_movie_clip.hpp"
+#include "mew_ui_safe_node_lookup.hpp"
 
 namespace autocattery::ui {
 namespace {
@@ -72,10 +73,19 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     active_ = false;
     click_handler_ = std::move(click_handler);
     item_click_handler_ = std::move(item_click_handler);
-    auto* button_node =
-        MewUI_FindNodeInSceneByName(scene_manager_, kButtonNode);
+    const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
+    auto* button_node = match.node;
+    root_node_ = match.root;
+    if (root_node_ == nullptr || button_node == nullptr) {
+        ResetSceneState();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "the dedicated recommendation button asset is unavailable"
+        };
+    }
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
+    create_info.root_node = root_node_;
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
@@ -155,6 +165,7 @@ void MewUiRecommendationMarkerView::AbandonScene() noexcept {
 void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
     active_ = false;
     scene_manager_ = nullptr;
+    root_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     item_nodes_.fill(nullptr);
@@ -401,13 +412,11 @@ bool MewUiRecommendationMarkerView::ResolveItemNodes() noexcept {
         return false;
     }
     for (std::size_t index = 0; index < item_nodes_.size(); ++index) {
-        item_nodes_[index] = MewUI_FindNodeInSceneByName(
-            scene_manager_,
-            kItemNodes[index]);
+        item_nodes_[index] = MewUI_FindChildByName(
+            root_node_, kItemNodes[index]);
         if (item_nodes_[index] == nullptr ||
-            MewUI_FindNodeInSceneByName(
-                scene_manager_,
-                kItemTextNodes[index]) == nullptr) {
+            MewUI_FindChildByName(
+                root_node_, kItemTextNodes[index]) == nullptr) {
             item_nodes_.fill(nullptr);
             return false;
         }

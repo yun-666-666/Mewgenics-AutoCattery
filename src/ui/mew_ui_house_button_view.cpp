@@ -3,6 +3,8 @@
 #include <cstring>
 #include <utility>
 
+#include "mew_ui_safe_node_lookup.hpp"
+
 namespace autocattery::ui {
 namespace {
 
@@ -29,10 +31,18 @@ Result<void> MewUiHouseButtonView::Attach(
     attached_generation_ = context.scene_generation;
     active_ = false;
     click_handler_ = std::move(click_handler);
-    auto* button_node =
-        MewUI_FindNodeInSceneByName(scene_manager_, kButtonNode);
+    const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
+    auto* button_node = match.node;
+    if (match.root == nullptr || button_node == nullptr) {
+        ResetSceneState();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "the AutoCattery house button asset is unavailable"
+        };
+    }
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
+    create_info.root_node = match.root;
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;

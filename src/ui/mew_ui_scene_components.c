@@ -63,3 +63,20 @@ MewPodVectorPtr* AcMewGetValidatedSceneComponents(void* scene_manager) {
         return NULL;
     }
 }
+
+void* AcMewGetValidatedComponentRoot(void* component) {
+    void* root;
+    if (!component || !AcMewReadableRange(component, 0x40U)) {
+        return NULL;
+    }
+    __try {
+        root = *(void**)((uint8_t*)component + 0x38U);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return NULL;
+    }
+    if (!root || root == component || !AcMewReadableRange(root, 0x88U)) {
+        return NULL;
+    }
+    return root;
+}
