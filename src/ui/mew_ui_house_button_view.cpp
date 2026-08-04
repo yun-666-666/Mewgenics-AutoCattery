@@ -1,5 +1,6 @@
 #include "mew_ui_house_button_view.hpp"
 
+#include <cstring>
 #include <utility>
 
 namespace autocattery::ui {
@@ -21,17 +22,6 @@ Result<void> MewUiHouseButtonView::Attach(
             ErrorCode::SceneUnavailable,
             "house scene is not ready for UI attachment"
         };
-    }
-
-    if (scene_manager_ == scene &&
-        button_ != nullptr &&
-        MewUI_IsComponentInScene(scene, button_) != 0) {
-        attached_generation_ = context.scene_generation;
-        click_handler_ = std::move(click_handler);
-        active_ = true;
-        MewUI_SetButtonEnabled(button_, 1);
-        MewUI_SetButtonInteractable(button_, 1);
-        return {};
     }
 
     scene_manager_ = scene;
@@ -86,12 +76,23 @@ void MewUiHouseButtonView::Detach() noexcept {
         MewUI_SetButtonInteractable(button_, 0);
         MewUI_SetButtonEnabled(button_, 0);
     }
-    if (!can_touch_scene) {
-        scene_manager_ = nullptr;
-        button_ = nullptr;
-        attached_generation_ = 0;
+    ResetSceneState();
+}
+
+void MewUiHouseButtonView::AbandonScene() noexcept {
+    if (button_ != nullptr) {
+        if (auto* record = MewUI_GetButtonRecord(button_); record != nullptr) {
+            std::memset(record, 0, sizeof(*record));
+        }
     }
+    ResetSceneState();
+}
+
+void MewUiHouseButtonView::ResetSceneState() noexcept {
     active_ = false;
+    scene_manager_ = nullptr;
+    button_ = nullptr;
+    attached_generation_ = 0;
     click_handler_ = {};
 }
 

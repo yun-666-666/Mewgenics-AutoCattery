@@ -81,6 +81,15 @@ void HouseButtonController::Detach() noexcept {
         "Detached AutoCattery.House.AutoOrganizeButton.");
 }
 
+void HouseButtonController::AbandonScene() noexcept {
+    view_.AbandonScene();
+    state_ = OrganizeButtonState::Hidden;
+    scene_generation_ = 0;
+    awaiting_execution_ = false;
+    last_click_ = {};
+    ready_after_ = {};
+}
+
 void HouseButtonController::SetState(
     OrganizeButtonState state,
     std::string_view detail) {

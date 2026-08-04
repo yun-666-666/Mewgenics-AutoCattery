@@ -27,6 +27,8 @@ public:
         ClickHandler click_handler,
         ItemClickHandler item_click_handler) = 0;
     virtual void Detach() noexcept = 0;
+    virtual void AbandonScene() noexcept = 0;
+    virtual void SetAvailable(bool available) = 0;
     virtual void SetStatus(RecommendationUiStatus status) = 0;
     virtual Result<void> ShowItems(
         const std::vector<std::string>& labels) = 0;
@@ -52,6 +54,7 @@ public:
         bool expedition_ready);
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
+    void AbandonScene() noexcept;
     void HandleClick();
     void CompleteProbe(std::uint64_t scene_generation);
     Result<void> ShowRecommendations(

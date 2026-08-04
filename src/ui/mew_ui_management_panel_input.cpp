@@ -6,6 +6,7 @@
 #include <windowsx.h>
 
 #include "auto_cattery/ui/virtual_viewport.hpp"
+#include "auto_cattery/ui/management_panel_input.hpp"
 
 namespace autocattery::ui {
 namespace {
@@ -28,8 +29,6 @@ constexpr std::array<ManagementPanelControl, 8> kButtonControls{
     ManagementPanelControl::Apply,
     ManagementPanelControl::Remove
 };
-constexpr std::array<std::size_t, 3> kSettingStarts{0, 17, 35};
-constexpr std::array<std::size_t, 3> kSettingCounts{17, 18, 12};
 MewUiManagementPanelView* g_panel_view{};
 
 bool Contains(const Rect& rect, double x, double y) {
@@ -86,7 +85,9 @@ LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
                 g_panel_view->pending_row_.store(0);
                 g_panel_view->pending_direction_.store(delta > 0 ? -1 : 1);
             }
-            if (blocked) message->message = WM_NULL;
+            if (blocked || ShouldConsumePanelMessage(
+                    message->message, message->wParam))
+                message->message = WM_NULL;
         }
     }
     return CallNextHookEx(nullptr, code, remove_message, message_pointer);
@@ -130,7 +131,7 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
         if (!Contains(kButtons[index], x, y)) continue;
         if (page == ManagementPanelPage::Settings && index >= 4)
-            return std::nullopt;
+            continue;
         if ((index == 4 || index == 5) && !navigation_visible_.load())
             return std::nullopt;
         if (index == 6 && !apply_visible_.load()) return std::nullopt;
@@ -158,21 +159,12 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
             return HitResult{ManagementPanelControl::Row, 11, 0};
         return std::nullopt;
     }
-    for (std::size_t column = 0; column < 3; ++column) {
-        for (std::size_t row = 0; row < kSettingCounts[column]; ++row) {
-            const double left = 160 + column * 317.0;
-            const Rect rectangle{left, 191 + row * 25.0,
-                                 left + 300, 212 + row * 25.0};
-            if (!Contains(rectangle, x, y)) continue;
-            if (x >= left + 75 && x <= left + 225) {
-                return HitResult{ManagementPanelControl::BeginEdit,
-                                 kSettingStarts[column] + row, 0};
-            }
-            const int direction = x < left + 75 ? -1 : 1;
-            return HitResult{ManagementPanelControl::Row,
-                             kSettingStarts[column] + row, direction};
-        }
-    }
+    const auto setting = HitTestSettingsRow(x, y);
+    if (setting) return HitResult{
+        setting->begin_edit ? ManagementPanelControl::BeginEdit
+                            : ManagementPanelControl::Row,
+        setting->row,
+        setting->direction};
     return std::nullopt;
 }
 

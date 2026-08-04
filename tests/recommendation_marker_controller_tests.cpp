@@ -33,6 +33,18 @@ public:
         events.push_back("detach");
     }
 
+    void AbandonScene() noexcept override {
+        ++abandon_calls;
+        attached = false;
+        click_handler = {};
+        item_click_handler = {};
+        events.push_back("abandon");
+    }
+
+    void SetAvailable(bool value) override {
+        available = value;
+    }
+
     void SetStatus(ui::RecommendationUiStatus status) override {
         marker_visible =
             status == ui::RecommendationUiStatus::Marked;
@@ -82,7 +94,9 @@ public:
     std::vector<std::string> labels;
     int attach_calls{};
     int detach_calls{};
+    int abandon_calls{};
     int poll_calls{};
+    bool available{true};
     std::vector<std::string> events;
     ClickHandler click_handler;
     ItemClickHandler item_click_handler;
@@ -153,23 +167,27 @@ void RunRecommendationMarkerControllerTests() {
 
     controller.ObserveRuntime(true, false, false);
     AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(
-        !static_cast<bool>(
-            controller.Attach(RecommendationHouseContext(3))));
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext(3))));
+    AC_CHECK(controller.IsAttached());
+    AC_CHECK(!view.available);
 
     controller.ObserveRuntime(false, true, false);
     AC_CHECK(!controller.ShouldShow());
+    AC_CHECK(!controller.IsAttached());
     controller.ObserveRuntime(true, false, false);
     AC_CHECK(controller.ShouldShow());
     AC_CHECK(
         static_cast<bool>(
             controller.Attach(RecommendationHouseContext(4))));
-    AC_CHECK(view.attach_calls == 3);
+    AC_CHECK(view.attach_calls == 4);
 
     auto unsafe = RecommendationHouseContext(5);
     unsafe.save_in_progress = true;
     controller.Detach();
     AC_CHECK(!static_cast<bool>(controller.Attach(unsafe)));
+    controller.AbandonScene();
+    AC_CHECK(view.abandon_calls == 1);
 
     FakeRecommendationMarkerView probe_view;
     int requests{};

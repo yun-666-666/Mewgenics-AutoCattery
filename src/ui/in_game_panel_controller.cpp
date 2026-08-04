@@ -30,7 +30,7 @@ void InGamePanelController::Poll(
     const bool house_ready = context.kind == UiContextKind::House &&
         context.input_enabled && !context.save_in_progress;
     if (!house_ready) {
-        Detach();
+        AbandonScene();
         return;
     }
     house_scene_manager_ = house_scene_manager;
@@ -243,6 +243,20 @@ void InGamePanelController::Render() {
             std::to_string(view_.LastChangedTextCount()) +
             " changed_frames=" +
             std::to_string(view_.LastChangedFrameCount()));
+}
+
+void InGamePanelController::AbandonScene() noexcept {
+    view_.AbandonScene();
+    open_ = false;
+    attached_generation_ = 0;
+    editing_setting_.reset();
+    editing_text_.clear();
+    selected_cat_.reset();
+    current_save_.reset();
+    current_save_checked_ = false;
+    house_scene_manager_ = nullptr;
+    protection_choice_ = ProtectionChoice::None;
+    last_attach_error_.clear();
 }
 
 ManagementPanelContent InGamePanelController::SettingsContent() {

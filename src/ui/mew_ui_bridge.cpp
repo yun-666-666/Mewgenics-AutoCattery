@@ -325,10 +325,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             mapping_snapshot_request_active_ = false;
             mapping_snapshot_retry_deadline_ = {};
             mapping_snapshot_next_attempt_ = {};
-            house_button_controller_->Detach();
-            recommendation_marker_controller_->Detach();
+            house_button_controller_->AbandonScene();
+            recommendation_marker_controller_->AbandonScene();
             if (in_game_panel_controller_) {
-                in_game_panel_controller_->Detach();
+                in_game_panel_controller_->AbandonScene();
             }
             next_house_attach_retry_ = {};
             last_house_attach_error_.clear();
@@ -466,13 +466,6 @@ void MewUiBridge::OnTick() {
                     reload.message);
         }
     }
-    if (house_button_controller_) {
-        house_button_controller_->Poll();
-    }
-    if (recommendation_marker_controller_) {
-        recommendation_marker_controller_->Poll();
-    }
-
     if (!ready_logged_.exchange(true)) {
         Logger::Instance().Write(
             LogLevel::Info,
@@ -503,6 +496,12 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    if (house_button_controller_) {
+        house_button_controller_->Poll();
+    }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->Poll();
+    }
     const auto house_scene = std::find_if(
         scenes.begin(),
         scenes.end(),
@@ -618,7 +617,6 @@ void MewUiBridge::OnTick() {
 
     if (recommendation_button_enabled &&
         house_ready &&
-        recommendation_marker_controller_->ShouldShow() &&
         !recommendation_marker_controller_->IsAttached() &&
         (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||
          now >= next_recommendation_attach_retry_)) {

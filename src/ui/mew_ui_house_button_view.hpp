@@ -14,6 +14,7 @@ public:
         const UiContextSnapshot& context,
         ClickHandler click_handler) override;
     void Detach() noexcept override;
+    void AbandonScene() noexcept override;
     void SetState(
         OrganizeButtonState state,
         std::string_view detail) override;
@@ -29,6 +30,7 @@ private:
         MewButtonState new_state,
         void* user_data);
     [[nodiscard]] bool CanTouchScene() const noexcept;
+    void ResetSceneState() noexcept;
 
     void* scene_manager_{};
     void* button_{};

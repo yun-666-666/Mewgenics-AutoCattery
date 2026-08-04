@@ -66,6 +66,22 @@ void MewUiManagementPanelView::Detach() noexcept {
     resolve_mode_ = "unresolved";
 }
 
+void MewUiManagementPanelView::AbandonScene() noexcept {
+    MewUI_SetModalInputBlocked(false);
+    visible_.store(false);
+    CancelNumericInput();
+    pending_control_.store(-1);
+    pending_row_.store(-1);
+    pending_direction_.store(0);
+    RemoveHook();
+    scene_manager_ = nullptr;
+    generation_ = 0;
+    root_node_ = nullptr;
+    background_ = nullptr;
+    ResetElements();
+    resolve_mode_ = "unresolved";
+}
+
 Result<void> MewUiManagementPanelView::Show(
     const ManagementPanelContent& content) {
     const auto started = std::chrono::steady_clock::now();

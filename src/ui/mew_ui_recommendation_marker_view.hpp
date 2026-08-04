@@ -24,6 +24,8 @@ public:
         ClickHandler click_handler,
         ItemClickHandler item_click_handler) override;
     void Detach() noexcept override;
+    void AbandonScene() noexcept override;
+    void SetAvailable(bool available) override;
     void SetStatus(RecommendationUiStatus status) override;
     Result<void> ShowItems(
         const std::vector<std::string>& labels) override;
@@ -50,12 +52,14 @@ private:
     [[nodiscard]] bool CanTouchScene() const noexcept;
     bool RefreshVisibleItems() noexcept;
     [[nodiscard]] int HitTestRow(HWND window) const noexcept;
+    void ResetSceneState() noexcept;
 
     void* scene_manager_{};
     void* button_{};
     std::uint64_t attached_generation_{};
     std::array<void*, 4> item_nodes_{};
     bool active_{};
+    bool available_{true};
     bool english_{};
     RecommendationUiStatus current_status_{RecommendationUiStatus::Ready};
     HHOOK wheel_hook_{};

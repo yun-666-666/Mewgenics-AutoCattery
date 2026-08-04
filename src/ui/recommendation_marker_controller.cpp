@@ -53,6 +53,10 @@ void RecommendationMarkerController::ObserveRuntime(
             "Next-day House observed; recommendation control is available again.");
     }
 
+    if (house_ready && view_.IsAttached()) {
+        view_.SetAvailable(available_this_day_);
+    }
+
     if (!house_ready) {
         Detach();
     }
@@ -60,8 +64,7 @@ void RecommendationMarkerController::ObserveRuntime(
 
 Result<void> RecommendationMarkerController::Attach(
     const UiContextSnapshot& context) {
-    if (!available_this_day_ ||
-        context.kind != UiContextKind::House ||
+    if (context.kind != UiContextKind::House ||
         !context.input_enabled ||
         context.save_in_progress) {
         return {
@@ -97,6 +100,7 @@ Result<void> RecommendationMarkerController::Attach(
     status_after_hold_ = RecommendationUiStatus::Ready;
     view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
+    view_.SetAvailable(available_this_day_);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
@@ -124,6 +128,17 @@ void RecommendationMarkerController::Detach() noexcept {
         "RecommendationMarker",
         "AC4101",
         "Cleared demo marker before detaching the recommendation control.");
+}
+
+void RecommendationMarkerController::AbandonScene() noexcept {
+    marker_visible_ = false;
+    request_pending_ = false;
+    item_count_ = 0;
+    attached_generation_ = 0;
+    last_click_ = {};
+    ready_after_ = {};
+    status_after_hold_ = RecommendationUiStatus::Ready;
+    view_.AbandonScene();
 }
 
 void RecommendationMarkerController::HandleClick() {

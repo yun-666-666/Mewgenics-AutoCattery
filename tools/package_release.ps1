@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '0.5.4',
+    [string]$Version = '0.5.5',
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release'
 )
@@ -34,7 +34,6 @@ $docsRoot = Join-Path $packageRoot 'Documentation'
 New-Item -ItemType Directory -Force -Path $runtimeRoot, $dataRoot, $docsRoot | Out-Null
 
 Copy-Item -LiteralPath (Join-Path $distRoot 'AutoCattery.dll') -Destination (Split-Path $runtimeRoot -Parent)
-Copy-Item -LiteralPath (Join-Path $distRoot 'AutoCatterySettings.exe') -Destination $runtimeRoot
 Copy-Item -LiteralPath (Join-Path $distRoot 'config') -Destination $runtimeRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $distRoot 'localization') -Destination $runtimeRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $distRoot 'data') -Destination $dataRoot -Recurse

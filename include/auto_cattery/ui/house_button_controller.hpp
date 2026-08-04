@@ -33,6 +33,7 @@ public:
         const UiContextSnapshot& context,
         ClickHandler click_handler) = 0;
     virtual void Detach() noexcept = 0;
+    virtual void AbandonScene() noexcept = 0;
     virtual void SetState(
         OrganizeButtonState state,
         std::string_view detail) = 0;
@@ -53,6 +54,7 @@ public:
 
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
+    void AbandonScene() noexcept;
     void SetState(
         OrganizeButtonState state,
         std::string_view detail = {});

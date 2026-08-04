@@ -39,7 +39,7 @@ game files, Steam Cloud data, or player save databases.
   stable all-seven breeding, then abilities, passives, disorders, mutations, and
   birth defects are considered while the planner still prefers high stimulation
   and then high mutation room attributes.
-- The external settings editor lists local saves and cats for protection
+- The F10 Cat Protection page lists local saves and cats for protection
   management. Only an explicit **Apply Protection** writes `NoCull`, `NoMove`,
   `NoCullOrMove`, `FullyUnmanaged`, or `fixed_room`; rules use stable cat
   fingerprints rather than save-file identity.
@@ -47,8 +47,8 @@ game files, Steam Cloud data, or player save databases.
   operation cancels it and requires a new preview.
 - Combat history, profession, injury, or whether a cat has fought are not used as
   automatic exclusion rules.
-- Provides next-day combat recommendations, cat details, an external settings
-  editor, backups, and offline restore tools.
+- Provides next-day combat recommendations, cat details, in-game settings and
+  protection, backups, and offline restore source tools.
 - Press `F10` in House to open or close the management panel; `Esc` closes it.
   The panel contains Settings, Cat Protection, Full Preview, and Close.
 - Full Preview is read-only and shows each planned cat's source, target, sex,
@@ -154,10 +154,10 @@ paths; the MOD never sends it automatically.
 
 ## Protection behavior
 
-Run `Mewgenics\\Mods\\AutoCattery\\AutoCatterySettings.exe` and choose **Manage Cat
-Protection**, or use the F10 Cat Protection page. Selecting a save only chooses
-which cats to list. Select a cat, choose a level or fixed room, and press **Apply**.
-**Remove** deletes only that cat's player rule. Rules are stored in
+Enter House, press `F10`, and select **Cat Protection**. Selecting a save only
+chooses which cats to list. Select a cat, choose a level or fixed room, and press
+**Apply**. **Remove** deletes only that cat's player rule. The project no longer
+builds or ships a helper executable. Rules are stored in
 `Mewgenics\\Mods\\AutoCattery\\config\\protection.json`; the default records list
 is empty and no save or CatId is pre-protected.
 

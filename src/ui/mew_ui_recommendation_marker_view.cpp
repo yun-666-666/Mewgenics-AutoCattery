@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstring>
 #include <string>
 #include <utility>
 
@@ -62,31 +63,6 @@ Result<void> MewUiRecommendationMarkerView::Attach(
             ErrorCode::SceneUnavailable,
             "house scene is not ready for recommendation UI attachment"
         };
-    }
-
-    if (scene_manager_ == scene &&
-        button_ != nullptr &&
-        MewUI_IsComponentInScene(scene, button_) != 0) {
-        attached_generation_ = context.scene_generation;
-        if (!ResolveItemNodes()) {
-            return {
-                ErrorCode::UiNodeNotFound,
-                "a recommendation row from the current House is unavailable"
-            };
-        }
-        if (!InstallWheelHook()) {
-            return {
-                ErrorCode::InternalError,
-                "mouse-wheel observation could not be attached"
-            };
-        }
-        click_handler_ = std::move(click_handler);
-        item_click_handler_ = std::move(item_click_handler);
-        active_ = true;
-        MewUI_SetButtonEnabled(button_, 1);
-        MewUI_SetButtonInteractable(button_, 1);
-        ClearSummary();
-        return {};
     }
 
     scene_manager_ = scene;
@@ -163,13 +139,25 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
         MewUI_SetButtonInteractable(button_, 0);
         MewUI_SetButtonEnabled(button_, 0);
     }
-    if (!can_touch_scene) {
-        scene_manager_ = nullptr;
-        button_ = nullptr;
-        attached_generation_ = 0;
-        item_nodes_.fill(nullptr);
+    ResetSceneState();
+}
+
+void MewUiRecommendationMarkerView::AbandonScene() noexcept {
+    RemoveWheelHook();
+    if (button_ != nullptr) {
+        if (auto* record = MewUI_GetButtonRecord(button_); record != nullptr) {
+            std::memset(record, 0, sizeof(*record));
+        }
     }
+    ResetSceneState();
+}
+
+void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
     active_ = false;
+    scene_manager_ = nullptr;
+    button_ = nullptr;
+    attached_generation_ = 0;
+    item_nodes_.fill(nullptr);
     pending_press_row_.store(-1);
     pending_click_row_.store(-1);
     pending_wheel_delta_.store(0);
@@ -178,6 +166,14 @@ void MewUiRecommendationMarkerView::Detach() noexcept {
     pending_activation_item_.reset();
     click_handler_ = {};
     item_click_handler_ = {};
+}
+
+void MewUiRecommendationMarkerView::SetAvailable(bool available) {
+    available_ = available;
+    if (button_ == nullptr || !CanTouchScene()) return;
+    MewUI_SetButtonInteractable(button_, available ? 1 : 0);
+    MewUI_SetButtonEnabled(button_, available ? 1 : 0);
+    if (!available) ClearSummary();
 }
 
 void MewUiRecommendationMarkerView::SetStatus(
@@ -339,6 +335,7 @@ void __cdecl MewUiRecommendationMarkerView::ButtonCallback(
     auto* self =
         static_cast<MewUiRecommendationMarkerView*>(user_data);
     if (self != nullptr &&
+        self->available_ &&
         button == self->button_ &&
         event_type == MEW_BUTTON_EVENT_CLICK &&
         self->click_handler_) {
@@ -352,7 +349,8 @@ LRESULT CALLBACK MewUiRecommendationMarkerView::WheelMessageHook(
     LPARAM message_pointer) {
     if (code >= 0 && remove_message == PM_REMOVE &&
         g_wheel_view != nullptr &&
-        g_wheel_view->active_) {
+        g_wheel_view->active_ &&
+        g_wheel_view->available_) {
         const auto* message =
             reinterpret_cast<const MSG*>(message_pointer);
         if (message != nullptr) {
@@ -463,7 +461,7 @@ bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
 
 int MewUiRecommendationMarkerView::HitTestRow(
     HWND window) const noexcept {
-    if (window == nullptr || !active_ || item_labels_.empty()) {
+    if (window == nullptr || !active_ || !available_ || item_labels_.empty()) {
         return -1;
     }
 

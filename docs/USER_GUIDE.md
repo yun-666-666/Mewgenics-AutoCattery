@@ -112,7 +112,7 @@
 
 MOD 不再用固定文件大小或 SHA-256 阻止启用。启动只确认存在正规的
 `Mewgenics.exe`；原生适配器运行时仍逐项检查指针、组件和调用结果。新版内部布局
-变化时，移动/探针会安全失败并记录日志，面板、只读预览和外部编辑器仍可用。
+变化时，移动/探针会安全失败并记录日志，面板和只读预览仍可用。
 
 ## English
 
@@ -232,5 +232,4 @@ account screenshots, or other personal files; turn collection off afterward.
 The MOD no longer refuses to enable because `Mewgenics.exe` has a fixed size or SHA-256.
 Startup only checks for a regular executable; native adapters still validate pointers,
 components, and call results at runtime. A changed internal layout can safely reject a
-move/probe and log the reason while the panel, read-only preview, and external editor
-remain available.
+move/probe and log the reason while the panel and read-only preview remain available.

@@ -30,9 +30,6 @@ New-Item -ItemType Directory -Force -Path (Join-Path $dist 'data\text') | Out-Nu
 New-Item -ItemType Directory -Force -Path (Join-Path $dist 'localization') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $dist 'swfs') | Out-Null
 Copy-Item -LiteralPath (Join-Path $buildDirectory "out\$Configuration\AutoCattery.dll") -Destination $dist -Force
-Copy-Item -LiteralPath (Join-Path $buildDirectory "out\$Configuration\AutoCatterySettings.exe") -Destination $dist -Force
-Copy-Item -LiteralPath (Join-Path $buildDirectory "out\$Configuration\AutoCatteryRestore.exe") -Destination $dist -Force
-Copy-Item -LiteralPath (Join-Path $buildDirectory "out\$Configuration\AutoCatterySaveLab.exe") -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\default_config.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\config.schema.json') -Destination (Join-Path $dist 'config') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config\scene_signatures.json') -Destination (Join-Path $dist 'config') -Force
@@ -61,28 +58,4 @@ if ($headers -notmatch 'machine \(x64\)') {
     throw 'Built DLL is not x64.'
 }
 
-$settings = Join-Path $dist 'AutoCatterySettings.exe'
-$settingsHeaders = (& $dumpbinExe /headers $settings) -join "`n"
-if ($settingsHeaders -notmatch 'machine \(x64\)') {
-    throw 'Built settings executable is not x64.'
-}
-$settingsImports = (& $dumpbinExe /imports $settings) -join "`n"
-$forbiddenImports = @(
-    'ShellExecuteW',
-    'CreateRemoteThread',
-    'VirtualAllocEx',
-    'WriteProcessMemory'
-)
-foreach ($forbiddenImport in $forbiddenImports) {
-    if ($settingsImports -match [regex]::Escape($forbiddenImport)) {
-        throw "Settings executable imports forbidden API: $forbiddenImport"
-    }
-}
-$settingsVersion = (Get-Item -LiteralPath $settings).VersionInfo
-if ($settingsVersion.ProductName -ne 'Mewgenics AutoCattery' -or
-    [string]::IsNullOrWhiteSpace($settingsVersion.FileVersion)) {
-    throw 'Settings executable is missing required product metadata.'
-}
-
 Write-Host "Built and verified: $dll"
-Write-Host "Settings executable metadata/imports verified: $settings"

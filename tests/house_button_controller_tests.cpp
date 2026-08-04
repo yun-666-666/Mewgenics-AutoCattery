@@ -28,6 +28,12 @@ public:
         click_handler = {};
     }
 
+    void AbandonScene() noexcept override {
+        ++abandon_calls;
+        attached = false;
+        click_handler = {};
+    }
+
     void SetState(
         ui::OrganizeButtonState new_state,
         std::string_view) override {
@@ -51,6 +57,7 @@ public:
     bool attached{};
     int attach_calls{};
     int detach_calls{};
+    int abandon_calls{};
     int placeholder_calls{};
     ui::OrganizeButtonState state{ui::OrganizeButtonState::Hidden};
     ClickHandler click_handler;
@@ -177,6 +184,9 @@ void RunHouseButtonControllerTests() {
 
     controller.Detach();
     AC_CHECK(view.detach_calls == 1);
+
+    controller.AbandonScene();
+    AC_CHECK(view.abandon_calls == 1);
 
     FakeHouseButtonView changed_view;
     FakeWorkflow changed_workflow;

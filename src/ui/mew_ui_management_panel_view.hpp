@@ -56,6 +56,7 @@ public:
     ~MewUiManagementPanelView();
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
+    void AbandonScene() noexcept;
     Result<void> Show(const ManagementPanelContent& content);
     void Hide() noexcept;
     [[nodiscard]] std::optional<ManagementPanelEvent> Poll();

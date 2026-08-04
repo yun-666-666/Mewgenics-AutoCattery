@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Fixed the F10 Settings hit test so hidden bottom navigation no longer blocks
+  the combat Luck weight row and all setting rows use their full vertical slot.
+- Consumed `Esc` while the F10 panel is open so it closes or cancels MOD input
+  without also opening the game's settings overlay.
+- Invalidated every cached House UI pointer at a scene-generation boundary and
+  kept the four recommendation rows stopped and hidden after adventure return.
+  This addresses the observed row flicker and the heap-corruption crash window.
+- Removed `AutoCatterySettings.exe` from source targets, build, deployment,
+  install verification, and release packages. Current player configuration and
+  protection are available only through the F10 panel.
+
 ## 0.5.4 - 2026-08-04
 
 - Reduced false-positive antivirus signals in `AutoCatterySettings.exe` by

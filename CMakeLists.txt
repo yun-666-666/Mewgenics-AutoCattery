@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.4 LANGUAGES C CXX RC)
+project(AutoCattery VERSION 0.5.5 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -191,46 +191,6 @@ foreach(config Debug Release RelWithDebInfo MinSizeRel)
     )
 endforeach()
 
-configure_file(
-    src/settings_app/settings_app.rc.in
-    ${CMAKE_CURRENT_BINARY_DIR}/settings_app.rc
-    @ONLY
-)
-
-add_executable(AutoCatterySettings WIN32
-    src/settings_app/settings_app.cpp
-    src/settings_app/protection_editor.cpp
-    src/settings_app/protection_editor_controls.cpp
-    src/settings_app/settings_form.cpp
-    src/settings_app/settings_form_data.cpp
-    src/settings_app/settings_form_schema.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/settings_app.rc
-)
-target_link_libraries(
-    AutoCatterySettings
-    PRIVATE auto_cattery_core user32 gdi32
-)
-target_compile_features(AutoCatterySettings PRIVATE cxx_std_20)
-target_compile_definitions(AutoCatterySettings PRIVATE UNICODE _UNICODE)
-if(MSVC)
-    target_link_options(
-        AutoCatterySettings
-        PRIVATE
-            "/MANIFEST:EMBED"
-            "/MANIFESTINPUT:${CMAKE_CURRENT_SOURCE_DIR}/src/settings_app/settings_app.manifest"
-    )
-endif()
-autocattery_enable_warnings(AutoCatterySettings)
-set_target_properties(AutoCatterySettings PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out"
-)
-foreach(config Debug Release RelWithDebInfo MinSizeRel)
-    string(TOUPPER "${config}" config_upper)
-    set_target_properties(AutoCatterySettings PROPERTIES
-        "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}/out/${config}"
-    )
-endforeach()
-
 add_executable(AutoCatteryRestore tools/restore_main.cpp)
 target_link_libraries(AutoCatteryRestore PRIVATE auto_cattery_core)
 target_compile_features(AutoCatteryRestore PRIVATE cxx_std_20)
@@ -372,10 +332,6 @@ if(AUTOCATTERY_BUILD_TESTS)
     add_test(
         NAME phase14_dll_load_smoke
         COMMAND dll_smoke_tests $<TARGET_FILE:AutoCattery>
-    )
-    add_test(
-        NAME phase14_settings_editor_validate
-        COMMAND AutoCatterySettings --validate ${CMAKE_SOURCE_DIR}
     )
     add_test(
         NAME phase14_restore_cli_smoke

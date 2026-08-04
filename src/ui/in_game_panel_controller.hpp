@@ -28,6 +28,7 @@ public:
         bool f10_pressed,
         bool escape_pressed);
     void Detach() noexcept;
+    void AbandonScene() noexcept;
     [[nodiscard]] bool IsOpen() const noexcept;
 
 private:
