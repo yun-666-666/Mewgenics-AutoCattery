@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Balances only the confirmed breeding target room toward the best achievable
+  female/male mix. Recommended pair members, fixed-room cats, and immovable
+  residents are counted first; an infeasible 1:1 mix degrades safely instead
+  of failing the preview.
+- Removed the remaining combat-potential mixed-sex replacement. Combat,
+  training, and ordinary rooms now ignore sex completely, so a lower-ranked
+  cat is never selected merely to change a displayed ratio.
+- Same-sex and unknown-sex pairs are no longer eligible kitten-breeding pairs;
+  the current adapter requires a known female/male combination.
 - Fixed F10 level-up reroll values being overwritten by a later Mewtator data
   mod. Deployment and in-game reroll saves now deduplicate `AutoCattery` and
   keep it last in `modlist.txt`, so the configured value wins class-data
@@ -10,7 +19,7 @@
   without detaching them. Closing F10 restores the existing registrations
   instead of scanning and registering against a potentially stale UI root.
 - Removed the global one-female/one-male requirement from every managed room.
-  Sex constraints now apply only to the confirmed recommended breeding pair.
+  Sex constraints apply only inside the confirmed breeding target room.
 - Separates the breeding-pair target room from the best combat-development
   room when more than one room is available. Combat and ordinary rooms no
   longer move cats merely to improve their displayed sex ratio.

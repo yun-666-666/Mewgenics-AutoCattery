@@ -83,6 +83,10 @@
 | 第一次 | 刷新当前运行时猫、房间、保护规则和配置，生成预览 | 不移动猫，可在“完整预览”查看 |
 | 第二次 | 再次校验实时状态后执行 MoveOnly | 只移动目标房不同的猫，已到位的猫跳过 |
 
+只有确认一公一母推荐繁育对后，独立繁育目标房才会按实际可用公母做最佳可达
+基本均衡。战斗培养房、训练/普通功能房完全忽略性别；没有可靠繁育对时不会因
+性别移动任何猫。固定房和 `NoMove` 居民会优先保留，比例无法均衡时预览安全降级。
+
 玩家手动搬猫、换存档、场景刷新或配置/保护规则变化后，旧预览会失效并要求重新
 预览。真实淘汰、自动推进天数和自动选择出征队不属于此按钮。
 
@@ -199,6 +203,11 @@ execution gates.
 | --- | --- | --- |
 | First | Refresh live cats, rooms, protection, and settings, then build a preview | No cat moves; inspect it in Full Preview |
 | Second | Revalidate live state and run MoveOnly | Moves only cats whose target room differs; cats already in place are skipped |
+
+Only a confirmed female/male breeding pair enables basic sex balancing in the
+separate breeding target room. Combat-development, training, and ordinary rooms
+ignore sex completely. Fixed-room and `No Move` residents are kept first, and an
+unreachable 1:1 mix degrades safely instead of invalidating the preview.
 
 Manual movement, save changes, scene refreshes, or changed settings/protection invalidate
 the old preview. Real culling, automatic day advance, and automatic expedition selection

@@ -27,14 +27,16 @@ game files, Steam Cloud data, or player save databases.
 - Balances actual room counts and reads furniture-derived comfort, stimulation,
   health, mutation, and attraction attributes. Cats are assigned by room purpose,
   not by a fixed room order.
-- When enough males and females exist, every target room with at least two cats
-  keeps one male and one female. Repeating organization restores the room goal
-  after a manual swap with unchanged counts.
+- Only a confirmed female/male breeding pair enables sex balancing. The separate
+  breeding target room receives the best achievable basic female/male mix after
+  fixed and immovable residents are counted. Combat-development, training, and
+  ordinary rooms ignore sex and never replace higher-potential cats for a ratio.
+  Repeating organization restores the room goal after a manual same-count swap.
 - Seven base stats are read when present in early saves. Sexuality and kinship are
   read only after the corresponding `tink_sexuality`, `tink_inbreeding`, and
   `tink_relationships` progress is actually unlocked; locked dimensions do not
   affect scoring.
-- After complete breeding data is unlocked, adult pairs use seven-stat gaps,
+- After complete breeding data is unlocked, known female/male adult pairs use seven-stat gaps,
   cached game COI, and sexuality. Skill and mutation weights stay off before
   stable all-seven breeding, then abilities, passives, disorders, mutations, and
   birth defects are considered while the planner still prefers high stimulation

@@ -39,12 +39,13 @@ std::string Reason(std::string_view key, bool english) {
                        : "推荐繁育配对保持同房";
     }
     if (key == "sex-balance-and-potential-room") {
-        return english ? "balance sexes and use the best development room"
-                       : "平衡公母并进入更优培养房";
+        return english
+            ? "balance the breeding-room sexes and preserve development placement"
+            : "平衡繁育房公母并保留培养位置";
     }
     if (key == "sex-balance") {
-        return english ? "balance the room's female/male mix"
-                       : "平衡房间公母比例";
+        return english ? "balance the breeding room's female/male mix"
+                       : "平衡繁育房公母比例";
     }
     if (key == "high-potential-development-room") {
         return english ? "place a high-potential cat in a better room"

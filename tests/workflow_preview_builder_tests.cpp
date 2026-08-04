@@ -65,10 +65,17 @@ void RunWorkflowPreviewBuilderTests() {
   AC_CHECK(potential_built.value.room_plan.move_execution_allowed);
   AC_CHECK(std::ranges::all_of(
       potential_built.value.room_plan.moves,
-      [](const auto &move) {
-        return move.to_room == "Attic" && move.executable;
+      [&](const auto &move) {
+        const auto cat = std::ranges::find_if(
+            potential_built.value.snapshot.cats,
+            [&](const auto &candidate) {
+              return candidate.id == move.cat_id;
+            });
+        return move.to_room == "Attic" && move.executable &&
+            cat != potential_built.value.snapshot.cats.end() &&
+            cat->sex == snapshot::CatSex::Female;
       }));
-  AC_CHECK(std::ranges::any_of(
+  AC_CHECK(std::ranges::none_of(
       potential_built.value.preview.warnings,
       [](const auto &warning) {
         return warning == "potential-room-sex-mix-adjusted";
@@ -101,23 +108,12 @@ void RunWorkflowPreviewBuilderTests() {
       balanced.value.room_plan.limitations,
       "room-capacities-unknown") !=
            balanced.value.room_plan.limitations.end());
-  std::size_t attic_female{};
-  std::size_t attic_male{};
-  for (const auto &move : balanced.value.room_plan.moves) {
-    if (move.to_room != "Attic") {
-      continue;
-    }
-    const auto cat = std::ranges::find_if(
-        balanced.value.snapshot.cats,
-        [&](const auto &candidate) {
-          return candidate.id == move.cat_id;
-        });
-    AC_CHECK(cat != balanced.value.snapshot.cats.end());
-    attic_female += cat->sex == snapshot::CatSex::Female ? 1U : 0U;
-    attic_male += cat->sex == snapshot::CatSex::Male ? 1U : 0U;
-  }
-  AC_CHECK(attic_female > 0);
-  AC_CHECK(attic_male > 0);
+  AC_CHECK(std::ranges::none_of(
+      balanced.value.room_plan.moves,
+      [](const auto &move) {
+        return move.reason == "sex-balance" ||
+            move.reason == "sex-balance-and-potential-room";
+      }));
 
   WorkflowReadFake four_rooms;
   four_rooms.house = WorkflowHouse(10);

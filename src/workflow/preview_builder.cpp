@@ -105,70 +105,6 @@ std::string SexSummary(const snapshot::HouseSnapshot &snapshot) {
          ", unknown=" + std::to_string(unknown);
 }
 
-bool EnsureMixedSexPotentialGroup(
-    const snapshot::HouseSnapshot &snapshot,
-    scoring::CombatRanking &potential) {
-  if (potential.recommended_cat_ids.size() < 2U) {
-    return false;
-  }
-  std::unordered_map<snapshot::CatId, snapshot::CatSex> sex_by_id;
-  for (const auto &cat : snapshot.cats) {
-    sex_by_id.emplace(cat.id, cat.sex);
-  }
-  const auto contains_sex =
-      [&](snapshot::CatSex sex) {
-        return std::ranges::any_of(
-            potential.recommended_cat_ids,
-            [&](snapshot::CatId id) {
-              const auto found = sex_by_id.find(id);
-              return found != sex_by_id.end() && found->second == sex;
-            });
-      };
-  const auto ranked_candidate =
-      [&](snapshot::CatSex sex) -> std::optional<snapshot::CatId> {
-        for (const auto &ranked : potential.ranked) {
-          const auto found = sex_by_id.find(ranked.cat_id);
-          if (found != sex_by_id.end() && found->second == sex &&
-              std::ranges::find(
-                  potential.recommended_cat_ids, ranked.cat_id) ==
-                  potential.recommended_cat_ids.end()) {
-            return ranked.cat_id;
-          }
-        }
-        return std::nullopt;
-      };
-  bool adjusted = false;
-  for (const auto required :
-       {snapshot::CatSex::Female, snapshot::CatSex::Male}) {
-    if (contains_sex(required)) {
-      continue;
-    }
-    const auto replacement = ranked_candidate(required);
-    if (!replacement) {
-      continue;
-    }
-    for (auto selected = potential.recommended_cat_ids.rbegin();
-         selected != potential.recommended_cat_ids.rend();
-         ++selected) {
-      const auto found = sex_by_id.find(*selected);
-      const auto selected_sex =
-          found == sex_by_id.end()
-              ? snapshot::CatSex::Unknown
-              : found->second;
-      const auto other =
-          required == snapshot::CatSex::Female
-              ? snapshot::CatSex::Male
-              : snapshot::CatSex::Female;
-      if (selected_sex != other || contains_sex(other)) {
-        *selected = *replacement;
-        adjusted = true;
-        break;
-      }
-    }
-  }
-  return adjusted;
-}
-
 snapshot::HouseSnapshot PotentialScoringSnapshot(
     const snapshot::HouseSnapshot &source) {
   auto scoring = source;
@@ -284,10 +220,6 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
     state.Fail();
     return {{}, breeding.code, breeding.message};
   }
-  const bool mixed_sex_adjusted =
-      capability == WorkflowCapability::MoveOnly &&
-      EnsureMixedSexPotentialGroup(captured.value, combat.value);
-
   classification::CullSafetyFactsByCat safety;
   std::vector<protection::ProtectionDecision> protections;
   protection::ProtectionDigest protection_digest;
@@ -320,11 +252,6 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
   }
   if (capability == WorkflowCapability::MoveOnly) {
     ApplyPotentialOnlyRoles(classified.value, combat.value);
-    if (mixed_sex_adjusted) {
-      AddUnique(
-          classified.value.global_warnings,
-          "potential-room-sex-mix-adjusted");
-    }
   }
 
   const auto capabilities =

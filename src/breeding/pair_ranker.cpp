@@ -28,16 +28,18 @@ bool IsAllSeven(const snapshot::CatSnapshot& cat) {
 bool HardOrientationMismatch(
     const snapshot::CatSnapshot& a,
     const snapshot::CatSnapshot& b) {
-    if (a.sex == snapshot::CatSex::Unknown ||
-        b.sex == snapshot::CatSex::Unknown) {
-        return true;
-    }
-    const bool same_sex = a.sex == b.sex;
-    return same_sex
-        ? a.sexuality == snapshot::CatSexuality::Straight &&
-            b.sexuality == snapshot::CatSexuality::Straight
-        : a.sexuality == snapshot::CatSexuality::Gay &&
-            b.sexuality == snapshot::CatSexuality::Gay;
+    return a.sexuality == snapshot::CatSexuality::Gay &&
+        b.sexuality == snapshot::CatSexuality::Gay;
+}
+
+bool IsKnownOppositeSexPair(
+    const snapshot::CatSnapshot& a,
+    const snapshot::CatSnapshot& b) {
+    return
+        (a.sex == snapshot::CatSex::Female &&
+         b.sex == snapshot::CatSex::Male) ||
+        (a.sex == snapshot::CatSex::Male &&
+         b.sex == snapshot::CatSex::Female);
 }
 
 double OrientationQuality(
@@ -61,9 +63,13 @@ BreedingPairScore ScorePair(
         b.available_for_breeding != snapshot::TriState::Yes) {
         result.exclusion_reasons.push_back("not-adult-breeding-pair");
     }
+    const bool known_opposite_sex = IsKnownOppositeSexPair(a, b);
+    if (!known_opposite_sex) {
+        result.exclusion_reasons.push_back("no-kitten-sex-pair");
+    }
     if (!a.sexuality_coefficient || !b.sexuality_coefficient) {
         result.exclusion_reasons.push_back("sexuality-unavailable");
-    } else if (HardOrientationMismatch(a, b)) {
+    } else if (known_opposite_sex && HardOrientationMismatch(a, b)) {
         result.exclusion_reasons.push_back("orientation-incompatible");
     }
     const auto coefficient = coefficients.find(Key(a.id, b.id));

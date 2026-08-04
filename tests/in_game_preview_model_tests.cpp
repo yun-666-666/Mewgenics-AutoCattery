@@ -32,13 +32,13 @@ void RunInGamePreviewModelTests() {
              std::string::npos);
     AC_CHECK(chinese.pages[1].rows[0].find("Alpha #1") !=
              std::string::npos);
-    AC_CHECK(chinese.pages[1].rows[0].find("平衡房间公母比例") !=
+    AC_CHECK(chinese.pages[1].rows[0].find("平衡繁育房公母比例") !=
              std::string::npos);
 
     const auto english = ui::BuildDetailedPreview(bundle, true);
     AC_CHECK(english.pages[0].title.find("Room Summary") !=
              std::string::npos);
-    AC_CHECK(english.pages[1].rows[0].find("balance the room") !=
+    AC_CHECK(english.pages[1].rows[0].find("balance the breeding room") !=
              std::string::npos);
 
     female.room_id.reset();

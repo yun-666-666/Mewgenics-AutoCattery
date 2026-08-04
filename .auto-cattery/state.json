@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 25,
+  "active_stage": 26,
   "stages": {
     "1": {
       "status": "completed",
@@ -145,7 +145,13 @@
       "commit": null,
       "capability": "LastLoadedConfiguredRerollsAndNonDetachingF10HouseControls",
       "game_validation_status": "debug_tests_passed;v0.5.10_release_dll_smoke_passed;release_deployed_and_hash_verified;modlist_order_and_14_class_rerolls_verified;restart_and_house_transition_player_validation_pending"
+    },
+    "26": {
+      "status": "implementation_complete_player_validation_pending",
+      "commit": null,
+      "capability": "BreedingRoomOnlyBestAchievableSexBalanceAndSexAgnosticCombatSelection",
+      "game_validation_status": "debug_tests_passed;85_cat_8f_77m_breeding_room_target_8_to_13;combat_training_and_general_rooms_ignore_sex;v0.5.11_release_dll_smoke_passed;release_deployed_and_hash_verified;player_preview_validation_pending"
     }
   },
-  "updated_at": "2026-08-05T01:59:23+08:00"
+  "updated_at": "2026-08-05T02:37:13+08:00"
 }

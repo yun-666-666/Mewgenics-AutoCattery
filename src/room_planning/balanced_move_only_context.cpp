@@ -37,6 +37,16 @@ bool IsPotential(const classification::CatDecision& decision) {
         classification::CatRole::CombatRecommended;
 }
 
+bool IsKnownOppositeSexPair(
+    const snapshot::CatSnapshot& left,
+    const snapshot::CatSnapshot& right) {
+    return
+        (left.sex == snapshot::CatSex::Female &&
+         right.sex == snapshot::CatSex::Male) ||
+        (left.sex == snapshot::CatSex::Male &&
+         right.sex == snapshot::CatSex::Female);
+}
+
 void InitializeRoomCounts(PlanningContext& context) {
     for (const auto& room_id : context.rooms) {
         context.current_count[room_id] = 0;
@@ -186,7 +196,10 @@ bool BuildPlanningContext(
         }
         const auto reciprocal =
             context.decisions.at(*partner)->breeding_partner_id;
-        if (reciprocal && *reciprocal == id) {
+        if (reciprocal && *reciprocal == id &&
+            IsKnownOppositeSexPair(
+                *context.cats.at(id),
+                *context.cats.at(*partner))) {
             context.breeding_pair = {id, *partner};
             context.breeding_stats_stable =
                 context.decisions.at(id)->breeding_stats_stable;

@@ -27,9 +27,23 @@ std::optional<snapshot::RoomId> FindBreedingTarget(
     if (context.breeding_pair.size() != 2) {
         return std::nullopt;
     }
+    std::optional<snapshot::RoomId> fixed_target;
+    for (const auto cat_id : context.breeding_pair) {
+        const auto fixed = context.fixed_rooms.find(cat_id);
+        if (fixed == context.fixed_rooms.end()) {
+            continue;
+        }
+        if (fixed_target && *fixed_target != fixed->second) {
+            return std::nullopt;
+        }
+        fixed_target = fixed->second;
+    }
     std::optional<snapshot::RoomId> target;
     for (const auto& room_id : context.rooms) {
-        if (excluded_room && room_id == *excluded_room) {
+        if (fixed_target && room_id != *fixed_target) {
+            continue;
+        }
+        if (!fixed_target && excluded_room && room_id == *excluded_room) {
             continue;
         }
         if (occupancy.at(room_id) < 2 ||
@@ -57,6 +71,20 @@ void AssignBreedingPairSlots(
     }
     for (const auto cat_id : context.breeding_pair) {
         const auto& cat = *context.cats.at(cat_id);
+        const auto existing = std::ranges::find_if(
+            slots,
+            [&](const auto& candidate) {
+                return candidate.preferred_cat &&
+                    *candidate.preferred_cat == cat_id;
+            });
+        if (existing != slots.end()) {
+            if (existing->room_id != *target) {
+                AddUnique(
+                    plan.limitations,
+                    "breeding-pair-fixed-rooms-conflict");
+            }
+            continue;
+        }
         const auto slot = std::ranges::find_if(
             slots,
             [&](const auto& candidate) {
@@ -66,15 +94,6 @@ void AssignBreedingPairSlots(
             });
         if (slot == slots.end()) {
             AddUnique(plan.limitations, "breeding-pair-sex-slot-unavailable");
-            for (auto& candidate : slots) {
-                if (candidate.preferred_cat &&
-                    std::ranges::find(
-                        context.breeding_pair,
-                        *candidate.preferred_cat) !=
-                        context.breeding_pair.end()) {
-                    candidate.preferred_cat.reset();
-                }
-            }
             return;
         }
         slot->preferred_cat = cat_id;

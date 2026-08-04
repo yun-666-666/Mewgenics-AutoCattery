@@ -1,5 +1,7 @@
 #include "auto_cattery/breeding/pair_ranker.hpp"
 
+#include <algorithm>
+
 #include "test_support.hpp"
 
 namespace autocattery::tests {
@@ -57,6 +59,16 @@ void RunPairRankerTests() {
     AC_CHECK(ranked.value.ranked[0].cat_b_id == 2);
     AC_CHECK(ranked.value.ranked[0].covered_seven_stats == 7);
     AC_CHECK(ranked.value.ranked[0].jointly_stable_seven_stats == 7);
+    const auto same_sex = std::ranges::find_if(
+        ranked.value.ranked,
+        [](const auto& pair) {
+            return pair.cat_a_id == 2 && pair.cat_b_id == 3;
+        });
+    AC_CHECK(same_sex != ranked.value.ranked.end());
+    AC_CHECK(!same_sex->eligible);
+    AC_CHECK(std::ranges::find(
+        same_sex->exclusion_reasons,
+        "no-kitten-sex-pair") != same_sex->exclusion_reasons.end());
 
     auto base_only = PairHouse();
     for (auto& value : base_only.cats[1].genetic_stats.values) {
