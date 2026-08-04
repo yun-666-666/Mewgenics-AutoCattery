@@ -2,12 +2,19 @@
 
 ## Unreleased
 
+- Fixed the v0.5.7 blank/flickering F10 panel regression. The MOD assets do
+  not belong to the game `HouseTest` root, so forcing every lookup through that
+  owner found incomplete nodes and repeatedly failed panel attachment.
+- House UI root discovery now runs only while attaching, deduplicates roots,
+  stops at the first matching MOD asset root, and avoids querying all 4,249
+  component type names. Failed F10 attachment is throttled to one attempt per
+  500 ms instead of retrying every UI frame.
 - Fixed the remaining post-battle House exception storm. When combat
   recommendations were unavailable for the rest of the day, the controller
   repeatedly cleared four recommendation rows every UI tick; each clear used
   a full-scene node scan. Availability updates are now idempotent, row text is
-  written through cached nodes, and House UI root discovery only probes the
-  single observed `HouseTest` UI owner.
+  written through cached nodes, and House UI discovery is kept out of the
+  steady-state render path.
 - Removed the repeated invalid lookups that grew `chainloader.log` to about
   1.2 GB and matched the end-day heap-corruption crash window.
 - Fixed severe post-battle House lag caused by the UI compatibility lookup

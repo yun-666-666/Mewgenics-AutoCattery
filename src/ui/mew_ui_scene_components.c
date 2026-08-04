@@ -1,7 +1,6 @@
 #include "mew_ui_scene_components.h"
 
 #include <stdint.h>
-#include <string.h>
 #include <windows.h>
 
 static int AcMewReadableRange(const void* pointer, size_t byte_count) {
@@ -80,31 +79,4 @@ void* AcMewGetValidatedComponentRoot(void* component) {
         return NULL;
     }
     return root;
-}
-
-int AcMewComponentTypeEquals(void* component, const char* expected_type) {
-    MewComponent* typed;
-    MewNarrowString type_name;
-    const char* data;
-    size_t size;
-    size_t expected_size;
-    if (!component || !expected_type || expected_type[0] == '\0') {
-        return 0;
-    }
-    typed = (MewComponent*)component;
-    memset(&type_name, 0, sizeof(type_name));
-    __try {
-        if (!typed->vtable || !typed->vtable->GetObjectTypeSTR) {
-            return 0;
-        }
-        typed->vtable->GetObjectTypeSTR(component, &type_name);
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        return 0;
-    }
-    data = MewUI_GetNarrowStringData(&type_name);
-    size = MewUI_GetNarrowStringSize(&type_name);
-    expected_size = strlen(expected_type);
-    return data && size == expected_size &&
-           memcmp(data, expected_type, expected_size) == 0;
 }

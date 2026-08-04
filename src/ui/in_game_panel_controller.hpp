@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 #include <future>
 #include <memory>
@@ -78,6 +79,7 @@ private:
     std::optional<snapshot::RoomId> selected_room_;
     std::string status_;
     std::string last_attach_error_;
+    std::chrono::steady_clock::time_point next_attach_retry_{};
 };
 
 }  // namespace autocattery::ui

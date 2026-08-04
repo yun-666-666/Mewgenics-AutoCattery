@@ -72,8 +72,10 @@ movement of unassigned cats are implemented. Real culling is not enabled. See
 House UI text nodes are cached and updated only when content changes. The
 recommendation list also writes through cached text nodes, and unavailable
 recommendations are synchronized only when the state changes instead of being
-cleared every frame. Root lookup is restricted to the single observed
-`HouseTest` UI owner for the supported build and fails closed on a mismatch.
+cleared every frame. Root lookup runs only during attachment, deduplicates
+component roots, stops at the first root containing the MOD assets, and avoids
+reading every component type. Failed attachment is retried at most twice per
+second rather than every UI frame.
 
 ### F10 management panel
 

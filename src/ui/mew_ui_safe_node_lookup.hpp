@@ -11,21 +11,15 @@ struct UiNodeMatch {
     void* node{};
 };
 
-template <typename ComponentMatcher, typename RootResolver,
-          typename ChildFinder>
-UiNodeMatch FindNodeInMatchingRoots(
+template <typename RootResolver, typename ChildFinder>
+UiNodeMatch FindNodeInUniqueRoots(
     std::span<void* const> components,
-    std::string_view component_type,
     std::string_view node_name,
-    ComponentMatcher&& matches_component,
     RootResolver&& resolve_root,
     ChildFinder&& find_child) {
     std::unordered_set<void*> visited;
     visited.reserve(components.size());
     for (void* component : components) {
-        if (!matches_component(component, component_type)) {
-            continue;
-        }
         void* root = resolve_root(component);
         if (root == nullptr || !visited.insert(root).second) {
             continue;

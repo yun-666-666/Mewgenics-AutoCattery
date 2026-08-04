@@ -21,16 +21,9 @@ void RunMewUiSafeNodeLookupTests() {
     std::size_t child_calls{};
     std::size_t root_calls{};
 
-    const auto match = ui::FindNodeInMatchingRoots(
+    const auto match = ui::FindNodeInUniqueRoots(
         components,
-        "HouseTest",
         "panel_background",
-        [component_a, component_b, component_c](
-            void* component, std::string_view type) {
-            AC_CHECK(type == "HouseTest");
-            return component == component_a || component == component_b ||
-                   component == component_c;
-        },
         [&roots, &root_calls](void* component) {
             ++root_calls;
             const auto found = roots.find(component);
@@ -45,17 +38,13 @@ void RunMewUiSafeNodeLookupTests() {
     AC_CHECK(match.root == root_b);
     AC_CHECK(match.node == expected);
     AC_CHECK(child_calls == 2);
-    AC_CHECK(root_calls == 4);
+    AC_CHECK(root_calls == components.size());
 
     child_calls = 0;
     root_calls = 0;
-    const auto missing = ui::FindNodeInMatchingRoots(
+    const auto missing = ui::FindNodeInUniqueRoots(
         components,
-        "HouseTest",
         "missing",
-        [component_a, component_b](void* component, std::string_view) {
-            return component == component_a || component == component_b;
-        },
         [&roots, &root_calls](void* component) {
             ++root_calls;
             const auto found = roots.find(component);
@@ -67,8 +56,8 @@ void RunMewUiSafeNodeLookupTests() {
         });
     AC_CHECK(missing.root == nullptr);
     AC_CHECK(missing.node == nullptr);
-    AC_CHECK(child_calls == 1);
-    AC_CHECK(root_calls == 3);
+    AC_CHECK(child_calls == 2);
+    AC_CHECK(root_calls == components.size());
 }
 
 }  // namespace autocattery::tests

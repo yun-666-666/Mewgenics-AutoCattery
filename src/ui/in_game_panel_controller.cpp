@@ -51,6 +51,11 @@ void InGamePanelController::Poll(
         Detach();
     }
     if (!view_.IsAttached()) {
+        const auto now = std::chrono::steady_clock::now();
+        if (next_attach_retry_.time_since_epoch().count() != 0 &&
+            now < next_attach_retry_) {
+            return;
+        }
         const auto attached = view_.Attach(context);
         if (!attached) {
             status_ = attached.message;
@@ -60,8 +65,10 @@ void InGamePanelController::Poll(
                     LogLevel::Warn, "ManagementPanel", "AC18001",
                     "House panel attach deferred: " + attached.message);
             }
+            next_attach_retry_ = now + std::chrono::milliseconds(500);
             return;
         }
+        next_attach_retry_ = {};
         last_attach_error_.clear();
         attached_generation_ = context.scene_generation;
         Logger::Instance().Write(
@@ -149,6 +156,7 @@ void InGamePanelController::Detach() noexcept {
     house_scene_manager_ = nullptr;
     protection_choice_ = ProtectionChoice::None;
     last_attach_error_.clear();
+    next_attach_retry_ = {};
 }
 
 bool InGamePanelController::IsOpen() const noexcept { return open_; }
@@ -269,6 +277,7 @@ void InGamePanelController::AbandonScene() noexcept {
     house_scene_manager_ = nullptr;
     protection_choice_ = ProtectionChoice::None;
     last_attach_error_.clear();
+    next_attach_retry_ = {};
 }
 
 ManagementPanelContent InGamePanelController::SettingsContent() {

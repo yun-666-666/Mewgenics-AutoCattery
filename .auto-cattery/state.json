@@ -131,9 +131,9 @@
     "23": {
       "status": "implementation_complete_player_validation_pending",
       "commit": null,
-      "capability": "TypedHouseUiRootAndIdempotentCachedRecommendationRendering",
-      "game_validation_status": "first_fix_rejected_by_player;remaining_per_tick_recommendation_clear_root_cause_evidenced;debug_and_release_automated_tests_passed;v0.5.7_release_deployed_and_hash_verified;player_post_battle_and_end_day_revalidation_pending"
+      "capability": "ThrottledAttachOnlyHouseUiRootLookupAndIdempotentCachedRecommendationRendering",
+      "game_validation_status": "v0.5.7_blank_flickering_panel_rejected_by_player;incorrect_HouseTest_owner_constraint_removed;per_frame_panel_attach_retry_throttled;v0.5.8_debug_tests_and_release_dll_smoke_passed;release_deployed_and_hash_verified;player_revalidation_pending"
     }
   },
-  "updated_at": "2026-08-04T23:20:00+08:00"
+  "updated_at": "2026-08-04T23:50:00+08:00"
 }
