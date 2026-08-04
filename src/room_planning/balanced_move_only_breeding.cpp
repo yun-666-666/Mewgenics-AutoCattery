@@ -22,12 +22,16 @@ void AddUnique(std::vector<std::string>& values, std::string value) {
 
 std::optional<snapshot::RoomId> FindBreedingTarget(
     const PlanningContext& context,
-    const CountMap& occupancy) {
+    const CountMap& occupancy,
+    const std::optional<snapshot::RoomId>& excluded_room) {
     if (context.breeding_pair.size() != 2) {
         return std::nullopt;
     }
     std::optional<snapshot::RoomId> target;
     for (const auto& room_id : context.rooms) {
+        if (excluded_room && room_id == *excluded_room) {
+            continue;
+        }
         if (occupancy.at(room_id) < 2 ||
             occupancy.at(room_id) - context.pinned_count.at(room_id) < 2) {
             continue;
@@ -37,16 +41,6 @@ std::optional<snapshot::RoomId> FindBreedingTarget(
         }
     }
     return target;
-}
-
-bool BreedingPairHasSex(
-    const PlanningContext& context,
-    snapshot::CatSex sex) {
-    return std::ranges::any_of(
-        context.breeding_pair,
-        [&](snapshot::CatId id) {
-            return context.cats.at(id)->sex == sex;
-        });
 }
 
 void AssignBreedingPairSlots(

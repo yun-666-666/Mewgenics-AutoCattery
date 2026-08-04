@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Removed the global one-female/one-male requirement from every managed room.
+  Sex constraints now apply only to the confirmed recommended breeding pair.
+- Separates the breeding-pair target room from the best combat-development
+  room when more than one room is available. Combat and ordinary rooms no
+  longer move cats merely to improve their displayed sex ratio.
 - Fixed the v0.5.7 blank/flickering F10 panel regression. The MOD assets do
   not belong to the game `HouseTest` root, so forcing every lookup through that
   owner found incomplete nodes and repeatedly failed panel attachment.

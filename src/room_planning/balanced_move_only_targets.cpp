@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <optional>
 #include <tuple>
-#include <unordered_set>
 
 namespace autocattery::room_planning::balanced_internal {
 namespace {
@@ -87,45 +86,14 @@ void AddUnique(std::vector<std::string>& values, std::string value) {
     }
 }
 
-std::unordered_set<snapshot::RoomId> RequiredSexRooms(
+std::size_t BreedingPairSexCount(
     const PlanningContext& context,
-    const CountMap& occupancy,
-    const CountMap& pinned,
-    std::size_t known_count,
-    const std::optional<snapshot::RoomId>& preferred_room) {
-    std::unordered_set<snapshot::RoomId> required;
-    if (preferred_room) {
-        required.insert(*preferred_room);
-    }
-    for (const auto& room_id : context.rooms) {
-        if (occupancy.at(room_id) >= 2 && pinned.at(room_id) > 0) {
-            required.insert(room_id);
-        }
-    }
-    const auto eligible = std::ranges::count_if(
-        context.rooms,
-        [&](const auto& room_id) {
-            return occupancy.at(room_id) >= 2;
-        });
-    const auto desired = std::min(
-        known_count, static_cast<std::size_t>(eligible));
-    while (required.size() < desired) {
-        std::optional<snapshot::RoomId> best;
-        for (const auto& room_id : context.rooms) {
-            if (occupancy.at(room_id) < 2 || required.contains(room_id)) {
-                continue;
-            }
-            if (!best ||
-                PreferDevelopmentRoom(context, room_id, *best)) {
-                best = room_id;
-            }
-        }
-        if (!best) {
-            break;
-        }
-        required.insert(*best);
-    }
-    return required;
+    snapshot::CatSex sex) {
+    return static_cast<std::size_t>(std::ranges::count_if(
+        context.breeding_pair,
+        [&](snapshot::CatId cat_id) {
+            return context.cats.at(cat_id)->sex == sex;
+        }));
 }
 
 }  // namespace
@@ -142,28 +110,40 @@ bool BuildBalancedSlots(
         return false;
     }
 
-    const auto breeding_target = FindBreedingTarget(context, occupancy);
+    std::optional<snapshot::RoomId> development_target;
+    for (const auto& room_id : context.rooms) {
+        if (occupancy.at(room_id) == 0) {
+            continue;
+        }
+        if (!development_target || PreferDevelopmentRoom(
+                context, room_id, *development_target)) {
+            development_target = room_id;
+        }
+    }
+    const auto breeding_target = FindBreedingTarget(
+        context,
+        occupancy,
+        context.rooms.size() > 1 ? development_target : std::nullopt);
 
-    const auto female_rooms = RequiredSexRooms(
-        context, occupancy, context.pinned_female, context.known_female,
-        BreedingPairHasSex(context, snapshot::CatSex::Female)
-            ? breeding_target : std::nullopt);
-    const auto male_rooms = RequiredSexRooms(
-        context, occupancy, context.pinned_male, context.known_male,
-        BreedingPairHasSex(context, snapshot::CatSex::Male)
-            ? breeding_target : std::nullopt);
+    const auto pair_female =
+        BreedingPairSexCount(context, snapshot::CatSex::Female);
+    const auto pair_male =
+        BreedingPairSexCount(context, snapshot::CatSex::Male);
     slots.reserve(context.movable.size());
     for (const auto& room_id : context.rooms) {
         const auto slot_count =
             occupancy.at(room_id) - context.pinned_count.at(room_id);
         std::vector<SlotSex> requirements;
-        if (female_rooms.contains(room_id) &&
-            context.pinned_female.at(room_id) == 0) {
-            requirements.push_back(SlotSex::Female);
-        }
-        if (male_rooms.contains(room_id) &&
-            context.pinned_male.at(room_id) == 0) {
-            requirements.push_back(SlotSex::Male);
+        if (breeding_target &&
+            room_id == *breeding_target) {
+            requirements.insert(
+                requirements.end(),
+                pair_female,
+                SlotSex::Female);
+            requirements.insert(
+                requirements.end(),
+                pair_male,
+                SlotSex::Male);
         }
         if (requirements.size() > slot_count) {
             AddUnique(plan.limitations, "pinned-residents-block-sex-mix");

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 23,
+  "active_stage": 24,
   "stages": {
     "1": {
       "status": "completed",
@@ -133,7 +133,13 @@
       "commit": null,
       "capability": "ThrottledAttachOnlyHouseUiRootLookupAndIdempotentCachedRecommendationRendering",
       "game_validation_status": "v0.5.7_blank_flickering_panel_rejected_by_player;incorrect_HouseTest_owner_constraint_removed;per_frame_panel_attach_retry_throttled;v0.5.8_debug_tests_and_release_dll_smoke_passed;release_deployed_and_hash_verified;player_revalidation_pending"
+    },
+    "24": {
+      "status": "implementation_complete_player_validation_pending",
+      "commit": null,
+      "capability": "PurposeSeparatedBreedingPairSexAllocation",
+      "game_validation_status": "debug_tests_passed;sex_constraints_limited_to_confirmed_breeding_pair_room;combat_and_general_rooms_ignore_sex;v0.5.9_release_dll_smoke_passed;release_deployed_and_hash_verified;player_preview_validation_pending"
     }
   },
-  "updated_at": "2026-08-04T23:50:00+08:00"
+  "updated_at": "2026-08-05T00:55:00+08:00"
 }

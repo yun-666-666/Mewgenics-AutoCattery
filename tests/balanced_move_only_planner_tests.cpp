@@ -55,6 +55,43 @@ void RunBalancedMoveOnlyPlannerTests() {
   AC_CHECK(female_rooms.size() == 2);
   AC_CHECK(male_rooms.size() == 4);
 
+  WorkflowReadFake skewed_sexes;
+  skewed_sexes.house = WorkflowHouse(85);
+  skewed_sexes.house.rooms.front().id = "Floor1_Large";
+  skewed_sexes.house.rooms.push_back({.id = "Attic"});
+  skewed_sexes.house.rooms.push_back({.id = "Floor1_Small"});
+  skewed_sexes.house.rooms.push_back({.id = "Floor2_Large"});
+  for (auto &cat : skewed_sexes.house.cats) {
+    cat.room_id = "Floor1_Large";
+    cat.sex = cat.id <= 8
+                  ? snapshot::CatSex::Female
+                  : snapshot::CatSex::Male;
+  }
+  workflow::WorkflowStateMachine skewed_state;
+  AC_CHECK(skewed_state.BeginPreview());
+  const auto skewed = workflow::PreviewBuilder(skewed_sexes).Build(
+      34, workflow::WorkflowCapability::MoveOnly, skewed_state);
+  AC_CHECK(static_cast<bool>(skewed));
+  std::unordered_map<snapshot::CatId, snapshot::RoomId> skewed_final;
+  for (const auto &cat : skewed.value.snapshot.cats) {
+    skewed_final.emplace(cat.id, *cat.room_id);
+  }
+  for (const auto &move : skewed.value.room_plan.moves) {
+    skewed_final.at(move.cat_id) = move.to_room;
+  }
+  std::unordered_map<snapshot::RoomId, std::size_t> skewed_counts;
+  for (const auto &cat : skewed.value.snapshot.cats) {
+    const auto &room = skewed_final.at(cat.id);
+    ++skewed_counts[room];
+  }
+  AC_CHECK(skewed_counts.size() == 4);
+  AC_CHECK(std::ranges::none_of(
+      skewed.value.room_plan.moves,
+      [](const auto &move) {
+        return move.reason == "sex-balance" ||
+            move.reason == "sex-balance-and-potential-room";
+      }));
+
   for (auto &room : reader.house.rooms) {
     room.residents.clear();
   }

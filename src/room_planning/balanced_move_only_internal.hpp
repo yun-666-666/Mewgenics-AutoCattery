@@ -88,11 +88,8 @@ struct PlanningContext {
 
 [[nodiscard]] std::optional<snapshot::RoomId> FindBreedingTarget(
     const PlanningContext& context,
-    const CountMap& occupancy);
-
-[[nodiscard]] bool BreedingPairHasSex(
-    const PlanningContext& context,
-    snapshot::CatSex sex);
+    const CountMap& occupancy,
+    const std::optional<snapshot::RoomId>& excluded_room);
 
 void AssignBreedingPairSlots(
     const PlanningContext& context,
