@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -69,12 +70,15 @@ public:
     [[nodiscard]] bool MarkerVisible() const noexcept;
 
 private:
+    void SyncAvailability(bool available);
+
     RecommendationMarkerView& view_;
     Clock clock_;
     bool available_this_day_{true};
     bool next_day_pending_{};
     bool marker_visible_{};
     bool request_pending_{};
+    std::optional<bool> applied_availability_;
     std::uint64_t attached_generation_{};
     RequestHandler request_handler_;
     DetailsHandler details_handler_;

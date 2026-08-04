@@ -54,7 +54,7 @@ void RecommendationMarkerController::ObserveRuntime(
     }
 
     if (house_ready && view_.IsAttached()) {
-        view_.SetAvailable(available_this_day_);
+        SyncAvailability(available_this_day_);
     }
 
     if (!house_ready) {
@@ -98,9 +98,10 @@ Result<void> RecommendationMarkerController::Attach(
     attached_generation_ = context.scene_generation;
     ready_after_ = {};
     status_after_hold_ = RecommendationUiStatus::Ready;
+    applied_availability_.reset();
     view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
-    view_.SetAvailable(available_this_day_);
+    SyncAvailability(available_this_day_);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
@@ -117,6 +118,7 @@ void RecommendationMarkerController::Detach() noexcept {
     last_click_ = {};
     ready_after_ = {};
     status_after_hold_ = RecommendationUiStatus::Ready;
+    applied_availability_.reset();
     if (!view_.IsAttached()) {
         return;
     }
@@ -138,7 +140,17 @@ void RecommendationMarkerController::AbandonScene() noexcept {
     last_click_ = {};
     ready_after_ = {};
     status_after_hold_ = RecommendationUiStatus::Ready;
+    applied_availability_.reset();
     view_.AbandonScene();
+}
+
+void RecommendationMarkerController::SyncAvailability(bool available) {
+    if (applied_availability_.has_value() &&
+        *applied_availability_ == available) {
+        return;
+    }
+    view_.SetAvailable(available);
+    applied_availability_ = available;
 }
 
 void RecommendationMarkerController::HandleClick() {

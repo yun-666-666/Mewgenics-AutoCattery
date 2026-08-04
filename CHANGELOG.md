@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fixed the remaining post-battle House exception storm. When combat
+  recommendations were unavailable for the rest of the day, the controller
+  repeatedly cleared four recommendation rows every UI tick; each clear used
+  a full-scene node scan. Availability updates are now idempotent, row text is
+  written through cached nodes, and House UI root discovery only probes the
+  single observed `HouseTest` UI owner.
+- Removed the repeated invalid lookups that grew `chainloader.log` to about
+  1.2 GB and matched the end-day heap-corruption crash window.
 - Fixed severe post-battle House lag caused by the UI compatibility lookup
   calling the game's exception-heavy root-owned child routine across thousands
   of House components. AutoCattery now validates and deduplicates component

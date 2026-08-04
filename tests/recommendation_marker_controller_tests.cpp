@@ -42,6 +42,7 @@ public:
     }
 
     void SetAvailable(bool value) override {
+        ++set_available_calls;
         available = value;
     }
 
@@ -96,6 +97,7 @@ public:
     int detach_calls{};
     int abandon_calls{};
     int poll_calls{};
+    int set_available_calls{};
     bool available{true};
     std::vector<std::string> events;
     ClickHandler click_handler;
@@ -133,6 +135,12 @@ void RunRecommendationMarkerControllerTests() {
             controller.Attach(RecommendationHouseContext())));
     AC_CHECK(controller.IsAttached());
     AC_CHECK(view.attach_calls == 1);
+    AC_CHECK(view.set_available_calls == 1);
+
+    for (int tick = 0; tick < 100; ++tick) {
+        controller.ObserveRuntime(true, false, false);
+    }
+    AC_CHECK(view.set_available_calls == 1);
 
     AC_CHECK(
         static_cast<bool>(
@@ -171,6 +179,11 @@ void RunRecommendationMarkerControllerTests() {
         controller.Attach(RecommendationHouseContext(3))));
     AC_CHECK(controller.IsAttached());
     AC_CHECK(!view.available);
+    const int unavailable_syncs = view.set_available_calls;
+    for (int tick = 0; tick < 100; ++tick) {
+        controller.ObserveRuntime(true, false, false);
+    }
+    AC_CHECK(view.set_available_calls == unavailable_syncs);
 
     controller.ObserveRuntime(false, true, false);
     AC_CHECK(!controller.ShouldShow());

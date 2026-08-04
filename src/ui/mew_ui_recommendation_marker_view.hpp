@@ -59,8 +59,10 @@ private:
     void* button_{};
     std::uint64_t attached_generation_{};
     std::array<void*, 4> item_nodes_{};
+    std::array<void*, 4> item_text_nodes_{};
     bool active_{};
     bool available_{true};
+    bool availability_applied_{};
     bool english_{};
     RecommendationUiStatus current_status_{RecommendationUiStatus::Ready};
     HHOOK wheel_hook_{};

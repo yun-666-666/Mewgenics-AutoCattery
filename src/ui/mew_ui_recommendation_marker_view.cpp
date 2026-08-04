@@ -70,6 +70,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     button_ = nullptr;
     attached_generation_ = context.scene_generation;
     item_nodes_.fill(nullptr);
+    item_text_nodes_.fill(nullptr);
     active_ = false;
     click_handler_ = std::move(click_handler);
     item_click_handler_ = std::move(item_click_handler);
@@ -169,6 +170,8 @@ void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
     button_ = nullptr;
     attached_generation_ = 0;
     item_nodes_.fill(nullptr);
+    item_text_nodes_.fill(nullptr);
+    availability_applied_ = false;
     pending_press_row_.store(-1);
     pending_click_row_.store(-1);
     pending_wheel_delta_.store(0);
@@ -180,11 +183,16 @@ void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
 }
 
 void MewUiRecommendationMarkerView::SetAvailable(bool available) {
+    if (availability_applied_ && available_ == available) return;
     available_ = available;
-    if (button_ == nullptr || !CanTouchScene()) return;
+    if (button_ == nullptr || !CanTouchScene()) {
+        availability_applied_ = false;
+        return;
+    }
     MewUI_SetButtonInteractable(button_, available ? 1 : 0);
     MewUI_SetButtonEnabled(button_, available ? 1 : 0);
     if (!available) ClearSummary();
+    availability_applied_ = true;
 }
 
 void MewUiRecommendationMarkerView::SetStatus(
@@ -246,11 +254,9 @@ void MewUiRecommendationMarkerView::ClearSummary() noexcept {
         return;
     }
     for (std::size_t row = 0; row < item_nodes_.size(); ++row) {
-        if (item_nodes_[row] != nullptr) {
-            MewUI_SetTextInSceneText(
-                scene_manager_,
-                kItemTextNodes[row],
-                "");
+        if (item_nodes_[row] != nullptr &&
+            item_text_nodes_[row] != nullptr) {
+            MewUI_SetTextElementText(item_text_nodes_[row], "");
             HoldMewUiMovieClipFrame(item_nodes_[row], 0);
         }
     }
@@ -414,10 +420,12 @@ bool MewUiRecommendationMarkerView::ResolveItemNodes() noexcept {
     for (std::size_t index = 0; index < item_nodes_.size(); ++index) {
         item_nodes_[index] = MewUI_FindChildByName(
             root_node_, kItemNodes[index]);
+        item_text_nodes_[index] = MewUI_FindChildByName(
+            root_node_, kItemTextNodes[index]);
         if (item_nodes_[index] == nullptr ||
-            MewUI_FindChildByName(
-                root_node_, kItemTextNodes[index]) == nullptr) {
+            item_text_nodes_[index] == nullptr) {
             item_nodes_.fill(nullptr);
+            item_text_nodes_.fill(nullptr);
             return false;
         }
     }
@@ -453,9 +461,9 @@ bool MewUiRecommendationMarkerView::RefreshVisibleItems() noexcept {
         }
         const auto item_index = first_visible_item_ + row;
         const bool shown = item_index < item_labels_.size();
-        if (MewUI_SetTextInSceneText(
-                scene_manager_,
-                kItemTextNodes[row],
+        if (item_text_nodes_[row] == nullptr ||
+            MewUI_SetTextElementText(
+                item_text_nodes_[row],
                 shown ? item_labels_[item_index].c_str() : "") == 0) {
             return false;
         }

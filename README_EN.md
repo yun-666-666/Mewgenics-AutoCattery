@@ -69,6 +69,12 @@ breeding pairing, default base-stat reads, room identity caching, and native
 movement of unassigned cats are implemented. Real culling is not enabled. See
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md).
 
+House UI text nodes are cached and updated only when content changes. The
+recommendation list also writes through cached text nodes, and unavailable
+recommendations are synchronized only when the state changes instead of being
+cleared every frame. Root lookup is restricted to the single observed
+`HouseTest` UI owner for the supported build and fails closed on a mismatch.
+
 ### F10 management panel
 
 Press `F10` in House to open or close the panel; `Esc` closes it:

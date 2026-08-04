@@ -131,9 +131,9 @@
     "23": {
       "status": "implementation_complete_player_validation_pending",
       "commit": null,
-      "capability": "ExceptionFreeSafeRootHouseUiLookup",
-      "game_validation_status": "post_battle_lag_root_cause_evidenced;debug_and_release_automated_tests_passed;release_deployed_and_hash_verified;player_post_battle_revalidation_pending"
+      "capability": "TypedHouseUiRootAndIdempotentCachedRecommendationRendering",
+      "game_validation_status": "first_fix_rejected_by_player;remaining_per_tick_recommendation_clear_root_cause_evidenced;debug_and_release_automated_tests_passed;v0.5.7_release_deployed_and_hash_verified;player_post_battle_and_end_day_revalidation_pending"
     }
   },
-  "updated_at": "2026-08-04T22:30:00-04:00"
+  "updated_at": "2026-08-04T23:20:00+08:00"
 }

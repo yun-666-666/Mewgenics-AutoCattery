@@ -19,11 +19,20 @@ void RunMewUiSafeNodeLookupTests() {
     const std::unordered_map<void*, void*> roots{
         {component_a, root_a}, {component_b, root_a}, {component_c, root_b}};
     std::size_t child_calls{};
+    std::size_t root_calls{};
 
-    const auto match = ui::FindNodeInUniqueRoots(
+    const auto match = ui::FindNodeInMatchingRoots(
         components,
+        "HouseTest",
         "panel_background",
-        [&roots](void* component) {
+        [component_a, component_b, component_c](
+            void* component, std::string_view type) {
+            AC_CHECK(type == "HouseTest");
+            return component == component_a || component == component_b ||
+                   component == component_c;
+        },
+        [&roots, &root_calls](void* component) {
+            ++root_calls;
             const auto found = roots.find(component);
             return found == roots.end() ? nullptr : found->second;
         },
@@ -36,12 +45,19 @@ void RunMewUiSafeNodeLookupTests() {
     AC_CHECK(match.root == root_b);
     AC_CHECK(match.node == expected);
     AC_CHECK(child_calls == 2);
+    AC_CHECK(root_calls == 4);
 
     child_calls = 0;
-    const auto missing = ui::FindNodeInUniqueRoots(
+    root_calls = 0;
+    const auto missing = ui::FindNodeInMatchingRoots(
         components,
+        "HouseTest",
         "missing",
-        [&roots](void* component) {
+        [component_a, component_b](void* component, std::string_view) {
+            return component == component_a || component == component_b;
+        },
+        [&roots, &root_calls](void* component) {
+            ++root_calls;
             const auto found = roots.find(component);
             return found == roots.end() ? nullptr : found->second;
         },
@@ -51,7 +67,8 @@ void RunMewUiSafeNodeLookupTests() {
         });
     AC_CHECK(missing.root == nullptr);
     AC_CHECK(missing.node == nullptr);
-    AC_CHECK(child_calls == 2);
+    AC_CHECK(child_calls == 1);
+    AC_CHECK(root_calls == 3);
 }
 
 }  // namespace autocattery::tests

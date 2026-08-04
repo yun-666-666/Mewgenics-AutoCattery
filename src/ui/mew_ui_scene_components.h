@@ -11,6 +11,7 @@ extern "C" {
 
 MewPodVectorPtr* AcMewGetValidatedSceneComponents(void* scene_manager);
 void* AcMewGetValidatedComponentRoot(void* component);
+int AcMewComponentTypeEquals(void* component, const char* expected_type);
 
 #ifdef __cplusplus
 }
