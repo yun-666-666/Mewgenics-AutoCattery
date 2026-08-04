@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fixed F10 level-up reroll values being overwritten by a later Mewtator data
+  mod. Deployment and in-game reroll saves now deduplicate `AutoCattery` and
+  keep it last in `modlist.txt`, so the configured value wins class-data
+  conflicts without adding another mod's rerolls.
+- Opening F10 now suppresses the House organize and recommendation controls
+  without detaching them. Closing F10 restores the existing registrations
+  instead of scanning and registering against a potentially stale UI root.
 - Removed the global one-female/one-male requirement from every managed room.
   Sex constraints now apply only to the confirmed recommended breeding pair.
 - Separates the breeding-pair target room from the best combat-development

@@ -137,10 +137,26 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(view.attach_calls == 1);
     AC_CHECK(view.set_available_calls == 1);
 
+    controller.SetSuppressed(true);
+    AC_CHECK(controller.IsSuppressed());
+    AC_CHECK(!controller.ShouldShow());
+    AC_CHECK(controller.IsAttached());
+    AC_CHECK(view.detach_calls == 0);
+    AC_CHECK(!view.available);
+    view.Click();
+    controller.SetSuppressed(false);
+    AC_CHECK(!controller.IsSuppressed());
+    AC_CHECK(controller.ShouldShow());
+    AC_CHECK(controller.IsAttached());
+    AC_CHECK(view.attach_calls == 1);
+    AC_CHECK(view.detach_calls == 0);
+    AC_CHECK(view.available);
+
+    const int availability_syncs = view.set_available_calls;
     for (int tick = 0; tick < 100; ++tick) {
         controller.ObserveRuntime(true, false, false);
     }
-    AC_CHECK(view.set_available_calls == 1);
+    AC_CHECK(view.set_available_calls == availability_syncs);
 
     AC_CHECK(
         static_cast<bool>(

@@ -1,11 +1,15 @@
 #include "auto_cattery/level_up_reroll_data.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <fstream>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <system_error>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 #include <windows.h>
@@ -82,6 +86,86 @@ void Restore(
     (void)Replace(temporary, path);
 }
 
+std::string Trim(std::string value) {
+    if (value.starts_with("\xEF\xBB\xBF")) {
+        value.erase(0, 3);
+    }
+    const auto first = std::find_if_not(
+        value.begin(), value.end(),
+        [](unsigned char character) {
+            return std::isspace(character) != 0;
+        });
+    const auto last = std::find_if_not(
+        value.rbegin(), value.rend(),
+        [](unsigned char character) {
+            return std::isspace(character) != 0;
+        }).base();
+    return first < last ? std::string(first, last) : std::string{};
+}
+
+bool EqualsAsciiCaseInsensitive(
+    std::string_view left,
+    std::string_view right) {
+    return left.size() == right.size() &&
+        std::equal(
+            left.begin(), left.end(), right.begin(),
+            [](unsigned char a, unsigned char b) {
+                return std::tolower(a) == std::tolower(b);
+            });
+}
+
+Result<void> MoveDataModToLoadOrderEnd(
+    const std::filesystem::path& data_mod_root) {
+    const auto mod_name = data_mod_root.filename().string();
+    if (mod_name.empty()) {
+        return {ErrorCode::ConfigInvalid,
+                "cannot determine the AutoCattery data-mod name"};
+    }
+
+    const auto mod_list = data_mod_root.parent_path() / L"modlist.txt";
+    const bool existed = std::filesystem::exists(mod_list);
+    const auto previous = ReadExisting(mod_list);
+    if (existed && !previous) {
+        return {ErrorCode::ConfigInvalid,
+                "cannot read Mewtator modlist.txt"};
+    }
+
+    std::vector<std::string> enabled_mods;
+    if (previous) {
+        std::istringstream input(*previous);
+        for (std::string line; std::getline(input, line);) {
+            line = Trim(std::move(line));
+            if (!line.empty() &&
+                !EqualsAsciiCaseInsensitive(line, mod_name)) {
+                enabled_mods.push_back(std::move(line));
+            }
+        }
+    }
+    enabled_mods.push_back(mod_name);
+
+    std::ostringstream output;
+    for (const auto& enabled_mod : enabled_mods) {
+        output << enabled_mod << '\n';
+    }
+    const auto contents = output.str();
+    if (previous && *previous == contents) {
+        return {};
+    }
+
+    const auto temporary = mod_list.wstring() + L".candidate.tmp";
+    std::error_code error;
+    std::filesystem::remove(temporary, error);
+    auto result = WriteFile(temporary, contents);
+    if (!result) return result;
+    result = Replace(temporary, mod_list);
+    if (!result) {
+        std::filesystem::remove(temporary, error);
+        return {result.code,
+                "cannot move AutoCattery to the end of Mewtator modlist.txt"};
+    }
+    return {};
+}
+
 }  // namespace
 
 Result<std::filesystem::path> ResolveAutoCatteryDataRoot(
@@ -153,6 +237,12 @@ Result<void> WriteLevelUpRerollData(
         Restore(base, previous_base);
         Restore(advanced, previous_advanced);
         std::filesystem::remove(advanced_temporary, error);
+        return result;
+    }
+    result = MoveDataModToLoadOrderEnd(data_mod_root);
+    if (!result) {
+        Restore(base, previous_base);
+        Restore(advanced, previous_advanced);
         return result;
     }
     return {};

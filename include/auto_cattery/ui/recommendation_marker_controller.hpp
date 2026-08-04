@@ -56,6 +56,7 @@ public:
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
     void AbandonScene() noexcept;
+    void SetSuppressed(bool suppressed);
     void HandleClick();
     void CompleteProbe(std::uint64_t scene_generation);
     Result<void> ShowRecommendations(
@@ -67,6 +68,7 @@ public:
 
     [[nodiscard]] bool ShouldShow() const noexcept;
     [[nodiscard]] bool IsAttached() const noexcept;
+    [[nodiscard]] bool IsSuppressed() const noexcept;
     [[nodiscard]] bool MarkerVisible() const noexcept;
 
 private:
@@ -76,6 +78,7 @@ private:
     Clock clock_;
     bool available_this_day_{true};
     bool next_day_pending_{};
+    bool suppressed_{};
     bool marker_visible_{};
     bool request_pending_{};
     std::optional<bool> applied_availability_;

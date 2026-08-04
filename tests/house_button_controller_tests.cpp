@@ -143,6 +143,20 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
     AC_CHECK(workflow.preview_calls == 0);
 
+    controller.SetSuppressed(true);
+    AC_CHECK(controller.IsSuppressed());
+    AC_CHECK(controller.IsAttached());
+    AC_CHECK(view.detach_calls == 0);
+    AC_CHECK(view.state == ui::OrganizeButtonState::Hidden);
+    view.Click();
+    AC_CHECK(workflow.preview_calls == 0);
+    controller.SetSuppressed(false);
+    AC_CHECK(!controller.IsSuppressed());
+    AC_CHECK(controller.IsAttached());
+    AC_CHECK(view.attach_calls == 1);
+    AC_CHECK(view.detach_calls == 0);
+    AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
+
     AC_CHECK(static_cast<bool>(controller.Attach(HouseContext())));
     AC_CHECK(view.attach_calls == 1);
 

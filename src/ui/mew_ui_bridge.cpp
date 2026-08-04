@@ -573,14 +573,20 @@ void MewUiBridge::OnTick() {
     const bool panel_open = in_game_panel_controller_ &&
         in_game_panel_controller_->IsOpen();
     const bool house_button_enabled =
-        mod_ui_enabled && active_config.ui.house_button_enabled && !panel_open;
+        mod_ui_enabled && active_config.ui.house_button_enabled;
     const bool recommendation_button_enabled =
-        mod_ui_enabled && active_config.ui.embark_button_enabled && !panel_open;
+        mod_ui_enabled && active_config.ui.embark_button_enabled;
     const bool interstitial_ready = scene_ready("Interstitial");
     const bool expedition_ready =
         scene_ready("Map") || scene_ready("Battle");
+    if (house_button_controller_) {
+        house_button_controller_->SetSuppressed(panel_open);
+    }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->SetSuppressed(panel_open);
+    }
     recommendation_marker_controller_->ObserveRuntime(
-        house_ready && recommendation_button_enabled,
+        house_ready,
         interstitial_ready,
         expedition_ready);
 
@@ -588,8 +594,14 @@ void MewUiBridge::OnTick() {
         house_button_controller_->IsAttached()) {
         house_button_controller_->Detach();
     }
+    if (!recommendation_button_enabled &&
+        recommendation_marker_controller_ &&
+        recommendation_marker_controller_->IsAttached()) {
+        recommendation_marker_controller_->Detach();
+    }
 
     if (house_button_enabled &&
+        !panel_open &&
         context.kind == UiContextKind::House &&
         context.input_enabled &&
         !context.save_in_progress &&
@@ -616,6 +628,7 @@ void MewUiBridge::OnTick() {
     }
 
     if (recommendation_button_enabled &&
+        !panel_open &&
         house_ready &&
         !recommendation_marker_controller_->IsAttached() &&
         (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||

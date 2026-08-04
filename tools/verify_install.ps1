@@ -82,8 +82,11 @@ $enabledMods = @(if (Test-Path -LiteralPath $modListPath) {
 } else {
     @()
 })
-if ($enabledMods -notcontains 'AutoCattery') {
-    throw 'AutoCattery is installed but is not enabled in Mewtator modlist.txt.'
+if (@($enabledMods | Where-Object { $_ -ieq 'AutoCattery' }).Count -ne 1) {
+    throw 'AutoCattery must appear exactly once in Mewtator modlist.txt.'
+}
+if ($enabledMods.Count -eq 0 -or $enabledMods[-1] -ine 'AutoCattery') {
+    throw 'AutoCattery must be the last Mewtator data mod so its configured reroll value is not overwritten.'
 }
 
 $dllPath = Join-Path $resolvedGameRoot 'mods\AutoCattery.dll'

@@ -47,7 +47,9 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 - 中文和英文界面可在 F10 设置页最下方切换；默认中文。当前 build 没有已验证的
   游戏语言读取接口，因此不猜测游戏设置，使用明确的手动选择并持久化。
 - F10 设置页可把普通与进阶职业猫的升级重骰次数设为 `0`–`99`，默认 `3`；
-  保存后需重启游戏。不要同时启用旧的独立 `SkillsPassivesFirstData`，避免重复叠加。
+  保存后需重启游戏。AutoCattery 会自动保持在 Mewtator `modlist.txt` 最后一项，
+  因此可与同样修改职业数据的 MOD 共存，但重骰次数以 AutoCattery 的设置为准，
+  不会再叠加或被后加载 MOD 覆盖。
 - 可在 F10 设置页最下方选择是否收集猫数据；默认关闭。开启后只在本机
   `Mods\AutoCattery\AutoCatteryData` 写入用于优化规划的技术数据，不记录猫名、
   存档名/路径、系统用户名、机器 ID 或账号 ID，也不会自动联网上传。需要帮助时，

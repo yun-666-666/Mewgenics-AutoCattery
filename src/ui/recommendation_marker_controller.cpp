@@ -54,7 +54,7 @@ void RecommendationMarkerController::ObserveRuntime(
     }
 
     if (house_ready && view_.IsAttached()) {
-        SyncAvailability(available_this_day_);
+        SyncAvailability(available_this_day_ && !suppressed_);
     }
 
     if (!house_ready) {
@@ -82,7 +82,8 @@ Result<void> RecommendationMarkerController::Attach(
             HandleClick();
         },
         [this](std::size_t index) {
-            if (marker_visible_ &&
+            if (!suppressed_ &&
+                marker_visible_ &&
                 index < item_count_ &&
                 details_handler_) {
                 details_handler_(attached_generation_, index);
@@ -101,7 +102,7 @@ Result<void> RecommendationMarkerController::Attach(
     applied_availability_.reset();
     view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
-    SyncAvailability(available_this_day_);
+    SyncAvailability(available_this_day_ && !suppressed_);
     Logger::Instance().Write(
         LogLevel::Info,
         "RecommendationMarker",
@@ -141,7 +142,20 @@ void RecommendationMarkerController::AbandonScene() noexcept {
     ready_after_ = {};
     status_after_hold_ = RecommendationUiStatus::Ready;
     applied_availability_.reset();
+    suppressed_ = false;
     view_.AbandonScene();
+}
+
+void RecommendationMarkerController::SetSuppressed(bool suppressed) {
+    if (suppressed_ == suppressed) return;
+    suppressed_ = suppressed;
+    if (suppressed_) {
+        marker_visible_ = false;
+        item_count_ = 0;
+    }
+    if (view_.IsAttached()) {
+        SyncAvailability(available_this_day_ && !suppressed_);
+    }
 }
 
 void RecommendationMarkerController::SyncAvailability(bool available) {
@@ -155,6 +169,7 @@ void RecommendationMarkerController::SyncAvailability(bool available) {
 
 void RecommendationMarkerController::HandleClick() {
     if (!view_.IsAttached() ||
+        suppressed_ ||
         !available_this_day_ ||
         request_pending_ ||
         ready_after_.time_since_epoch().count() != 0) {
@@ -212,6 +227,7 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
     std::uint64_t scene_generation,
     const std::vector<std::string>& labels) {
     if (!view_.IsAttached() ||
+        suppressed_ ||
         scene_generation != attached_generation_) {
         return {
             ErrorCode::SceneUnavailable,
@@ -260,11 +276,15 @@ void RecommendationMarkerController::SetDetailsHandler(
 }
 
 bool RecommendationMarkerController::ShouldShow() const noexcept {
-    return available_this_day_;
+    return available_this_day_ && !suppressed_;
 }
 
 bool RecommendationMarkerController::IsAttached() const noexcept {
     return view_.IsAttached();
+}
+
+bool RecommendationMarkerController::IsSuppressed() const noexcept {
+    return suppressed_;
 }
 
 bool RecommendationMarkerController::MarkerVisible() const noexcept {

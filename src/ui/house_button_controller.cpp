@@ -65,11 +65,13 @@ Result<void> HouseButtonController::Attach(
 void HouseButtonController::Detach() noexcept {
     if (!view_.IsAttached()) {
         state_ = OrganizeButtonState::Hidden;
+        state_detail_.clear();
         return;
     }
     view_.SetState(OrganizeButtonState::Hidden, {});
     view_.Detach();
     state_ = OrganizeButtonState::Hidden;
+    state_detail_.clear();
     scene_generation_ = 0;
     awaiting_execution_ = false;
     last_click_ = {};
@@ -84,25 +86,46 @@ void HouseButtonController::Detach() noexcept {
 void HouseButtonController::AbandonScene() noexcept {
     view_.AbandonScene();
     state_ = OrganizeButtonState::Hidden;
+    state_detail_.clear();
+    suppressed_ = false;
     scene_generation_ = 0;
     awaiting_execution_ = false;
     last_click_ = {};
     ready_after_ = {};
 }
 
+void HouseButtonController::SetSuppressed(bool suppressed) {
+    if (suppressed_ == suppressed) return;
+    suppressed_ = suppressed;
+    if (!view_.IsAttached()) return;
+    if (suppressed_) {
+        view_.SetState(OrganizeButtonState::Hidden, {});
+        return;
+    }
+    view_.SetState(state_, state_detail_);
+}
+
 void HouseButtonController::SetState(
     OrganizeButtonState state,
     std::string_view detail) {
     state_ = state;
-    view_.SetState(state, detail);
+    state_detail_ = detail;
+    view_.SetState(
+        suppressed_ ? OrganizeButtonState::Hidden : state,
+        suppressed_ ? std::string_view{} : std::string_view{state_detail_});
 }
 
 bool HouseButtonController::IsAttached() const noexcept {
     return view_.IsAttached();
 }
 
+bool HouseButtonController::IsSuppressed() const noexcept {
+    return suppressed_;
+}
+
 void HouseButtonController::HandleClick() {
     if (!view_.IsAttached() ||
+        suppressed_ ||
         state_ != OrganizeButtonState::Ready) {
         return;
     }

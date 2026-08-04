@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <future>
+#include <string>
 #include <string_view>
 
 #include "auto_cattery/error.hpp"
@@ -55,10 +56,12 @@ public:
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
     void AbandonScene() noexcept;
+    void SetSuppressed(bool suppressed);
     void SetState(
         OrganizeButtonState state,
         std::string_view detail = {});
     [[nodiscard]] bool IsAttached() const noexcept;
+    [[nodiscard]] bool IsSuppressed() const noexcept;
     void HandleClick();
     void Poll();
 
@@ -68,6 +71,8 @@ private:
     Clock clock_;
     BeforePreview before_preview_;
     OrganizeButtonState state_{OrganizeButtonState::Hidden};
+    std::string state_detail_;
+    bool suppressed_{};
     std::uint64_t scene_generation_{};
     std::chrono::steady_clock::time_point last_click_{};
     std::future<Result<void>> preview_task_;

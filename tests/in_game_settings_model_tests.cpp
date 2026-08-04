@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "auto_cattery/settings_file_editor.hpp"
 #include "test_support.hpp"
@@ -18,19 +20,30 @@ std::string ReadRerollData(const std::filesystem::path& path) {
     return output.str();
 }
 
+std::vector<std::string> ReadLines(const std::filesystem::path& path) {
+    std::ifstream stream(path, std::ios::binary);
+    std::vector<std::string> lines;
+    for (std::string line; std::getline(stream, line);) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (!line.empty()) lines.push_back(std::move(line));
+    }
+    return lines;
+}
+
 }  // namespace
 
 void RunInGameSettingsModelTests() {
     const auto directory = std::filesystem::temp_directory_path() /
         "auto_cattery_stage18_in_game_settings_tests";
+    std::filesystem::remove_all(directory);
     std::filesystem::create_directories(directory);
     const auto user = directory / "user_config.json";
     const auto temporary = directory / "user_config.json.candidate.tmp";
-    const auto data_mod = directory / "AutoCatteryData";
-    std::filesystem::remove(user);
-    std::filesystem::remove(temporary);
-
-    std::filesystem::remove_all(data_mod);
+    const auto data_mod = directory / "AutoCattery";
+    {
+        std::ofstream mod_list(directory / "modlist.txt", std::ios::binary);
+        mod_list << "AutoCattery\nSkillsPassivesFirstData\nAutoCattery\n";
+    }
 
     ui::InGameSettingsModel model({}, user, data_mod);
     AC_CHECK(static_cast<bool>(model.Reload()));
@@ -93,8 +106,12 @@ void RunInGameSettingsModelTests() {
              std::string::npos);
     AC_CHECK(advanced_rerolls.find("Jester { innate_passives { AddLevelUpRerolls 9 } }") !=
              std::string::npos);
+    const auto enabled_mods = ReadLines(directory / "modlist.txt");
+    AC_CHECK(enabled_mods.size() == 2);
+    AC_CHECK(enabled_mods[0] == "SkillsPassivesFirstData");
+    AC_CHECK(enabled_mods[1] == "AutoCattery");
     AC_CHECK(!std::filesystem::exists(temporary));
-    std::filesystem::remove_all(data_mod);
+    std::filesystem::remove_all(directory);
 }
 
 }  // namespace autocattery::tests

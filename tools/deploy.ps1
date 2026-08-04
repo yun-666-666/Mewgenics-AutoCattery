@@ -93,13 +93,13 @@ if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
     } else {
         @()
     })
-    if ($enabledMods -notcontains 'AutoCattery') {
-        $enabledMods += 'AutoCattery'
-        Set-Content -LiteralPath $modListPath -Value $enabledMods -Encoding utf8
-    }
+    $enabledMods = @($enabledMods | Where-Object { $_ -ine 'AutoCattery' })
+    $enabledMods += 'AutoCattery'
+    Set-Content -LiteralPath $modListPath -Value $enabledMods -Encoding utf8
 }
 
 Write-Host 'DLL deployed to the non-recursive Mewjector mods directory.'
 Write-Host "UI data mod deployed and enabled for Mewtator: $dataModRoot"
 Write-Host "Level-up rerolls prepared for next game launch: $rerollCount"
+Write-Host 'AutoCattery moved to the end of Mewtator modlist.txt so its reroll value wins conflicts.'
 Write-Host 'Launch the game through Mewtator so its enabled data-mod paths are passed to Mewgenics.'
