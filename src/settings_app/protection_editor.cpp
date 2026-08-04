@@ -150,8 +150,8 @@ LRESULT CALLBACK Procedure(
     if (message == WM_DESTROY) {
         if (state != nullptr && state->font != nullptr) {
             DeleteObject(state->font);
+            state->font = nullptr;
         }
-        PostQuitMessage(0);
         return 0;
     }
     return DefWindowProcW(window, message, wparam, lparam);
@@ -162,7 +162,8 @@ LRESULT CALLBACK Procedure(
 int RunProtectionEditor(
     HINSTANCE instance,
     int show_command,
-    const std::filesystem::path& config_root) {
+    const std::filesystem::path& config_root,
+    HWND owner) {
     WNDCLASSEXW type{};
     type.cbSize = sizeof(type);
     type.hInstance = instance;
@@ -170,7 +171,8 @@ int RunProtectionEditor(
     type.lpszClassName = kClassName;
     type.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     type.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-    if (RegisterClassExW(&type) == 0) {
+    if (RegisterClassExW(&type) == 0 &&
+        GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
         return 2;
     }
     protection_ui::State state(
@@ -180,20 +182,27 @@ int RunProtectionEditor(
         0, kClassName, L"AutoCattery 通用猫保护管理",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
         CW_USEDEFAULT, CW_USEDEFAULT, 720, 710,
-        nullptr, nullptr, instance, &state);
+        owner, nullptr, instance, &state);
     if (window == nullptr) {
         return 2;
+    }
+    if (owner != nullptr) {
+        EnableWindow(owner, FALSE);
     }
     ShowWindow(window, show_command);
     UpdateWindow(window);
     MSG message{};
-    while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+    while (IsWindow(window) && GetMessageW(&message, nullptr, 0, 0) > 0) {
         if (!IsDialogMessageW(window, &message)) {
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
     }
-    return static_cast<int>(message.wParam);
+    if (owner != nullptr) {
+        EnableWindow(owner, TRUE);
+        SetActiveWindow(owner);
+    }
+    return 0;
 }
 
 }  // namespace autocattery::settings_app

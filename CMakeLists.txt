@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.3 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.4 LANGUAGES C CXX RC)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -191,6 +191,12 @@ foreach(config Debug Release RelWithDebInfo MinSizeRel)
     )
 endforeach()
 
+configure_file(
+    src/settings_app/settings_app.rc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/settings_app.rc
+    @ONLY
+)
+
 add_executable(AutoCatterySettings WIN32
     src/settings_app/settings_app.cpp
     src/settings_app/protection_editor.cpp
@@ -198,13 +204,22 @@ add_executable(AutoCatterySettings WIN32
     src/settings_app/settings_form.cpp
     src/settings_app/settings_form_data.cpp
     src/settings_app/settings_form_schema.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/settings_app.rc
 )
 target_link_libraries(
     AutoCatterySettings
-    PRIVATE auto_cattery_core shell32 user32 gdi32
+    PRIVATE auto_cattery_core user32 gdi32
 )
 target_compile_features(AutoCatterySettings PRIVATE cxx_std_20)
 target_compile_definitions(AutoCatterySettings PRIVATE UNICODE _UNICODE)
+if(MSVC)
+    target_link_options(
+        AutoCatterySettings
+        PRIVATE
+            "/MANIFEST:EMBED"
+            "/MANIFESTINPUT:${CMAKE_CURRENT_SOURCE_DIR}/src/settings_app/settings_app.manifest"
+    )
+endif()
 autocattery_enable_warnings(AutoCatterySettings)
 set_target_properties(AutoCatterySettings PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/out"

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.4 - 2026-08-04
+
+- Reduced false-positive antivirus signals in `AutoCatterySettings.exe` by
+  opening cat protection management in the existing process instead of
+  launching a second copy of the executable.
+- Added standard Windows product/version metadata and an embedded `asInvoker`,
+  Per-Monitor-V2 DPI-aware application manifest.
+- Added build checks that reject x86 output, missing product metadata, and
+  unexpected self-launch or remote-process APIs in the settings executable.
+- Kept the F10 panel, MoveOnly behavior, settings, and cat protection features
+  unchanged.
+
 ## 0.5.3 - 2026-08-02
 
 - Fixed F10 management-panel clicks on smaller screens and mixed-DPI Windows

@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <memory>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -9,7 +10,6 @@
 #include "settings_form.hpp"
 #include "settings_form_schema.hpp"
 
-#include <shellapi.h>
 #include <windows.h>
 
 namespace autocattery::settings_app {
@@ -49,19 +49,11 @@ void SetStatus(HWND window, const wchar_t* text) {
 }
 
 void LaunchProtectionEditor(HWND window, const AppState& state) {
-    std::wstring executable(32768, L'\0');
-    const auto length = GetModuleFileNameW(
-        nullptr, executable.data(), static_cast<DWORD>(executable.size()));
-    executable.resize(length);
-    const std::wstring arguments =
-        L"--protection --config-root \"" + state.root.wstring() + L"\"";
-    const auto launched = reinterpret_cast<INT_PTR>(ShellExecuteW(
-        window, L"open", executable.c_str(), arguments.c_str(),
-        state.root.c_str(), SW_SHOWNORMAL));
-    SetStatus(
-        window,
-        launched > 32 ? L"已打开通用猫保护管理。"
-                      : L"无法打开猫保护管理。" );
+    const auto result = RunProtectionEditor(
+        GetModuleHandleW(nullptr), SW_SHOWNORMAL, state.root, window);
+    SetStatus(window, result == 0
+        ? L"猫保护管理已关闭。"
+        : L"无法打开猫保护管理。");
 }
 
 bool LoadIntoForm(HWND window, AppState& state, bool show_error) {
@@ -214,23 +206,18 @@ int ValidateCommand(int argument_count, wchar_t** arguments) {
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
     using namespace autocattery::settings_app;
-    int argument_count{};
-    auto** arguments = CommandLineToArgvW(GetCommandLineW(), &argument_count);
-    if (arguments == nullptr) {
-        return 2;
-    }
+    const int argument_count = __argc;
+    auto** arguments = __wargv;
     const auto validation = ValidateCommand(argument_count, arguments);
     if (validation >= 0) {
-        LocalFree(arguments);
         return validation;
     }
     const auto root = ConfigRoot(argument_count, arguments);
     const bool protection_editor = HasArgument(
         argument_count, arguments, L"--protection");
-    LocalFree(arguments);
 
     if (protection_editor) {
-        return RunProtectionEditor(instance, show_command, root);
+        return RunProtectionEditor(instance, show_command, root, nullptr);
     }
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
