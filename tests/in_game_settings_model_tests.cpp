@@ -2,11 +2,23 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 
 #include "auto_cattery/settings_file_editor.hpp"
 #include "test_support.hpp"
 
 namespace autocattery::tests {
+namespace {
+
+std::string ReadRerollData(const std::filesystem::path& path) {
+    std::ifstream stream(path, std::ios::binary);
+    std::ostringstream output;
+    output << stream.rdbuf();
+    return output.str();
+}
+
+}  // namespace
 
 void RunInGameSettingsModelTests() {
     const auto directory = std::filesystem::temp_directory_path() /
@@ -14,15 +26,18 @@ void RunInGameSettingsModelTests() {
     std::filesystem::create_directories(directory);
     const auto user = directory / "user_config.json";
     const auto temporary = directory / "user_config.json.candidate.tmp";
+    const auto data_mod = directory / "AutoCatteryData";
     std::filesystem::remove(user);
     std::filesystem::remove(temporary);
 
-    ui::InGameSettingsModel model({}, user);
+    std::filesystem::remove_all(data_mod);
+
+    ui::InGameSettingsModel model({}, user, data_mod);
     AC_CHECK(static_cast<bool>(model.Reload()));
     AC_CHECK(model.PageCount() == 8);
     AC_CHECK(model.Rows(0).size() == 8);
-    AC_CHECK(model.Rows(7).size() == 4);
-    AC_CHECK(model.AllRows().size() == 47);
+    AC_CHECK(model.Rows(7).size() == 5);
+    AC_CHECK(model.AllRows().size() == 48);
     AC_CHECK(model.DirectValue(0).has_value());
     AC_CHECK(!model.DirectValue(3).has_value());
     AC_CHECK(model.PageTitle(0).find("1/8") != std::string::npos);
@@ -49,7 +64,11 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(static_cast<bool>(model.AdjustFlat(45, 1)));
     AC_CHECK(model.IsEnglish());
     AC_CHECK(static_cast<bool>(model.AdjustFlat(46, 1)));
-    AC_CHECK(!static_cast<bool>(model.AdjustFlat(47, 1)));
+    AC_CHECK(model.RequiresGameRestart(47));
+    AC_CHECK(!model.RequiresGameRestart(46));
+    AC_CHECK(static_cast<bool>(model.SetFlatValue(47, "9")));
+    AC_CHECK(!static_cast<bool>(model.SetFlatValue(47, "100")));
+    AC_CHECK(!static_cast<bool>(model.AdjustFlat(48, 1)));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(0, "23")));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(1, "12.50")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(0, "wrong")));
@@ -61,7 +80,21 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(direct.value.recommendation_marker.recommended_count == 23);
     AC_CHECK(direct.value.general.language == "en-US");
     AC_CHECK(direct.value.diagnostics.collect_cat_data);
+    AC_CHECK(direct.value.level_up.reroll_count == 9);
+    const auto base_rerolls = ReadRerollData(
+        data_mod / "data" / "classes" / "classes.gon.merge");
+    const auto advanced_rerolls = ReadRerollData(
+        data_mod / "data" / "classes" / "advanced_classes.gon.merge");
+    AC_CHECK(std::count(
+        base_rerolls.begin(), base_rerolls.end(), '\n') == 8);
+    AC_CHECK(std::count(
+        advanced_rerolls.begin(), advanced_rerolls.end(), '\n') == 8);
+    AC_CHECK(base_rerolls.find("Fighter { innate_passives { AddLevelUpRerolls 9 } }") !=
+             std::string::npos);
+    AC_CHECK(advanced_rerolls.find("Jester { innate_passives { AddLevelUpRerolls 9 } }") !=
+             std::string::npos);
     AC_CHECK(!std::filesystem::exists(temporary));
+    std::filesystem::remove_all(data_mod);
 }
 
 }  // namespace autocattery::tests

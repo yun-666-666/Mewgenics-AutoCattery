@@ -22,6 +22,7 @@ std::vector<InGameSettingsModel::Page> InGameSettingsModel::Pages() {
     auto& safety = config_.execution_safety;
     auto& general = config_.general;
     auto& diagnostics = config_.diagnostics;
+    auto& level_up = config_.level_up;
     const bool en = IsEnglish();
     std::vector<std::pair<const char*, std::vector<F>>> groups;
     groups.emplace_back(L(en, "战斗评分", "Combat Scoring"), std::vector<F>{
@@ -78,6 +79,8 @@ std::vector<InGameSettingsModel::Page> InGameSettingsModel::Pages() {
         {L(en, "界面语言", "Interface language"), &general.language},
         {L(en, "收集猫数据（默认关闭）", "Collect cat data (off by default)"),
          &diagnostics.collect_cat_data},
+        {L(en, "升级重骰次数（重启生效）", "Level-up rerolls (restart)"),
+         &level_up.reroll_count, 0, 99, 1},
     });
 
     std::vector<Page> pages;

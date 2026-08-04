@@ -139,6 +139,10 @@ Json SafeDefaultsJson() {
             {"show_debug_overlay", false},
             {"export_scene_summary_enabled", false},
             {"collect_cat_data", false}
+        }},
+        {"level_up", {
+            {"version", 1},
+            {"reroll_count", 3}
         }}
     };
 }

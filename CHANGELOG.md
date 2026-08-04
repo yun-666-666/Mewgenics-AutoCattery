@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a player-selectable `0`–`99` level-up reroll count to the F10 Settings
+  page. The default remains 3; changes rewrite all 14 player-class data patches
+  and take effect after restarting the game.
 - Fixed the F10 Settings hit test so hidden bottom navigation no longer blocks
   the combat Luck weight row and all setting rows use their full vertical slot.
 - Consumed `Esc` while the F10 panel is open so it closes or cancels MOD input

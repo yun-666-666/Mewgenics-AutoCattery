@@ -202,6 +202,11 @@ Result<Config> DecodeConfig(const Json& value) {
             diagnostics.at("export_scene_summary_enabled").get<bool>();
         result.diagnostics.collect_cat_data =
             diagnostics.at("collect_cat_data").get<bool>();
+
+        const auto& level_up = value.at("level_up");
+        result.level_up.version = level_up.at("version").get<std::uint32_t>();
+        result.level_up.reroll_count =
+            level_up.at("reroll_count").get<std::size_t>();
     } catch (const Json::exception& exception) {
         return {{}, ErrorCode::ConfigInvalid, exception.what()};
     }

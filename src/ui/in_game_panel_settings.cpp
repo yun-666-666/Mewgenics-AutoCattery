@@ -10,10 +10,14 @@ void InGamePanelController::HandleSettingsEvent(
             editing_setting_.reset();
             editing_text_.clear();
         }
+        const bool restart = settings_.RequiresGameRestart(event.row);
         const auto adjusted = settings_.AdjustFlat(event.row, event.direction);
         status_ = adjusted
-            ? (English() ? "Saved; game rules will hot-reload"
-                         : "已保存；游戏中的规则会自动热更新")
+            ? (restart
+                   ? (English() ? "Saved; restart the game to apply rerolls"
+                                : "已保存；重启游戏后应用重骰次数")
+                   : (English() ? "Saved; game rules will hot-reload"
+                                : "已保存；游戏中的规则会自动热更新"))
             : (English() ? "Save failed: " : "保存失败：") +
                 adjusted.message;
         return;
@@ -46,11 +50,15 @@ void InGamePanelController::HandleSettingsEvent(
     }
     if (event.control != ManagementPanelControl::CommitEdit ||
         editing_setting_ != event.row) return;
+    const bool restart = settings_.RequiresGameRestart(event.row);
     const auto saved = settings_.SetFlatValue(event.row, event.text);
     editing_text_ = event.text;
     status_ = saved
-        ? (English() ? "Value saved; game rules will hot-reload"
-                     : "数值已保存；游戏中的规则会自动热更新")
+        ? (restart
+               ? (English() ? "Saved; restart the game to apply rerolls"
+                            : "已保存；重启游戏后应用重骰次数")
+               : (English() ? "Value saved; game rules will hot-reload"
+                            : "数值已保存；游戏中的规则会自动热更新"))
         : (English() ? "Invalid input: " : "输入无效：") + saved.message;
     if (saved) {
         view_.CancelNumericInput();

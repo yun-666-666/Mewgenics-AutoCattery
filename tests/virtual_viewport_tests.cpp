@@ -45,6 +45,12 @@ void RunVirtualViewportTests() {
         AC_CHECK(breeding_luck->row == 29);
         AC_CHECK(breeding_luck->begin_edit);
     }
+    const auto reroll_count = ui::HitTestSettingsRow(944.0, 503.0);
+    AC_CHECK(reroll_count.has_value());
+    if (reroll_count) {
+        AC_CHECK(reroll_count->row == 47);
+        AC_CHECK(reroll_count->begin_edit);
+    }
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0100, 0x1B));
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0104, 0x1B));
     AC_CHECK(!ui::ShouldConsumePanelMessage(0x0100, 'A'));

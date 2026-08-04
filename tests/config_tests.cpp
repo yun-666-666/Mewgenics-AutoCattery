@@ -64,6 +64,7 @@ void RunConfigTests() {
     AC_CHECK(valid.value.room_planning.default_soft_capacity == 4);
     AC_CHECK(valid.value.room_planning.never_exceed_known_hard_capacity);
     AC_CHECK(valid.value.workflow.preview_ttl_seconds == 120);
+    AC_CHECK(valid.value.level_up.reroll_count == 3);
 
     Write(user, R"({
         "combat_scoring": {
@@ -163,6 +164,21 @@ void RunConfigTests() {
     const auto invalid_ttl = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(invalid_ttl));
     AC_CHECK(invalid_ttl.code == ErrorCode::ConfigInvalid);
+
+    Write(user, R"({"level_up":{"reroll_count":0}})");
+    const auto zero_rerolls = LoadConfig(defaults, user);
+    AC_CHECK(static_cast<bool>(zero_rerolls));
+    AC_CHECK(zero_rerolls.value.level_up.reroll_count == 0);
+
+    Write(user, R"({"level_up":{"reroll_count":99}})");
+    const auto maximum_rerolls = LoadConfig(defaults, user);
+    AC_CHECK(static_cast<bool>(maximum_rerolls));
+    AC_CHECK(maximum_rerolls.value.level_up.reroll_count == 99);
+
+    Write(user, R"({"level_up":{"reroll_count":100}})");
+    const auto excessive_rerolls = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(excessive_rerolls));
+    AC_CHECK(excessive_rerolls.code == ErrorCode::ConfigInvalid);
 
     Write(user, "{");
     const auto truncated = LoadConfig(defaults, user);

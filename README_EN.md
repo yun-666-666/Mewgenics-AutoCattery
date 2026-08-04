@@ -53,6 +53,9 @@ game files, Steam Cloud data, or player save databases.
   The panel contains Settings, Cat Protection, Full Preview, and Close.
 - Full Preview is read-only and shows each planned cat's source, target, sex,
   potential, reason, and before/after room counts and sex ratios.
+- F10 Settings can set `0`–`99` level-up rerolls for every base and advanced
+  player class; the default is `3` and a game restart is required. Do not enable
+  the legacy standalone `SkillsPassivesFirstData` at the same time.
 - Chinese and English can be selected at the bottom of Settings; Chinese is the
   default. Since no verified game-language API is available, the choice is
   explicit and persisted.

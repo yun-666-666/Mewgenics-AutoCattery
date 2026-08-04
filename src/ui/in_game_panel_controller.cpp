@@ -4,8 +4,19 @@
 #include <chrono>
 
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/level_up_reroll_data.hpp"
 
 namespace autocattery::ui {
+namespace {
+
+std::filesystem::path DataModRoot(const std::filesystem::path& game_root) {
+    const auto resolved = ResolveAutoCatteryDataRoot(
+        game_root / L"Mewtator" / L"config.json");
+    return resolved ? resolved.value
+                    : game_root / L"Mewtator" / L"mods" / L"AutoCattery";
+}
+
+}  // namespace
 
 InGamePanelController::InGamePanelController(
     MewUiManagementPanelView& view,
@@ -18,7 +29,8 @@ InGamePanelController::InGamePanelController(
       game_root_(std::move(game_root)),
       settings_(
           mod_root_ / L"config" / L"default_config.json",
-          mod_root_ / L"config" / L"user_config.json") {}
+          mod_root_ / L"config" / L"user_config.json",
+          DataModRoot(game_root_)) {}
 
 InGamePanelController::~InGamePanelController() { Detach(); }
 

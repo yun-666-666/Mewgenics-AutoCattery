@@ -4,11 +4,15 @@
 #include <iomanip>
 #include <sstream>
 
+#include "auto_cattery/level_up_reroll_data.hpp"
+
 namespace autocattery::ui {
 InGameSettingsModel::InGameSettingsModel(
     std::filesystem::path default_config,
-    std::filesystem::path user_config)
-    : editor_({std::move(default_config), std::move(user_config)}) {}
+    std::filesystem::path user_config,
+    std::filesystem::path data_mod_root)
+    : editor_({std::move(default_config), std::move(user_config)}),
+      data_mod_root_(std::move(data_mod_root)) {}
 
 Result<void> InGameSettingsModel::Reload() {
     const auto loaded = editor_.Load();
@@ -45,8 +49,22 @@ Result<void> InGameSettingsModel::Adjust(
     config_.recommendation_marker.recommended_count =
         config_.combat_scoring.recommended_count;
     config_.safety = config_.execution_safety;
+    if (!data_mod_root_.empty() &&
+        config_.level_up.reroll_count != previous.level_up.reroll_count) {
+        const auto written = WriteLevelUpRerollData(
+            data_mod_root_, config_.level_up.reroll_count);
+        if (!written) {
+            config_ = std::move(previous);
+            return {written.code, written.message};
+        }
+    }
     const auto saved = editor_.Save(config_);
     if (!saved) {
+        if (!data_mod_root_.empty() &&
+            config_.level_up.reroll_count != previous.level_up.reroll_count) {
+            (void)WriteLevelUpRerollData(
+                data_mod_root_, previous.level_up.reroll_count);
+        }
         config_ = std::move(previous);
         return {saved.code, saved.message};
     }
@@ -123,6 +141,11 @@ std::vector<std::string> InGameSettingsModel::GroupTitles() const {
 
 bool InGameSettingsModel::IsEnglish() const noexcept {
     return config_.general.language == "en-US";
+}
+
+bool InGameSettingsModel::RequiresGameRestart(
+    std::size_t index) const noexcept {
+    return index == 47;
 }
 
 }  // namespace autocattery::ui

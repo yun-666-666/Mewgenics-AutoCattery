@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 21,
+  "active_stage": 22,
   "stages": {
     "1": {
       "status": "completed",
@@ -121,7 +121,13 @@
       "commit": null,
       "capability": "GenerationSafeHouseUiEscIsolationFullSettingsHitTargetsAndDllOnlyDistribution",
       "game_validation_status": "debug_and_release_automated_tests_passed;release_deployed_and_install_hash_verified;player_revalidation_pending"
+    },
+    "22": {
+      "status": "implementation_complete_player_validation_pending",
+      "commit": null,
+      "capability": "F10ConfigurableLevelUpRerollsForAllPlayerClasses",
+      "game_validation_status": "debug_and_release_automated_tests_passed;release_deployed;all_14_class_data_entries_verified_at_default_3;player_restart_validation_pending"
     }
   },
-  "updated_at": "2026-08-04T19:18:00+08:00"
+  "updated_at": "2026-08-04T21:05:00+08:00"
 }

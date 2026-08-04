@@ -1,0 +1,8 @@
+// Generated default. The F10 panel rewrites this file for the next game launch.
+Monk { innate_passives { AddLevelUpRerolls 3 } }
+Butcher { innate_passives { AddLevelUpRerolls 3 } }
+Druid { innate_passives { AddLevelUpRerolls 3 } }
+Tinkerer { innate_passives { AddLevelUpRerolls 3 } }
+Necromancer { innate_passives { AddLevelUpRerolls 3 } }
+Psychic { innate_passives { AddLevelUpRerolls 3 } }
+Jester { innate_passives { AddLevelUpRerolls 3 } }

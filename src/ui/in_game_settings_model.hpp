@@ -16,7 +16,8 @@ class InGameSettingsModel final {
 public:
     InGameSettingsModel(
         std::filesystem::path default_config,
-        std::filesystem::path user_config);
+        std::filesystem::path user_config,
+        std::filesystem::path data_mod_root = {});
     [[nodiscard]] Result<void> Reload();
     [[nodiscard]] Result<void> Adjust(
         std::size_t page, std::size_t row, int direction);
@@ -32,6 +33,7 @@ public:
     [[nodiscard]] std::vector<std::string> AllRows();
     [[nodiscard]] std::vector<std::string> GroupTitles() const;
     [[nodiscard]] bool IsEnglish() const noexcept;
+    [[nodiscard]] bool RequiresGameRestart(std::size_t index) const noexcept;
 
 private:
     struct Field {
@@ -51,6 +53,7 @@ private:
     [[nodiscard]] std::string Format(const Field& field) const;
 
     SettingsFileEditor editor_;
+    std::filesystem::path data_mod_root_;
     Config config_;
     bool loaded_{};
 };

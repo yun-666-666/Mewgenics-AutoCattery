@@ -137,6 +137,7 @@ Json EditableLayer(const Json& existing, const Config& config) {
         config.execution_safety.single_click_execute;
     layer["diagnostics"]["collect_cat_data"] =
         config.diagnostics.collect_cat_data;
+    layer["level_up"]["reroll_count"] = config.level_up.reroll_count;
     return layer;
 }
 

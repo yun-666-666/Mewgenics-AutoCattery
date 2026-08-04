@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.5 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.6 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -116,6 +116,7 @@ add_library(auto_cattery_core STATIC
     src/workflow/recommendation_snapshot_writer.cpp
     src/workflow/state_machine.cpp
     src/settings_file_editor.cpp
+    src/level_up_reroll_data.cpp
     src/ui/house_button_controller.cpp
     src/ui/house_move_probe_controller.cpp
     src/ui/house_move_probe_mapper.cpp

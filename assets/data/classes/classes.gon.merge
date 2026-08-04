@@ -1,0 +1,8 @@
+// Generated default. The F10 panel rewrites this file for the next game launch.
+Fighter { innate_passives { AddLevelUpRerolls 3 } }
+Hunter { innate_passives { AddLevelUpRerolls 3 } }
+Mage { innate_passives { AddLevelUpRerolls 3 } }
+Medic { innate_passives { AddLevelUpRerolls 3 } }
+Tank { innate_passives { AddLevelUpRerolls 3 } }
+Thief { innate_passives { AddLevelUpRerolls 3 } }
+Colorless { innate_passives { AddLevelUpRerolls 3 } }

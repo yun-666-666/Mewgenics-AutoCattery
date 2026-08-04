@@ -6,6 +6,8 @@
 #include <sstream>
 #include <utility>
 
+#include "auto_cattery/level_up_reroll_data.hpp"
+
 namespace autocattery::ui {
 
 std::optional<InGameSettingsModel::Field>
@@ -71,8 +73,22 @@ Result<void> InGameSettingsModel::SetFlatValue(
     config_.recommendation_marker.recommended_count =
         config_.combat_scoring.recommended_count;
     config_.safety = config_.execution_safety;
+    if (!data_mod_root_.empty() &&
+        config_.level_up.reroll_count != previous.level_up.reroll_count) {
+        const auto written = WriteLevelUpRerollData(
+            data_mod_root_, config_.level_up.reroll_count);
+        if (!written) {
+            config_ = std::move(previous);
+            return {written.code, written.message};
+        }
+    }
     const auto saved = editor_.Save(config_);
     if (!saved) {
+        if (!data_mod_root_.empty() &&
+            config_.level_up.reroll_count != previous.level_up.reroll_count) {
+            (void)WriteLevelUpRerollData(
+                data_mod_root_, previous.level_up.reroll_count);
+        }
         config_ = std::move(previous);
         return {saved.code, saved.message};
     }

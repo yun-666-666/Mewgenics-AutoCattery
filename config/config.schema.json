@@ -16,7 +16,8 @@
     "protection",
     "room_planning",
     "recommendation_marker",
-    "diagnostics"
+    "diagnostics",
+    "level_up"
   ],
   "properties": {
     "schema_version": {"const": 2},
@@ -264,6 +265,15 @@
         "show_debug_overlay": {"type": "boolean"},
         "export_scene_summary_enabled": {"type": "boolean"},
         "collect_cat_data": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "level_up": {
+      "type": "object",
+      "required": ["version", "reroll_count"],
+      "properties": {
+        "version": {"const": 1},
+        "reroll_count": {"type": "integer", "minimum": 0, "maximum": 99}
       },
       "additionalProperties": false
     }

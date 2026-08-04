@@ -368,6 +368,19 @@ Result<void> ValidateMarkerAndDiagnostics(const Json& value) {
     (void)diagnostics.at("show_debug_overlay").get<bool>();
     (void)diagnostics.at("export_scene_summary_enabled").get<bool>();
     (void)diagnostics.at("collect_cat_data").get<bool>();
+
+    const auto& level_up = value.at("level_up");
+    result = ValidateModuleVersion(level_up, "level_up");
+    if (!result) {
+        return result;
+    }
+    const auto reroll_count = level_up.at("reroll_count").get<std::size_t>();
+    if (reroll_count > 99) {
+        return {
+            ErrorCode::ConfigInvalid,
+            "level_up.reroll_count must be between 0 and 99"
+        };
+    }
     return {};
 }
 

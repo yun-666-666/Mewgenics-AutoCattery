@@ -4,6 +4,8 @@
 
 在不更换 Mewjector/MewUI 技术路线的前提下，把现有设置与猫保护管理迁入
 House 游戏界面，并用 F10 打开或关闭；不再构建、部署或发布外部 EXE 编辑器。
+F10 设置同时管理全部玩家职业的升级重骰次数，保存后由 AutoCattery 数据 MOD
+在下次游戏启动时应用。
 
 ## Required reading
 

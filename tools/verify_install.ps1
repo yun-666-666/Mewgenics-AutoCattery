@@ -41,6 +41,8 @@ $dataModRoot = Join-Path $mewtatorMods 'AutoCattery'
 $dataRequired = @(
     'description.json',
     'data\text\combined.csv.append',
+    'data\classes\classes.gon.merge',
+    'data\classes\advanced_classes.gon.merge',
     'swfs\auto_cattery_house.swf',
     'swfs\swflist.gon.append'
 )
@@ -51,6 +53,27 @@ foreach ($relativePath in $dataRequired) {
 }
 if ($missing.Count -gt 0) {
     throw "Missing required install files: $($missing -join ', ')"
+}
+
+$rerollCount = 3
+$userConfigPath = Join-Path $resolvedGameRoot 'mods\AutoCattery\config\user_config.json'
+if (Test-Path -LiteralPath $userConfigPath) {
+    $userConfig = Get-Content -LiteralPath $userConfigPath -Raw | ConvertFrom-Json
+    if ($null -ne $userConfig.level_up.reroll_count) {
+        $rerollCount = [int]$userConfig.level_up.reroll_count
+    }
+}
+if ($rerollCount -lt 0 -or $rerollCount -gt 99) {
+    throw 'Installed level-up reroll count is outside 0-99.'
+}
+$baseRerollData = Get-Content -LiteralPath `
+    (Join-Path $dataModRoot 'data\classes\classes.gon.merge') -Raw
+$advancedRerollData = Get-Content -LiteralPath `
+    (Join-Path $dataModRoot 'data\classes\advanced_classes.gon.merge') -Raw
+$expectedRerollLine = "AddLevelUpRerolls $rerollCount"
+if (($baseRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7 -or
+    ($advancedRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7) {
+    throw 'Installed level-up reroll data does not match user_config.json for all 14 player classes.'
 }
 
 $modListPath = Join-Path $mewtatorMods 'modlist.txt'
@@ -83,3 +106,4 @@ try {
 }
 
 Write-Host 'AutoCattery phase 03 runtime DLL, enabled Mewtator data mod, and DLL architecture are valid.'
+Write-Host "Installed level-up rerolls verified for all 14 player classes: $rerollCount"

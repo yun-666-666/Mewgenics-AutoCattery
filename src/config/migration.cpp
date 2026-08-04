@@ -28,7 +28,8 @@ Json MigrateV1ToV2(Json input) {
              "protection",
              "room_planning",
              "recommendation_marker",
-             "diagnostics"}) {
+             "diagnostics",
+             "level_up"}) {
         auto& module = input[key];
         if (!module.is_object()) {
             module = Json::object();

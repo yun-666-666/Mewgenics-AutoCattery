@@ -74,6 +74,11 @@ struct DiagnosticsConfig {
     bool collect_cat_data{false};
 };
 
+struct LevelUpConfig {
+    std::uint32_t version{1};
+    std::size_t reroll_count{3};
+};
+
 struct Config {
     int schema_version{2};
     GeneralConfig general;
@@ -93,6 +98,7 @@ struct Config {
     room_planning::RoomPlanningConfig room_planning;
     RecommendationMarkerConfig recommendation_marker;
     DiagnosticsConfig diagnostics;
+    LevelUpConfig level_up;
     bool force_read_only{false};
 };
 
