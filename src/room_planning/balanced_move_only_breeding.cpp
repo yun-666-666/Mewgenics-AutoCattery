@@ -85,13 +85,23 @@ void AssignBreedingPairSlots(
             }
             continue;
         }
-        const auto slot = std::ranges::find_if(
+        auto slot = std::ranges::find_if(
             slots,
             [&](const auto& candidate) {
                 return candidate.room_id == *target &&
                     !candidate.preferred_cat &&
+                    !candidate.kitten_preferred &&
                     SexMatches(cat, candidate.required_sex);
             });
+        if (slot == slots.end()) {
+            slot = std::ranges::find_if(
+                slots,
+                [&](const auto& candidate) {
+                    return candidate.room_id == *target &&
+                        !candidate.preferred_cat &&
+                        SexMatches(cat, candidate.required_sex);
+                });
+        }
         if (slot == slots.end()) {
             AddUnique(plan.limitations, "breeding-pair-sex-slot-unavailable");
             return;

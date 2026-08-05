@@ -69,7 +69,7 @@
 | `优先单一战斗房`（默认开） | 尽量把战斗推荐猫集中到一个已验证普通房，减少多房分散；不是自动选择出征队。 |
 | `繁育配对保持同房`（默认开） | 推荐配对存在时尽量安排在同一房间。 |
 | `避免近亲配对`（默认开） | 有已确认亲缘信息时避开近亲；亲缘未知不会被当作安全。 |
-| `尽量分开幼猫`（默认开） | 在容量允许时减少幼猫与成年繁育房混放。 |
+| `尽量分开幼猫`（默认开） | 繁育房和战斗驻留房之外仍有可用房间时，把可移动幼猫集中到高健康、高舒适的育幼目标；固定猫优先。 |
 | `只读模式`（默认开） | 只生成预览和诊断，不提交原生移动。需要实际移动时必须明确关闭。 |
 | `应用前创建备份`（默认开） | 执行写操作前创建备份；备份失败会阻止执行。 |
 | `单击执行模式`（默认关） | 关闭时第一次点击预览、第二次点击执行；开启会把两步合成一次，风险更高。 |
@@ -84,8 +84,11 @@
 | 第二次 | 再次校验实时状态后执行 MoveOnly | 只移动目标房不同的猫，已到位的猫跳过 |
 
 只有确认一公一母推荐繁育对后，独立繁育目标房才会按实际可用公母做最佳可达
-基本均衡。战斗培养房、训练/普通功能房完全忽略性别；没有可靠繁育对时不会因
+基本均衡。战斗驻留房、育幼房和普通功能房完全忽略性别；没有可靠繁育对时不会因
 性别移动任何猫。固定房和 `NoMove` 居民会优先保留，比例无法均衡时预览安全降级。
+
+房间用途不会再把最高刺激房默认留给战斗猫：繁育房要求可用舒适并兼顾刺激，
+战斗驻留房优先健康与舒适；稳定全 7 后，Mutation 才作为繁育房额外同分依据。
 
 玩家手动搬猫、换存档、场景刷新或配置/保护规则变化后，旧预览会失效并要求重新
 预览。真实淘汰、自动推进天数和自动选择出征队不属于此按钮。
@@ -189,7 +192,7 @@ execution gates.
 | `Prefer one combat room` (on) | Tries to stage combat recommendations in one verified ordinary room; it does not select an expedition team. |
 | `Keep breeding pair together` (on) | Tries to place a recommended pair in the same room. |
 | `Avoid inbreeding pairs` (on) | Avoids confirmed close relatives; unknown relationships are not treated as safe. |
-| `Separate kittens when possible` (on) | Reduces mixing kittens with adult breeding rooms when capacity allows. |
+| `Separate kittens when possible` (on) | When a room remains after breeding and combat staging targets are selected, movable kittens receive a high-health/high-comfort nursery target; fixed cats remain authoritative. |
 | `Read-only mode` (on) | Generates previews and diagnostics only; native movement is not submitted. |
 | `Create backup before apply` (on) | Creates a backup before a write; backup failure blocks the write. |
 | `Single-click execution` (off) | Off means first click previews and second click applies; on combines both steps and is riskier. |
@@ -205,8 +208,10 @@ execution gates.
 | Second | Revalidate live state and run MoveOnly | Moves only cats whose target room differs; cats already in place are skipped |
 
 Only a confirmed female/male breeding pair enables basic sex balancing in the
-separate breeding target room. Combat-development, training, and ordinary rooms
-ignore sex completely. Fixed-room and `No Move` residents are kept first, and an
+separate breeding target room. Combat staging, nursery, and ordinary rooms
+ignore sex completely. Breeding balances viable comfort with stimulation;
+combat staging prefers health and comfort instead of taking the highest-
+stimulation room. Fixed-room and `No Move` residents are kept first, and an
 unreachable 1:1 mix degrades safely instead of invalidating the preview.
 
 Manual movement, save changes, scene refreshes, or changed settings/protection invalidate

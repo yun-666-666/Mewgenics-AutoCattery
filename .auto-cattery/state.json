@@ -151,7 +151,13 @@
       "commit": null,
       "capability": "BreedingRoomOnlyBestAchievableSexBalanceAndSexAgnosticCombatSelection",
       "game_validation_status": "debug_tests_passed;85_cat_8f_77m_breeding_room_target_8_to_13;combat_training_and_general_rooms_ignore_sex;v0.5.11_release_dll_smoke_passed;release_deployed_and_hash_verified;player_preview_validation_pending"
+    },
+    "27": {
+      "status": "implementation_complete_automated_validation_passed_player_validation_pending",
+      "commit": null,
+      "capability": "PurposeAwareBreedingCombatAndKittenRoomAllocationWithEvidenceBasedSafety",
+      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;not_deployed;player_preview_and_move_validation_pending"
     }
   },
-  "updated_at": "2026-08-05T02:37:13+08:00"
+  "updated_at": "2026-08-05T13:05:00+08:00"
 }

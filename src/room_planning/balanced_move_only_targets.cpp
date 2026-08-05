@@ -22,6 +22,11 @@ bool AllocateOccupancyTargets(
         }
         ++target[room_id];
     }
+    if (context.fixed_rooms.size() > context.movable.size()) {
+        plan.validation_errors.push_back(
+            "fixed-room-count-exceeds-movable-count");
+        return false;
+    }
     for (std::size_t remaining =
              context.movable.size() - context.fixed_rooms.size();
          remaining > 0;
@@ -49,28 +54,240 @@ bool AllocateOccupancyTargets(
     return true;
 }
 
+bool IsKitten(const PlanningContext& context, snapshot::CatId cat_id) {
+    return context.cats.at(cat_id)->life_stage ==
+        snapshot::LifeStage::Kitten;
+}
+
+bool IsPotential(const PlanningContext& context, snapshot::CatId cat_id) {
+    return !IsKitten(context, cat_id) &&
+        std::ranges::find(context.breeding_pair, cat_id) ==
+            context.breeding_pair.end() &&
+        context.decisions.at(cat_id)->primary_role ==
+            classification::CatRole::CombatRecommended;
+}
+
+std::size_t RoleCapacity(
+    const PlanningContext& context,
+    const CountMap& occupancy,
+    const snapshot::RoomId& room_id) {
+    const auto pinned_roles =
+        context.pinned_potential.at(room_id) +
+        context.pinned_kitten.at(room_id);
+    auto ordinary_residents =
+        context.pinned_count.at(room_id) > pinned_roles
+            ? context.pinned_count.at(room_id) - pinned_roles
+            : 0U;
+    for (const auto& [cat_id, fixed_room] : context.fixed_rooms) {
+        if (fixed_room == room_id &&
+            !IsKitten(context, cat_id) &&
+            !IsPotential(context, cat_id)) {
+            ++ordinary_residents;
+        }
+    }
+    return occupancy.at(room_id) > ordinary_residents
+        ? occupancy.at(room_id) - ordinary_residents
+        : 0U;
+}
+
+std::size_t FixedPotentialCount(
+    const PlanningContext& context,
+    const snapshot::RoomId& room_id) {
+    return static_cast<std::size_t>(std::ranges::count_if(
+        context.fixed_rooms,
+        [&](const auto& entry) {
+            return entry.second == room_id &&
+                IsPotential(context, entry.first);
+        }));
+}
+
 bool AllocatePotentialTargets(
     const PlanningContext& context,
     const CountMap& occupancy,
+    const CountMap& kittens,
+    const std::optional<snapshot::RoomId>& breeding_target,
+    const std::optional<snapshot::RoomId>& development_target,
+    const std::optional<snapshot::RoomId>& kitten_target,
     CountMap& target,
     RoomPlan& plan) {
     target = context.pinned_potential;
-    for (std::size_t remaining = context.movable_potential;
+    std::size_t fixed_potential{};
+    for (const auto& [cat_id, room_id] : context.fixed_rooms) {
+        if (IsPotential(context, cat_id)) {
+            ++target[room_id];
+            ++fixed_potential;
+        }
+    }
+    const auto priority = [&](const snapshot::RoomId& room_id) {
+        if (development_target && room_id == *development_target) {
+            return 0;
+        }
+        if (breeding_target && room_id == *breeding_target) {
+            return 2;
+        }
+        if (kitten_target && room_id == *kitten_target) {
+            return 3;
+        }
+        return 1;
+    };
+    const auto movable_potential = static_cast<std::size_t>(
+        std::ranges::count_if(
+            context.movable,
+            [&](const auto cat_id) {
+                return IsPotential(context, cat_id);
+            }));
+    if (fixed_potential > movable_potential) {
+        plan.validation_errors.push_back(
+            "fixed-potential-count-exceeds-movable-potential");
+        return false;
+    }
+    for (std::size_t remaining = movable_potential - fixed_potential;
          remaining > 0;
          --remaining) {
         std::optional<snapshot::RoomId> best;
         for (const auto& room_id : context.rooms) {
-            if (target[room_id] >= occupancy.at(room_id)) {
+            if (target[room_id] + kittens.at(room_id) >=
+                RoleCapacity(context, occupancy, room_id)) {
                 continue;
             }
-            if (!best ||
-                PreferDevelopmentRoom(context, room_id, *best)) {
+            if (!best) {
+                best = room_id;
+                continue;
+            }
+            const auto room_priority = priority(room_id);
+            const auto best_priority = priority(*best);
+            if (room_priority != best_priority) {
+                if (room_priority < best_priority) {
+                    best = room_id;
+                }
+                continue;
+            }
+            if (!context.prefer_single_combat_staging_room &&
+                target[room_id] != target[*best]) {
+                if (target[room_id] < target[*best]) {
+                    best = room_id;
+                }
+                continue;
+            }
+            if (PreferDevelopmentRoom(context, room_id, *best)) {
                 best = room_id;
             }
         }
         if (!best) {
             plan.validation_errors.push_back(
                 "potential-room-target-infeasible");
+            return false;
+        }
+        ++target[*best];
+    }
+    return true;
+}
+
+std::optional<snapshot::RoomId> FindDevelopmentTarget(
+    const PlanningContext& context,
+    const CountMap& occupancy,
+    const std::optional<snapshot::RoomId>& breeding_target) {
+    std::optional<snapshot::RoomId> target;
+    for (const auto& room_id : context.rooms) {
+        if (occupancy.at(room_id) == 0 ||
+            (breeding_target && room_id == *breeding_target)) {
+            continue;
+        }
+        if (!target || PreferDevelopmentRoom(context, room_id, *target)) {
+            target = room_id;
+        }
+    }
+    return target;
+}
+
+std::optional<snapshot::RoomId> FindKittenTarget(
+    const PlanningContext& context,
+    const CountMap& occupancy,
+    const std::optional<snapshot::RoomId>& breeding_target,
+    const std::optional<snapshot::RoomId>& development_target) {
+    if (!context.keep_kittens_separate_when_possible ||
+        context.movable_kitten == 0) {
+        return std::nullopt;
+    }
+    std::optional<snapshot::RoomId> target;
+    for (const auto& room_id : context.rooms) {
+        if (occupancy.at(room_id) == 0 ||
+            RoleCapacity(context, occupancy, room_id) <=
+                context.pinned_kitten.at(room_id) +
+                    FixedPotentialCount(context, room_id) ||
+            (breeding_target && room_id == *breeding_target) ||
+            (development_target && room_id == *development_target)) {
+            continue;
+        }
+        if (!target || PreferKittenRoom(context, room_id, *target)) {
+            target = room_id;
+        }
+    }
+    return target;
+}
+
+bool AllocateKittenTargets(
+    const PlanningContext& context,
+    const CountMap& occupancy,
+    const std::optional<snapshot::RoomId>& breeding_target,
+    const std::optional<snapshot::RoomId>& development_target,
+    const std::optional<snapshot::RoomId>& kitten_target,
+    CountMap& target,
+    RoomPlan& plan) {
+    target = context.pinned_kitten;
+    std::size_t fixed_kittens{};
+    for (const auto& [cat_id, room_id] : context.fixed_rooms) {
+        if (IsKitten(context, cat_id)) {
+            ++target[room_id];
+            ++fixed_kittens;
+        }
+    }
+    if (fixed_kittens > context.movable_kitten) {
+        plan.validation_errors.push_back(
+            "fixed-kitten-count-exceeds-movable-kittens");
+        return false;
+    }
+    if (!context.keep_kittens_separate_when_possible) {
+        return true;
+    }
+    const auto priority = [&](const snapshot::RoomId& room_id) {
+        if (kitten_target && room_id == *kitten_target) {
+            return 0;
+        }
+        if (breeding_target && room_id == *breeding_target) {
+            return 3;
+        }
+        if (development_target && room_id == *development_target) {
+            return 2;
+        }
+        return 1;
+    };
+    for (std::size_t remaining =
+             context.movable_kitten - fixed_kittens;
+         remaining > 0;
+         --remaining) {
+        std::optional<snapshot::RoomId> best;
+        for (const auto& room_id : context.rooms) {
+            if (target[room_id] +
+                    FixedPotentialCount(context, room_id) >=
+                RoleCapacity(context, occupancy, room_id)) {
+                continue;
+            }
+            if (!best) {
+                best = room_id;
+                continue;
+            }
+            const auto room_priority = priority(room_id);
+            const auto best_priority = priority(*best);
+            if (room_priority < best_priority ||
+                (room_priority == best_priority &&
+                 PreferKittenRoom(context, room_id, *best))) {
+                best = room_id;
+            }
+        }
+        if (!best) {
+            plan.validation_errors.push_back(
+                "kitten-room-target-infeasible");
             return false;
         }
         ++target[*best];
@@ -108,6 +325,7 @@ BreedingSexSlots BuildBreedingSexSlots(
     const PlanningContext& context,
     const snapshot::RoomId& room_id,
     std::size_t target_count,
+    bool reserve_kittens,
     RoomPlan& plan) {
     std::size_t fixed_target_count{};
     std::size_t mandatory_female = context.pinned_female.at(room_id);
@@ -139,7 +357,8 @@ BreedingSexSlots BuildBreedingSexSlots(
     std::size_t flexible_male{};
     for (const auto cat_id : context.movable) {
         if (context.fixed_rooms.contains(cat_id) ||
-            IsBreedingPairCat(context, cat_id)) {
+            IsBreedingPairCat(context, cat_id) ||
+            (reserve_kittens && IsKitten(context, cat_id))) {
             continue;
         }
         CountKnownSex(
@@ -199,31 +418,55 @@ bool BuildBalancedSlots(
     const PlanningContext& context,
     RoomPlan& plan,
     std::vector<BalancedSlot>& slots) {
+    for (const auto& room_id : context.rooms) {
+        if (context.pinned_potential.at(room_id) +
+                context.pinned_kitten.at(room_id) >
+            context.pinned_count.at(room_id)) {
+            plan.validation_errors.push_back(
+                "pinned-role-count-exceeds-pinned-residents");
+            return false;
+        }
+    }
     CountMap occupancy;
     CountMap potential;
-    if (!AllocateOccupancyTargets(context, occupancy, plan) ||
-        !AllocatePotentialTargets(
-            context, occupancy, potential, plan)) {
+    CountMap kittens;
+    if (!AllocateOccupancyTargets(context, occupancy, plan)) {
         return false;
     }
 
-    std::optional<snapshot::RoomId> development_target;
-    for (const auto& room_id : context.rooms) {
-        if (occupancy.at(room_id) == 0) {
-            continue;
-        }
-        if (!development_target || PreferDevelopmentRoom(
-                context, room_id, *development_target)) {
-            development_target = room_id;
-        }
-    }
     const auto breeding_target = FindBreedingTarget(
-        context,
-        occupancy,
-        context.rooms.size() > 1 ? development_target : std::nullopt);
+        context, occupancy, std::nullopt);
+    const auto development_target = FindDevelopmentTarget(
+        context, occupancy, breeding_target);
+    const auto kitten_target = FindKittenTarget(
+        context, occupancy, breeding_target, development_target);
+    if (!AllocateKittenTargets(
+            context,
+            occupancy,
+            breeding_target,
+            development_target,
+            kitten_target,
+            kittens,
+            plan) ||
+        !AllocatePotentialTargets(
+            context,
+            occupancy,
+            kittens,
+            breeding_target,
+            development_target,
+            kitten_target,
+            potential,
+            plan)) {
+        return false;
+    }
 
     slots.reserve(context.movable.size());
     for (const auto& room_id : context.rooms) {
+        if (occupancy.at(room_id) < context.pinned_count.at(room_id)) {
+            plan.validation_errors.push_back(
+                "room-occupancy-below-pinned-count");
+            return false;
+        }
         const auto slot_count =
             occupancy.at(room_id) - context.pinned_count.at(room_id);
         std::vector<SlotSex> requirements;
@@ -233,6 +476,7 @@ bool BuildBalancedSlots(
                 context,
                 room_id,
                 occupancy.at(room_id),
+                kitten_target.has_value(),
                 plan);
             requirements.insert(
                 requirements.end(),
@@ -250,13 +494,31 @@ bool BuildBalancedSlots(
             requirements.clear();
         }
         requirements.resize(slot_count, SlotSex::Any);
-        const auto preferred =
-            potential.at(room_id) - context.pinned_potential.at(room_id);
+        if (potential.at(room_id) < context.pinned_potential.at(room_id) ||
+            kittens.at(room_id) < context.pinned_kitten.at(room_id)) {
+            plan.validation_errors.push_back(
+                "room-role-target-below-pinned-count");
+            return false;
+        }
+        const auto preferred = potential.at(room_id) -
+            context.pinned_potential.at(room_id);
+        const auto kitten_preferred =
+            kitten_target && room_id == *kitten_target
+                ? kittens.at(room_id) -
+                    context.pinned_kitten.at(room_id)
+                : 0U;
+        if (preferred + kitten_preferred > slot_count) {
+            plan.validation_errors.push_back(
+                "room-role-target-count-infeasible");
+            return false;
+        }
         for (std::size_t index = 0; index < requirements.size(); ++index) {
             slots.push_back({
                 room_id,
                 requirements[index],
-                index < preferred,
+                index >= kitten_preferred &&
+                    index < kitten_preferred + preferred,
+                index < kitten_preferred,
                 std::nullopt
             });
         }

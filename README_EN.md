@@ -29,9 +29,12 @@ game files, Steam Cloud data, or player save databases.
   not by a fixed room order.
 - Only a confirmed female/male breeding pair enables sex balancing. The separate
   breeding target room receives the best achievable basic female/male mix after
-  fixed and immovable residents are counted. Combat-development, training, and
+  fixed and immovable residents are counted. Combat staging, nursery, and
   ordinary rooms ignore sex and never replace higher-potential cats for a ratio.
-  Repeating organization restores the room goal after a manual same-count swap.
+  Combat staging prefers health and comfort instead of reserving the highest-
+  stimulation room. With kitten separation enabled, an additional room becomes
+  a health/comfort-oriented nursery. Repeating organization restores the room
+  goal after a manual same-count swap.
 - Seven base stats are read when present in early saves. Sexuality and kinship are
   read only after the corresponding `tink_sexuality`, `tink_inbreeding`, and
   `tink_relationships` progress is actually unlocked; locked dimensions do not
@@ -39,8 +42,10 @@ game files, Steam Cloud data, or player save databases.
 - After complete breeding data is unlocked, known female/male adult pairs use seven-stat gaps,
   cached game COI, and sexuality. Skill and mutation weights stay off before
   stable all-seven breeding, then abilities, passives, disorders, mutations, and
-  birth defects are considered while the planner still prefers high stimulation
-  and then high mutation room attributes.
+  birth defects are considered. Breeding-room selection rejects comfort at or
+  below the confirmed `-10` automatic-failure boundary when a viable room exists,
+  balances comfort with stimulation, and uses Mutation as a stable-stage
+  tie-breaker.
 - The F10 Cat Protection page lists local saves and cats for protection
   management. Only an explicit **Apply Protection** writes `NoCull`, `NoMove`,
   `NoCullOrMove`, `FullyUnmanaged`, or `fixed_room`; rules use stable cat

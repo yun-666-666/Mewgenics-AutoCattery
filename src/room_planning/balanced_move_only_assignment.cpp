@@ -19,8 +19,14 @@ bool SexMatches(const snapshot::CatSnapshot& cat, SlotSex required) {
     return false;
 }
 
-bool IsPotential(const classification::CatDecision& decision) {
-    return decision.primary_role ==
+bool IsKitten(const snapshot::CatSnapshot& cat) {
+    return cat.life_stage == snapshot::LifeStage::Kitten;
+}
+
+bool IsPotential(
+    const snapshot::CatSnapshot& cat,
+    const classification::CatDecision& decision) {
+    return !IsKitten(cat) && decision.primary_role ==
         classification::CatRole::CombatRecommended;
 }
 
@@ -36,6 +42,9 @@ std::string MoveReason(
         context.breeding_pair.end();
     if (slot.preferred_cat && breeding_pair) {
         return "recommended-breeding-pair";
+    }
+    if (slot.kitten_preferred && IsKitten(cat)) {
+        return "kitten-nursery-room";
     }
     const bool sex_balance = slot.required_sex != SlotSex::Any;
     if (sex_balance && slot.potential_preferred) {
@@ -130,6 +139,7 @@ bool AppendMinimumCostMoves(
     constexpr std::int64_t kImpossible =
         std::numeric_limits<std::int64_t>::max() / 16;
     constexpr std::int64_t kRoleMismatchCost = 1'000'000;
+    constexpr std::int64_t kKittenMismatchCost = 2'000'000;
     std::vector<std::vector<std::int64_t>> costs(
         context.movable.size(),
         std::vector<std::int64_t>(slots.size(), kImpossible));
@@ -137,8 +147,12 @@ bool AppendMinimumCostMoves(
          cat_index < context.movable.size();
          ++cat_index) {
         const auto& cat = *context.cats.at(context.movable[cat_index]);
-        const bool potential =
-            IsPotential(*context.decisions.at(cat.id));
+        const bool breeding_pair =
+            std::ranges::find(context.breeding_pair, cat.id) !=
+            context.breeding_pair.end();
+        const bool potential = !breeding_pair && IsPotential(
+            cat, *context.decisions.at(cat.id));
+        const bool kitten = IsKitten(cat);
         for (std::size_t slot_index = 0;
              slot_index < slots.size();
              ++slot_index) {
@@ -153,6 +167,9 @@ bool AppendMinimumCostMoves(
                 ? cat_index - slot_index
                 : slot_index - cat_index;
             costs[cat_index][slot_index] =
+                (kitten == slot.kitten_preferred
+                     ? 0
+                     : kKittenMismatchCost) +
                 (potential == slot.potential_preferred
                      ? 0
                      : kRoleMismatchCost) +

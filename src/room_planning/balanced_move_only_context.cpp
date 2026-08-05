@@ -32,8 +32,14 @@ bool ManagedMovable(
         decision.primary_role != classification::CatRole::Ineligible;
 }
 
-bool IsPotential(const classification::CatDecision& decision) {
-    return decision.primary_role ==
+bool IsKitten(const snapshot::CatSnapshot& cat) {
+    return cat.life_stage == snapshot::LifeStage::Kitten;
+}
+
+bool IsPotential(
+    const snapshot::CatSnapshot& cat,
+    const classification::CatDecision& decision) {
+    return !IsKitten(cat) && decision.primary_role ==
         classification::CatRole::CombatRecommended;
 }
 
@@ -55,6 +61,7 @@ void InitializeRoomCounts(PlanningContext& context) {
         context.current_female[room_id] = 0;
         context.current_male[room_id] = 0;
         context.pinned_potential[room_id] = 0;
+        context.pinned_kitten[room_id] = 0;
         context.pinned_female[room_id] = 0;
         context.pinned_male[room_id] = 0;
     }
@@ -81,8 +88,13 @@ auto RoomPurposeKey(
 
 bool BuildPlanningContext(
     const RoomPlanningInput& input,
+    const RoomPlanningConfig& config,
     RoomPlan& plan,
     PlanningContext& context) {
+    context.prefer_single_combat_staging_room =
+        config.prefer_single_combat_staging_room;
+    context.keep_kittens_separate_when_possible =
+        config.keep_kittens_separate_when_possible;
     std::unordered_map<
         snapshot::CatId,
         const protection::ProtectionDecision*> protections;
@@ -121,7 +133,8 @@ bool BuildPlanningContext(
         context.rooms.begin(), context.rooms.end());
     for (const auto& cat : input.snapshot.cats) {
         const auto& decision = *context.decisions.at(cat.id);
-        const bool potential = IsPotential(decision);
+        const bool potential = IsPotential(cat, decision);
+        const bool kitten = IsKitten(cat);
         const bool movable = ManagedMovable(
             cat, decision, *protections.at(cat.id));
         const auto& policy = *protections.at(cat.id);
@@ -137,6 +150,7 @@ bool BuildPlanningContext(
             if (movable) {
                 context.movable.push_back(cat.id);
                 context.movable_potential += potential ? 1U : 0U;
+                context.movable_kitten += kitten ? 1U : 0U;
                 context.known_female +=
                     cat.sex == snapshot::CatSex::Female ? 1U : 0U;
                 context.known_male +=
@@ -161,10 +175,12 @@ bool BuildPlanningContext(
         if (movable) {
             context.movable.push_back(cat.id);
             context.movable_potential += potential ? 1U : 0U;
+            context.movable_kitten += kitten ? 1U : 0U;
             continue;
         }
         ++context.pinned_count[room_id];
         context.pinned_potential[room_id] += potential ? 1U : 0U;
+        context.pinned_kitten[room_id] += kitten ? 1U : 0U;
         context.pinned_female[room_id] +=
             cat.sex == snapshot::CatSex::Female ? 1U : 0U;
         context.pinned_male[room_id] +=
@@ -176,8 +192,15 @@ bool BuildPlanningContext(
         [&context](snapshot::CatId left, snapshot::CatId right) {
             const auto& left_decision = *context.decisions.at(left);
             const auto& right_decision = *context.decisions.at(right);
-            const bool left_potential = IsPotential(left_decision);
-            const bool right_potential = IsPotential(right_decision);
+            const bool left_kitten = IsKitten(*context.cats.at(left));
+            const bool right_kitten = IsKitten(*context.cats.at(right));
+            if (left_kitten != right_kitten) {
+                return !left_kitten;
+            }
+            const bool left_potential = IsPotential(
+                *context.cats.at(left), left_decision);
+            const bool right_potential = IsPotential(
+                *context.cats.at(right), right_decision);
             if (left_potential != right_potential) {
                 return left_potential;
             }

@@ -49,7 +49,7 @@ RoomPlan PlanCurrentBuildBalancedMoveOnlyRooms(
     balanced_internal::PlanningContext context;
     std::vector<balanced_internal::BalancedSlot> slots;
     if (!balanced_internal::BuildPlanningContext(
-            input, plan, context) ||
+            input, config, plan, context) ||
         !balanced_internal::BuildBalancedSlots(
             context, plan, slots) ||
         !balanced_internal::AppendMinimumCostMoves(

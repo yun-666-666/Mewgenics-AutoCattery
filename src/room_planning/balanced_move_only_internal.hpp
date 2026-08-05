@@ -21,6 +21,7 @@ struct BalancedSlot {
     snapshot::RoomId room_id;
     SlotSex required_sex{SlotSex::Any};
     bool potential_preferred{};
+    bool kitten_preferred{};
     std::optional<snapshot::CatId> preferred_cat;
 };
 
@@ -48,15 +49,20 @@ struct PlanningContext {
     CountMap current_female;
     CountMap current_male;
     CountMap pinned_potential;
+    CountMap pinned_kitten;
     CountMap pinned_female;
     CountMap pinned_male;
     std::size_t known_female{};
     std::size_t known_male{};
     std::size_t movable_potential{};
+    std::size_t movable_kitten{};
+    bool prefer_single_combat_staging_room{true};
+    bool keep_kittens_separate_when_possible{true};
 };
 
 [[nodiscard]] bool BuildPlanningContext(
     const RoomPlanningInput& input,
+    const RoomPlanningConfig& config,
     RoomPlan& plan,
     PlanningContext& context);
 
@@ -77,6 +83,11 @@ struct PlanningContext {
     const snapshot::RoomId& right);
 
 [[nodiscard]] bool PreferBreedingRoom(
+    const PlanningContext& context,
+    const snapshot::RoomId& left,
+    const snapshot::RoomId& right);
+
+[[nodiscard]] bool PreferKittenRoom(
     const PlanningContext& context,
     const snapshot::RoomId& left,
     const snapshot::RoomId& right);

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <unordered_map>
 #include <utility>
 
@@ -193,17 +194,19 @@ void RunBalancedMoveOnlyPlannerTests() {
   AC_CHECK(static_cast<bool>(breeding));
   const auto breeding_final = FinalRooms(breeding.value);
   const auto [breeding_female, breeding_male] = SexCounts(
-      breeding.value, breeding_final, "Floor1_Small");
+      breeding.value, breeding_final, "Attic");
   AC_CHECK(breeding_female == 8);
-  AC_CHECK(breeding_male == 13);
+  AC_CHECK(breeding_male == 14);
   AC_CHECK(SexCounts(
-      breeding.value, breeding_final, "Attic").first == 0);
+      breeding.value, breeding_final, "Floor1_Small").first == 0);
+  AC_CHECK(breeding_final.at(1) == "Attic");
+  AC_CHECK(breeding_final.at(9) == "Attic");
   AC_CHECK(std::ranges::all_of(
       breeding.value.room_plan.moves,
       [](const auto& move) {
         const bool sex_balance = move.reason == "sex-balance" ||
             move.reason == "sex-balance-and-potential-room";
-        return !sex_balance || move.to_room == "Floor1_Small";
+        return !sex_balance || move.to_room == "Attic";
       }));
   ApplyRooms(breeding_sexes.house, breeding_final);
   workflow::WorkflowStateMachine breeding_repeated_state;
@@ -271,6 +274,118 @@ void RunBalancedMoveOnlyPlannerTests() {
       constrained_plan.value.room_plan.limitations.end());
   std::error_code ignored;
   std::filesystem::remove(protection_path, ignored);
+
+  WorkflowReadFake purpose_aware;
+  purpose_aware.house = WorkflowHouse(12);
+  purpose_aware.house.rooms.front().id = "Floor1_Large";
+  purpose_aware.house.rooms.push_back({.id = "Attic"});
+  purpose_aware.house.rooms.push_back({.id = "Floor1_Small"});
+  purpose_aware.house.rooms.push_back({.id = "Floor2_Large"});
+  for (auto& cat : purpose_aware.house.cats) {
+    cat.room_id = "Attic";
+    cat.sex = cat.id % 2 == 0
+        ? snapshot::CatSex::Male
+        : snapshot::CatSex::Female;
+    if (cat.id >= 10) {
+      cat.life_stage = snapshot::LifeStage::Kitten;
+    }
+  }
+  ApplyRooms(purpose_aware.house, FinalRoomMap{
+      {1, "Attic"}, {2, "Attic"}, {3, "Attic"}, {4, "Attic"},
+      {5, "Attic"}, {6, "Attic"}, {7, "Attic"}, {8, "Attic"},
+      {9, "Attic"}, {10, "Attic"}, {11, "Attic"}, {12, "Attic"}});
+  purpose_aware.house.capabilities.read_room_attributes = true;
+  Room(purpose_aware.house, "Attic").attributes =
+      snapshot::RoomAttributes{
+          .comfort = 30, .stimulation = 40, .health = 0};
+  Room(purpose_aware.house, "Floor1_Small").attributes =
+      snapshot::RoomAttributes{
+          .comfort = 20, .stimulation = 20, .health = 50};
+  Room(purpose_aware.house, "Floor1_Large").attributes =
+      snapshot::RoomAttributes{
+          .comfort = -15, .stimulation = 100, .health = 0};
+  Room(purpose_aware.house, "Floor2_Large").attributes =
+      snapshot::RoomAttributes{
+          .comfort = 10, .stimulation = 10, .health = 35};
+  ConfigureBreedingPair(purpose_aware.house, 1, 2);
+  workflow::WorkflowStateMachine purpose_state;
+  AC_CHECK(purpose_state.BeginPreview());
+  const auto purpose_plan = workflow::PreviewBuilder(purpose_aware).Build(
+      38, workflow::WorkflowCapability::MoveOnly, purpose_state);
+  AC_CHECK(static_cast<bool>(purpose_plan));
+  const auto purpose_final = FinalRooms(purpose_plan.value);
+  AC_CHECK(purpose_final.at(1) == "Attic");
+  AC_CHECK(purpose_final.at(2) == "Attic");
+  AC_CHECK(purpose_final.at(10) == "Floor2_Large");
+  AC_CHECK(purpose_final.at(11) == "Floor2_Large");
+  AC_CHECK(purpose_final.at(12) == "Floor2_Large");
+  std::size_t staged_combat_adults{};
+  for (const auto& decision : purpose_plan.value.classification.decisions) {
+    if (decision.cat_id == 1 || decision.cat_id == 2 ||
+        decision.cat_id >= 10 ||
+        decision.primary_role !=
+            classification::CatRole::CombatRecommended) {
+      continue;
+    }
+    staged_combat_adults +=
+        purpose_final.at(decision.cat_id) == "Floor1_Small" ? 1U : 0U;
+  }
+  AC_CHECK(staged_combat_adults == 3);
+  AC_CHECK(std::ranges::count_if(
+      purpose_plan.value.room_plan.moves,
+      [](const auto& move) {
+        return move.reason == "kitten-nursery-room";
+      }) == 3);
+
+  Config shared_room_config;
+  shared_room_config.room_planning.keep_kittens_separate_when_possible = false;
+  workflow::WorkflowStateMachine shared_room_state;
+  AC_CHECK(shared_room_state.BeginPreview());
+  const auto shared_room_plan = workflow::PreviewBuilder(
+      purpose_aware, shared_room_config).Build(
+          39, workflow::WorkflowCapability::MoveOnly, shared_room_state);
+  AC_CHECK(static_cast<bool>(shared_room_plan));
+  AC_CHECK(std::ranges::none_of(
+      shared_room_plan.value.room_plan.moves,
+      [](const auto& move) {
+        return move.reason == "kitten-nursery-room";
+      }));
+
+  const auto role_capacity_path = std::filesystem::temp_directory_path() /
+      "auto_cattery_role_capacity_protection_test.json";
+  {
+    std::ofstream output(role_capacity_path, std::ios::trunc);
+    output << R"({"schema_version":1,"records":[)"
+           << R"({"cat_id":9,"level":"NoCull","fixed_room":"Floor2_Large"})"
+           << R"(],"blacklist":[]})";
+  }
+  workflow::WorkflowStateMachine role_capacity_state;
+  AC_CHECK(role_capacity_state.BeginPreview());
+  const auto role_capacity_plan = workflow::PreviewBuilder(
+      purpose_aware, Config{}, role_capacity_path).Build(
+          40,
+          workflow::WorkflowCapability::MoveOnly,
+          role_capacity_state);
+  AC_CHECK(static_cast<bool>(role_capacity_plan));
+  for (const auto& error :
+       role_capacity_plan.value.room_plan.validation_errors) {
+    std::cerr << "role capacity validation: " << error << '\n';
+  }
+  AC_CHECK(role_capacity_plan.value.room_plan.validation_errors.empty());
+  const auto nursery_move_count = std::ranges::count_if(
+      role_capacity_plan.value.room_plan.moves,
+      [](const auto& move) {
+        return move.reason == "kitten-nursery-room";
+      });
+  if (nursery_move_count != 2) {
+    for (const auto& move : role_capacity_plan.value.room_plan.moves) {
+      std::cerr << "role capacity move: cat=" << move.cat_id
+                << " to=" << move.to_room
+                << " reason=" << move.reason << '\n';
+    }
+  }
+  AC_CHECK(nursery_move_count == 2);
+  std::filesystem::remove(role_capacity_path, ignored);
 
   for (auto &room : reader.house.rooms) {
     room.residents.clear();

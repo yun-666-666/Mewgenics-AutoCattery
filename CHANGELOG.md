@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Room purposes now follow the confirmed House mechanics: breeding selection
+  requires viable comfort and balances comfort with stimulation; combat
+  staging prefers health and comfort instead of reserving the highest-
+  stimulation room.
+- The existing "separate kittens when possible" setting is now active in
+  MoveOnly. When an occupied room remains after breeding and combat staging
+  targets are selected, movable kittens receive a health/comfort-oriented
+  nursery target and adults avoid those slots when possible.
+- Stable-all-7 breeding still uses Mutation as an additional tie-breaker, but
+  no room with comfort at or below the confirmed automatic-failure boundary
+  wins merely because it has very high stimulation.
 - Balances only the confirmed breeding target room toward the best achievable
   female/male mix. Recommended pair members, fixed-room cats, and immovable
   residents are counted first; an infeasible 1:1 mix degrades safely instead

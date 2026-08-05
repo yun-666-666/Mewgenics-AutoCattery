@@ -1,5 +1,6 @@
 #include "balanced_move_only_internal.hpp"
 
+#include <algorithm>
 #include <tuple>
 
 namespace autocattery::room_planning::balanced_internal {
@@ -39,9 +40,9 @@ auto DevelopmentKey(
     const auto* attributes = Attributes(context, room_id);
     return std::tuple{
         attributes ? 0 : 1,
-        attributes ? -attributes->stimulation : 0.0,
-        attributes ? -attributes->comfort : 0.0,
         attributes ? -attributes->health : 0.0,
+        attributes ? -attributes->comfort : 0.0,
+        attributes ? -attributes->stimulation : 0.0,
         attributes ? -attributes->mutation : 0.0,
         room_id
     };
@@ -51,13 +52,33 @@ auto BreedingKey(
     const PlanningContext& context,
     const snapshot::RoomId& room_id) {
     const auto* attributes = Attributes(context, room_id);
+    const auto viable = attributes && attributes->comfort > -10.0;
+    const auto balanced_environment = attributes
+        ? std::min(attributes->comfort, attributes->stimulation)
+        : 0.0;
     return std::tuple{
         attributes ? 0 : 1,
+        viable ? 0 : 1,
+        attributes ? -balanced_environment : 0.0,
+        attributes ? -attributes->comfort : 0.0,
         attributes ? -attributes->stimulation : 0.0,
         attributes && context.breeding_stats_stable
             ? -attributes->mutation : 0.0,
-        attributes ? -attributes->comfort : 0.0,
         attributes ? -attributes->health : 0.0,
+        room_id
+    };
+}
+
+auto KittenKey(
+    const PlanningContext& context,
+    const snapshot::RoomId& room_id) {
+    const auto* attributes = Attributes(context, room_id);
+    return std::tuple{
+        attributes ? 0 : 1,
+        attributes && attributes->comfort > -10.0 ? 0 : 1,
+        attributes ? -attributes->health : 0.0,
+        attributes ? -attributes->comfort : 0.0,
+        attributes ? -attributes->stimulation : 0.0,
         room_id
     };
 }
@@ -86,6 +107,13 @@ bool PreferBreedingRoom(
     const snapshot::RoomId& left,
     const snapshot::RoomId& right) {
     return BreedingKey(context, left) < BreedingKey(context, right);
+}
+
+bool PreferKittenRoom(
+    const PlanningContext& context,
+    const snapshot::RoomId& left,
+    const snapshot::RoomId& right) {
+    return KittenKey(context, left) < KittenKey(context, right);
 }
 
 }  // namespace autocattery::room_planning::balanced_internal
