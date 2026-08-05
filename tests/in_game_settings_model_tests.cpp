@@ -40,6 +40,21 @@ void RunInGameSettingsModelTests() {
     const auto user = directory / "user_config.json";
     const auto temporary = directory / "user_config.json.candidate.tmp";
     const auto data_mod = directory / "AutoCattery";
+    const auto compatible_data_mod = directory / "SkillsPassivesFirstData";
+    std::filesystem::create_directories(
+        compatible_data_mod / "data" / "classes");
+    {
+        std::ofstream base(
+            compatible_data_mod / "data" / "classes" /
+                "classes.gon.merge",
+            std::ios::binary);
+        base << "Fighter { innate_passives { AddLevelUpRerolls 3 } }\n";
+        std::ofstream advanced(
+            compatible_data_mod / "data" / "classes" /
+                "advanced_classes.gon.merge",
+            std::ios::binary);
+        advanced << "Monk { innate_passives { AddLevelUpRerolls 3 } }\n";
+    }
     {
         std::ofstream mod_list(directory / "modlist.txt", std::ios::binary);
         mod_list << "AutoCattery\nSkillsPassivesFirstData\nAutoCattery\n";
@@ -106,6 +121,17 @@ void RunInGameSettingsModelTests() {
              std::string::npos);
     AC_CHECK(advanced_rerolls.find("Jester { innate_passives { AddLevelUpRerolls 9 } }") !=
              std::string::npos);
+    const auto compatible_base_rerolls = ReadRerollData(
+        compatible_data_mod / "data" / "classes" / "classes.gon.merge");
+    const auto compatible_advanced_rerolls = ReadRerollData(
+        compatible_data_mod / "data" / "classes" /
+            "advanced_classes.gon.merge");
+    AC_CHECK(compatible_base_rerolls.find(
+        "Fighter { innate_passives { AddLevelUpRerolls 9 } }") !=
+        std::string::npos);
+    AC_CHECK(compatible_advanced_rerolls.find(
+        "Jester { innate_passives { AddLevelUpRerolls 9 } }") !=
+        std::string::npos);
     const auto enabled_mods = ReadLines(directory / "modlist.txt");
     AC_CHECK(enabled_mods.size() == 2);
     AC_CHECK(enabled_mods[0] == "SkillsPassivesFirstData");

@@ -75,6 +75,17 @@ if (($baseRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLi
     ($advancedRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7) {
     throw 'Installed level-up reroll data does not match user_config.json for all 14 player classes.'
 }
+$compatibleRerollRoot = Join-Path $mewtatorMods 'SkillsPassivesFirstData'
+if (Test-Path -LiteralPath $compatibleRerollRoot -PathType Container) {
+    $compatibleBase = Get-Content -LiteralPath `
+        (Join-Path $compatibleRerollRoot 'data\classes\classes.gon.merge') -Raw
+    $compatibleAdvanced = Get-Content -LiteralPath `
+        (Join-Path $compatibleRerollRoot 'data\classes\advanced_classes.gon.merge') -Raw
+    if (($compatibleBase | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7 -or
+        ($compatibleAdvanced | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7) {
+        throw 'Installed SkillsPassivesFirstData rerolls do not match the AutoCattery setting.'
+    }
+}
 
 $modListPath = Join-Path $mewtatorMods 'modlist.txt'
 $enabledMods = @(if (Test-Path -LiteralPath $modListPath) {

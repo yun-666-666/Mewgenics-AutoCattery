@@ -579,6 +579,7 @@ void MewUiBridge::OnTick() {
     const bool interstitial_ready = scene_ready("Interstitial");
     const bool expedition_ready =
         scene_ready("Map") || scene_ready("Battle");
+    const bool save_selection_ready = scene_ready("SaveSelectionScreen");
     if (house_button_controller_) {
         house_button_controller_->SetSuppressed(panel_open);
     }
@@ -588,7 +589,8 @@ void MewUiBridge::OnTick() {
     recommendation_marker_controller_->ObserveRuntime(
         house_ready,
         interstitial_ready,
-        expedition_ready);
+        expedition_ready,
+        save_selection_ready);
 
     if (!house_button_enabled && house_button_controller_ &&
         house_button_controller_->IsAttached()) {

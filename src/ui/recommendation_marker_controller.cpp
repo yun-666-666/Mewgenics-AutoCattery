@@ -27,7 +27,24 @@ RecommendationMarkerController::RecommendationMarkerController(
 void RecommendationMarkerController::ObserveRuntime(
     bool house_ready,
     bool interstitial_ready,
-    bool expedition_ready) {
+    bool expedition_ready,
+    bool save_selection_ready) {
+    if (save_selection_ready) {
+        if (!save_selection_active_) {
+            available_this_day_ = true;
+            next_day_pending_ = false;
+            Detach();
+            Logger::Instance().Write(
+                LogLevel::Info,
+                "RecommendationMarker",
+                "AC4105",
+                "Save selection observed; recommendation availability reset for the selected save.");
+        }
+        save_selection_active_ = true;
+        return;
+    }
+    save_selection_active_ = false;
+
     if (expedition_ready && available_this_day_) {
         available_this_day_ = false;
         next_day_pending_ = false;

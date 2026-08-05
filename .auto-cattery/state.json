@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 26,
+  "active_stage": 28,
   "stages": {
     "1": {
       "status": "completed",
@@ -157,7 +157,13 @@
       "commit": null,
       "capability": "PurposeAwareBreedingCombatAndKittenRoomAllocationWithEvidenceBasedSafety",
       "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;not_deployed;player_preview_and_move_validation_pending"
+    },
+    "28": {
+      "status": "implementation_complete_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "SaveSelectionRecommendationResetAndDynamicSkillsPassivesFirstRerollSynchronization",
+      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;v0.5.13_release_deployed;8_cat_button_and_11_reroll_player_validation_pending"
     }
   },
-  "updated_at": "2026-08-05T13:05:00+08:00"
+  "updated_at": "2026-08-05T15:17:00+08:00"
 }

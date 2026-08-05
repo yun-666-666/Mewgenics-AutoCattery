@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Reset next-day combat recommendation availability when the save-selection
+  screen is observed. A stale ready `Battle`/`Map` scene can no longer disable
+  the recommendation button in a newly selected 8-cat save.
+- F10 level-up reroll saves now dynamically mirror the selected `0`–`99` value
+  into an installed sibling `SkillsPassivesFirstData` patch. The known working
+  companion data MOD and AutoCattery therefore agree instead of letting its
+  old fixed value override the control-panel setting.
 - Room purposes now follow the confirmed House mechanics: breeding selection
   requires viable comfort and balances comfort with stimulation; combat
   staging prefers health and comfort instead of reserving the highest-

@@ -61,10 +61,10 @@ game files, Steam Cloud data, or player save databases.
 - Full Preview is read-only and shows each planned cat's source, target, sex,
   potential, reason, and before/after room counts and sex ratios.
 - F10 Settings can set `0`–`99` level-up rerolls for every base and advanced
-  player class; the default is `3` and a game restart is required. AutoCattery
-  keeps itself last in Mewtator `modlist.txt`, so it may coexist with other
-  class-data mods while its configured reroll value takes precedence instead
-  of stacking or being overwritten.
+  player class; the default is `3` and a game restart is required. When the
+  verified sibling `SkillsPassivesFirstData` patch is installed, AutoCattery
+  dynamically mirrors the current control-panel value into both data mods, so
+  an old fixed value of 3 cannot override later choices.
 - Chinese and English can be selected at the bottom of Settings; Chinese is the
   default. Since no verified game-language API is available, the choice is
   explicit and persisted.

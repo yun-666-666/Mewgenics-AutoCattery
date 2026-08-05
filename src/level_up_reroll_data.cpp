@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -114,6 +115,55 @@ bool EqualsAsciiCaseInsensitive(
             });
 }
 
+struct RerollFileUpdate {
+    std::filesystem::path destination;
+    std::filesystem::path temporary;
+    std::optional<std::string> previous;
+    bool replaced{};
+};
+
+void RollBack(std::vector<RerollFileUpdate>& updates) noexcept {
+    std::error_code error;
+    for (auto& update : updates) {
+        if (update.replaced) {
+            Restore(update.destination, update.previous);
+        }
+        std::filesystem::remove(update.temporary, error);
+    }
+}
+
+Result<void> PrepareRerollRoot(
+    const std::filesystem::path& root,
+    const std::string& base_text,
+    const std::string& advanced_text,
+    std::vector<RerollFileUpdate>& updates) {
+    const auto directory = root / L"data" / L"classes";
+    std::error_code error;
+    std::filesystem::create_directories(directory, error);
+    if (error) {
+        return {ErrorCode::ConfigInvalid,
+                "cannot create the level-up reroll data directory"};
+    }
+
+    for (const auto& [name, contents] :
+         std::array<std::pair<const wchar_t*, const std::string*>, 2>{
+             std::pair{L"classes.gon.merge", &base_text},
+             std::pair{L"advanced_classes.gon.merge", &advanced_text}}) {
+        RerollFileUpdate update;
+        update.destination = directory / name;
+        update.temporary = update.destination.wstring() + L".candidate.tmp";
+        update.previous = ReadExisting(update.destination);
+        std::filesystem::remove(update.temporary, error);
+        const auto written = WriteFile(update.temporary, *contents);
+        if (!written) {
+            std::filesystem::remove(update.temporary, error);
+            return written;
+        }
+        updates.push_back(std::move(update));
+    }
+    return {};
+}
+
 Result<void> MoveDataModToLoadOrderEnd(
     const std::filesystem::path& data_mod_root) {
     const auto mod_name = data_mod_root.filename().string();
@@ -201,48 +251,39 @@ Result<void> WriteLevelUpRerollData(
         return {ErrorCode::ConfigInvalid,
                 "level-up reroll count must be between 0 and 99"};
     }
-    const auto directory = data_mod_root / L"data" / L"classes";
-    std::error_code error;
-    std::filesystem::create_directories(directory, error);
-    if (error) {
-        return {ErrorCode::ConfigInvalid,
-                "cannot create the level-up reroll data directory"};
-    }
-
-    const auto base = directory / L"classes.gon.merge";
-    const auto advanced = directory / L"advanced_classes.gon.merge";
-    const auto base_temporary = base.wstring() + L".candidate.tmp";
-    const auto advanced_temporary = advanced.wstring() + L".candidate.tmp";
-    std::filesystem::remove(base_temporary, error);
-    std::filesystem::remove(advanced_temporary, error);
     const auto base_text = Render(kBaseClasses, reroll_count);
     const auto advanced_text = Render(kAdvancedClasses, reroll_count);
-    auto result = WriteFile(base_temporary, base_text);
-    if (!result) return result;
-    result = WriteFile(advanced_temporary, advanced_text);
-    if (!result) {
-        std::filesystem::remove(base_temporary, error);
-        return result;
+
+    std::vector<std::filesystem::path> roots{data_mod_root};
+    const auto compatible_root =
+        data_mod_root.parent_path() / L"SkillsPassivesFirstData";
+    if (std::filesystem::is_directory(compatible_root)) {
+        roots.push_back(compatible_root);
     }
 
-    const auto previous_base = ReadExisting(base);
-    const auto previous_advanced = ReadExisting(advanced);
-    result = Replace(base_temporary, base);
-    if (!result) {
-        std::filesystem::remove(advanced_temporary, error);
-        return result;
+    std::vector<RerollFileUpdate> updates;
+    updates.reserve(roots.size() * 2);
+    for (const auto& root : roots) {
+        const auto prepared = PrepareRerollRoot(
+            root, base_text, advanced_text, updates);
+        if (!prepared) {
+            RollBack(updates);
+            return prepared;
+        }
     }
-    result = Replace(advanced_temporary, advanced);
-    if (!result) {
-        Restore(base, previous_base);
-        Restore(advanced, previous_advanced);
-        std::filesystem::remove(advanced_temporary, error);
-        return result;
+
+    for (auto& update : updates) {
+        const auto replaced = Replace(update.temporary, update.destination);
+        if (!replaced) {
+            RollBack(updates);
+            return replaced;
+        }
+        update.replaced = true;
     }
-    result = MoveDataModToLoadOrderEnd(data_mod_root);
+
+    const auto result = MoveDataModToLoadOrderEnd(data_mod_root);
     if (!result) {
-        Restore(base, previous_base);
-        Restore(advanced, previous_advanced);
+        RollBack(updates);
         return result;
     }
     return {};

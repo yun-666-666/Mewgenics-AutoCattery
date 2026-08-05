@@ -189,10 +189,25 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(!controller.ShouldShow());
     AC_CHECK(!controller.IsAttached());
 
+    controller.ObserveRuntime(false, false, true, true);
+    AC_CHECK(controller.ShouldShow());
+    AC_CHECK(!controller.IsAttached());
+    controller.ObserveRuntime(false, false, true, true);
+    AC_CHECK(controller.ShouldShow());
+    controller.ObserveRuntime(true, false, false, false);
+    AC_CHECK(controller.ShouldShow());
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext(3))));
+    AC_CHECK(controller.IsAttached());
+
+    controller.ObserveRuntime(false, false, true);
+    AC_CHECK(!controller.ShouldShow());
+    AC_CHECK(!controller.IsAttached());
+
     controller.ObserveRuntime(true, false, false);
     AC_CHECK(!controller.ShouldShow());
     AC_CHECK(static_cast<bool>(
-        controller.Attach(RecommendationHouseContext(3))));
+        controller.Attach(RecommendationHouseContext(4))));
     AC_CHECK(controller.IsAttached());
     AC_CHECK(!view.available);
     const int unavailable_syncs = view.set_available_calls;
@@ -208,10 +223,10 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(controller.ShouldShow());
     AC_CHECK(
         static_cast<bool>(
-            controller.Attach(RecommendationHouseContext(4))));
-    AC_CHECK(view.attach_calls == 4);
+            controller.Attach(RecommendationHouseContext(5))));
+    AC_CHECK(view.attach_calls == 5);
 
-    auto unsafe = RecommendationHouseContext(5);
+    auto unsafe = RecommendationHouseContext(6);
     unsafe.save_in_progress = true;
     controller.Detach();
     AC_CHECK(!static_cast<bool>(controller.Attach(unsafe)));

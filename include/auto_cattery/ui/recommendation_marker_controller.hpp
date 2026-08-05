@@ -52,7 +52,8 @@ public:
     void ObserveRuntime(
         bool house_ready,
         bool interstitial_ready,
-        bool expedition_ready);
+        bool expedition_ready,
+        bool save_selection_ready = false);
     Result<void> Attach(const UiContextSnapshot& context);
     void Detach() noexcept;
     void AbandonScene() noexcept;
@@ -78,6 +79,7 @@ private:
     Clock clock_;
     bool available_this_day_{true};
     bool next_day_pending_{};
+    bool save_selection_active_{};
     bool suppressed_{};
     bool marker_visible_{};
     bool request_pending_{};

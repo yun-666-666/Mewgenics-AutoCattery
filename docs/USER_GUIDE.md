@@ -43,7 +43,7 @@
 | 面板行 | 含义和改变效果 |
 | --- | --- |
 | `核心繁育猫数`（默认 4） | 从繁育合格排序的前 N 只建立核心池。推荐配对的两只猫也会被纳入核心判断；它不是自动繁育次数。 |
-| `升级重骰次数`（默认 3） | 允许输入 0–99；应用到全部 7 个普通职业和 7 个进阶职业。保存后必须重启游戏，0 表示不提供额外升级重骰。AutoCattery 会在 Mewtator 列表中保持最后加载，因此与其他职业数据 MOD 共存时以这里的数值为准，不额外叠加。 |
+| `升级重骰次数`（默认 3） | 允许输入 0–99；应用到全部 7 个普通职业和 7 个进阶职业。保存后必须重启游戏。检测到同级 `SkillsPassivesFirstData` 时，会把这里的当前值动态同步到它的职业补丁；该值不是固定 11，改成多少就同步多少。 |
 | `后备繁育猫数`（默认 4） | 排在核心池之后的 N 只建立后备池。它们是核心猫不足或需要替换时的保留对象。 |
 | `最低繁育分数`（默认 0） | 低于此分数的猫不进入繁育合格排序。 |
 | `繁育最少已知属性`（默认 7，0-7） | 繁育评分至少需要多少项已确认基础属性。**截图中的 `7` 表示七项全部已知；缺一项就会显示限制并不能成为合格繁育候选。** |
@@ -198,7 +198,7 @@ execution gates.
 | `Single-click execution` (off) | Off means first click previews and second click applies; on combines both steps and is riskier. |
 | `Interface language` (Chinese) | Changes AutoCattery text only, not the base game; the choice is persisted. |
 | `Collect cat data (off by default)` | Writes local technical snapshots without names, save paths, usernames, machine IDs, or account IDs; nothing is uploaded automatically. |
-| `Level-up rerolls` (3) | Accepts 0–99 for all seven base and seven advanced player classes. Restart the game after saving; zero adds no extra rerolls. AutoCattery stays last in Mewtator load order, so this value takes precedence over other class-data mods instead of stacking. |
+| `Level-up rerolls` (3) | Accepts 0–99 for all seven base and seven advanced player classes. Restart the game after saving. If sibling `SkillsPassivesFirstData` is installed, its class patches are dynamically synchronized to the current value; the value is not fixed at 11. |
 
 ### Auto-Organize Cattery
 
