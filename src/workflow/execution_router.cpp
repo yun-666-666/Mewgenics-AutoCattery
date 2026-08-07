@@ -12,6 +12,7 @@ OrganizeOutcome NotAvailable(const PreviewBundle &bundle,
           WorkflowFailureReason::NotAvailable,
           0,
           0,
+          0,
           false,
           false,
           std::move(message)};
@@ -43,6 +44,7 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
             WorkflowFailureReason::Busy,
             0,
             0,
+            0,
             false,
             false,
             "The workflow is already running."};
@@ -59,6 +61,7 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
             stale ? WorkflowFailureReason::PreconditionsChanged
                   : WorkflowFailureReason::ExecutionFailed,
             result.completed_moves,
+            result.remaining_moves,
             result.completed_culls,
             result.completed_moves != 0 || result.completed_culls != 0,
             false,
@@ -74,6 +77,7 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
             WorkflowState::Failed,
             WorkflowFailureReason::InvalidTransition,
             result.completed_moves,
+            result.remaining_moves,
             result.completed_culls,
             true,
             false,
@@ -84,10 +88,16 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
           WorkflowState::Completed,
           WorkflowFailureReason::None,
           result.completed_moves,
+          result.remaining_moves,
           result.completed_culls,
           true,
           false,
-          "Organize transaction committed."};
+          result.remaining_moves == 0
+              ? "Organize transaction committed."
+              : "Move batch committed; " +
+                    std::to_string(result.remaining_moves) +
+                    " planned moves remain and will continue after a fresh "
+                    "preview."};
 }
 
 } // namespace autocattery::workflow

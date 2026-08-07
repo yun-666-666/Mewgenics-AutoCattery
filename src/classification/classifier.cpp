@@ -158,6 +158,18 @@ Result<ClassificationPlan> ClassifyCats(
     ClassificationPlan plan;
     plan.source_snapshot_id = snapshot.snapshot_id;
     plan.algorithm_version = kClassificationAlgorithmVersion;
+    for (const auto& pair : breeding.ranked_pairs) {
+        if (!pair.eligible) {
+            continue;
+        }
+        plan.breeding_pair_preferences.push_back({
+            pair.cat_a_id,
+            pair.cat_b_id,
+            pair.score,
+            pair.offspring_inbreeding_coefficient,
+            pair.stable_all_seven
+        });
+    }
     const bool combat_pool_satisfied =
         combat_eligible.size() >= config.minimum_combat_pool;
     const bool breeding_pool_satisfied =

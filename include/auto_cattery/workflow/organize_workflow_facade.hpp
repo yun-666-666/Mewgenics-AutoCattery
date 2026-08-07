@@ -34,6 +34,7 @@ public:
         ExecutionChoice choice,
         const PreviewBindings& current_bindings);
     virtual Result<void> Cancel(const PreviewId& preview_id);
+    virtual Result<OrganizeOutcome> RequestExecutionOutcome();
     virtual Result<void> RequestExecution();
     [[nodiscard]] Result<PreviewBundle> LatestPreview() const;
     [[nodiscard]] Result<void> ApplyConfig(Config config);

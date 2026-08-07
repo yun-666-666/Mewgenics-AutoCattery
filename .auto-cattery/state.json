@@ -163,7 +163,13 @@
       "commit": null,
       "capability": "SaveSelectionRecommendationResetAndDynamicSkillsPassivesFirstRerollSynchronization",
       "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;v0.5.13_release_deployed;8_cat_button_and_11_reroll_player_validation_pending"
+    },
+    "29": {
+      "status": "implementation_complete_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "TickSeparatedNativeMoveBatchesAndCompatibleBreedingPairPool",
+      "game_validation_status": "matching_dump_symbols_show_heap_detection_in_ui_allocation_after_32_native_moves;targeted_debug_regressions_passed;88_cat_save_and_breeding_probes_passed;v0.5.14_release_dll_smoke_passed;release_deployed_and_hash_matched;player_crash_retest_pending"
     }
   },
-  "updated_at": "2026-08-05T15:17:00+08:00"
+  "updated_at": "2026-08-07T22:14:00+08:00"
 }

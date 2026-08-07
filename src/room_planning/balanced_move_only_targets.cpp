@@ -519,6 +519,7 @@ bool BuildBalancedSlots(
                 index >= kitten_preferred &&
                     index < kitten_preferred + preferred,
                 index < kitten_preferred,
+                false,
                 std::nullopt
             });
         }
@@ -526,6 +527,7 @@ bool BuildBalancedSlots(
     if (slots.size() == context.movable.size()) {
         AssignFixedRoomSlots(context, plan, slots);
         AssignBreedingPairSlots(context, breeding_target, plan, slots);
+        AssignBreedingPoolSlots(context, breeding_target, slots);
         return true;
     }
     plan.validation_errors.push_back("balanced-room-slot-count-mismatch");

@@ -138,7 +138,8 @@ Result<void> OrganizeWorkflowFacade::Cancel(
     return cancelled;
 }
 
-Result<void> OrganizeWorkflowFacade::RequestExecution() {
+Result<OrganizeOutcome>
+OrganizeWorkflowFacade::RequestExecutionOutcome() {
     std::optional<PreviewId> latest;
     {
         std::scoped_lock lock(latest_mutex_);
@@ -156,6 +157,7 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
                 (void)cancel_result;
                 state_.Cancel();
                 return {
+                    {},
                     ErrorCode::OperationCancelled,
                     "Protection rules changed; click again to preview."
                 };
@@ -167,6 +169,7 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
                     : ExecutionChoice::Execute,
                 state_);
             return {
+                outcome,
                 outcome.failure_reason == WorkflowFailureReason::None
                     ? ErrorCode::Ok
                     : outcome.failure_reason ==
@@ -178,9 +181,15 @@ Result<void> OrganizeWorkflowFacade::RequestExecution() {
         }
     }
     return {
+        {},
         ErrorCode::UnsupportedGameBuild,
         "Preview only: no verified game move or cull adapter is available."
     };
+}
+
+Result<void> OrganizeWorkflowFacade::RequestExecution() {
+    const auto outcome = RequestExecutionOutcome();
+    return {outcome.code, outcome.message};
 }
 
 Result<PreviewBundle> OrganizeWorkflowFacade::LatestPreview() const {

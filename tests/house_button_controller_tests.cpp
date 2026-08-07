@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "test_support.hpp"
@@ -80,9 +81,21 @@ public:
         return capability;
     }
 
-    Result<void> RequestExecution() override {
+    Result<workflow::OrganizeOutcome> RequestExecutionOutcome() override {
         ++execution_calls;
-        return execution_result;
+        if (!execution_result) {
+            return {{}, execution_result.code, execution_result.message};
+        }
+        workflow::OrganizeOutcome outcome;
+        if (execution_calls <=
+            static_cast<int>(remaining_after_execution.size())) {
+            outcome.remaining_moves =
+                remaining_after_execution[execution_calls - 1];
+        }
+        outcome.message = outcome.remaining_moves == 0
+            ? "Organize transaction committed."
+            : "Move batch committed; more moves remain.";
+        return {outcome, ErrorCode::Ok, outcome.message};
     }
 
     std::atomic<int> preview_calls{};
@@ -91,6 +104,7 @@ public:
     workflow::WorkflowCapability capability{
         workflow::WorkflowCapability::PreviewOnly};
     Result<void> execution_result{};
+    std::vector<std::size_t> remaining_after_execution;
 };
 
 ui::UiContextSnapshot HouseContext() {
@@ -240,6 +254,60 @@ void RunHouseButtonControllerTests() {
     move_view.Click();
     AC_CHECK(move_workflow.execution_calls == 1);
     AC_CHECK(move_workflow.preview_calls == 1);
+
+    FakeHouseButtonView batched_view;
+    FakeWorkflow batched_workflow;
+    batched_workflow.capability =
+        workflow::WorkflowCapability::MoveOnly;
+    batched_workflow.remaining_after_execution = {35, 27, 19, 11, 3, 0};
+    ui::HouseButtonController batched_controller(
+        batched_view,
+        batched_workflow,
+        [&now] { return now; });
+    AC_CHECK(static_cast<bool>(batched_controller.Attach(HouseContext())));
+    batched_view.Click();
+    FinishPreview(batched_controller, batched_view);
+    batched_view.Click();
+    AC_CHECK(batched_workflow.execution_calls == 1);
+    AC_CHECK(batched_workflow.preview_calls == 1);
+    batched_controller.Poll();
+    for (int attempt = 0;
+         attempt < 10000 && batched_workflow.preview_calls < 2;
+         ++attempt) {
+        std::this_thread::yield();
+    }
+    AC_CHECK(batched_workflow.preview_calls == 2);
+    AC_CHECK(batched_workflow.execution_calls == 1);
+    for (int attempt = 0;
+         attempt < 10000 && batched_workflow.execution_calls < 6;
+         ++attempt) {
+        batched_controller.Poll();
+        std::this_thread::yield();
+    }
+    AC_CHECK(batched_workflow.execution_calls == 6);
+    AC_CHECK(batched_workflow.preview_calls == 6);
+    AC_CHECK(batched_view.state == ui::OrganizeButtonState::Ready);
+
+    FakeHouseButtonView cancelled_view;
+    FakeWorkflow cancelled_workflow;
+    cancelled_workflow.capability =
+        workflow::WorkflowCapability::MoveOnly;
+    cancelled_workflow.remaining_after_execution = {35, 27};
+    ui::HouseButtonController cancelled_controller(
+        cancelled_view,
+        cancelled_workflow,
+        [&now] { return now; });
+    AC_CHECK(static_cast<bool>(cancelled_controller.Attach(HouseContext())));
+    cancelled_view.Click();
+    FinishPreview(cancelled_controller, cancelled_view);
+    cancelled_view.Click();
+    AC_CHECK(cancelled_workflow.execution_calls == 1);
+    cancelled_controller.AbandonScene();
+    for (int attempt = 0; attempt < 1000; ++attempt) {
+        cancelled_controller.Poll();
+        std::this_thread::yield();
+    }
+    AC_CHECK(cancelled_workflow.execution_calls == 1);
 }
 
 }  // namespace autocattery::tests

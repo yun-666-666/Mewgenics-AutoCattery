@@ -51,6 +51,9 @@ Result<void> HouseButtonController::Attach(
     }
 
     scene_generation_ = context.scene_generation;
+    continuation_preview_pending_ = false;
+    continuation_preview_ = false;
+    continuation_execute_pending_ = false;
     awaiting_execution_ = false;
     ready_after_ = {};
     SetState(OrganizeButtonState::Ready);
@@ -73,6 +76,9 @@ void HouseButtonController::Detach() noexcept {
     state_ = OrganizeButtonState::Hidden;
     state_detail_.clear();
     scene_generation_ = 0;
+    continuation_preview_pending_ = false;
+    continuation_preview_ = false;
+    continuation_execute_pending_ = false;
     awaiting_execution_ = false;
     last_click_ = {};
     ready_after_ = {};
@@ -89,6 +95,9 @@ void HouseButtonController::AbandonScene() noexcept {
     state_detail_.clear();
     suppressed_ = false;
     scene_generation_ = 0;
+    continuation_preview_pending_ = false;
+    continuation_preview_ = false;
+    continuation_execute_pending_ = false;
     awaiting_execution_ = false;
     last_click_ = {};
     ready_after_ = {};
@@ -145,18 +154,7 @@ void HouseButtonController::HandleClick() {
             "Move-only execution confirmed; applying the preview through "
             "the native House room path.");
         SetState(OrganizeButtonState::Running);
-        const auto execution = workflow_.RequestExecution();
-        awaiting_execution_ = false;
-        SetState(
-            execution ? OrganizeButtonState::Completed
-                      : OrganizeButtonState::Failed,
-            execution.message);
-        if (execution) {
-            last_click_ = {};
-            SetState(OrganizeButtonState::Ready, execution.message);
-        } else {
-            ready_after_ = clock_() + kFailureHold;
-        }
+        ExecuteBatch();
         return;
     }
 
@@ -165,26 +163,40 @@ void HouseButtonController::HandleClick() {
         "HouseButton",
         "AC3102",
         "Auto-organize preview clicked; capturing a read-only snapshot.");
-    if (before_preview_) {
-        before_preview_();
-    }
-    SetState(OrganizeButtonState::Running);
-    const auto generation = scene_generation_;
-    preview_generation_ = generation;
-    preview_task_ = std::async(
-        std::launch::async,
-        [this, generation] {
-            return workflow_.RequestPreview(generation);
-        });
+    StartPreview(false);
 }
 
 void HouseButtonController::Poll() {
+    if (continuation_preview_pending_) {
+        continuation_preview_pending_ = false;
+        StartPreview(true);
+        return;
+    }
+    if (continuation_execute_pending_) {
+        continuation_execute_pending_ = false;
+        ExecuteBatch();
+        return;
+    }
     if (preview_task_.valid() &&
         preview_task_.wait_for(std::chrono::milliseconds(0)) ==
             std::future_status::ready) {
+        const bool continuation = continuation_preview_;
+        continuation_preview_ = false;
         const auto preview = preview_task_.get();
         if (!view_.IsAttached() ||
             preview_generation_ != scene_generation_) {
+            continuation_execute_pending_ = false;
+            return;
+        }
+        if (continuation) {
+            if (!preview) {
+                awaiting_execution_ = false;
+                SetState(OrganizeButtonState::Failed, preview.message);
+                ready_after_ = clock_() + kFailureHold;
+                return;
+            }
+            SetState(OrganizeButtonState::Running, preview.message);
+            continuation_execute_pending_ = true;
             return;
         }
         view_.ShowPlaceholder();
@@ -212,6 +224,41 @@ void HouseButtonController::Poll() {
             SetState(OrganizeButtonState::Ready);
         }
     }
+}
+
+void HouseButtonController::StartPreview(bool continuation) {
+    if (before_preview_) {
+        before_preview_();
+    }
+    SetState(OrganizeButtonState::Running);
+    const auto generation = scene_generation_;
+    preview_generation_ = generation;
+    continuation_preview_ = continuation;
+    preview_task_ = std::async(
+        std::launch::async,
+        [this, generation] {
+            return workflow_.RequestPreview(generation);
+        });
+}
+
+void HouseButtonController::ExecuteBatch() {
+    const auto execution = workflow_.RequestExecutionOutcome();
+    awaiting_execution_ = false;
+    if (!execution) {
+        continuation_preview_pending_ = false;
+        continuation_preview_ = false;
+        continuation_execute_pending_ = false;
+        SetState(OrganizeButtonState::Failed, execution.message);
+        ready_after_ = clock_() + kFailureHold;
+        return;
+    }
+    if (execution.value.remaining_moves != 0) {
+        SetState(OrganizeButtonState::Running, execution.message);
+        continuation_preview_pending_ = true;
+        return;
+    }
+    last_click_ = {};
+    SetState(OrganizeButtonState::Ready, execution.message);
 }
 
 }  // namespace autocattery::ui

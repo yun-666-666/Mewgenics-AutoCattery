@@ -43,6 +43,9 @@ std::string MoveReason(
     if (slot.preferred_cat && breeding_pair) {
         return "recommended-breeding-pair";
     }
+    if (slot.breeding_pool_preferred) {
+        return "compatible-breeding-pool";
+    }
     if (slot.kitten_preferred && IsKitten(cat)) {
         return "kitten-nursery-room";
     }

@@ -66,6 +66,9 @@ public:
     void Poll();
 
 private:
+    void StartPreview(bool continuation);
+    void ExecuteBatch();
+
     HouseButtonView& view_;
     workflow::OrganizeWorkflowFacade& workflow_;
     Clock clock_;
@@ -77,6 +80,9 @@ private:
     std::chrono::steady_clock::time_point last_click_{};
     std::future<Result<void>> preview_task_;
     std::uint64_t preview_generation_{};
+    bool continuation_preview_pending_{};
+    bool continuation_preview_{};
+    bool continuation_execute_pending_{};
     bool awaiting_execution_{};
     std::chrono::steady_clock::time_point ready_after_{};
 };

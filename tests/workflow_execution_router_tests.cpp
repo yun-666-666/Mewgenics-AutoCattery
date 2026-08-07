@@ -58,6 +58,7 @@ void RunWorkflowExecutionRouterTests() {
 
   gateway.result.committed = true;
   gateway.result.completed_moves = 2;
+  gateway.result.remaining_moves = 35;
   workflow::WorkflowStateMachine move_state;
   AwaitConfirmation(move_state);
   const auto moved = move_only.Execute(
@@ -65,6 +66,8 @@ void RunWorkflowExecutionRouterTests() {
   AC_CHECK(gateway.calls == 1);
   AC_CHECK(gateway.choice == workflow::ExecutionChoice::MoveOnly);
   AC_CHECK(moved.state == workflow::WorkflowState::Completed);
+  AC_CHECK(moved.remaining_moves == 35);
+  AC_CHECK(moved.message.find("35") != std::string::npos);
   AC_CHECK(moved.completed_culls == 0);
 
   gateway.result = {};

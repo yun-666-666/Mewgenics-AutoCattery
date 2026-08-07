@@ -219,6 +219,58 @@ void RunBalancedMoveOnlyPlannerTests() {
   AC_CHECK(static_cast<bool>(breeding_repeated));
   AC_CHECK(breeding_repeated.value.room_plan.moves.empty());
 
+  WorkflowReadFake pair_pool;
+  pair_pool.house = WorkflowHouse(8);
+  pair_pool.house.rooms.front().id = "Floor1_Large";
+  pair_pool.house.rooms.push_back({.id = "Attic"});
+  pair_pool.house.capabilities.read_room_attributes = true;
+  pair_pool.house.capabilities.read_sexuality = true;
+  pair_pool.house.capabilities.read_relationships = true;
+  Room(pair_pool.house, "Attic").attributes =
+      snapshot::RoomAttributes{.comfort = 30, .stimulation = 40};
+  Room(pair_pool.house, "Floor1_Large").attributes =
+      snapshot::RoomAttributes{.comfort = 5, .stimulation = 5};
+  for (auto& cat : pair_pool.house.cats) {
+    cat.room_id = "Floor1_Large";
+    cat.sex = cat.id <= 4
+        ? snapshot::CatSex::Female
+        : snapshot::CatSex::Male;
+    cat.sexuality = snapshot::CatSexuality::Straight;
+    cat.sexuality_coefficient = 0.0;
+    for (auto& stat : cat.genetic_stats.values) {
+      stat = 1;
+    }
+  }
+  Room(pair_pool.house, "Floor1_Large").residents =
+      {1, 2, 3, 4, 5, 6, 7, 8};
+  pair_pool.house.cats[0].genetic_stats.values =
+      {7, 7, 7, 7, 1, 1, 1};
+  pair_pool.house.cats[4].genetic_stats.values =
+      {1, 1, 1, 1, 7, 7, 7};
+  pair_pool.house.cats[1].genetic_stats.values =
+      {7, 7, 7, 1, 1, 1, 1};
+  pair_pool.house.cats[5].genetic_stats.values =
+      {1, 1, 1, 7, 7, 7, 1};
+  pair_pool.house.pedigree_pair_coefficients = {
+      {1, 5, 0.0},
+      {2, 6, 0.0}
+  };
+  workflow::WorkflowStateMachine pair_pool_state;
+  AC_CHECK(pair_pool_state.BeginPreview());
+  const auto pair_pool_plan = workflow::PreviewBuilder(pair_pool).Build(
+      41, workflow::WorkflowCapability::MoveOnly, pair_pool_state);
+  AC_CHECK(static_cast<bool>(pair_pool_plan));
+  const auto pair_pool_final = FinalRooms(pair_pool_plan.value);
+  AC_CHECK(pair_pool_final.at(1) == "Attic");
+  AC_CHECK(pair_pool_final.at(5) == "Attic");
+  AC_CHECK(pair_pool_final.at(2) == "Attic");
+  AC_CHECK(pair_pool_final.at(6) == "Attic");
+  AC_CHECK(std::ranges::count_if(
+      pair_pool_plan.value.room_plan.moves,
+      [](const auto& move) {
+        return move.reason == "compatible-breeding-pool";
+      }) == 2);
+
   WorkflowReadFake constrained;
   constrained.house = WorkflowHouse(18);
   constrained.house.rooms.front().id = "Floor1_Large";

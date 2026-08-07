@@ -81,7 +81,7 @@
 | 点击次数 | 作用 | 结果 |
 | --- | --- | --- |
 | 第一次 | 刷新当前运行时猫、房间、保护规则和配置，生成预览 | 不移动猫，可在“完整预览”查看 |
-| 第二次 | 再次校验实时状态后执行 MoveOnly | 只移动目标房不同的猫，已到位的猫跳过 |
+| 第二次 | 再次校验实时状态后执行 MoveOnly | 每个 UI tick 最多移动 8 只；每批自动刷新并继续，已到位的猫跳过，离开 House 即停止 |
 
 只有确认一公一母推荐繁育对后，独立繁育目标房才会按实际可用公母做最佳可达
 基本均衡。战斗驻留房、育幼房和普通功能房完全忽略性别；没有可靠繁育对时不会因
@@ -89,6 +89,8 @@
 
 房间用途不会再把最高刺激房默认留给战斗猫：繁育房要求可用舒适并兼顾刺激，
 战斗驻留房优先健康与舒适；稳定全 7 后，Mutation 才作为繁育房额外同分依据。
+首选繁育对之外的房间槽位会按七维互补、性向和已确认后代 COI 的合格配对顺序
+填充，并避免同一只猫重复占用多对；同房仍不等于游戏必然选择该配对。
 
 玩家手动搬猫、换存档、场景刷新或配置/保护规则变化后，旧预览会失效并要求重新
 预览。真实淘汰、自动推进天数和自动选择出征队不属于此按钮。
@@ -205,7 +207,7 @@ execution gates.
 | Click | Action | Result |
 | --- | --- | --- |
 | First | Refresh live cats, rooms, protection, and settings, then build a preview | No cat moves; inspect it in Full Preview |
-| Second | Revalidate live state and run MoveOnly | Moves only cats whose target room differs; cats already in place are skipped |
+| Second | Revalidate live state and run MoveOnly | Moves at most eight cats per UI tick, automatically refreshes between batches, skips cats already in place, and stops after leaving House |
 
 Only a confirmed female/male breeding pair enables basic sex balancing in the
 separate breeding target room. Combat staging, nursery, and ordinary rooms
@@ -213,6 +215,9 @@ ignore sex completely. Breeding balances viable comfort with stimulation;
 combat staging prefers health and comfort instead of taking the highest-
 stimulation room. Fixed-room and `No Move` residents are kept first, and an
 unreachable 1:1 mix degrades safely instead of invalidating the preview.
+Remaining breeding-room slots use disjoint eligible pair rankings based on
+seven-stat coverage, sexuality, and confirmed offspring COI. Sharing a room
+still does not guarantee which pair the game will choose.
 
 Manual movement, save changes, scene refreshes, or changed settings/protection invalidate
 the old preview. Real culling, automatic day advance, and automatic expedition selection

@@ -91,6 +91,7 @@ struct OrganizeOutcome {
   WorkflowState state{WorkflowState::Failed};
   WorkflowFailureReason failure_reason{WorkflowFailureReason::None};
   std::size_t completed_moves{};
+  std::size_t remaining_moves{};
   std::size_t completed_culls{};
   bool game_data_modified{};
   bool recommendation_snapshot_available{};

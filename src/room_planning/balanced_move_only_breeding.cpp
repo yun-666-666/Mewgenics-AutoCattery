@@ -1,6 +1,8 @@
 #include "balanced_move_only_internal.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <unordered_set>
 
 namespace autocattery::room_planning::balanced_internal {
 namespace {
@@ -107,6 +109,108 @@ void AssignBreedingPairSlots(
             return;
         }
         slot->preferred_cat = cat_id;
+    }
+}
+
+void AssignBreedingPoolSlots(
+    const PlanningContext& context,
+    const std::optional<snapshot::RoomId>& target,
+    std::vector<BalancedSlot>& slots) {
+    if (!target || !context.breeding_pair_preferences) {
+        return;
+    }
+
+    const auto movable = [&](snapshot::CatId cat_id) {
+        return std::ranges::find(context.movable, cat_id) !=
+            context.movable.end();
+    };
+    const auto preferred_in_target = [&](snapshot::CatId cat_id) {
+        return std::ranges::any_of(
+            slots,
+            [&](const auto& slot) {
+                return slot.room_id == *target &&
+                    slot.preferred_cat &&
+                    *slot.preferred_cat == cat_id;
+            });
+    };
+    const auto available = [&](snapshot::CatId cat_id) {
+        const auto fixed = context.fixed_rooms.find(cat_id);
+        if (fixed != context.fixed_rooms.end()) {
+            return fixed->second == *target;
+        }
+        if (movable(cat_id)) {
+            return true;
+        }
+        const auto cat = context.cats.find(cat_id);
+        return cat != context.cats.end() &&
+            cat->second->room_id &&
+            *cat->second->room_id == *target;
+    };
+    const auto needs_slot = [&](snapshot::CatId cat_id) {
+        return movable(cat_id) && !preferred_in_target(cat_id);
+    };
+    const auto find_slot = [&context, &slots, &target](
+            snapshot::CatId cat_id,
+            std::optional<std::size_t> excluded) {
+        const auto& cat = *context.cats.at(cat_id);
+        auto best = slots.size();
+        auto best_rank = std::numeric_limits<int>::max();
+        for (std::size_t index = 0; index < slots.size(); ++index) {
+            const auto& slot = slots[index];
+            if ((excluded && index == *excluded) ||
+                slot.room_id != *target ||
+                slot.preferred_cat ||
+                slot.kitten_preferred ||
+                !SexMatches(cat, slot.required_sex)) {
+                continue;
+            }
+            const auto rank =
+                (slot.required_sex == SlotSex::Any ? 1 : 0) +
+                (slot.potential_preferred ? 2 : 0);
+            if (rank < best_rank) {
+                best = index;
+                best_rank = rank;
+            }
+        }
+        return best;
+    };
+
+    std::unordered_set<snapshot::CatId> paired(
+        context.breeding_pair.begin(), context.breeding_pair.end());
+    for (const auto& pair : *context.breeding_pair_preferences) {
+        if (paired.contains(pair.cat_a_id) ||
+            paired.contains(pair.cat_b_id) ||
+            !available(pair.cat_a_id) ||
+            !available(pair.cat_b_id)) {
+            continue;
+        }
+        const bool need_a = needs_slot(pair.cat_a_id);
+        const bool need_b = needs_slot(pair.cat_b_id);
+        const auto slot_a = need_a
+            ? find_slot(pair.cat_a_id, std::nullopt)
+            : slots.size();
+        if (need_a && slot_a == slots.size()) {
+            continue;
+        }
+        const auto slot_b = need_b
+            ? find_slot(
+                pair.cat_b_id,
+                need_a ? std::optional<std::size_t>{slot_a}
+                       : std::nullopt)
+            : slots.size();
+        if (need_b && slot_b == slots.size()) {
+            continue;
+        }
+        if (need_a) {
+            slots[slot_a].preferred_cat = pair.cat_a_id;
+            slots[slot_a].breeding_pool_preferred = true;
+        }
+        if (need_b) {
+            slots[slot_b].preferred_cat = pair.cat_b_id;
+            slots[slot_b].breeding_pool_preferred = true;
+        }
+        paired.insert(pair.cat_a_id);
+        paired.insert(pair.cat_b_id);
     }
 }
 

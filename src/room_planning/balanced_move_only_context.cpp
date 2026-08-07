@@ -95,6 +95,8 @@ bool BuildPlanningContext(
         config.prefer_single_combat_staging_room;
     context.keep_kittens_separate_when_possible =
         config.keep_kittens_separate_when_possible;
+    context.breeding_pair_preferences =
+        &input.classification.breeding_pair_preferences;
     std::unordered_map<
         snapshot::CatId,
         const protection::ProtectionDecision*> protections;

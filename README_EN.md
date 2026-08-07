@@ -11,7 +11,9 @@ game files, Steam Cloud data, or player save databases.
 
 - Adds an **Auto-Organize Cattery** button in the stable `House` scene.
 - The first click creates a preview. The second click uses the native House
-  room path available in the current runtime to move cats.
+  room path available in the current runtime to move cats. Large plans submit
+  at most eight native moves per UI tick, refresh and revalidate after each
+  batch, and cancel remaining batches when House is left.
 - The preview overlays the current in-game CatId-to-room mapping over older
   unsaved save distribution. A manual move after preview invalidates it and no
   movement is executed.
@@ -45,7 +47,9 @@ game files, Steam Cloud data, or player save databases.
   birth defects are considered. Breeding-room selection rejects comfort at or
   below the confirmed `-10` automatic-failure boundary when a viable room exists,
   balances comfort with stimulation, and uses Mutation as a stable-stage
-  tie-breaker.
+  tie-breaker. Remaining breeding-room slots use disjoint eligible pair rankings
+  instead of unrelated stable ordering; this improves the pool without claiming
+  to lock the game's actual mating choice.
 - The F10 Cat Protection page lists local saves and cats for protection
   management. Only an explicit **Apply Protection** writes `NoCull`, `NoMove`,
   `NoCullOrMove`, `FullyUnmanaged`, or `fixed_room`; rules use stable cat

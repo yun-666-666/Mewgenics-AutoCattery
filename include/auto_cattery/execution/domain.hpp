@@ -90,6 +90,7 @@ struct ExecutionResult {
     bool committed{};
     FailureReason failure_reason{FailureReason::None};
     std::size_t completed_moves{};
+    std::size_t remaining_moves{};
     std::size_t completed_culls{};
     bool rollback_attempted{};
     bool rollback_succeeded{};

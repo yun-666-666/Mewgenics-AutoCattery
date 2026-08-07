@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Split large native House move plans into batches of at most eight moves,
+  separated by UI ticks and fresh runtime previews. Leaving House cancels the
+  continuation before another batch can run.
+- Breeding-room filler cats now come from disjoint eligible pair rankings that
+  already combine seven-stat coverage, sexuality, and cached offspring COI,
+  instead of being selected by unrelated stable ordering after the primary
+  pair is placed.
 - Reset next-day combat recommendation availability when the save-selection
   screen is observed. A stale ready `Battle`/`Map` scene can no longer disable
   the recommendation button in a newly selected 8-cat save.

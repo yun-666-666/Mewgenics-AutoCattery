@@ -1,6 +1,8 @@
 #include "runtime_house_move_gateway.hpp"
 
+#include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/save_safety/game_build_gate.hpp"
@@ -16,6 +18,11 @@ bool IsRuntimeMovePlanApproved(
         (plan.moves.empty() && plan.fully_satisfied &&
          plan.disposition == room_planning::PlanDisposition::Complete &&
          plan.validation_errors.empty());
+}
+
+std::size_t RuntimeHouseMoveBatchSize(
+    std::size_t pending_moves) noexcept {
+    return std::min(pending_moves, kRuntimeHouseMoveBatchLimit);
 }
 
 bool RuntimeHouseMoveGateway::Initialize(
@@ -89,6 +96,13 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
         cats.emplace(cat.cat_id, cat);
     }
 
+    struct PendingMove {
+        snapshot::CatId cat_id{};
+        void* component{};
+        void* target_room{};
+    };
+    std::vector<PendingMove> pending;
+    pending.reserve(bundle.room_plan.moves.size());
     for (const auto& move : bundle.room_plan.moves) {
         if (!move.executable) {
             continue;
@@ -105,8 +119,14 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
         if (AcMewReadHouseCatCurrentRoom(component) == target_room) {
             continue;
         }
+        pending.push_back({move.cat_id, component, target_room});
+    }
+
+    const auto batch_size = RuntimeHouseMoveBatchSize(pending.size());
+    for (std::size_t index = 0; index < batch_size; ++index) {
+        const auto& move = pending[index];
         const auto moved =
-            AcMewInvokeNativeHouseMove(component, target_room);
+            AcMewInvokeNativeHouseMove(move.component, move.target_room);
         if (!moved.invoked || !moved.committed) {
             Logger::Instance().Write(
                 LogLevel::Error,
@@ -121,17 +141,20 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
                     " committed=" + std::to_string(moved.committed) +
                     " exception=" + std::to_string(moved.seh_code));
             result.failure_reason = execution::FailureReason::MoveFailed;
+            result.remaining_moves = pending.size() - result.completed_moves;
             return result;
         }
         ++result.completed_moves;
     }
     result.committed = true;
+    result.remaining_moves = pending.size() - result.completed_moves;
     Logger::Instance().Write(
         LogLevel::Info,
         "RuntimeHouseMove",
         "AC14304",
-        "Native House moves committed=" +
-            std::to_string(result.completed_moves));
+        "Native House move batch committed=" +
+            std::to_string(result.completed_moves) +
+            " remaining=" + std::to_string(result.remaining_moves));
     return result;
 }
 

@@ -146,6 +146,14 @@ std::string DigestClassification(
         AppendOptional(canonical, decision.breeding_partner_id);
         Append(canonical, decision.breeding_stats_stable);
     }
+    for (const auto& pair : classification.breeding_pair_preferences) {
+        Append(canonical, pair.cat_a_id);
+        Append(canonical, pair.cat_b_id);
+        Append(canonical, pair.score);
+        AppendOptional(
+            canonical, pair.offspring_inbreeding_coefficient);
+        Append(canonical, pair.stable_all_seven);
+    }
     for (const auto id : classification.capacity_relief_candidates) {
         Append(canonical, id);
     }

@@ -13,7 +13,7 @@
 namespace autocattery::classification {
 
 inline constexpr char kClassificationAlgorithmVersion[] =
-    "safe-preview-classification-v1";
+    "safe-preview-classification-v2";
 
 enum class CatRole {
     CombatRecommended,
@@ -65,10 +65,19 @@ struct CatDecision {
     std::vector<std::string> reasons;
 };
 
+struct BreedingPairPreference {
+    snapshot::CatId cat_a_id{};
+    snapshot::CatId cat_b_id{};
+    double score{};
+    std::optional<double> offspring_inbreeding_coefficient;
+    bool stable_all_seven{};
+};
+
 struct ClassificationPlan {
     std::uint64_t source_snapshot_id{};
     std::string algorithm_version;
     std::vector<CatDecision> decisions;
+    std::vector<BreedingPairPreference> breeding_pair_preferences;
     std::vector<snapshot::CatId> quality_cull_candidates;
     std::vector<snapshot::CatId> capacity_relief_candidates;
     std::vector<std::string> global_warnings;

@@ -60,6 +60,9 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(ui::IsRuntimeMovePlanApproved(no_op));
     no_op.validation_errors.push_back("synthetic-error");
     AC_CHECK(!ui::IsRuntimeMovePlanApproved(no_op));
+    AC_CHECK(ui::RuntimeHouseMoveBatchSize(0) == 0);
+    AC_CHECK(ui::RuntimeHouseMoveBatchSize(8) == 8);
+    AC_CHECK(ui::RuntimeHouseMoveBatchSize(43) == 8);
 
     const auto original = TwoRoomSnapshot();
     const auto unchanged = RuntimeState(100);

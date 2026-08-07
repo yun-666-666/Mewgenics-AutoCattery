@@ -7,8 +7,13 @@
 
 namespace autocattery::ui {
 
+inline constexpr std::size_t kRuntimeHouseMoveBatchLimit = 8;
+
 [[nodiscard]] bool IsRuntimeMovePlanApproved(
     const room_planning::RoomPlan& plan) noexcept;
+
+[[nodiscard]] std::size_t RuntimeHouseMoveBatchSize(
+    std::size_t pending_moves) noexcept;
 
 class RuntimeHouseMoveGateway final
     : public workflow::IApprovedTransactionGateway {

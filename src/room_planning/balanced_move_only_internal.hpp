@@ -22,6 +22,7 @@ struct BalancedSlot {
     SlotSex required_sex{SlotSex::Any};
     bool potential_preferred{};
     bool kitten_preferred{};
+    bool breeding_pool_preferred{};
     std::optional<snapshot::CatId> preferred_cat;
 };
 
@@ -41,6 +42,8 @@ struct PlanningContext {
         const snapshot::RoomSnapshot*> room_snapshots;
     std::vector<snapshot::CatId> movable;
     std::vector<snapshot::CatId> breeding_pair;
+    const std::vector<classification::BreedingPairPreference>*
+        breeding_pair_preferences{};
     std::unordered_map<snapshot::CatId, snapshot::RoomId> fixed_rooms;
     bool breeding_stats_stable{};
     CountMap current_count;
@@ -106,6 +109,11 @@ void AssignBreedingPairSlots(
     const PlanningContext& context,
     const std::optional<snapshot::RoomId>& target,
     RoomPlan& plan,
+    std::vector<BalancedSlot>& slots);
+
+void AssignBreedingPoolSlots(
+    const PlanningContext& context,
+    const std::optional<snapshot::RoomId>& target,
     std::vector<BalancedSlot>& slots);
 
 void AssignFixedRoomSlots(
