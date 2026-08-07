@@ -1,7 +1,10 @@
 #include "balanced_move_only_internal.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
+#include <map>
+#include <tuple>
 #include <unordered_set>
 
 namespace autocattery::room_planning::balanced_internal {
@@ -146,19 +149,14 @@ void AssignBreedingPoolSlots(
             cat->second->room_id &&
             *cat->second->room_id == *target;
     };
-    const auto needs_slot = [&](snapshot::CatId cat_id) {
-        return movable(cat_id) && !preferred_in_target(cat_id);
-    };
     const auto find_slot = [&context, &slots, &target](
-            snapshot::CatId cat_id,
-            std::optional<std::size_t> excluded) {
+            snapshot::CatId cat_id) {
         const auto& cat = *context.cats.at(cat_id);
         auto best = slots.size();
         auto best_rank = std::numeric_limits<int>::max();
         for (std::size_t index = 0; index < slots.size(); ++index) {
             const auto& slot = slots[index];
-            if ((excluded && index == *excluded) ||
-                slot.room_id != *target ||
+            if (slot.room_id != *target ||
                 slot.preferred_cat ||
                 slot.kitten_preferred ||
                 !SexMatches(cat, slot.required_sex)) {
@@ -175,42 +173,134 @@ void AssignBreedingPoolSlots(
         return best;
     };
 
-    std::unordered_set<snapshot::CatId> paired(
-        context.breeding_pair.begin(), context.breeding_pair.end());
+    using PairKey = std::pair<snapshot::CatId, snapshot::CatId>;
+    const auto pair_key = [](snapshot::CatId left, snapshot::CatId right) {
+        return left < right ? PairKey{left, right} : PairKey{right, left};
+    };
+    std::map<PairKey, const classification::BreedingPairPreference*>
+        preferences;
+    std::vector<snapshot::CatId> candidates;
     for (const auto& pair : *context.breeding_pair_preferences) {
-        if (paired.contains(pair.cat_a_id) ||
-            paired.contains(pair.cat_b_id) ||
-            !available(pair.cat_a_id) ||
-            !available(pair.cat_b_id)) {
-            continue;
+        preferences.emplace(pair_key(pair.cat_a_id, pair.cat_b_id), &pair);
+        candidates.push_back(pair.cat_a_id);
+        candidates.push_back(pair.cat_b_id);
+    }
+    std::sort(candidates.begin(), candidates.end());
+    candidates.erase(
+        std::unique(candidates.begin(), candidates.end()),
+        candidates.end());
+
+    std::unordered_set<snapshot::CatId> selected(
+        context.breeding_pair.begin(), context.breeding_pair.end());
+    for (const auto& slot : slots) {
+        if (slot.room_id == *target && slot.preferred_cat) {
+            selected.insert(*slot.preferred_cat);
         }
-        const bool need_a = needs_slot(pair.cat_a_id);
-        const bool need_b = needs_slot(pair.cat_b_id);
-        const auto slot_a = need_a
-            ? find_slot(pair.cat_a_id, std::nullopt)
-            : slots.size();
-        if (need_a && slot_a == slots.size()) {
-            continue;
+    }
+    for (const auto& [cat_id, cat] : context.cats) {
+        if (!movable(cat_id) && cat->room_id &&
+            *cat->room_id == *target &&
+            std::ranges::any_of(
+                *context.breeding_pair_preferences,
+                [cat_id](const auto& pair) {
+                    return pair.cat_a_id == cat_id ||
+                        pair.cat_b_id == cat_id;
+                })) {
+            selected.insert(cat_id);
         }
-        const auto slot_b = need_b
-            ? find_slot(
-                pair.cat_b_id,
-                need_a ? std::optional<std::size_t>{slot_a}
-                       : std::nullopt)
-            : slots.size();
-        if (need_b && slot_b == slots.size()) {
-            continue;
+    }
+
+    struct CandidateQuality {
+        snapshot::CatId cat_id{};
+        std::size_t slot_index{};
+        bool all_cross_pairs_stable{true};
+        double weakest_cross_score{
+            std::numeric_limits<double>::infinity()};
+        double average_cross_score{};
+        double worst_cross_coi{};
+    };
+    const auto better = [&](const CandidateQuality& left,
+                            const CandidateQuality& right) {
+        if (context.breeding_stats_stable &&
+            left.all_cross_pairs_stable !=
+                right.all_cross_pairs_stable) {
+            return left.all_cross_pairs_stable;
         }
-        if (need_a) {
-            slots[slot_a].preferred_cat = pair.cat_a_id;
-            slots[slot_a].breeding_pool_preferred = true;
+        return std::tuple{
+            -left.weakest_cross_score,
+            left.worst_cross_coi,
+            -left.average_cross_score,
+            left.cat_id,
+            left.slot_index
+        } < std::tuple{
+            -right.weakest_cross_score,
+            right.worst_cross_coi,
+            -right.average_cross_score,
+            right.cat_id,
+            right.slot_index
+        };
+    };
+
+    while (true) {
+        std::optional<CandidateQuality> best;
+        for (const auto cat_id : candidates) {
+            if (selected.contains(cat_id) || !available(cat_id) ||
+                preferred_in_target(cat_id)) {
+                continue;
+            }
+            const auto slot_index = find_slot(cat_id);
+            if (slot_index == slots.size()) {
+                continue;
+            }
+            const auto& cat = *context.cats.at(cat_id);
+            CandidateQuality quality{
+                .cat_id = cat_id,
+                .slot_index = slot_index
+            };
+            double total_score{};
+            std::size_t cross_pair_count{};
+            bool compatible = true;
+            for (const auto selected_id : selected) {
+                const auto& other = *context.cats.at(selected_id);
+                if (cat.sex == other.sex) {
+                    continue;
+                }
+                const auto pair = preferences.find(
+                    pair_key(cat_id, selected_id));
+                if (pair == preferences.end()) {
+                    compatible = false;
+                    break;
+                }
+                const auto& preference = *pair->second;
+                quality.all_cross_pairs_stable =
+                    quality.all_cross_pairs_stable &&
+                    preference.stable_all_seven;
+                quality.weakest_cross_score = std::min(
+                    quality.weakest_cross_score,
+                    preference.score);
+                quality.worst_cross_coi = std::max(
+                    quality.worst_cross_coi,
+                    preference.offspring_inbreeding_coefficient
+                        .value_or(std::numeric_limits<double>::infinity()));
+                total_score += preference.score;
+                ++cross_pair_count;
+            }
+            if (!compatible || cross_pair_count == 0) {
+                continue;
+            }
+            quality.average_cross_score =
+                total_score / static_cast<double>(cross_pair_count);
+            if (!best || better(quality, *best)) {
+                best = quality;
+            }
         }
-        if (need_b) {
-            slots[slot_b].preferred_cat = pair.cat_b_id;
-            slots[slot_b].breeding_pool_preferred = true;
+        if (!best) {
+            break;
         }
-        paired.insert(pair.cat_a_id);
-        paired.insert(pair.cat_b_id);
+        auto& slot = slots[best->slot_index];
+        slot.preferred_cat = best->cat_id;
+        slot.breeding_pool_preferred = true;
+        selected.insert(best->cat_id);
     }
 }
 

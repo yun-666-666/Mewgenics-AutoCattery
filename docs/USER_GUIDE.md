@@ -215,9 +215,11 @@ ignore sex completely. Breeding balances viable comfort with stimulation;
 combat staging prefers health and comfort instead of taking the highest-
 stimulation room. Fixed-room and `No Move` residents are kept first, and an
 unreachable 1:1 mix degrades safely instead of invalidating the preview.
-Remaining breeding-room slots use disjoint eligible pair rankings based on
-seven-stat coverage, sexuality, and confirmed offspring COI. Sharing a room
-still does not guarantee which pair the game will choose.
+Remaining breeding-room slots form one cross-compatible cohort. Each new cat
+must have an eligible pairing with every already selected opposite-sex cat;
+the planner maximizes the weakest cross-pair score, then minimizes worst cached
+offspring COI and maximizes average score. Sharing a room still does not
+guarantee which pair the game will choose.
 
 Manual movement, save changes, scene refreshes, or changed settings/protection invalidate
 the old preview. Real culling, automatic day advance, and automatic expedition selection

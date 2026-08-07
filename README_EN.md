@@ -47,9 +47,11 @@ game files, Steam Cloud data, or player save databases.
   birth defects are considered. Breeding-room selection rejects comfort at or
   below the confirmed `-10` automatic-failure boundary when a viable room exists,
   balances comfort with stimulation, and uses Mutation as a stable-stage
-  tie-breaker. Remaining breeding-room slots use disjoint eligible pair rankings
-  instead of unrelated stable ordering; this improves the pool without claiming
-  to lock the game's actual mating choice.
+  tie-breaker. Remaining breeding-room slots form one robust cohort: each new
+  cat is evaluated against every already selected opposite-sex resident,
+  maximizing the weakest cross-pair score before minimizing worst cached
+  offspring COI and maximizing average pair score. This matches the game's
+  observed cross-pairing without claiming to lock a specific mating choice.
 - The F10 Cat Protection page lists local saves and cats for protection
   management. Only an explicit **Apply Protection** writes `NoCull`, `NoMove`,
   `NoCullOrMove`, `FullyUnmanaged`, or `fixed_room`; rules use stable cat

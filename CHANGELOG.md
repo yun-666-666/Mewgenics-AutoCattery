@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Breeding-room selection now optimizes the whole mixed-sex cohort, not only
+  separate high-ranked pairs. Every newly preferred cat is evaluated against
+  all already selected opposite-sex residents, maximizing the weakest
+  cross-pair score and then minimizing the worst cached offspring COI.
+- Analysis of the opt-in main-save history from game days 257 through 264
+  confirmed that the game selected cross-pairs inside the shared breeding
+  room. The first day after the v0.5.14 pair pool improved newborn average
+  seven-stat gap from 2.93 to 2.60 and average offspring COI from 0.220 to
+  0.168, while also showing why independent-pair ranking was insufficient.
 - Split large native House move plans into batches of at most eight moves,
   separated by UI ticks and fresh runtime previews. Leaving House cancels the
   continuation before another batch can run.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 28,
+  "active_stage": 30,
   "stages": {
     "1": {
       "status": "completed",
@@ -169,7 +169,13 @@
       "commit": null,
       "capability": "TickSeparatedNativeMoveBatchesAndCompatibleBreedingPairPool",
       "game_validation_status": "matching_dump_symbols_show_heap_detection_in_ui_allocation_after_32_native_moves;targeted_debug_regressions_passed;88_cat_save_and_breeding_probes_passed;v0.5.14_release_dll_smoke_passed;release_deployed_and_hash_matched;player_crash_retest_pending"
+    },
+    "30": {
+      "status": "implementation_complete_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "MultiDayMainSaveAnalysisAndCrossCompatibleBreedingRoomCohort",
+      "game_validation_status": "days_257_to_264_analyzed;debug_and_release_4_of_4_ctest_passed;day264_94_cat_probe_passed;v0.5.15_release_deployed_and_hash_verified;multi_day_player_followup_pending"
     }
   },
-  "updated_at": "2026-08-07T22:14:00+08:00"
+  "updated_at": "2026-08-08T00:35:05+08:00"
 }

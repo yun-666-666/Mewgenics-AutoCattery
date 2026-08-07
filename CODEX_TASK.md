@@ -1,11 +1,10 @@
-# CODEX CURRENT TASK - F10 IN-GAME MANAGEMENT PANEL
+# CODEX CURRENT TASK - STAGE 30 MAIN-SAVE BREEDING FEEDBACK
 
 ## Current objective
 
-在不更换 Mewjector/MewUI 技术路线的前提下，把现有设置与猫保护管理迁入
-House 游戏界面，并用 F10 打开或关闭；不再构建、部署或发布外部 EXE 编辑器。
-F10 设置同时管理全部玩家职业的升级重骰次数，保存后由 AutoCattery 数据 MOD
-在下次游戏启动时应用。
+分析玩家已启用的本地猫数据历史，从第 257 天到当前主存档逐日比较出生、消失、
+七维缺口、性别、父母组合和 COI，并根据实际繁殖结果优化当前 MoveOnly 的繁育
+房组合池。不得提交采集 JSON、存档、猫名、个人路径或账号信息。
 
 ## Required reading
 
@@ -14,8 +13,9 @@ F10 设置同时管理全部玩家职业的升级重骰次数，保存后由 Aut
 3. `docs/implementation-status.md`
 4. `docs/pre-completion-functional-roadmap.md`
 5. `.auto-cattery/state.json`
-6. `.auto-cattery/reports/stage-14.md`
-7. 当前代码、测试、最新运行日志和 `git status --short`
+6. `.auto-cattery/reports/stage-29.md`
+7. `.auto-cattery/reports/stage-30.md`
+8. 当前代码、测试、最新运行日志和 `git status --short`
 
 ## Confirmed current capability
 
@@ -51,9 +51,8 @@ F10 设置同时管理全部玩家职业的升级重骰次数，保存后由 Aut
 
 ## Completion requirements for current stage
 
-- House 场景按 F10 打开和关闭游戏内总面板，Esc 也能关闭。
-- 面板打开时不会把点击或滚轮传给后方 House 操作。
-- 提供设置分页与保护分页；配置和保护继续使用现有持久化模型。
-- 保护页必须由玩家明确选择猫后才能应用或移除规则。
-- 不生成外部编辑器 EXE，不更换或并装另一套 `version.dll` 加载框架。
-- Debug/Release 构建和测试通过，Release 部署后等待玩家实机验收。
+- 使用多日历史而不是单一最新快照形成可复核汇总。
+- 区分自然死亡、其他离开 House 和新增来源，不把未知原因写成事实。
+- 繁育房按全体异性交叉配对质量选择稳健组合池，不只选择若干独立高分配对。
+- 增加确定性回归，证明独立第二名配对交叉质量差时会被整体更稳健组合替代。
+- Debug/Release 构建和测试通过，Release 部署后由玩家继续积累次日出生结果。
