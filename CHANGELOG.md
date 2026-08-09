@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Restore the normal House `Auto-Organize Cattery` and `Mark Combat Cats`
+  controls; `Auto Place` and `Start Analysis` now appear only while the verified
+  `FurnitureBuildingUI` component is active.
+- Preserve the Stage 32 read-only furniture summary and keep `Auto Place`
+  disabled, while rejecting stale analysis results after leaving furniture mode.
+
 - Breeding-room selection now optimizes the whole mixed-sex cohort, not only
   separate high-ranked pairs. Every newly preferred cat is evaluated against
   all already selected opposite-sex residents, maximizing the weakest

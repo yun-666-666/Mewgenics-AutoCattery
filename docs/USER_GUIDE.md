@@ -78,6 +78,10 @@
 
 ### House 家具按钮
 
+只有游戏中已验证的 `FurnitureBuildingUI` 组件出现时，按钮才切换成下表文案。
+普通 House 仍显示“自动整理猫舍”和“标记推荐战斗猫”，并保留原猫舍整理与
+只读战斗推荐功能。
+
 | 按钮 | 作用 | 当前结果 |
 | --- | --- | --- |
 | 开始分析 | 刷新当前运行时身份，匹配存档并读取动态房间和全部家具 | 显示房间、家具、仓库和禁用状态；零写入 |
@@ -203,6 +207,11 @@ execution gates.
 | `Level-up rerolls` (3) | Accepts 0–99 for all seven base and seven advanced player classes. Restart the game after saving. If sibling `SkillsPassivesFirstData` is installed, its class patches are dynamically synchronized to the current value; the value is not fixed at 11. |
 
 ### House furniture buttons
+
+These labels are active only while the verified game `FurnitureBuildingUI`
+component is present. The normal House screen keeps `Auto-Organize Cattery`
+and `Mark Combat Cats` with their existing cat organization and read-only
+combat recommendation behavior.
 
 | Button | Action | Current result |
 | --- | --- | --- |

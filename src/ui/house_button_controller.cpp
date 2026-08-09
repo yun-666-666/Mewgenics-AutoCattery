@@ -114,6 +114,12 @@ void HouseButtonController::SetSuppressed(bool suppressed) {
     view_.SetState(state_, state_detail_);
 }
 
+void HouseButtonController::SetFurnitureMode(bool furniture_mode) {
+    if (furniture_mode_ == furniture_mode) return;
+    furniture_mode_ = furniture_mode;
+    view_.SetFurnitureMode(furniture_mode_);
+}
+
 void HouseButtonController::SetState(
     OrganizeButtonState state,
     std::string_view detail) {
@@ -135,6 +141,7 @@ bool HouseButtonController::IsSuppressed() const noexcept {
 void HouseButtonController::HandleClick() {
     if (!view_.IsAttached() ||
         suppressed_ ||
+        furniture_mode_ ||
         state_ != OrganizeButtonState::Ready) {
         return;
     }

@@ -9,7 +9,7 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kButtonNode = "test_button";
-constexpr auto kButtonRole = "AutoCattery.Furniture.AutoPlaceButton";
+constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
 
 }  // namespace
 
@@ -46,9 +46,11 @@ Result<void> MewUiHouseButtonView::Attach(
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
-    create_info.label_text = english_ ? "Auto Place" : "自动放置";
-    create_info.enabled = 0;
-    create_info.activate_enabled = 0;
+    create_info.label_text = furniture_mode_
+        ? (english_ ? "Auto Place" : "自动放置")
+        : (english_ ? "Auto-Organize" : "自动整理猫舍");
+    create_info.enabled = furniture_mode_ ? 0 : 1;
+    create_info.activate_enabled = furniture_mode_ ? 0 : 1;
     create_info.strict_mouse = 1;
     create_info.interact_override = MEW_BUTTON_INTERACT_FORCE_ENABLED;
     create_info.callback = &ButtonCallback;
@@ -73,8 +75,7 @@ Result<void> MewUiHouseButtonView::Attach(
         this);
 
     active_ = true;
-    MewUI_SetButtonEnabled(button_, 0);
-    MewUI_SetButtonInteractable(button_, 0);
+    SetState(current_state_, {});
     return {};
 }
 
@@ -114,22 +115,31 @@ void MewUiHouseButtonView::SetState(
         return;
     }
 
-    const char* label = english_ ? "Auto Place" : "自动放置";
+    if (furniture_mode_) {
+        MewUI_SetButtonLabelText(
+            button_, english_ ? "Auto Place" : "自动放置");
+        MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
+        return;
+    }
+
+    const char* label = english_ ? "Auto-Organize" : "自动整理猫舍";
     bool enabled = false;
     switch (state) {
     case OrganizeButtonState::Hidden:
         enabled = false;
         break;
     case OrganizeButtonState::DisabledUnsupportedBuild:
-        label = english_ ? "Auto Place" : "自动放置";
+        label = english_ ? "Unavailable" : "当前版本不可用";
         break;
     case OrganizeButtonState::DisabledBusy:
     case OrganizeButtonState::Running:
-        label = english_ ? "Analyzing…" : "正在分析…";
+        label = english_ ? "Organizing..." : "正在整理…";
         enabled = false;
         break;
     case OrganizeButtonState::Ready:
-        label = english_ ? "Auto Place" : "自动放置";
+        label = english_ ? "Auto-Organize" : "自动整理猫舍";
+        enabled = true;
         break;
     case OrganizeButtonState::Completed:
         label = english_ ? "Preview Complete" : "预览已完成";
@@ -150,6 +160,14 @@ void MewUiHouseButtonView::ShowPlaceholder() {
     // feedback surface. Avoid scene-wide text-node probes here: the pinned
     // MewUI build handles a missing text node through repeated SEH probes,
     // which caused a visible pause on every Stage 03 click.
+}
+
+void MewUiHouseButtonView::SetFurnitureMode(bool furniture_mode) {
+    if (furniture_mode_ == furniture_mode) return;
+    furniture_mode_ = furniture_mode;
+    if (button_ != nullptr && CanTouchScene()) {
+        SetState(current_state_, {});
+    }
 }
 
 void MewUiHouseButtonView::SetEnglish(bool english) {

@@ -8,6 +8,8 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kClickDebounce = std::chrono::milliseconds(250);
+constexpr auto kStatusHold = std::chrono::seconds(2);
+
 }  // namespace
 
 RecommendationMarkerController::RecommendationMarkerController(
@@ -27,14 +29,49 @@ void RecommendationMarkerController::ObserveRuntime(
     bool interstitial_ready,
     bool expedition_ready,
     bool save_selection_ready) {
-    (void)interstitial_ready;
-    (void)expedition_ready;
     if (save_selection_ready) {
-        Detach();
+        if (!save_selection_active_) {
+            available_this_day_ = true;
+            next_day_pending_ = false;
+            Detach();
+            Logger::Instance().Write(
+                LogLevel::Info,
+                "RecommendationMarker",
+                "AC4105",
+                "Save selection observed; recommendation availability reset for the selected save.");
+        }
+        save_selection_active_ = true;
         return;
     }
+    save_selection_active_ = false;
+
+    if (expedition_ready && available_this_day_) {
+        available_this_day_ = false;
+        next_day_pending_ = false;
+        Detach();
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationMarker",
+            "AC4103",
+            "Expedition scene observed; recommendation control is closed for this day.");
+    }
+
+    if (interstitial_ready && !available_this_day_) {
+        next_day_pending_ = true;
+    }
+
+    if (house_ready && next_day_pending_) {
+        available_this_day_ = true;
+        next_day_pending_ = false;
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "RecommendationMarker",
+            "AC4104",
+            "Next-day House observed; recommendation control is available again.");
+    }
+
     if (house_ready && view_.IsAttached()) {
-        SyncAvailability(!suppressed_);
+        SyncAvailability(AvailableInCurrentMode());
     }
 
     if (!house_ready) {
@@ -62,7 +99,8 @@ Result<void> RecommendationMarkerController::Attach(
             HandleClick();
         },
         [this](std::size_t index) {
-            if (!suppressed_ &&
+            if (!furniture_mode_ &&
+                !suppressed_ &&
                 marker_visible_ &&
                 index < item_count_ &&
                 details_handler_) {
@@ -80,14 +118,17 @@ Result<void> RecommendationMarkerController::Attach(
     ready_after_ = {};
     status_after_hold_ = RecommendationUiStatus::Ready;
     applied_availability_.reset();
+    view_.SetFurnitureMode(furniture_mode_);
     view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
-    SyncAvailability(!suppressed_);
+    SyncAvailability(AvailableInCurrentMode());
     Logger::Instance().Write(
         LogLevel::Info,
-        "FurnitureAnalysis",
-        "AC3200",
-        "Attached AutoCattery.Furniture.StartAnalysisButton.");
+        furniture_mode_ ? "FurnitureAnalysis" : "RecommendationMarker",
+        furniture_mode_ ? "AC3200" : "AC4100",
+        furniture_mode_
+            ? "Attached AutoCattery furniture analysis controls."
+            : "Attached AutoCattery.Recommendation.MarkCombatCatsButton.");
     return {};
 }
 
@@ -108,9 +149,11 @@ void RecommendationMarkerController::Detach() noexcept {
     view_.Detach();
     Logger::Instance().Write(
         LogLevel::Info,
-        "FurnitureAnalysis",
-        "AC3202",
-        "Detached the furniture analysis control.");
+        furniture_mode_ ? "FurnitureAnalysis" : "RecommendationMarker",
+        furniture_mode_ ? "AC3202" : "AC4101",
+        furniture_mode_
+            ? "Detached the furniture analysis control."
+            : "Cleared recommendations before detaching the control.");
 }
 
 void RecommendationMarkerController::AbandonScene() noexcept {
@@ -123,15 +166,44 @@ void RecommendationMarkerController::AbandonScene() noexcept {
     status_after_hold_ = RecommendationUiStatus::Ready;
     applied_availability_.reset();
     suppressed_ = false;
+    furniture_mode_ = false;
+    view_.SetFurnitureMode(false);
     view_.AbandonScene();
 }
 
 void RecommendationMarkerController::SetSuppressed(bool suppressed) {
     if (suppressed_ == suppressed) return;
     suppressed_ = suppressed;
-    if (view_.IsAttached()) {
-        SyncAvailability(!suppressed_);
+    if (suppressed_) {
+        marker_visible_ = false;
+        item_count_ = 0;
     }
+    if (view_.IsAttached()) {
+        SyncAvailability(AvailableInCurrentMode());
+    }
+}
+
+void RecommendationMarkerController::SetFurnitureMode(
+    bool furniture_mode) {
+    if (furniture_mode_ == furniture_mode) return;
+    furniture_mode_ = furniture_mode;
+    marker_visible_ = false;
+    request_pending_ = false;
+    item_count_ = 0;
+    last_click_ = {};
+    ready_after_ = {};
+    status_after_hold_ = RecommendationUiStatus::Ready;
+    applied_availability_.reset();
+    view_.SetFurnitureMode(furniture_mode_);
+    if (view_.IsAttached()) {
+        view_.ClearSummary();
+        view_.SetStatus(RecommendationUiStatus::Ready);
+        SyncAvailability(AvailableInCurrentMode());
+    }
+}
+
+bool RecommendationMarkerController::AvailableInCurrentMode() const noexcept {
+    return !suppressed_ && (furniture_mode_ || available_this_day_);
 }
 
 void RecommendationMarkerController::SyncAvailability(bool available) {
@@ -145,7 +217,7 @@ void RecommendationMarkerController::SyncAvailability(bool available) {
 
 void RecommendationMarkerController::HandleClick() {
     if (!view_.IsAttached() ||
-        suppressed_ ||
+        !AvailableInCurrentMode() ||
         request_pending_ ||
         ready_after_.time_since_epoch().count() != 0) {
         return;
@@ -161,42 +233,59 @@ void RecommendationMarkerController::HandleClick() {
     if (marker_visible_) {
         marker_visible_ = false;
         item_count_ = 0;
+        status_after_hold_ = RecommendationUiStatus::Ready;
         view_.ClearSummary();
+        view_.SetStatus(RecommendationUiStatus::Ready);
+        if (!furniture_mode_) {
+            Logger::Instance().Write(
+                LogLevel::Info,
+                "RecommendationMarker",
+                "AC12107",
+                "Player cleared the read-only House recommendation items; expedition_selection_changed=0.");
+            return;
+        }
     }
 
     marker_visible_ = false;
     request_pending_ = true;
-    if (request_handler_) {
-        request_handler_(attached_generation_);
+    auto& handler = furniture_mode_
+        ? furniture_request_handler_
+        : request_handler_;
+    if (handler) {
+        handler(attached_generation_);
     }
     view_.SetStatus(RecommendationUiStatus::ProbeRequired);
     Logger::Instance().Write(
         LogLevel::Info,
-        "FurnitureAnalysis",
-        "AC3203",
-        "Player requested a read-only furniture analysis.");
+        furniture_mode_ ? "FurnitureAnalysis" : "RecommendationMarker",
+        furniture_mode_ ? "AC3203" : "AC12100",
+        furniture_mode_
+            ? "Player requested a read-only furniture analysis."
+            : "Recommendation request entered read-only validation; no House cat details were opened.");
 }
 
 void RecommendationMarkerController::CompleteProbe(
     std::uint64_t scene_generation) {
     if (!view_.IsAttached() ||
+        furniture_mode_ ||
         scene_generation != attached_generation_) {
         return;
     }
     request_pending_ = false;
-    ready_after_ = {};
-    view_.SetStatus(RecommendationUiStatus::Ready);
+    status_after_hold_ = RecommendationUiStatus::Ready;
+    ready_after_ = clock_() + kStatusHold;
 }
 
 Result<void> RecommendationMarkerController::ShowRecommendations(
     std::uint64_t scene_generation,
     const std::vector<std::string>& labels) {
     if (!view_.IsAttached() ||
+        furniture_mode_ ||
         suppressed_ ||
         scene_generation != attached_generation_) {
         return {
             ErrorCode::SceneUnavailable,
-            "furniture analysis belongs to a stale House scene"
+            "recommendation result belongs to a stale House scene"
         };
     }
     request_pending_ = false;
@@ -204,13 +293,41 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
     if (labels.empty()) {
         return {
             ErrorCode::CatDataUnavailable,
-            "furniture analysis has no display items"
+            "recommendation result has no display items"
         };
     }
     const auto shown = view_.ShowItems(labels);
     if (!shown) {
         return shown;
     }
+    marker_visible_ = true;
+    item_count_ = labels.size();
+    status_after_hold_ = RecommendationUiStatus::Marked;
+    ready_after_ = clock_() + kStatusHold;
+    return {};
+}
+
+Result<void> RecommendationMarkerController::ShowFurnitureAnalysis(
+    std::uint64_t scene_generation,
+    const std::vector<std::string>& labels) {
+    if (!view_.IsAttached() ||
+        !furniture_mode_ ||
+        suppressed_ ||
+        scene_generation != attached_generation_) {
+        return {
+            ErrorCode::SceneUnavailable,
+            "furniture analysis belongs to a stale House furniture view"
+        };
+    }
+    request_pending_ = false;
+    if (labels.empty()) {
+        return {
+            ErrorCode::CatDataUnavailable,
+            "furniture analysis has no display items"
+        };
+    }
+    const auto shown = view_.ShowItems(labels);
+    if (!shown) return shown;
     marker_visible_ = true;
     item_count_ = labels.size();
     status_after_hold_ = RecommendationUiStatus::Marked;
@@ -236,13 +353,18 @@ void RecommendationMarkerController::SetRequestHandler(
     request_handler_ = std::move(handler);
 }
 
+void RecommendationMarkerController::SetFurnitureRequestHandler(
+    RequestHandler handler) {
+    furniture_request_handler_ = std::move(handler);
+}
+
 void RecommendationMarkerController::SetDetailsHandler(
     DetailsHandler handler) {
     details_handler_ = std::move(handler);
 }
 
 bool RecommendationMarkerController::ShouldShow() const noexcept {
-    return !suppressed_;
+    return AvailableInCurrentMode();
 }
 
 bool RecommendationMarkerController::IsAttached() const noexcept {

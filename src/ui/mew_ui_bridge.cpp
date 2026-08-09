@@ -51,6 +51,7 @@ constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
 constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
+constexpr auto kFurnitureBuildingComponent = "FurnitureBuildingUI";
 
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
@@ -109,6 +110,9 @@ const char* MewUiBridge::Name() const noexcept {
 
 bool MewUiBridge::Initialize(const InitContext& context) {
     ready_logged_.store(false);
+    furniture_mode_ = false;
+    furniture_mode_scene_manager_ = nullptr;
+    furniture_mode_component_count_ = 0;
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -140,6 +144,85 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     recommendation_marker_controller_ =
         std::make_unique<RecommendationMarkerController>(
             *recommendation_marker_view_);
+    recommendation_marker_controller_->SetRequestHandler(
+        [this](std::uint64_t generation) {
+            recommendation_detail_targets_.clear();
+            const auto historical =
+                recommendation::ReadRecommendationSnapshot(
+                    recommendation_sidecar_path_);
+            const auto message =
+                historical.status ==
+                        recommendation::SnapshotReadStatus::Missing
+                    ? "No committed recommendation sidecar is available; "
+                      "anonymous mapping probe armed."
+                    : (historical.status ==
+                               recommendation::SnapshotReadStatus::Rejected
+                           ? "Recommendation sidecar was rejected; anonymous "
+                             "mapping probe armed."
+                           : "Recommendation sidecar read, but schema 1 lacks "
+                             "build/save identity; anonymous mapping probe "
+                             "armed.");
+            Logger::Instance().Write(
+                LogLevel::Info,
+                "RecommendationProbe",
+                "AC12101",
+                "request=" +
+                    std::to_string(++mapping_probe_request_sequence_) +
+                    " " + message);
+            mapping_probe_session_.Arm();
+            mapping_probe_logged_ = false;
+            mapping_identity_logged_ = false;
+            mapping_snapshot_request_sequence_ =
+                mapping_probe_request_sequence_;
+            mapping_snapshot_generation_ = generation;
+            mapping_snapshot_attempt_ = 0;
+            mapping_snapshot_request_active_ = true;
+            mapping_snapshot_retry_deadline_ =
+                std::chrono::steady_clock::now() +
+                kMappingSnapshotRetryWindow;
+            mapping_snapshot_next_attempt_ = {};
+            StartMappingSnapshotAttempt();
+        });
+    recommendation_marker_controller_->SetDetailsHandler(
+        [this](std::uint64_t generation, std::size_t index) {
+            const auto context = scene_context_.Current();
+            if (context.kind != UiContextKind::House ||
+                !context.input_enabled ||
+                context.save_in_progress ||
+                context.scene_generation != generation ||
+                index >= recommendation_detail_targets_.size()) {
+                return;
+            }
+            auto* scene =
+                MewUI_GetSceneByName(context.scene_name.c_str());
+            const auto opened = AcMewOpenHouseCatDetails(
+                scene,
+                recommendation_detail_targets_[index]);
+            std::ostringstream message;
+            message << "rank=" << (index + 1)
+                    << " signature=" << (unsigned)opened.signature_valid
+                    << " scene=" << (unsigned)opened.scene_valid
+                    << " manager=" << (unsigned)opened.click_manager_valid
+                    << " drawer=" << (unsigned)opened.drawer_unique
+                    << " scene_drawer="
+                    << (unsigned)opened.scene_drawer_unique
+                    << " drawer_match="
+                    << (unsigned)opened.drawer_matches_scene
+                    << " cat=" << (unsigned)opened.cat_valid
+                    << " target=" << (unsigned)opened.detail_target_valid
+                    << " opened=" << (unsigned)opened.invoked
+                    << " failure=" << (unsigned)opened.failure_stage
+                    << " exception=0x" << std::hex
+                    << opened.seh_code
+                    << " exception_rva=0x"
+                    << opened.exception_rva << std::dec
+                    << " box_changed=0 expedition_selection_changed=0";
+            Logger::Instance().Write(
+                opened.invoked ? LogLevel::Info : LogLevel::Warn,
+                "RecommendationMarker",
+                "AC12109",
+                message.str());
+        });
 
     config_runtime_ = std::make_unique<RuntimeConfigService>(
         context.mod_root / L"config" / L"default_config.json",
@@ -176,7 +259,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_analysis_service_ =
         std::make_unique<furniture_analysis::FurnitureAnalysisService>(
             *runtime_snapshot_adapter_);
-    recommendation_marker_controller_->SetRequestHandler(
+    recommendation_marker_controller_->SetFurnitureRequestHandler(
         [this](std::uint64_t generation) {
             RefreshRuntimeSnapshotContext();
             if (!furniture_analysis_service_ ||
@@ -333,6 +416,9 @@ void MewUiBridge::Shutdown() noexcept {
         MewUI_Stop();
     }
     started_ = false;
+    furniture_mode_ = false;
+    furniture_mode_scene_manager_ = nullptr;
+    furniture_mode_component_count_ = 0;
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -440,6 +526,7 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    UpdateHouseUiMode(context, scenes);
     if (furniture_analysis_task_.valid() &&
         furniture_analysis_task_.wait_for(std::chrono::milliseconds(0)) ==
             std::future_status::ready) {
@@ -502,7 +589,7 @@ void MewUiBridge::OnTick() {
                     "AC3205",
                     "Read-only analysis failed: " + analysis.message);
             }
-            (void)recommendation_marker_controller_->ShowRecommendations(
+            (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
                 generation, labels);
         }
     }
@@ -583,9 +670,11 @@ void MewUiBridge::OnTick() {
     const bool panel_open = in_game_panel_controller_ &&
         in_game_panel_controller_->IsOpen();
     const bool house_button_enabled =
-        mod_ui_enabled && active_config.ui.house_button_enabled;
+        mod_ui_enabled &&
+        (furniture_mode_ || active_config.ui.house_button_enabled);
     const bool recommendation_button_enabled =
-        mod_ui_enabled && active_config.ui.embark_button_enabled;
+        mod_ui_enabled &&
+        (furniture_mode_ || active_config.ui.embark_button_enabled);
     const bool interstitial_ready = scene_ready("Interstitial");
     const bool expedition_ready =
         scene_ready("Map") || scene_ready("Battle");
@@ -665,6 +754,58 @@ void MewUiBridge::OnTick() {
             last_recommendation_attach_error_.clear();
         }
     }
+}
+
+void MewUiBridge::UpdateHouseUiMode(
+    const UiContextSnapshot& context,
+    const std::vector<RuntimeScene>& scenes) {
+    const auto house_scene = std::find_if(
+        scenes.begin(),
+        scenes.end(),
+        [&context](const RuntimeScene& candidate) {
+            return candidate.ready &&
+                   context.kind == UiContextKind::House &&
+                   candidate.name == context.scene_name;
+        });
+    if (house_scene == scenes.end()) {
+        furniture_mode_scene_manager_ = nullptr;
+        furniture_mode_component_count_ = 0;
+        return;
+    }
+
+    if (furniture_mode_scene_manager_ == house_scene->manager &&
+        furniture_mode_component_count_ == house_scene->component_count) {
+        return;
+    }
+
+    furniture_mode_scene_manager_ = house_scene->manager;
+    furniture_mode_component_count_ = house_scene->component_count;
+    const bool detected = AcMewSceneHasComponentType(
+        house_scene->manager,
+        kFurnitureBuildingComponent) != 0;
+    if (detected == furniture_mode_) {
+        return;
+    }
+
+    furniture_mode_ = detected;
+    recommendation_detail_targets_.clear();
+    mapping_snapshot_request_active_ = false;
+    mapping_snapshot_retry_deadline_ = {};
+    mapping_snapshot_next_attempt_ = {};
+    if (house_button_controller_) {
+        house_button_controller_->SetFurnitureMode(furniture_mode_);
+    }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->SetFurnitureMode(
+            furniture_mode_);
+    }
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "HouseUiMode",
+        "AC3210",
+        furniture_mode_
+            ? "FurnitureBuildingUI detected; House controls switched to Auto Place and Start Analysis."
+            : "FurnitureBuildingUI absent; normal Auto-Organize and combat recommendation controls restored.");
 }
 
 void MewUiBridge::RefreshRuntimeSnapshotContext() {

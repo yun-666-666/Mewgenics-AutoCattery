@@ -15,7 +15,7 @@ namespace {
 
 constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
-    "AutoCattery.Furniture.StartAnalysisButton";
+    "AutoCattery.Recommendation.MarkCombatCatsButton";
 constexpr std::array<const char*, 4> kItemNodes{
     "recommend_row_1",
     "recommend_row_2",
@@ -62,7 +62,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         MewUI_IsSceneDestroying(scene) != 0) {
         return {
             ErrorCode::SceneUnavailable,
-            "house scene is not ready for furniture analysis UI attachment"
+            "house scene is not ready for recommendation UI attachment"
         };
     }
 
@@ -81,7 +81,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
-            "the furniture analysis button asset is unavailable"
+            "the dedicated recommendation button asset is unavailable"
         };
     }
     MewButtonCreateInfo create_info{};
@@ -90,7 +90,9 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
-    create_info.label_text = english_ ? "Start Analysis" : "开始分析";
+    create_info.label_text = furniture_mode_
+        ? (english_ ? "Start Analysis" : "开始分析")
+        : (english_ ? "Mark Combat Cats" : "标记推荐战斗猫");
     create_info.enabled = 1;
     create_info.activate_enabled = 1;
     create_info.strict_mouse = 1;
@@ -107,7 +109,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         click_handler_ = {};
         return {
             ErrorCode::UiNodeNotFound,
-            "the furniture analysis button asset is unavailable"
+            "the dedicated recommendation button asset is unavailable"
         };
     }
     MewUI_RegisterExistingButton(
@@ -120,7 +122,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         Detach();
         return {
             ErrorCode::UiNodeNotFound,
-            "a static furniture analysis row asset is unavailable"
+            "a static recommendation row asset is unavailable"
         };
     }
 
@@ -190,6 +192,7 @@ void MewUiRecommendationMarkerView::SetAvailable(bool available) {
     }
     MewUI_SetButtonInteractable(button_, available ? 1 : 0);
     MewUI_SetButtonEnabled(button_, available ? 1 : 0);
+    if (!available) ClearSummary();
     availability_applied_ = true;
 }
 
@@ -199,18 +202,42 @@ void MewUiRecommendationMarkerView::SetStatus(
     if (button_ == nullptr) {
         return;
     }
+    if (furniture_mode_) {
+        if (status == RecommendationUiStatus::ProbeRequired) {
+            MewUI_SetButtonLabelText(
+                button_, english_ ? "Analyzing..." : "正在分析...");
+            return;
+        }
+        if (status == RecommendationUiStatus::Marked) {
+            MewUI_SetButtonLabelText(
+                button_, english_ ? "Analyze Again" : "重新分析");
+            return;
+        }
+        MewUI_SetButtonLabelText(
+            button_, english_ ? "Start Analysis" : "开始分析");
+        return;
+    }
     if (status == RecommendationUiStatus::ProbeRequired) {
         MewUI_SetButtonLabelText(
-            button_, english_ ? "Analyzing..." : "正在分析...");
+            button_, english_ ? "Probe Required" : "需要兼容性探针");
         return;
     }
     if (status == RecommendationUiStatus::Marked) {
         MewUI_SetButtonLabelText(
-            button_, english_ ? "Analyze Again" : "重新分析");
+            button_, english_ ? "Clear Recommendations" : "清除推荐标记");
         return;
     }
     MewUI_SetButtonLabelText(
-        button_, english_ ? "Start Analysis" : "开始分析");
+        button_, english_ ? "Mark Combat Cats" : "标记推荐战斗猫");
+}
+
+void MewUiRecommendationMarkerView::SetFurnitureMode(
+    bool furniture_mode) {
+    if (furniture_mode_ == furniture_mode) return;
+    furniture_mode_ = furniture_mode;
+    if (button_ != nullptr && CanTouchScene()) {
+        SetStatus(current_status_);
+    }
 }
 
 void MewUiRecommendationMarkerView::SetEnglish(bool english) {
@@ -224,7 +251,7 @@ Result<void> MewUiRecommendationMarkerView::ShowItems(
         labels.empty()) {
         return {
             ErrorCode::UiNodeNotFound,
-            "furniture analysis rows are unavailable"
+            "recommendation rows are unavailable"
         };
     }
     item_labels_ = labels;
@@ -233,7 +260,7 @@ Result<void> MewUiRecommendationMarkerView::ShowItems(
         ClearSummary();
         return {
             ErrorCode::UiNodeNotFound,
-            "furniture analysis item label is unavailable"
+            "recommendation item label is unavailable"
         };
     }
     return {};

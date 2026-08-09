@@ -41,6 +41,10 @@ public:
         state = new_state;
     }
 
+    void SetFurnitureMode(bool value) override {
+        furniture_mode = value;
+    }
+
     void ShowPlaceholder() override {
         ++placeholder_calls;
     }
@@ -56,6 +60,7 @@ public:
     }
 
     bool attached{};
+    bool furniture_mode{};
     int attach_calls{};
     int detach_calls{};
     int abandon_calls{};
@@ -156,6 +161,13 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(view.attach_calls == 1);
     AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
     AC_CHECK(workflow.preview_calls == 0);
+
+    controller.SetFurnitureMode(true);
+    AC_CHECK(view.furniture_mode);
+    view.Click();
+    AC_CHECK(workflow.preview_calls == 0);
+    controller.SetFurnitureMode(false);
+    AC_CHECK(!view.furniture_mode);
 
     controller.SetSuppressed(true);
     AC_CHECK(controller.IsSuppressed());

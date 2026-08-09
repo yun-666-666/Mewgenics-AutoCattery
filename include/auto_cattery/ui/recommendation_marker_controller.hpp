@@ -31,6 +31,7 @@ public:
     virtual void AbandonScene() noexcept = 0;
     virtual void SetAvailable(bool available) = 0;
     virtual void SetStatus(RecommendationUiStatus status) = 0;
+    virtual void SetFurnitureMode(bool furniture_mode) = 0;
     virtual Result<void> ShowItems(
         const std::vector<std::string>& labels) = 0;
     virtual void ClearSummary() noexcept = 0;
@@ -58,13 +59,18 @@ public:
     void Detach() noexcept;
     void AbandonScene() noexcept;
     void SetSuppressed(bool suppressed);
+    void SetFurnitureMode(bool furniture_mode);
     void HandleClick();
     void CompleteProbe(std::uint64_t scene_generation);
     Result<void> ShowRecommendations(
         std::uint64_t scene_generation,
         const std::vector<std::string>& labels);
+    Result<void> ShowFurnitureAnalysis(
+        std::uint64_t scene_generation,
+        const std::vector<std::string>& labels);
     void Poll();
     void SetRequestHandler(RequestHandler handler);
+    void SetFurnitureRequestHandler(RequestHandler handler);
     void SetDetailsHandler(DetailsHandler handler);
 
     [[nodiscard]] bool ShouldShow() const noexcept;
@@ -73,6 +79,7 @@ public:
     [[nodiscard]] bool MarkerVisible() const noexcept;
 
 private:
+    [[nodiscard]] bool AvailableInCurrentMode() const noexcept;
     void SyncAvailability(bool available);
 
     RecommendationMarkerView& view_;
@@ -81,11 +88,13 @@ private:
     bool next_day_pending_{};
     bool save_selection_active_{};
     bool suppressed_{};
+    bool furniture_mode_{};
     bool marker_visible_{};
     bool request_pending_{};
     std::optional<bool> applied_availability_;
     std::uint64_t attached_generation_{};
     RequestHandler request_handler_;
+    RequestHandler furniture_request_handler_;
     DetailsHandler details_handler_;
     std::size_t item_count_{};
     std::chrono::steady_clock::time_point last_click_{};

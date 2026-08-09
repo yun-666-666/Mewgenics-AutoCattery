@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 32,
+  "active_stage": 33,
   "stages": {
     "1": {
       "status": "completed",
@@ -183,11 +183,17 @@
       "game_validation_status": "day265_257_furniture_read_only_probe_passed;current_resources_11_rooms_3_house_layouts_634_furniture_info_rows;synthetic_1_2_3_5_7_room_regression_passed;no_deployment"
     },
     "32": {
+      "status": "player_analysis_passed_ui_scope_corrected_by_stage_33",
+      "commit": "1519d73",
+      "capability": "GenerationBoundDynamicFurnitureAnalysisButtonAndDisabledAutoPlace",
+      "game_validation_status": "debug_and_release_4_of_4_ctest_passed;three_active_save_read_only_regression_passed;v0.5.16_release_deployed_and_hash_verified;2_3_4_room_player_analysis_passed;normal_house_global_button_replacement_rejected"
+    },
+    "33": {
       "status": "implementation_complete_release_deployed_player_validation_pending",
       "commit": null,
-      "capability": "GenerationBoundDynamicFurnitureAnalysisButtonAndDisabledAutoPlace",
-      "game_validation_status": "debug_and_release_4_of_4_ctest_passed;three_active_save_read_only_regression_passed;v0.5.16_release_deployed_and_hash_verified;player_button_and_analysis_validation_pending"
+      "capability": "FurnitureBuildingUiScopedButtonsWithRestoredNormalHouseControls",
+      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;v0.5.17_release_deployed_and_install_hash_verified;normal_house_enter_furniture_exit_furniture_player_validation_pending"
     }
   },
-  "updated_at": "2026-08-09T14:06:00+08:00"
+  "updated_at": "2026-08-09T15:37:00+08:00"
 }

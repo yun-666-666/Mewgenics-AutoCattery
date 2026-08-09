@@ -10,6 +10,8 @@ game files, Steam Cloud data, or player save databases.
 ## Current capabilities
 
 - Adds **Auto Place** and **Start Analysis** buttons to the furniture screen.
+- Keeps **Auto-Organize Cattery** and **Mark Combat Cats** on the normal House
+  screen; furniture labels no longer replace them globally.
 - **Start Analysis** read-only matches the current save, captures dynamic rooms
   and every furniture instance, then shows room, furniture, and warehouse counts.
 - **Auto Place** remains disabled until legal layouts and native furniture moves
@@ -100,9 +102,9 @@ Press `F10` in House to open or close the panel; `Esc` closes it:
   collection.
 - **Cat Protection** assigns `NoCull`, `NoMove`, `NoCullOrMove`, `FullyUnmanaged`,
   or a fixed room to a selected cat.
-- **Full Preview** retains the existing cat-planning viewer. The current furniture
-  stage does not create a new cat-move preview from the House buttons; furniture
-  analysis appears in the four rows beside **Start Analysis**.
+- **Full Preview** retains the existing cat-planning viewer. Normal House buttons
+  still create cat organization previews and combat recommendations; furniture
+  analysis appears only in the four rows beside **Start Analysis** in furniture mode.
 
 For large saves, the panel resolves native MewUI text nodes once when attached and
 updates only changed text and frames instead of rescanning the entire House scene

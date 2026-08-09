@@ -38,6 +38,7 @@ public:
     virtual void SetState(
         OrganizeButtonState state,
         std::string_view detail) = 0;
+    virtual void SetFurnitureMode(bool furniture_mode) = 0;
     virtual void ShowPlaceholder() = 0;
     [[nodiscard]] virtual bool IsAttached() const noexcept = 0;
 };
@@ -57,6 +58,7 @@ public:
     void Detach() noexcept;
     void AbandonScene() noexcept;
     void SetSuppressed(bool suppressed);
+    void SetFurnitureMode(bool furniture_mode);
     void SetState(
         OrganizeButtonState state,
         std::string_view detail = {});
@@ -76,6 +78,7 @@ private:
     OrganizeButtonState state_{OrganizeButtonState::Hidden};
     std::string state_detail_;
     bool suppressed_{};
+    bool furniture_mode_{};
     std::uint64_t scene_generation_{};
     std::chrono::steady_clock::time_point last_click_{};
     std::future<Result<void>> preview_task_;

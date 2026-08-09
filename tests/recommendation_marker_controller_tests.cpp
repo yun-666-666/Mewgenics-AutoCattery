@@ -57,6 +57,11 @@ public:
                 : (marker_visible ? "marked" : "marker-off"));
     }
 
+    void SetFurnitureMode(bool value) override {
+        furniture_mode = value;
+        events.push_back(value ? "furniture-mode" : "house-mode");
+    }
+
     Result<void> ShowItems(
         const std::vector<std::string>& values) override {
         labels = values;
@@ -90,6 +95,7 @@ public:
     }
 
     bool attached{};
+    bool furniture_mode{};
     bool marker_visible{};
     bool probe_required{};
     std::vector<std::string> labels;
@@ -157,6 +163,15 @@ void RunRecommendationMarkerControllerTests() {
         controller.ObserveRuntime(true, false, false);
     }
     AC_CHECK(view.set_available_calls == availability_syncs);
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext())));
+    AC_CHECK(view.attach_calls == 1);
+
+    for (int click = 0; click < 50; ++click) {
+        view.Click();
+        now += 250ms;
+    }
+    AC_CHECK(!controller.MarkerVisible());
     controller.ObserveRuntime(false, false, false);
     AC_CHECK(!controller.IsAttached());
     AC_CHECK(!controller.MarkerVisible());
@@ -165,10 +180,41 @@ void RunRecommendationMarkerControllerTests() {
 
     controller.ObserveRuntime(true, false, false);
     AC_CHECK(controller.ShouldShow());
-    AC_CHECK(
-        static_cast<bool>(
-            controller.Attach(RecommendationHouseContext(2))));
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext(2))));
     AC_CHECK(view.attach_calls == 2);
+
+    controller.ObserveRuntime(false, false, true);
+    AC_CHECK(!controller.ShouldShow());
+    AC_CHECK(!controller.IsAttached());
+
+    controller.ObserveRuntime(false, false, true, true);
+    AC_CHECK(controller.ShouldShow());
+    controller.ObserveRuntime(true, false, false, false);
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext(3))));
+    AC_CHECK(controller.IsAttached());
+
+    controller.ObserveRuntime(false, false, true);
+    AC_CHECK(!controller.ShouldShow());
+    controller.ObserveRuntime(true, false, false);
+    AC_CHECK(!controller.ShouldShow());
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext(4))));
+    AC_CHECK(!view.available);
+
+    controller.SetFurnitureMode(true);
+    AC_CHECK(controller.ShouldShow());
+    AC_CHECK(view.available);
+    controller.SetFurnitureMode(false);
+    AC_CHECK(!controller.ShouldShow());
+    AC_CHECK(!view.available);
+
+    controller.ObserveRuntime(false, true, false);
+    controller.ObserveRuntime(true, false, false);
+    AC_CHECK(controller.ShouldShow());
+    AC_CHECK(static_cast<bool>(
+        controller.Attach(RecommendationHouseContext(5))));
 
     auto unsafe = RecommendationHouseContext(6);
     unsafe.save_in_progress = true;
@@ -204,6 +250,9 @@ void RunRecommendationMarkerControllerTests() {
     probe_controller.CompleteProbe(11);
     AC_CHECK(probe_view.probe_required);
     probe_controller.CompleteProbe(12);
+    AC_CHECK(probe_view.probe_required);
+    now += 2s;
+    probe_controller.Poll();
     AC_CHECK(!probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 2);
@@ -222,9 +271,12 @@ void RunRecommendationMarkerControllerTests() {
             12,
             all_eligible_labels)));
     AC_CHECK(probe_controller.MarkerVisible());
+    AC_CHECK(probe_view.probe_required);
+    AC_CHECK(probe_view.labels.size() == 12);
+    now += 2s;
+    probe_controller.Poll();
     AC_CHECK(!probe_view.probe_required);
     AC_CHECK(probe_view.marker_visible);
-    AC_CHECK(probe_view.labels.size() == 12);
 
     std::size_t detail_index = 99;
     std::uint64_t detail_generation{};
@@ -244,8 +296,40 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(!probe_controller.MarkerVisible());
     AC_CHECK(!probe_view.marker_visible);
     AC_CHECK(probe_view.labels.empty());
-    AC_CHECK(requests == 3);
+    AC_CHECK(requests == 2);
+
+    int furniture_requests{};
+    probe_controller.SetFurnitureRequestHandler(
+        [&](std::uint64_t generation) {
+            ++furniture_requests;
+            requested_generation = generation;
+        });
+    probe_controller.SetFurnitureMode(true);
+    AC_CHECK(probe_view.furniture_mode);
+    AC_CHECK(probe_controller.ShouldShow());
+    probe_view.Click();
+    AC_CHECK(furniture_requests == 1);
+    AC_CHECK(requested_generation == 12);
     AC_CHECK(probe_view.probe_required);
+    AC_CHECK(!static_cast<bool>(
+        probe_controller.ShowFurnitureAnalysis(11, {"stale"})));
+    AC_CHECK(static_cast<bool>(
+        probe_controller.ShowFurnitureAnalysis(
+            12,
+            {"rooms", "furniture", "warehouse", "disabled"})));
+    AC_CHECK(probe_controller.MarkerVisible());
+    AC_CHECK(probe_view.marker_visible);
+    AC_CHECK(probe_view.labels.size() == 4);
+    detail_index = 99;
+    probe_view.ClickItem(0);
+    AC_CHECK(detail_index == 99);
+    now += 250ms;
+    probe_view.Click();
+    AC_CHECK(furniture_requests == 2);
+    AC_CHECK(probe_view.probe_required);
+    probe_controller.SetFurnitureMode(false);
+    AC_CHECK(!probe_view.furniture_mode);
+    AC_CHECK(probe_view.labels.empty());
 
     probe_controller.ObserveRuntime(false, false, false, true);
     AC_CHECK(!probe_controller.IsAttached());

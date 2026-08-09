@@ -18,6 +18,7 @@ public:
     void SetState(
         OrganizeButtonState state,
         std::string_view detail) override;
+    void SetFurnitureMode(bool furniture_mode) override;
     void ShowPlaceholder() override;
     [[nodiscard]] bool IsAttached() const noexcept override;
     void SetEnglish(bool english);
@@ -37,6 +38,7 @@ private:
     std::uint64_t attached_generation_{};
     bool active_{};
     bool english_{};
+    bool furniture_mode_{};
     OrganizeButtonState current_state_{OrganizeButtonState::Hidden};
     ClickHandler click_handler_;
 };
