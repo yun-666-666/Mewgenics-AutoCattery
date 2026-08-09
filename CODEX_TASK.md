@@ -1,11 +1,11 @@
-# CODEX CURRENT TASK - STAGE 31 FURNITURE GEOMETRY READ-ONLY PROBE
+# CODEX CURRENT TASK - STAGE 32 FURNITURE ANALYSIS BUTTON AND SNAPSHOT
 
 ## Current objective
 
-为家具自动放置功能建立第一个可复核的只读基础：严格读取家具实例身份、仓库/
-房间归属、坐标和仍未知的原始字段；从当前 build 的 `resources.gpak` 读取房间
-尺寸、阁楼内建碰撞、House 布局以及家具信息目录。不得移动家具、修改活动存档、
-改按钮、部署或预先实现布局求解。
+实现家具自动放置设计 F02：家具界面左侧按钮显示为“自动放置”并保持禁用；右侧
+按钮显示为“开始分析”。玩家点击“开始分析”后，只读选择当前运行时对应存档，
+捕获当前 generation、动态房间集合、当前猫身份和全部家具，生成不可变绑定摘要。
+不得移动家具，不得调用旧猫自动整理或战斗推荐点击路径。
 
 ## Required reading
 
@@ -13,46 +13,43 @@
 2. `docs/furniture-auto-placement-design.md`
 3. `docs/implementation-status.md`
 4. `.auto-cattery/state.json`
-5. `.auto-cattery/reports/stage-30.md`
-6. `.auto-cattery/reports/stage-31.md`
-7. 当前代码、测试、最新只读探针结果和 `git status --short`
+5. `.auto-cattery/reports/stage-31.md`
+6. `.auto-cattery/reports/stage-32.md`
+7. 当前代码、测试、三个活动存档只读结果和 `git status --short`
 
 ## Confirmed current-build evidence
 
-- `furniture` 表为 `key INTEGER PRIMARY KEY, data BLOB`；SQLite key 是家具实例
-  稳定身份的当前只读来源。
-- 当前家具 blob 为版本 1、两个 `u32 length + u32 unknown` 字符串头、一个
-  `u64 unknown_before_room`、坐标 `i32 x/y + u32 z` 和两个尾部 `u32 unknown`。
-- 第 265 天最新存档有 257 件家具：142 已放置、115 在仓库，实际有家具的
-  房间为 4 个。所有家具名称和房间长度后的 unknown 均为 0；
-  `unknown_before_room` 为 0 的 254 件、为 2 的 3 件；尾部 unknown 均为 1,1。
-- `house.gon` 当前有 11 个房间定义、3 个 House 布局；普通矩形房、大小阁楼、
-  5 个 Basement 均动态读取。阁楼碰撞矩阵为真实资源数据。
-- `furniture_info.data` 当前为版本 1、634 个唯一家具 ID；每行名称头后有
-  580 字节仍未解释的 payload。当前全部名称头 unknown 为 0。
-- 当前 257 个家具实例对 `furniture_info.data` 和 `furniture_effects.gon` 的
-  覆盖率均为 257/257。
+- 第 265 天主档：4 房、257 件家具、仓库 115 件。
+- 第 32 天存档：3 房、20 件家具；空的 `Floor1_Small` 可被 House 快照发现。
+- 第 17 天存档：2 房、10 件家具；空阁楼可被 House 快照发现。
+- 当前三个存档的家具实例对 `furniture_info.data` 和
+  `furniture_effects.gon` 覆盖率均为 100%。
+- 真实 1/5 房玩家存档仍不可用；动态 1/2/3/5/7 房由同一分析服务合成回归。
 
 ## Evidence rules
 
 - 当前代码、当前 build 资源、真实存档只读结果和玩家实测优先于设计文档。
-- 网络资料只用于提出或交叉验证格式假设；未由当前资源/存档验证的字段继续命名
-  为 unknown，不把它们写成旋转、翻转、稀有度、锚点或碰撞尺寸。
-- `furniture_info.data` 的 580 字节 payload 在可靠解码前保持 opaque。
+- 当前存档选择优先匹配运行时完整 CatId 集合；只有运行时身份不可用时才退回
+  当前 House 猫数量。
+- 未识别的空房间保留匿名运行时房间槽，不伪造游戏房间 ID。
 - 不输出存档路径、账号、猫名或其他个人信息。
-- 不修改游戏原始文件、活动存档或 Steam Cloud 数据。
+- 不修改活动存档、Steam Cloud 或游戏原始文件。
 
-## Stage 31 completion boundary
+## Stage 32 completion boundary
 
-- 严格拒绝错误版本、截断、重复实例 key 和尾随字节。
-- 合成测试覆盖仓库家具，以及 1、2、3、5、N>5 房布局，不存在四房固定数组。
-- Debug/Release 构建和完整 CTest 通过。
-- 对最新存档和当前 `resources.gpak` 运行匿名只读探针。
-- 更新阶段报告并创建一个本地提交；不部署、不 push。
+- 未点击“开始分析”时，家具分析源读取次数为零。
+- 分析绑定当前存档匿名身份、game day、scene generation、猫、动态房间、全部
+  家具实例、房间几何、家具信息目录和家具效果目录。
+- UI 显示房间数、家具数、仓库数与“自动放置尚未启用”。
+- 左侧“自动放置”不可交互；本阶段不存在家具移动、旋转或布局求解。
+- 合成测试覆盖 1、2、3、5、7 房，相同输入摘要确定一致；generation 0 和过期
+  UI 结果安全拒绝。
+- Debug/Release 构建与完整 CTest 通过，三个活动存档只读回归通过。
+- 部署玩家可见 Release，更新阶段报告并创建一个本地提交；不 push。
 
-## Remaining F01 work
+## Remaining F01/F03 work
 
-- 用游戏家具编辑器或受控只读运行时探针确认方向/翻转、稀有状态、Solid、Anchor、
-  Background 与 580 字节 payload 的具体字段。
-- 确认空房间也能被运行时动态发现，不能只依赖当前有家具的房间集合。
-- 在这些几何语义得到验证前，不开始 F02 按钮改名，也不启用自动放置。
+- 方向/翻转、稀有状态、Solid、Anchor、Background 与 580 字节 payload 仍未知。
+- 真实 1 房和 5 房需玩家存档或运行时证据。
+- F03 才实现动态房间用途、家具分配和合法布局预览；在布局合法性和原生移动
+  得到验证前，“自动放置”继续禁用。

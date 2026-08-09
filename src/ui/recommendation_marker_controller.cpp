@@ -8,8 +8,6 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kClickDebounce = std::chrono::milliseconds(250);
-constexpr auto kStatusHold = std::chrono::seconds(2);
-
 }  // namespace
 
 RecommendationMarkerController::RecommendationMarkerController(
@@ -29,49 +27,14 @@ void RecommendationMarkerController::ObserveRuntime(
     bool interstitial_ready,
     bool expedition_ready,
     bool save_selection_ready) {
+    (void)interstitial_ready;
+    (void)expedition_ready;
     if (save_selection_ready) {
-        if (!save_selection_active_) {
-            available_this_day_ = true;
-            next_day_pending_ = false;
-            Detach();
-            Logger::Instance().Write(
-                LogLevel::Info,
-                "RecommendationMarker",
-                "AC4105",
-                "Save selection observed; recommendation availability reset for the selected save.");
-        }
-        save_selection_active_ = true;
+        Detach();
         return;
     }
-    save_selection_active_ = false;
-
-    if (expedition_ready && available_this_day_) {
-        available_this_day_ = false;
-        next_day_pending_ = false;
-        Detach();
-        Logger::Instance().Write(
-            LogLevel::Info,
-            "RecommendationMarker",
-            "AC4103",
-            "Expedition scene observed; recommendation control is closed for this day.");
-    }
-
-    if (interstitial_ready && !available_this_day_) {
-        next_day_pending_ = true;
-    }
-
-    if (house_ready && next_day_pending_) {
-        available_this_day_ = true;
-        next_day_pending_ = false;
-        Logger::Instance().Write(
-            LogLevel::Info,
-            "RecommendationMarker",
-            "AC4104",
-            "Next-day House observed; recommendation control is available again.");
-    }
-
     if (house_ready && view_.IsAttached()) {
-        SyncAvailability(available_this_day_ && !suppressed_);
+        SyncAvailability(!suppressed_);
     }
 
     if (!house_ready) {
@@ -119,12 +82,12 @@ Result<void> RecommendationMarkerController::Attach(
     applied_availability_.reset();
     view_.ClearSummary();
     view_.SetStatus(RecommendationUiStatus::Ready);
-    SyncAvailability(available_this_day_ && !suppressed_);
+    SyncAvailability(!suppressed_);
     Logger::Instance().Write(
         LogLevel::Info,
-        "RecommendationMarker",
-        "AC4100",
-        "Attached AutoCattery.Recommendation.MarkCombatCatsButton.");
+        "FurnitureAnalysis",
+        "AC3200",
+        "Attached AutoCattery.Furniture.StartAnalysisButton.");
     return {};
 }
 
@@ -145,9 +108,9 @@ void RecommendationMarkerController::Detach() noexcept {
     view_.Detach();
     Logger::Instance().Write(
         LogLevel::Info,
-        "RecommendationMarker",
-        "AC4101",
-        "Cleared demo marker before detaching the recommendation control.");
+        "FurnitureAnalysis",
+        "AC3202",
+        "Detached the furniture analysis control.");
 }
 
 void RecommendationMarkerController::AbandonScene() noexcept {
@@ -166,12 +129,8 @@ void RecommendationMarkerController::AbandonScene() noexcept {
 void RecommendationMarkerController::SetSuppressed(bool suppressed) {
     if (suppressed_ == suppressed) return;
     suppressed_ = suppressed;
-    if (suppressed_) {
-        marker_visible_ = false;
-        item_count_ = 0;
-    }
     if (view_.IsAttached()) {
-        SyncAvailability(available_this_day_ && !suppressed_);
+        SyncAvailability(!suppressed_);
     }
 }
 
@@ -187,7 +146,6 @@ void RecommendationMarkerController::SyncAvailability(bool available) {
 void RecommendationMarkerController::HandleClick() {
     if (!view_.IsAttached() ||
         suppressed_ ||
-        !available_this_day_ ||
         request_pending_ ||
         ready_after_.time_since_epoch().count() != 0) {
         return;
@@ -203,16 +161,7 @@ void RecommendationMarkerController::HandleClick() {
     if (marker_visible_) {
         marker_visible_ = false;
         item_count_ = 0;
-        status_after_hold_ = RecommendationUiStatus::Ready;
         view_.ClearSummary();
-        view_.SetStatus(RecommendationUiStatus::Ready);
-        Logger::Instance().Write(
-            LogLevel::Info,
-            "RecommendationMarker",
-            "AC12107",
-            "Player cleared the read-only House recommendation items; "
-            "expedition_selection_changed=0.");
-        return;
     }
 
     marker_visible_ = false;
@@ -223,10 +172,9 @@ void RecommendationMarkerController::HandleClick() {
     view_.SetStatus(RecommendationUiStatus::ProbeRequired);
     Logger::Instance().Write(
         LogLevel::Info,
-        "RecommendationMarker",
-        "AC12100",
-        "Recommendation request entered read-only validation; no House "
-        "cat details were opened.");
+        "FurnitureAnalysis",
+        "AC3203",
+        "Player requested a read-only furniture analysis.");
 }
 
 void RecommendationMarkerController::CompleteProbe(
@@ -236,8 +184,8 @@ void RecommendationMarkerController::CompleteProbe(
         return;
     }
     request_pending_ = false;
-    status_after_hold_ = RecommendationUiStatus::Ready;
-    ready_after_ = clock_() + kStatusHold;
+    ready_after_ = {};
+    view_.SetStatus(RecommendationUiStatus::Ready);
 }
 
 Result<void> RecommendationMarkerController::ShowRecommendations(
@@ -248,7 +196,7 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
         scene_generation != attached_generation_) {
         return {
             ErrorCode::SceneUnavailable,
-            "recommendation result belongs to a stale House scene"
+            "furniture analysis belongs to a stale House scene"
         };
     }
     request_pending_ = false;
@@ -256,7 +204,7 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
     if (labels.empty()) {
         return {
             ErrorCode::CatDataUnavailable,
-            "recommendation result has no display items"
+            "furniture analysis has no display items"
         };
     }
     const auto shown = view_.ShowItems(labels);
@@ -266,7 +214,8 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
     marker_visible_ = true;
     item_count_ = labels.size();
     status_after_hold_ = RecommendationUiStatus::Marked;
-    ready_after_ = clock_() + kStatusHold;
+    ready_after_ = {};
+    view_.SetStatus(RecommendationUiStatus::Marked);
     return {};
 }
 
@@ -293,7 +242,7 @@ void RecommendationMarkerController::SetDetailsHandler(
 }
 
 bool RecommendationMarkerController::ShouldShow() const noexcept {
-    return available_this_day_ && !suppressed_;
+    return !suppressed_;
 }
 
 bool RecommendationMarkerController::IsAttached() const noexcept {

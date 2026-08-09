@@ -306,7 +306,7 @@ void InGamePanelController::LoadPreview() {
         preview_.pages.clear();
         status_ = English()
             ? "Create a plan with Auto-Organize first, then return here."
-            : "请先点击“自动整理猫舍”生成计划，再回到这里查看。";
+            : "家具分析结果显示在家具界面右侧四行；当前阶段不生成猫舍整理预览。";
         return;
     }
     preview_ = BuildDetailedPreview(latest.value, English());
@@ -323,7 +323,7 @@ ManagementPanelContent InGamePanelController::PreviewContent() {
         content.status = status_;
         content.rows = {English()
             ? "No preview is available. Close F10, click Auto-Organize once, and return."
-            : "暂无预览。请关闭 F10，点击一次“自动整理猫舍”后再回来。"};
+            : "当前没有猫舍整理预览。家具分析请关闭 F10 并点击“开始分析”。"};
         return content;
     }
     preview_page_ = std::min(preview_page_, preview_.pages.size() - 1);

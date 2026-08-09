@@ -10,6 +10,7 @@
 
 #include "auto_cattery/api_types.hpp"
 #include "auto_cattery/config_runtime.hpp"
+#include "auto_cattery/furniture_analysis/domain.hpp"
 #include "auto_cattery/recommendation/mapping_probe.hpp"
 #include "auto_cattery/scoring/domain.hpp"
 #include "auto_cattery/snapshot/domain.hpp"
@@ -17,6 +18,10 @@
 
 namespace autocattery::workflow {
 class OrganizeWorkflowFacade;
+}
+
+namespace autocattery::furniture_analysis {
+class FurnitureAnalysisService;
 }
 
 namespace autocattery::ui {
@@ -97,10 +102,15 @@ private:
     std::unique_ptr<RuntimeConfigService> config_runtime_;
     std::future<Result<std::vector<snapshot::HouseSnapshot>>>
         mapping_snapshot_task_;
+    std::future<Result<furniture_analysis::FurnitureAnalysisSnapshot>>
+        furniture_analysis_task_;
+    std::uint64_t furniture_analysis_task_generation_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<RuntimeHouseMoveGateway> runtime_move_gateway_;
     RuntimeMatchedSaveSnapshotAdapter* runtime_snapshot_adapter_{};
+    std::unique_ptr<furniture_analysis::FurnitureAnalysisService>
+        furniture_analysis_service_;
     std::uint64_t runtime_snapshot_context_generation_{};
     void* current_house_scene_manager_{};
     std::unique_ptr<HouseButtonController> house_button_controller_;

@@ -92,6 +92,49 @@ SaveSnapshotAdapter::CaptureHouseSnapshotCandidates(
     return {std::move(snapshots)};
 }
 
+Result<std::vector<FurnitureAnalysisSaveCandidate>>
+SaveSnapshotAdapter::CaptureFurnitureAnalysisCandidates(
+    std::uint64_t scene_generation) {
+    std::string error;
+    const auto save_paths = detail::FindSaveCandidates(save_root_, error);
+    if (save_paths.empty()) {
+        return {{}, ErrorCode::CatDataUnavailable,
+                "save discovery failed: " + error};
+    }
+
+    std::vector<FurnitureAnalysisSaveCandidate> candidates;
+    std::string first_failure;
+    for (const auto& save_path : save_paths) {
+        auto house = CaptureHouseSnapshotFromPath(
+            save_path, scene_generation);
+        if (!house) {
+            if (first_failure.empty()) {
+                first_failure = house.message;
+            }
+            continue;
+        }
+        auto database = detail::SaveDatabase::OpenReadOnly(save_path, error);
+        std::vector<detail::FurnitureStorageRecord> stored;
+        std::vector<detail::FurniturePlacement> furniture;
+        if (!database || !database->ReadFurniture(stored, error) ||
+            !detail::ParseFurniturePlacements(stored, furniture, error)) {
+            if (first_failure.empty()) {
+                first_failure = "furniture capture failed: " + error;
+            }
+            continue;
+        }
+        candidates.push_back({
+            .house = std::move(house.value),
+            .furniture = std::move(furniture)});
+    }
+    if (candidates.empty()) {
+        return {{}, ErrorCode::CatDataUnavailable,
+                "no readable furniture analysis candidate: " +
+                    first_failure};
+    }
+    return {std::move(candidates)};
+}
+
 Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
     const std::filesystem::path& save_path,
     std::uint64_t scene_generation) {

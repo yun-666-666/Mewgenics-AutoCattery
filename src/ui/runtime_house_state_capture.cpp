@@ -38,10 +38,12 @@ Result<RuntimeHouseState> CaptureRuntimeHouseState(
         native_rooms.data(),
         native_rooms.size());
     RuntimeHouseState result;
-    result.available_room_count = std::clamp<std::size_t>(
-        native_count > 2U ? native_count - 2U : 2U,
-        2U,
-        4U);
+    result.available_room_count =
+        native_count > 2U ? native_count - 2U : 0U;
+    if (result.available_room_count == 0U) {
+        return {{}, ErrorCode::RoomDataUnavailable,
+                "runtime House room count is unavailable"};
+    }
     result.cats.reserve(cats.size());
     for (const auto& cat : cats) {
         result.cats.push_back({

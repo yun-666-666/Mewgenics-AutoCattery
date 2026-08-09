@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <sstream>
+#include <unordered_set>
 
 #include "auto_cattery/logger.hpp"
 
@@ -41,7 +42,7 @@ void AddAvailableEmptyRooms(
 
 RuntimeMatchedSaveSnapshotAdapter::RuntimeMatchedSaveSnapshotAdapter(
     std::filesystem::path game_root)
-    : saves_({}, std::move(game_root)) {}
+    : saves_({}, game_root), game_root_(std::move(game_root)) {}
 
 void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeContext(
     std::size_t house_cat_count,
@@ -155,6 +156,115 @@ RuntimeMatchedSaveSnapshotAdapter::CaptureHouseSnapshot(
                 ", rooms=" + std::to_string(snapshot.rooms.size()));
     }
     return {std::move(snapshot)};
+}
+
+Result<furniture_analysis::FurnitureAnalysisSourceSnapshot>
+RuntimeMatchedSaveSnapshotAdapter::Capture(
+    std::uint64_t scene_generation) {
+    std::size_t expected_cats{};
+    std::size_t expected_rooms{};
+    std::optional<RuntimeHouseState> runtime_state;
+    {
+        std::scoped_lock lock(context_mutex_);
+        expected_cats = house_cat_count_;
+        expected_rooms = available_room_count_;
+        runtime_state = runtime_state_;
+    }
+    if (expected_cats == 0U || expected_rooms == 0U) {
+        return {{}, ErrorCode::SceneUnavailable,
+                "current House furniture analysis context is unavailable"};
+    }
+
+    auto candidates =
+        saves_.CaptureFurnitureAnalysisCandidates(scene_generation);
+    if (!candidates) {
+        return {{}, candidates.code, candidates.message};
+    }
+    const auto exact_runtime_match = [&runtime_state](const auto& candidate) {
+        if (!runtime_state ||
+            candidate.house.cats.size() != runtime_state->cats.size()) {
+            return false;
+        }
+        std::unordered_set<snapshot::CatId> expected;
+        for (const auto& cat : runtime_state->cats) {
+            expected.insert(cat.cat_id);
+        }
+        return std::ranges::all_of(
+            candidate.house.cats,
+            [&expected](const auto& cat) {
+                return expected.contains(cat.id);
+            });
+    };
+    auto selected = std::ranges::find_if(
+        candidates.value, exact_runtime_match);
+    if (selected == candidates.value.end()) {
+        selected = std::ranges::find_if(
+            candidates.value,
+            [expected_cats](const auto& candidate) {
+                return candidate.house.cats.size() == expected_cats;
+            });
+    }
+    if (selected == candidates.value.end()) {
+        return {{}, ErrorCode::CatDataUnavailable,
+                "no save snapshot matches the current House identity"};
+    }
+
+    furniture_analysis::FurnitureAnalysisSourceSnapshot source;
+    source.house = std::move(selected->house);
+    source.furniture = std::move(selected->furniture);
+    source.available_room_count = expected_rooms;
+    if (runtime_state) {
+        std::unordered_set<snapshot::RoomId> seen;
+        for (const auto& room : source.house.rooms) {
+            seen.insert(room.id);
+        }
+        for (const auto& room : runtime_state->rooms) {
+            for (const auto& id : room.detected_ids) {
+                if (id.empty()) {
+                    continue;
+                }
+                source.runtime_detected_room_ids.push_back(id);
+                if (seen.insert(id).second) {
+                    source.house.rooms.push_back({.id = id});
+                }
+            }
+        }
+        const auto overlaid = OverlayRuntimeHouseState(
+            source.house, *runtime_state);
+        if (!overlaid) {
+            return {{}, overlaid.code,
+                    "current House furniture analysis overlay failed: " +
+                        overlaid.message};
+        }
+        std::ranges::sort(source.runtime_detected_room_ids);
+        source.runtime_detected_room_ids.erase(
+            std::unique(
+                source.runtime_detected_room_ids.begin(),
+                source.runtime_detected_room_ids.end()),
+            source.runtime_detected_room_ids.end());
+    }
+
+    std::string error;
+    const auto resources = game_root_ / L"resources.gpak";
+    if (!snapshot::detail::LoadHouseGeometryCatalog(
+            resources, source.geometry, error) ||
+        !snapshot::detail::LoadFurnitureInfoCatalog(
+            resources, source.furniture_info, error) ||
+        !snapshot::detail::LoadFurnitureCatalog(
+            resources, source.furniture_effects, error)) {
+        return {{}, ErrorCode::RoomDataUnavailable,
+                "furniture analysis resource capture failed: " + error};
+    }
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "FurnitureAnalysis",
+        "AC3201",
+        "Read-only source captured: cats=" +
+            std::to_string(source.house.cats.size()) +
+            ", rooms=" + std::to_string(source.available_room_count) +
+            ", furniture=" + std::to_string(source.furniture.size()) +
+            ".");
+    return {std::move(source)};
 }
 
 }  // namespace autocattery::ui

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.15 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.16 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -28,6 +28,7 @@ endif()
 target_link_libraries(mew_ui_api PUBLIC user32 kernel32)
 
 add_library(auto_cattery_core STATIC
+    src/furniture_analysis/service.cpp
     src/breeding/breeding_ranker.cpp
     src/breeding/breeding_scorer.cpp
     src/breeding/pair_ranker.cpp
@@ -261,6 +262,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/file_hash_tests.cpp
         tests/furniture_attributes_tests.cpp
         tests/furniture_geometry_tests.cpp
+        tests/furniture_analysis_service_tests.cpp
         tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/cat_data_collector_tests.cpp

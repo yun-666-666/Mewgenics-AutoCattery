@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 
 #include "auto_cattery/config.hpp"
+#include "auto_cattery/furniture_analysis/service.hpp"
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/recommendation/snapshot_reader.hpp"
 #include "auto_cattery/scoring/combat_ranker.hpp"
@@ -139,85 +140,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     recommendation_marker_controller_ =
         std::make_unique<RecommendationMarkerController>(
             *recommendation_marker_view_);
-    recommendation_marker_controller_->SetRequestHandler(
-        [this](std::uint64_t generation) {
-            recommendation_detail_targets_.clear();
-            const auto historical =
-                recommendation::ReadRecommendationSnapshot(
-                    recommendation_sidecar_path_);
-            const auto message =
-                historical.status ==
-                        recommendation::SnapshotReadStatus::Missing
-                    ? "No committed recommendation sidecar is available; "
-                      "anonymous mapping probe armed."
-                    : (historical.status ==
-                               recommendation::SnapshotReadStatus::Rejected
-                           ? "Recommendation sidecar was rejected; anonymous "
-                             "mapping probe armed."
-                           : "Recommendation sidecar read, but schema 1 lacks "
-                             "build/save identity; anonymous mapping probe "
-                             "armed.");
-            Logger::Instance().Write(
-                LogLevel::Info,
-                "RecommendationProbe",
-                "AC12101",
-                "request=" +
-                    std::to_string(++mapping_probe_request_sequence_) +
-                    " " + message);
-            mapping_probe_session_.Arm();
-            mapping_probe_logged_ = false;
-            mapping_identity_logged_ = false;
-            mapping_snapshot_request_sequence_ =
-                mapping_probe_request_sequence_;
-            mapping_snapshot_generation_ = generation;
-            mapping_snapshot_attempt_ = 0;
-            mapping_snapshot_request_active_ = true;
-            mapping_snapshot_retry_deadline_ =
-                std::chrono::steady_clock::now() +
-                kMappingSnapshotRetryWindow;
-            mapping_snapshot_next_attempt_ = {};
-            StartMappingSnapshotAttempt();
-        });
-    recommendation_marker_controller_->SetDetailsHandler(
-        [this](std::uint64_t generation, std::size_t index) {
-            const auto context = scene_context_.Current();
-            if (context.kind != UiContextKind::House ||
-                !context.input_enabled ||
-                context.save_in_progress ||
-                context.scene_generation != generation ||
-                index >= recommendation_detail_targets_.size()) {
-                return;
-            }
-            auto* scene =
-                MewUI_GetSceneByName(context.scene_name.c_str());
-            const auto opened = AcMewOpenHouseCatDetails(
-                scene,
-                recommendation_detail_targets_[index]);
-            std::ostringstream message;
-            message << "rank=" << (index + 1)
-                    << " signature=" << (unsigned)opened.signature_valid
-                    << " scene=" << (unsigned)opened.scene_valid
-                    << " manager=" << (unsigned)opened.click_manager_valid
-                    << " drawer=" << (unsigned)opened.drawer_unique
-                    << " scene_drawer="
-                    << (unsigned)opened.scene_drawer_unique
-                    << " drawer_match="
-                    << (unsigned)opened.drawer_matches_scene
-                    << " cat=" << (unsigned)opened.cat_valid
-                    << " target=" << (unsigned)opened.detail_target_valid
-                    << " opened=" << (unsigned)opened.invoked
-                    << " failure=" << (unsigned)opened.failure_stage
-                    << " exception=0x" << std::hex
-                    << opened.seh_code
-                    << " exception_rva=0x"
-                    << opened.exception_rva << std::dec
-                    << " box_changed=0 expedition_selection_changed=0";
-            Logger::Instance().Write(
-                opened.invoked ? LogLevel::Info : LogLevel::Warn,
-                "RecommendationMarker",
-                "AC12109",
-                message.str());
-        });
 
     config_runtime_ = std::make_unique<RuntimeConfigService>(
         context.mod_root / L"config" / L"default_config.json",
@@ -251,6 +173,26 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         std::make_unique<RuntimeMatchedSaveSnapshotAdapter>(
             context.game_root);
     runtime_snapshot_adapter_ = runtime_snapshot_adapter.get();
+    furniture_analysis_service_ =
+        std::make_unique<furniture_analysis::FurnitureAnalysisService>(
+            *runtime_snapshot_adapter_);
+    recommendation_marker_controller_->SetRequestHandler(
+        [this](std::uint64_t generation) {
+            RefreshRuntimeSnapshotContext();
+            if (!furniture_analysis_service_ ||
+                (furniture_analysis_task_.valid() &&
+                 furniture_analysis_task_.wait_for(
+                     std::chrono::milliseconds(0)) !=
+                     std::future_status::ready)) {
+                return;
+            }
+            furniture_analysis_task_generation_ = generation;
+            furniture_analysis_task_ = std::async(
+                std::launch::async,
+                [this, generation] {
+                    return furniture_analysis_service_->Analyze(generation);
+                });
+        });
     organize_workflow_ =
         std::make_unique<workflow::OrganizeWorkflowFacade>(
             std::move(runtime_snapshot_adapter),
@@ -416,6 +358,8 @@ void MewUiBridge::Shutdown() noexcept {
     house_move_probe_controller_.reset();
     recommendation_marker_controller_.reset();
     recommendation_marker_view_.reset();
+    furniture_analysis_task_ = {};
+    furniture_analysis_service_.reset();
     in_game_panel_controller_.reset();
     management_panel_view_.reset();
     config_runtime_.reset();
@@ -496,6 +440,72 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    if (furniture_analysis_task_.valid() &&
+        furniture_analysis_task_.wait_for(std::chrono::milliseconds(0)) ==
+            std::future_status::ready) {
+        auto analysis = furniture_analysis_task_.get();
+        const auto generation = furniture_analysis_task_generation_;
+        if (recommendation_marker_controller_) {
+            const bool english = config_runtime_ &&
+                config_runtime_->Current().general.language == "en-US";
+            std::vector<std::string> labels;
+            if (analysis) {
+                labels = english
+                    ? std::vector<std::string>{
+                          "Rooms: " + std::to_string(analysis.value.rooms.size()) +
+                              " (identified " +
+                              std::to_string(analysis.value.identified_room_count) + ")",
+                          "Furniture: " +
+                              std::to_string(analysis.value.furniture_count) +
+                              " (placed " +
+                              std::to_string(analysis.value.placed_furniture_count) + ")",
+                          "Warehouse: " +
+                              std::to_string(analysis.value.warehouse_furniture_count),
+                          "Auto Place: not enabled yet"}
+                    : std::vector<std::string>{
+                          "房间：" + std::to_string(analysis.value.rooms.size()) +
+                              "（已识别 " +
+                              std::to_string(analysis.value.identified_room_count) + "）",
+                          "家具：" +
+                              std::to_string(analysis.value.furniture_count) +
+                              "（已放置 " +
+                              std::to_string(analysis.value.placed_furniture_count) + "）",
+                          "仓库：" +
+                              std::to_string(analysis.value.warehouse_furniture_count),
+                          "自动放置：尚未启用"};
+                Logger::Instance().Write(
+                    LogLevel::Info,
+                    "FurnitureAnalysis",
+                    "AC3204",
+                    "Analysis complete: generation=" +
+                        std::to_string(generation) +
+                        ", rooms=" +
+                        std::to_string(analysis.value.rooms.size()) +
+                        ", furniture=" +
+                        std::to_string(analysis.value.furniture_count) +
+                        ", warehouse=" +
+                        std::to_string(
+                            analysis.value.warehouse_furniture_count) +
+                        ", binding=" + analysis.value.binding_digest + ".");
+            } else {
+                labels = english
+                    ? std::vector<std::string>{
+                          "Analysis unavailable", "See AutoCattery log",
+                          "No furniture was moved",
+                          "Auto Place: not enabled yet"}
+                    : std::vector<std::string>{
+                          "分析不可用", "请查看 AutoCattery 日志",
+                          "没有移动任何家具", "自动放置：尚未启用"};
+                Logger::Instance().Write(
+                    LogLevel::Warn,
+                    "FurnitureAnalysis",
+                    "AC3205",
+                    "Read-only analysis failed: " + analysis.message);
+            }
+            (void)recommendation_marker_controller_->ShowRecommendations(
+                generation, labels);
+        }
+    }
     if (house_button_controller_) {
         house_button_controller_->Poll();
     }
@@ -673,12 +683,7 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
             AcMewCountHouseCats(current_house_scene_manager_);
         runtime_snapshot_adapter_->SetRuntimeContext(
             house_cat_count,
-            std::clamp<std::size_t>(
-                native_room_count > 2U
-                    ? native_room_count - 2U
-                    : 2U,
-                2U,
-                4U));
+            native_room_count > 2U ? native_room_count - 2U : 0U);
         return;
     }
     auto runtime = CaptureRuntimeHouseState(

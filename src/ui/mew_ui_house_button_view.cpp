@@ -9,7 +9,7 @@ namespace autocattery::ui {
 namespace {
 
 constexpr auto kButtonNode = "test_button";
-constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
+constexpr auto kButtonRole = "AutoCattery.Furniture.AutoPlaceButton";
 
 }  // namespace
 
@@ -46,10 +46,9 @@ Result<void> MewUiHouseButtonView::Attach(
     create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
-    create_info.label_text = english_
-        ? "Auto-Organize Cattery" : "自动整理猫舍";
-    create_info.enabled = 1;
-    create_info.activate_enabled = 1;
+    create_info.label_text = english_ ? "Auto Place" : "自动放置";
+    create_info.enabled = 0;
+    create_info.activate_enabled = 0;
     create_info.strict_mouse = 1;
     create_info.interact_override = MEW_BUTTON_INTERACT_FORCE_ENABLED;
     create_info.callback = &ButtonCallback;
@@ -74,8 +73,8 @@ Result<void> MewUiHouseButtonView::Attach(
         this);
 
     active_ = true;
-    MewUI_SetButtonEnabled(button_, 1);
-    MewUI_SetButtonInteractable(button_, 1);
+    MewUI_SetButtonEnabled(button_, 0);
+    MewUI_SetButtonInteractable(button_, 0);
     return {};
 }
 
@@ -115,15 +114,14 @@ void MewUiHouseButtonView::SetState(
         return;
     }
 
-    const char* label = english_ ? "Auto-Organize Cattery" : "自动整理猫舍";
-    bool enabled = true;
+    const char* label = english_ ? "Auto Place" : "自动放置";
+    bool enabled = false;
     switch (state) {
     case OrganizeButtonState::Hidden:
         enabled = false;
         break;
     case OrganizeButtonState::DisabledUnsupportedBuild:
-        label = english_ ? "Preview Only" : "仅预览";
-        enabled = false;
+        label = english_ ? "Auto Place" : "自动放置";
         break;
     case OrganizeButtonState::DisabledBusy:
     case OrganizeButtonState::Running:
@@ -131,7 +129,7 @@ void MewUiHouseButtonView::SetState(
         enabled = false;
         break;
     case OrganizeButtonState::Ready:
-        label = english_ ? "Auto-Organize Cattery" : "自动整理猫舍";
+        label = english_ ? "Auto Place" : "自动放置";
         break;
     case OrganizeButtonState::Completed:
         label = english_ ? "Preview Complete" : "预览已完成";

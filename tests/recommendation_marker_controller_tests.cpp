@@ -157,21 +157,6 @@ void RunRecommendationMarkerControllerTests() {
         controller.ObserveRuntime(true, false, false);
     }
     AC_CHECK(view.set_available_calls == availability_syncs);
-
-    AC_CHECK(
-        static_cast<bool>(
-            controller.Attach(RecommendationHouseContext())));
-    AC_CHECK(view.attach_calls == 1);
-
-    for (int click = 0; click < 50; ++click) {
-        view.Click();
-        now += 250ms;
-    }
-    AC_CHECK(!controller.MarkerVisible());
-    AC_CHECK(!view.marker_visible);
-
-    view.Click();
-    AC_CHECK(!controller.MarkerVisible());
     controller.ObserveRuntime(false, false, false);
     AC_CHECK(!controller.IsAttached());
     AC_CHECK(!controller.MarkerVisible());
@@ -184,47 +169,6 @@ void RunRecommendationMarkerControllerTests() {
         static_cast<bool>(
             controller.Attach(RecommendationHouseContext(2))));
     AC_CHECK(view.attach_calls == 2);
-
-    controller.ObserveRuntime(false, false, true);
-    AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(!controller.IsAttached());
-
-    controller.ObserveRuntime(false, false, true, true);
-    AC_CHECK(controller.ShouldShow());
-    AC_CHECK(!controller.IsAttached());
-    controller.ObserveRuntime(false, false, true, true);
-    AC_CHECK(controller.ShouldShow());
-    controller.ObserveRuntime(true, false, false, false);
-    AC_CHECK(controller.ShouldShow());
-    AC_CHECK(static_cast<bool>(
-        controller.Attach(RecommendationHouseContext(3))));
-    AC_CHECK(controller.IsAttached());
-
-    controller.ObserveRuntime(false, false, true);
-    AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(!controller.IsAttached());
-
-    controller.ObserveRuntime(true, false, false);
-    AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(static_cast<bool>(
-        controller.Attach(RecommendationHouseContext(4))));
-    AC_CHECK(controller.IsAttached());
-    AC_CHECK(!view.available);
-    const int unavailable_syncs = view.set_available_calls;
-    for (int tick = 0; tick < 100; ++tick) {
-        controller.ObserveRuntime(true, false, false);
-    }
-    AC_CHECK(view.set_available_calls == unavailable_syncs);
-
-    controller.ObserveRuntime(false, true, false);
-    AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(!controller.IsAttached());
-    controller.ObserveRuntime(true, false, false);
-    AC_CHECK(controller.ShouldShow());
-    AC_CHECK(
-        static_cast<bool>(
-            controller.Attach(RecommendationHouseContext(5))));
-    AC_CHECK(view.attach_calls == 5);
 
     auto unsafe = RecommendationHouseContext(6);
     unsafe.save_in_progress = true;
@@ -260,19 +204,10 @@ void RunRecommendationMarkerControllerTests() {
     probe_controller.CompleteProbe(11);
     AC_CHECK(probe_view.probe_required);
     probe_controller.CompleteProbe(12);
-    AC_CHECK(probe_view.probe_required);
-    now += 1999ms;
-    probe_controller.Poll();
-    AC_CHECK(probe_view.poll_calls == 1);
-    AC_CHECK(probe_view.probe_required);
-    probe_view.Click();
-    AC_CHECK(requests == 1);
-    now += 1ms;
-    probe_controller.Poll();
-    AC_CHECK(probe_view.poll_calls == 2);
     AC_CHECK(!probe_view.probe_required);
     probe_view.Click();
     AC_CHECK(requests == 2);
+    AC_CHECK(probe_view.probe_required);
 
     AC_CHECK(!static_cast<bool>(
         probe_controller.ShowRecommendations(11, {"stale"})));
@@ -287,16 +222,9 @@ void RunRecommendationMarkerControllerTests() {
             12,
             all_eligible_labels)));
     AC_CHECK(probe_controller.MarkerVisible());
-    AC_CHECK(probe_view.probe_required);
-    AC_CHECK(!probe_view.marker_visible);
-    AC_CHECK(probe_view.labels.size() == 12);
-    now += 1999ms;
-    probe_controller.Poll();
-    AC_CHECK(probe_view.probe_required);
-    now += 1ms;
-    probe_controller.Poll();
+    AC_CHECK(!probe_view.probe_required);
     AC_CHECK(probe_view.marker_visible);
-    AC_CHECK(probe_controller.MarkerVisible());
+    AC_CHECK(probe_view.labels.size() == 12);
 
     std::size_t detail_index = 99;
     std::uint64_t detail_generation{};
@@ -311,11 +239,16 @@ void RunRecommendationMarkerControllerTests() {
     probe_view.ClickItem(12);
     AC_CHECK(detail_index == 11);
 
+    now += 250ms;
     probe_view.Click();
     AC_CHECK(!probe_controller.MarkerVisible());
     AC_CHECK(!probe_view.marker_visible);
     AC_CHECK(probe_view.labels.empty());
-    AC_CHECK(requests == 2);
+    AC_CHECK(requests == 3);
+    AC_CHECK(probe_view.probe_required);
+
+    probe_controller.ObserveRuntime(false, false, false, true);
+    AC_CHECK(!probe_controller.IsAttached());
 }
 
 }  // namespace autocattery::tests

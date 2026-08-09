@@ -17,6 +17,7 @@ void RunExecutionTransactionConcurrencyTests();
 void RunFileHashTests();
 void RunFurnitureAttributesTests();
 void RunFurnitureGeometryTests();
+void RunFurnitureAnalysisServiceTests();
 void RunGameBuildGateTests();
 void RunBalancedMoveOnlyPlannerTests();
 void RunDeterministicRoomAssignmentTests();
@@ -112,6 +113,7 @@ int main() {
     autocattery::tests::RunFileHashTests();
     autocattery::tests::RunFurnitureAttributesTests();
     autocattery::tests::RunFurnitureGeometryTests();
+    autocattery::tests::RunFurnitureAnalysisServiceTests();
     autocattery::tests::RunGameBuildGateTests();
     autocattery::tests::RunCatBlobParserTests();
     autocattery::tests::RunCatDataCollectorTests();

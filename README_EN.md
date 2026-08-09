@@ -9,11 +9,11 @@ game files, Steam Cloud data, or player save databases.
 
 ## Current capabilities
 
-- Adds an **Auto-Organize Cattery** button in the stable `House` scene.
-- The first click creates a preview. The second click uses the native House
-  room path available in the current runtime to move cats. Large plans submit
-  at most eight native moves per UI tick, refresh and revalidate after each
-  batch, and cancel remaining batches when House is left.
+- Adds **Auto Place** and **Start Analysis** buttons to the furniture screen.
+- **Start Analysis** read-only matches the current save, captures dynamic rooms
+  and every furniture instance, then shows room, furniture, and warehouse counts.
+- **Auto Place** remains disabled until legal layouts and native furniture moves
+  are validated. This release does not move cats or furniture through these buttons.
 - The preview overlays the current in-game CatId-to-room mapping over older
   unsaved save distribution. A manual move after preview invalidates it and no
   movement is executed.
@@ -100,8 +100,9 @@ Press `F10` in House to open or close the panel; `Esc` closes it:
   collection.
 - **Cat Protection** assigns `NoCull`, `NoMove`, `NoCullOrMove`, `FullyUnmanaged`,
   or a fixed room to a selected cat.
-- **Full Preview** shows room totals and each planned move after one
-  Auto-Organize click; it is read-only and never moves cats by itself.
+- **Full Preview** retains the existing cat-planning viewer. The current furniture
+  stage does not create a new cat-move preview from the House buttons; furniture
+  analysis appears in the four rows beside **Start Analysis**.
 
 For large saves, the panel resolves native MewUI text nodes once when attached and
 updates only changed text and frames instead of rescanning the entire House scene
@@ -143,9 +144,9 @@ For a Windows release archive:
 4. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
    are prerequisites; launching only from Steam does not load the Mewtator data MOD.
 
-In `House`, press `F10` to open the panel. The first **Auto-Organize Cattery** click
-creates a preview; review the room and cat source/target details, then click again to
-run MoveOnly. Press `Esc` or **Close** to leave the panel. The Settings, Cat Protection,
+In the House furniture screen, verify **Auto Place** is disabled, then click
+**Start Analysis** and inspect the four read-only summary rows. Press `F10` to open
+the management panel and `Esc` or **Close** to leave it. Settings, Cat Protection,
 Full Preview, and every setting's effect are described in
 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
 

@@ -10,6 +10,11 @@
 
 namespace autocattery::snapshot {
 
+struct FurnitureAnalysisSaveCandidate {
+    HouseSnapshot house;
+    std::vector<detail::FurniturePlacement> furniture;
+};
+
 struct HouseStateEntry {
     CatId cat_id{};
     RoomId room_id;
@@ -37,6 +42,9 @@ public:
         std::uint64_t scene_generation) override;
     Result<std::vector<HouseSnapshot>> CaptureHouseSnapshotCandidates(
         std::uint64_t scene_generation);
+    Result<std::vector<FurnitureAnalysisSaveCandidate>>
+        CaptureFurnitureAnalysisCandidates(
+            std::uint64_t scene_generation);
 
 private:
     Result<HouseSnapshot> CaptureHouseSnapshotFromPath(

@@ -76,12 +76,12 @@
 | `界面语言`（默认中文） | 只切换 AutoCattery 面板文字，不翻译游戏本体；选择会持久化。 |
 | `收集猫数据（默认关闭）` | 开启后在本机生成去除猫名、存档路径、用户名、机器 ID 和账号 ID 的技术快照；不会自动联网。 |
 
-### House 自动整理按钮
+### House 家具按钮
 
-| 点击次数 | 作用 | 结果 |
+| 按钮 | 作用 | 当前结果 |
 | --- | --- | --- |
-| 第一次 | 刷新当前运行时猫、房间、保护规则和配置，生成预览 | 不移动猫，可在“完整预览”查看 |
-| 第二次 | 再次校验实时状态后执行 MoveOnly | 每个 UI tick 最多移动 8 只；每批自动刷新并继续，已到位的猫跳过，离开 House 即停止 |
+| 开始分析 | 刷新当前运行时身份，匹配存档并读取动态房间和全部家具 | 显示房间、家具、仓库和禁用状态；零写入 |
+| 自动放置 | 未来执行已经证明合法的家具布局 | 当前强制禁用，点击不会移动任何家具 |
 
 只有确认一公一母推荐繁育对后，独立繁育目标房才会按实际可用公母做最佳可达
 基本均衡。战斗驻留房、育幼房和普通功能房完全忽略性别；没有可靠繁育对时不会因
@@ -202,12 +202,12 @@ execution gates.
 | `Collect cat data (off by default)` | Writes local technical snapshots without names, save paths, usernames, machine IDs, or account IDs; nothing is uploaded automatically. |
 | `Level-up rerolls` (3) | Accepts 0–99 for all seven base and seven advanced player classes. Restart the game after saving. If sibling `SkillsPassivesFirstData` is installed, its class patches are dynamically synchronized to the current value; the value is not fixed at 11. |
 
-### Auto-Organize Cattery
+### House furniture buttons
 
-| Click | Action | Result |
+| Button | Action | Current result |
 | --- | --- | --- |
-| First | Refresh live cats, rooms, protection, and settings, then build a preview | No cat moves; inspect it in Full Preview |
-| Second | Revalidate live state and run MoveOnly | Moves at most eight cats per UI tick, automatically refreshes between batches, skips cats already in place, and stops after leaving House |
+| Start Analysis | Refresh runtime identity, match the save, and read dynamic rooms plus all furniture | Shows room, furniture, warehouse, and disabled-state summaries; zero writes |
+| Auto Place | Future execution of a proven legal furniture layout | Forced disabled; it cannot move furniture in this release |
 
 Only a confirmed female/male breeding pair enables basic sex balancing in the
 separate breeding target room. Combat staging, nursery, and ordinary rooms
