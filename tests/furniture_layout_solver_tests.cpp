@@ -2,28 +2,58 @@
 
 #include "test_support.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace autocattery::tests {
 namespace {
 
-snapshot::detail::FurnitureInfoRecord Info(
+using snapshot::detail::FurniturePlacementTile;
+
+snapshot::detail::FurnitureInfoRecord AnchoredInfo(
     std::string item,
-    std::size_t width,
-    std::size_t height) {
+    std::size_t width) {
     snapshot::detail::FurnitureInfoRecord info;
     info.item_id = std::move(item);
     info.placement_grid.supported = true;
-    for (std::size_t y = 0; y < height; ++y) {
-        for (std::size_t x = 0; x < width; ++x) {
-            info.placement_grid.tiles[
-                (10U + y) * snapshot::detail::kFurniturePlacementGridWidth +
-                (10U + x)] =
-                snapshot::detail::FurniturePlacementTile::Solid;
-        }
+    for (std::size_t x = 0; x < width; ++x) {
+        info.placement_grid.tiles[
+            9U * snapshot::detail::kFurniturePlacementGridWidth +
+            10U + x] = FurniturePlacementTile::Support;
+        info.placement_grid.tiles[
+            10U * snapshot::detail::kFurniturePlacementGridWidth +
+            10U + x] = FurniturePlacementTile::Hitbox;
+        info.placement_grid.tiles[
+            11U * snapshot::detail::kFurniturePlacementGridWidth +
+            10U + x] = FurniturePlacementTile::Solid;
     }
+    return info;
+}
+
+snapshot::detail::FurnitureInfoRecord SmallInfo(std::string item) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    info.placement_grid.tiles[
+        11U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
+        FurniturePlacementTile::Support;
+    info.placement_grid.tiles[
+        12U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
+        FurniturePlacementTile::Hitbox;
+    return info;
+}
+
+snapshot::detail::FurnitureInfoRecord PosterInfo(std::string item) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    info.placement_grid.tiles[
+        12U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
+        FurniturePlacementTile::Hitbox;
     return info;
 }
 
@@ -43,6 +73,24 @@ snapshot::detail::FurniturePlacement Placement(
         .scale_y = 1};
 }
 
+using Position = std::pair<std::int32_t, std::int32_t>;
+
+std::map<std::uint64_t, Position> FinalPositions(
+    const std::vector<snapshot::detail::FurniturePlacement>& furniture,
+    const furniture_planning::FurnitureLayoutPlan& plan) {
+    std::map<std::uint64_t, Position> positions;
+    for (const auto& item : furniture) {
+        if (item.instance_id > 0 && !item.room_id.empty()) {
+            positions[static_cast<std::uint64_t>(item.instance_id)] = {
+                item.position_x, item.position_y};
+        }
+    }
+    for (const auto& move : plan.moves) {
+        positions[move.stable_key] = {move.target_x, move.target_y};
+    }
+    return positions;
+}
+
 }  // namespace
 
 void RunFurnitureLayoutSolverTests() {
@@ -53,74 +101,80 @@ void RunFurnitureLayoutSolverTests() {
         .width = 6,
         .height = 4});
     snapshot::detail::FurnitureInfoCatalog info;
-    info.records.push_back(Info("large", 2, 2));
-    info.records.push_back(Info("small", 1, 1));
+    info.records.push_back(AnchoredInfo("large", 2));
+    info.records.push_back(AnchoredInfo("base", 1));
+    info.records.push_back(SmallInfo("small"));
+    info.records.push_back(PosterInfo("poster"));
 
-    const std::vector<snapshot::detail::FurniturePlacement> furniture{
-        Placement(20, "small", "RoomA", -4, -9),
-        Placement(10, "large", "RoomA", -6, -7),
-        Placement(30, "small", "", 0, 0)};
+    const std::vector<snapshot::detail::FurniturePlacement> first_layout{
+        Placement(10, "large", "RoomA", -6, -9),
+        Placement(20, "small", "RoomA", -6, -9),
+        Placement(30, "base", "RoomA", -9, -9),
+        Placement(40, "poster", "RoomA", -5, -8),
+        Placement(50, "small", "", 0, 0)};
+    const std::vector<snapshot::detail::FurniturePlacement> second_layout{
+        Placement(10, "large", "RoomA", -9, -9),
+        Placement(20, "small", "RoomA", -8, -9),
+        Placement(30, "base", "RoomA", -5, -9),
+        Placement(40, "poster", "RoomA", -5, -8),
+        Placement(50, "small", "", 0, 0)};
+
     const furniture_planning::FurnitureLayoutSolver solver;
-    const auto first = solver.Plan(furniture, geometry, info);
-    const auto second = solver.Plan(furniture, geometry, info);
+    const auto first = solver.Plan(first_layout, geometry, info);
+    const auto second = solver.Plan(second_layout, geometry, info);
     AC_CHECK(first.planned_room_count == 1);
-    AC_CHECK(first.considered_furniture_count == 2);
+    AC_CHECK(first.considered_furniture_count == 4);
     AC_CHECK(first.warehouse_furniture_count == 1);
     AC_CHECK(first.unsupported_furniture_count == 0);
     AC_CHECK(first.no_space_furniture_count == 0);
-    AC_CHECK(first.moves.size() == 2);
-    if (first.moves.size() == 2) {
-        AC_CHECK(first.moves[0].stable_key == 10);
-        AC_CHECK(first.moves[0].target_x == -9);
-        AC_CHECK(first.moves[0].target_y == -9);
-        AC_CHECK(first.moves[1].stable_key == 20);
-        AC_CHECK(first.moves[1].target_x == -7);
-        AC_CHECK(first.moves[1].target_y == -9);
+    AC_CHECK(second.unsupported_furniture_count == 0);
+    AC_CHECK(second.no_space_furniture_count == 0);
+    AC_CHECK(
+        FinalPositions(first_layout, first) ==
+        FinalPositions(second_layout, second));
+
+    const auto packed = FinalPositions(first_layout, first);
+    AC_CHECK(packed.contains(10));
+    AC_CHECK(packed.contains(20));
+    AC_CHECK(packed.contains(30));
+    AC_CHECK(packed.contains(40));
+    AC_CHECK(
+        (packed.at(10).second == -7 || packed.at(30).second == -7));
+    AC_CHECK(packed.at(40) == Position(-5, -8));
+
+    const std::vector<snapshot::detail::FurniturePlacement> stacked_layout{
+        Placement(60, "large", "RoomA", -6, -9),
+        Placement(70, "small", "RoomA", -6, -9)};
+    const auto stacked = solver.Plan(stacked_layout, geometry, info);
+    AC_CHECK(stacked.unsupported_furniture_count == 0);
+    AC_CHECK(stacked.no_space_furniture_count == 0);
+    AC_CHECK(stacked.moves.size() == 3);
+    if (stacked.moves.size() == 3) {
+        AC_CHECK(stacked.moves[0].stable_key == 70);
+        AC_CHECK(stacked.moves[1].stable_key == 60);
+        AC_CHECK(stacked.moves[2].stable_key == 70);
+        AC_CHECK(stacked.moves[1].from_x == -6);
+        AC_CHECK(stacked.moves[2].from_x == stacked.moves[0].target_x);
     }
-    AC_CHECK(second.moves.size() == first.moves.size());
+
+    const auto repeated = solver.Plan(first_layout, geometry, info);
+    AC_CHECK(repeated.moves.size() == first.moves.size());
     for (std::size_t index = 0; index < first.moves.size(); ++index) {
-        AC_CHECK(second.moves[index].stable_key == first.moves[index].stable_key);
-        AC_CHECK(second.moves[index].target_x == first.moves[index].target_x);
-        AC_CHECK(second.moves[index].target_y == first.moves[index].target_y);
+        AC_CHECK(repeated.moves[index].stable_key ==
+            first.moves[index].stable_key);
+        AC_CHECK(repeated.moves[index].from_x == first.moves[index].from_x);
+        AC_CHECK(repeated.moves[index].from_y == first.moves[index].from_y);
+        AC_CHECK(repeated.moves[index].target_x ==
+            first.moves[index].target_x);
+        AC_CHECK(repeated.moves[index].target_y ==
+            first.moves[index].target_y);
     }
 
-    auto supported_info = Info("supported", 1, 1);
-    supported_info.placement_grid.tiles[
-        9U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
-        snapshot::detail::FurniturePlacementTile::Support;
-    snapshot::detail::FurnitureInfoCatalog supported_catalog;
-    supported_catalog.records.push_back(std::move(supported_info));
-    const auto supported = solver.Plan(
-        {Placement(40, "supported", "RoomA", -6, -9)},
-        geometry,
-        supported_catalog);
-    AC_CHECK(supported.moves.size() == 1);
-    if (supported.moves.size() == 1) {
-        AC_CHECK(supported.moves[0].target_x == -9);
-        AC_CHECK(supported.moves[0].target_y == -9);
-    }
-
-    auto base_info = Info("base", 1, 1);
-    base_info.placement_grid.tiles[
-        9U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
-        snapshot::detail::FurniturePlacementTile::Surface;
-    snapshot::detail::FurnitureInfoCatalog stacked_catalog;
-    stacked_catalog.records.push_back(std::move(base_info));
-    stacked_catalog.records.push_back(Info("upper", 1, 1));
-    const auto stacked = solver.Plan(
-        {Placement(50, "base", "RoomA", -6, -9),
-         Placement(60, "upper", "RoomA", -6, -10)},
-        geometry,
-        stacked_catalog);
-    AC_CHECK(stacked.moves.empty());
-    AC_CHECK(stacked.considered_furniture_count == 0);
-    AC_CHECK(stacked.unsupported_furniture_count == 2);
-
-    auto unsupported = furniture;
+    auto unsupported = first_layout;
     unsupported[0].scale_x = 0;
     const auto blocked = solver.Plan(unsupported, geometry, info);
     AC_CHECK(blocked.moves.empty());
-    AC_CHECK(blocked.unsupported_furniture_count == 2);
+    AC_CHECK(blocked.unsupported_furniture_count == 4);
     AC_CHECK(blocked.warehouse_furniture_count == 1);
 }
 
