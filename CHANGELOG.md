@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Correct furniture-mode detection for the current game build: the always-present
+  `FurnitureBuildingUI` component is cached, while its player-verified active
+  byte at `+0x78` controls whether the two House buttons use furniture labels.
+- Default safely to the normal House controls if the component or active-state
+  byte cannot be read.
 - Restore the normal House `Auto-Organize Cattery` and `Mark Combat Cats`
   controls; `Auto Place` and `Start Analysis` now appear only while the verified
   `FurnitureBuildingUI` component is active.

@@ -189,11 +189,11 @@
       "game_validation_status": "debug_and_release_4_of_4_ctest_passed;three_active_save_read_only_regression_passed;v0.5.16_release_deployed_and_hash_verified;2_3_4_room_player_analysis_passed;normal_house_global_button_replacement_rejected"
     },
     "33": {
-      "status": "implementation_complete_release_deployed_player_validation_pending",
+      "status": "implementation_complete_release_deployed_player_revalidation_pending",
       "commit": null,
-      "capability": "FurnitureBuildingUiScopedButtonsWithRestoredNormalHouseControls",
-      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;v0.5.17_release_deployed_and_install_hash_verified;normal_house_enter_furniture_exit_furniture_player_validation_pending"
+      "capability": "VerifiedFurniturePlacementStateScopedButtonsWithRestoredNormalHouseControls",
+      "game_validation_status": "v0.5.17_component_presence_detection_rejected_by_player;live_probe_confirmed_FurnitureBuildingUI_plus_0x78_transitions_0_to_1_to_0;v0.5.18_debug_and_release_builds_passed;4_of_4_ctest_passed_both_configs;release_deployed_and_install_hash_verified;three_step_player_revalidation_pending"
     }
   },
-  "updated_at": "2026-08-09T15:37:00+08:00"
+  "updated_at": "2026-08-09T16:29:00+08:00"
 }

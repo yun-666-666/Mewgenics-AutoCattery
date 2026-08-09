@@ -113,6 +113,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_mode_ = false;
     furniture_mode_scene_manager_ = nullptr;
     furniture_mode_component_count_ = 0;
+    furniture_mode_component_ = nullptr;
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -419,6 +420,7 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_mode_ = false;
     furniture_mode_scene_manager_ = nullptr;
     furniture_mode_component_count_ = 0;
+    furniture_mode_component_ = nullptr;
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -770,19 +772,21 @@ void MewUiBridge::UpdateHouseUiMode(
     if (house_scene == scenes.end()) {
         furniture_mode_scene_manager_ = nullptr;
         furniture_mode_component_count_ = 0;
+        furniture_mode_component_ = nullptr;
         return;
     }
 
-    if (furniture_mode_scene_manager_ == house_scene->manager &&
-        furniture_mode_component_count_ == house_scene->component_count) {
-        return;
+    if (furniture_mode_scene_manager_ != house_scene->manager ||
+        furniture_mode_component_count_ != house_scene->component_count) {
+        furniture_mode_scene_manager_ = house_scene->manager;
+        furniture_mode_component_count_ = house_scene->component_count;
+        furniture_mode_component_ = AcMewFindComponentByType(
+            house_scene->manager,
+            kFurnitureBuildingComponent);
     }
 
-    furniture_mode_scene_manager_ = house_scene->manager;
-    furniture_mode_component_count_ = house_scene->component_count;
-    const bool detected = AcMewSceneHasComponentType(
-        house_scene->manager,
-        kFurnitureBuildingComponent) != 0;
+    const bool detected =
+        AcMewFurnitureBuildingUiIsActive(furniture_mode_component_) != 0;
     if (detected == furniture_mode_) {
         return;
     }
@@ -804,8 +808,8 @@ void MewUiBridge::UpdateHouseUiMode(
         "HouseUiMode",
         "AC3210",
         furniture_mode_
-            ? "FurnitureBuildingUI detected; House controls switched to Auto Place and Start Analysis."
-            : "FurnitureBuildingUI absent; normal Auto-Organize and combat recommendation controls restored.");
+            ? "Furniture placement state opened; controls switched to Auto Place and Start Analysis."
+            : "Furniture placement state closed; normal Auto-Organize and combat recommendation controls restored.");
 }
 
 void MewUiBridge::RefreshRuntimeSnapshotContext() {
