@@ -101,6 +101,77 @@ static int AcSupportedScale(double value) {
     return value == 1.0 || value == -1.0;
 }
 
+static int AcAppendFurnitureCandidate(
+    AcMewFurnitureCoordinate* output,
+    size_t output_capacity,
+    size_t* count,
+    int32_t old_x,
+    int32_t old_y,
+    int64_t x,
+    int64_t y) {
+    size_t index;
+    if (!output || !count || *count >= output_capacity ||
+        x < INT32_MIN || x > INT32_MAX ||
+        y < INT32_MIN || y > INT32_MAX ||
+        (x == old_x && y == old_y)) {
+        return 0;
+    }
+    for (index = 0U; index < *count; ++index) {
+        if (output[index].x == (int32_t)x &&
+            output[index].y == (int32_t)y) {
+            return 0;
+        }
+    }
+    output[*count].x = (int32_t)x;
+    output[*count].y = (int32_t)y;
+    ++*count;
+    return 1;
+}
+
+size_t AcMewFurnitureCandidatePath(
+    int32_t old_x,
+    int32_t old_y,
+    int32_t target_x,
+    int32_t target_y,
+    AcMewFurnitureCoordinate* output,
+    size_t output_capacity) {
+    size_t count = 0U;
+    int32_t x = target_x;
+    int32_t y = target_y;
+    size_t step;
+    if (!output || output_capacity == 0U) {
+        return 0U;
+    }
+    AcAppendFurnitureCandidate(
+        output, output_capacity, &count,
+        old_x, old_y, target_x, target_y);
+    for (step = 0U; step < 64U && count < output_capacity; ++step) {
+        if (x == old_x && y == old_y) {
+            break;
+        }
+        if (x < old_x) {
+            ++x;
+        } else if (x > old_x) {
+            --x;
+        } else if (y < old_y) {
+            ++y;
+        } else if (y > old_y) {
+            --y;
+        }
+        AcAppendFurnitureCandidate(
+            output, output_capacity, &count, old_x, old_y, x, y);
+        AcAppendFurnitureCandidate(
+            output, output_capacity, &count, old_x, old_y, x, (int64_t)y - 1);
+        AcAppendFurnitureCandidate(
+            output, output_capacity, &count, old_x, old_y, (int64_t)x - 1, y);
+        AcAppendFurnitureCandidate(
+            output, output_capacity, &count, old_x, old_y, (int64_t)x + 1, y);
+        AcAppendFurnitureCandidate(
+            output, output_capacity, &count, old_x, old_y, x, (int64_t)y + 1);
+    }
+    return count;
+}
+
 static int AcSignatureMatches(
     const uint8_t* address,
     const uint8_t* expected,
@@ -469,6 +540,9 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
     double target_world_x;
     double target_world_y;
     double target_world_z;
+    AcMewFurnitureCoordinate candidates[256];
+    size_t candidate_count;
+    size_t candidate_index;
     memset(&result, 0, sizeof(result));
     memset(&before, 0, sizeof(before));
     result.target_x = target_x;
@@ -494,34 +568,52 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
         (uint8_t*)executable + AC_FURNITURE_VALIDATE_RVA);
     commit_piece = (AcFurnitureCommitFn)(
         (uint8_t*)executable + AC_FURNITURE_COMMIT_RVA);
-    AcMewFurnitureWorldPosition(
-        before.grid_world_x,
-        before.grid_world_y,
+    candidate_count = AcMewFurnitureCandidatePath(
+        before.saved_x,
+        before.saved_y,
         target_x,
         target_y,
-        before.scale_x,
-        before.scale_y,
-        &target_world_x,
-        &target_world_y,
-        &target_world_z);
+        candidates,
+        sizeof(candidates) / sizeof(candidates[0]));
     __try {
         remove_piece(piece);
         result.removed = (uint8_t)(
             *(void**)((uint8_t*)piece + AC_FURNITURE_GRID_OFFSET) == NULL);
         if (result.removed) {
-            *(double*)((uint8_t*)before.transform +
-                AC_TRANSFORM_X_OFFSET) = target_world_x;
-            *(double*)((uint8_t*)before.transform +
-                AC_TRANSFORM_Y_OFFSET) = target_world_y;
-            *(double*)((uint8_t*)before.transform +
-                AC_TRANSFORM_Z_OFFSET) = target_world_z;
-            result.placement_valid = validate_piece(
-                piece, before.grid, 0U);
-            if (result.placement_valid) {
+            for (candidate_index = 0U;
+                 candidate_index < candidate_count;
+                 ++candidate_index) {
+                AcMewFurnitureWorldPosition(
+                    before.grid_world_x,
+                    before.grid_world_y,
+                    candidates[candidate_index].x,
+                    candidates[candidate_index].y,
+                    before.scale_x,
+                    before.scale_y,
+                    &target_world_x,
+                    &target_world_y,
+                    &target_world_z);
+                *(double*)((uint8_t*)before.transform +
+                    AC_TRANSFORM_X_OFFSET) = target_world_x;
+                *(double*)((uint8_t*)before.transform +
+                    AC_TRANSFORM_Y_OFFSET) = target_world_y;
+                *(double*)((uint8_t*)before.transform +
+                    AC_TRANSFORM_Z_OFFSET) = target_world_z;
+                result.placement_valid = validate_piece(
+                    piece, before.grid, 0U);
+                if (!result.placement_valid) {
+                    continue;
+                }
+                result.target_x = candidates[candidate_index].x;
+                result.target_y = candidates[candidate_index].y;
                 commit_piece(piece, before.grid);
                 result.committed = 1U;
                 result.verified = (uint8_t)AcPlacementMatches(
-                    piece, &before, target_x, target_y);
+                    piece,
+                    &before,
+                    result.target_x,
+                    result.target_y);
+                break;
             }
         }
     }

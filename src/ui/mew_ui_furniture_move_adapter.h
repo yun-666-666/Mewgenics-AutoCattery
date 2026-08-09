@@ -65,6 +65,19 @@ typedef struct AcMewNativeFurnitureMoveResult {
     int32_t committed_y;
 } AcMewNativeFurnitureMoveResult;
 
+typedef struct AcMewFurnitureCoordinate {
+    int32_t x;
+    int32_t y;
+} AcMewFurnitureCoordinate;
+
+size_t AcMewFurnitureCandidatePath(
+    int32_t old_x,
+    int32_t old_y,
+    int32_t target_x,
+    int32_t target_y,
+    AcMewFurnitureCoordinate* output,
+    size_t output_capacity);
+
 double AcMewFurnitureWorldAxis(
     double grid_world_axis,
     int32_t saved_axis,

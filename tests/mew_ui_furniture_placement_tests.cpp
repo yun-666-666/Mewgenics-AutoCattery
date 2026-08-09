@@ -1,6 +1,9 @@
 #include "furniture_placement_gateway.hpp"
 #include "mew_ui_furniture_move_adapter.h"
 
+#include <algorithm>
+#include <span>
+
 #include "test_support.hpp"
 
 namespace autocattery::tests {
@@ -19,6 +22,23 @@ void RunMewUiFurniturePlacementTests() {
     AC_CHECK(world_x == 115.0);
     AC_CHECK(world_y == 203.0);
     AC_CHECK(world_z == 0.0);
+
+    AcMewFurnitureCoordinate candidates[64]{};
+    const auto candidate_count = AcMewFurnitureCandidatePath(
+        4, -8, -4, -8, candidates, 64);
+    AC_CHECK(candidate_count > 0);
+    AC_CHECK(candidates[0].x == -4);
+    AC_CHECK(candidates[0].y == -8);
+    AC_CHECK(std::ranges::any_of(
+        std::span{candidates, candidate_count},
+        [](const auto& candidate) {
+            return candidate.x == 3 && candidate.y == -9;
+        }));
+    AC_CHECK(std::ranges::none_of(
+        std::span{candidates, candidate_count},
+        [](const auto& candidate) {
+            return candidate.x == 4 && candidate.y == -8;
+        }));
 
     const auto missing = AcMewFindFurniturePiece(
         nullptr, "object_cattree1", 5U, 1);

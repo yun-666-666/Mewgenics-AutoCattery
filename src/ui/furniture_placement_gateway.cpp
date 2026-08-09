@@ -132,6 +132,8 @@ FurniturePlacementMoveResult FurniturePlacementGateway::MoveSameRoom(
     }
     const auto moved = AcMewMoveFurnitureSameRoom(
         found.snapshot.piece, request.target_x, request.target_y);
+    result.target_x = moved.target_x;
+    result.target_y = moved.target_y;
     result.signatures_valid = moved.signature_valid != 0U;
     result.placement_valid = moved.placement_valid != 0U;
     result.committed = moved.committed != 0U;
@@ -142,7 +144,11 @@ FurniturePlacementMoveResult FurniturePlacementGateway::MoveSameRoom(
     result.exception_rva = moved.exception_rva;
     if (result.verified) {
         result.status = FurniturePlacementMoveStatus::Moved;
-        result.message = "native furniture validation and commit succeeded";
+        result.message =
+            moved.target_x == request.target_x &&
+                moved.target_y == request.target_y
+            ? "native furniture validation and commit succeeded"
+            : "native validation selected the closest valid coordinate toward the original placement";
     } else if (result.rollback_attempted && !result.rollback_succeeded) {
         result.status = FurniturePlacementMoveStatus::RestoreFailed;
         result.message = "native furniture movement failed and the original placement could not be verified";

@@ -1149,6 +1149,8 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     FurniturePlacementMoveStatus status{
         FurniturePlacementMoveStatus::AlreadyPlaced};
     std::string message{"the furniture was already at the planned coordinate"};
+    auto committed_x = move.target_x;
+    auto committed_y = move.target_y;
     if (location.saved_x != move.target_x ||
         location.saved_y != move.target_y) {
         if (location.saved_x != move.from_x ||
@@ -1160,6 +1162,8 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             locator, move.target_x, move.target_y});
         status = moved.status;
         message = moved.message;
+        committed_x = moved.target_x;
+        committed_y = moved.target_y;
         if (status != FurniturePlacementMoveStatus::Moved &&
             status != FurniturePlacementMoveStatus::AlreadyPlaced) {
             fail("native placement rejected " + move.item_id + ": " +
@@ -1179,9 +1183,11 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             " key=" + std::to_string(move.stable_key) +
             " room=" + SafeTechnicalName(move.room_id) +
             " from=(" + std::to_string(move.from_x) + "," +
-            std::to_string(move.from_y) + ") target=(" +
+            std::to_string(move.from_y) + ") planned=(" +
             std::to_string(move.target_x) + "," +
-            std::to_string(move.target_y) + ") status=" +
+            std::to_string(move.target_y) + ") committed=(" +
+            std::to_string(committed_x) + "," +
+            std::to_string(committed_y) + ") status=" +
             FurniturePlacementMoveStatusName(status));
     ++furniture_execution_index_;
     if (furniture_execution_index_ != plan.moves.size()) {

@@ -225,11 +225,11 @@
       "game_validation_status": "player_F7_evidence_accepted;current_build_rvas_and_layout_confirmed;F8_object_cattree1_key5_test_implemented;debug_and_release_targeted_builds_passed;debug_and_release_unit_tests_passed;debug_and_release_dll_load_smoke_passed;release_dll_deployed_and_hash_matched_5A220DF099091329FD48AFF2A331938FCCA3756604BB9C1BF93AD1C47C0B1194;install_verified;player_F8_visual_move_and_save_reload_test_accepted"
     },
     "39": {
-      "status": "click_input_fix_release_deployed_player_revalidation_pending",
+      "status": "native_valid_coordinate_fallback_release_deployed_player_revalidation_pending",
       "commit": null,
       "capability": "DeterministicSameRoomFurnitureLayoutPreviewAndTickBatchedNativeAutoPlace",
-      "game_validation_status": "stage38_native_gateway_player_validated;stage39_player_analysis_generated_moves2_but_auto_place_click_callback_absent;button_component_kept_live_and_interaction_gated_separately;release_hardcoded_F8_seven_cat_test_removed;v0.5.21_release_targeted_build_and_unit_tests_passed;release_deployed_and_hash_matched_AE1618B39D5D5BE0DDC20EAB02E7085B482B4607C93409373559633DF5B784C2;player_auto_place_save_reload_revalidation_pending"
+      "game_validation_status": "stage38_native_gateway_player_validated;v0.5.21_player_click_reached_AC3900_then_planned_target_native_rejected_AC3905;v0.5.22_single_remove_deterministic_candidate_path_to_original_with_adjacent_cells;native_validator_remains_final_authority;release_targeted_build_and_unit_tests_passed;release_deployed_and_hash_matched_5B772F8A5C00B3653D8D14C02E1288C685B0B0FE33FD7624743C96DFC860B8AB;player_auto_place_save_reload_revalidation_pending"
     }
   },
-  "updated_at": "2026-08-09T23:13:00+08:00"
+  "updated_at": "2026-08-09T23:48:00+08:00"
 }
