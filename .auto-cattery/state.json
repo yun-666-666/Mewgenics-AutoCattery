@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 36,
+  "active_stage": 37,
   "stages": {
     "1": {
       "status": "completed",
@@ -207,11 +207,17 @@
       "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;day17_10_of_10_day32_20_of_20_day265_257_of_257_known_placement_flags;day265_3_rare_records;no_deployment"
     },
     "36": {
-      "status": "completed_read_only_grid_coordinate_and_scale_decode_player_flip_diff_pending",
-      "commit": null,
+      "status": "completed_read_only_grid_coordinate_and_scale_decode_manual_move_diff_passed",
+      "commit": "f7522f01a62d9e08f0c4ebb87654bb69af3eacc0",
       "capability": "CurrentBuildFull24x24FurnitureGridSignedScaleTransformAndRoomBaseCollisionDecode",
-      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;634_of_634_full_24x24_resource_grids_supported;11_of_11_room_base_collision_grids_supported;day17_10_of_10_day32_20_of_20_day265_257_of_257_grid_and_scale_supported;all_existing_scales_1_1;horizontal_flip_player_save_diff_pending;no_deployment"
+      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;634_of_634_full_24x24_resource_grids_supported;11_of_11_room_base_collision_grids_supported;day17_10_of_10_day32_20_of_20_day265_257_of_257_grid_and_scale_supported;seven_cat_object_cattree1_manual_move_changed_only_x_minus6_to3_and_y_minus7_to_minus9;other_9_furniture_unchanged;both_save_integrity_checks_ok"
+    },
+    "37": {
+      "status": "implementation_complete_release_probe_deployed_player_capture_pending",
+      "commit": null,
+      "capability": "FurnitureBuildingUiAndHouseSceneTwoLevelObjectGraphManualMoveDeltaProbe",
+      "game_validation_status": "targeted_debug_and_release_builds_passed;debug_and_release_unit_tests_passed;release_dll_deployed_and_hash_matched_DFEDFADEA642879477DF6E0EEF5E27F6A0DF204B2CFF893264F4315AD707751C;install_verified;player_F7_before_after_capture_pending"
     }
   },
-  "updated_at": "2026-08-09T18:47:23+08:00"
+  "updated_at": "2026-08-09T19:30:30+08:00"
 }

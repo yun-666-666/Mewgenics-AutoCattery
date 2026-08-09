@@ -22,6 +22,7 @@
 #include "auto_cattery/scoring/combat_ranker.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
+#include "furniture_move_probe_controller.hpp"
 #include "house_move_probe_controller.hpp"
 #include "in_game_panel_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
@@ -305,6 +306,11 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     house_move_probe_controller_->Initialize(
         context.game_root / L"Mewgenics.exe",
         diagnostics_root_);
+    furniture_move_probe_controller_ =
+        std::make_unique<FurnitureMoveProbeController>();
+    furniture_move_probe_controller_->Initialize(
+        context.game_root / L"Mewgenics.exe",
+        diagnostics_root_);
 #ifdef _DEBUG
     debug_probe_enabled_ = true;
 #else
@@ -408,6 +414,9 @@ void MewUiBridge::Shutdown() noexcept {
     if (house_move_probe_controller_) {
         house_move_probe_controller_->Shutdown();
     }
+    if (furniture_move_probe_controller_) {
+        furniture_move_probe_controller_->Shutdown();
+    }
     if (scene_subscription_ != 0) {
         scene_context_.Unsubscribe(scene_subscription_);
         scene_subscription_ = 0;
@@ -444,6 +453,7 @@ void MewUiBridge::Shutdown() noexcept {
     ready_logged_.store(false);
     house_button_controller_.reset();
     house_move_probe_controller_.reset();
+    furniture_move_probe_controller_.reset();
     recommendation_marker_controller_.reset();
     recommendation_marker_view_.reset();
     furniture_analysis_task_ = {};
@@ -648,6 +658,71 @@ void MewUiBridge::OnTick() {
                 "HouseMoveProbe",
                 "AC14200",
                 event.message);
+        }
+    }
+    if (furniture_move_probe_controller_) {
+        const auto event = furniture_move_probe_controller_->Poll(
+            context,
+            house_scene == scenes.end() ? nullptr : house_scene->manager,
+            furniture_mode_,
+            furniture_mode_component_,
+            (GetAsyncKeyState(VK_F7) & 1) != 0);
+        if (event.kind != FurnitureMoveProbeEventKind::None) {
+            Logger::Instance().Write(
+                event.kind == FurnitureMoveProbeEventKind::Rejected ||
+                        event.kind == FurnitureMoveProbeEventKind::Cancelled
+                    ? LogLevel::Warn
+                    : LogLevel::Info,
+                "FurnitureMoveProbe",
+                "AC3700",
+                event.message);
+            if (furniture_mode_ && recommendation_marker_controller_) {
+                const bool english = config_runtime_ &&
+                    config_runtime_->Current().general.language == "en-US";
+                std::vector<std::string> labels;
+                if (event.kind ==
+                    FurnitureMoveProbeEventKind::BeforeCaptured) {
+                    labels = english
+                        ? std::vector<std::string>{
+                              "Furniture probe: before captured",
+                              "Move and place one furniture item",
+                              "Press F7 again after placement",
+                              "The MOD will not move it automatically"}
+                        : std::vector<std::string>{
+                              "家具探针：已记录移动前",
+                              "请手动移动并放下一件家具",
+                              "放好后再次按 F7",
+                              "MOD 不会自动移动家具"};
+                } else if (event.kind ==
+                    FurnitureMoveProbeEventKind::ReportWritten) {
+                    labels = english
+                        ? std::vector<std::string>{
+                              "Furniture probe: capture complete",
+                              event.report_filename,
+                              "Save and fully exit the game",
+                              "Codex will inspect the report"}
+                        : std::vector<std::string>{
+                              "家具探针：采集完成",
+                              event.report_filename,
+                              "请保存并完全退出游戏",
+                              "Codex 将读取报告继续接原生移动"};
+                } else {
+                    labels = english
+                        ? std::vector<std::string>{
+                              "Furniture probe unavailable",
+                              "Leave and re-enter furniture mode",
+                              "Press F7 to retry",
+                              "No furniture was moved by the MOD"}
+                        : std::vector<std::string>{
+                              "家具探针未完成",
+                              "请退出并重新进入家具界面",
+                              "按 F7 重试",
+                              "MOD 没有移动任何家具"};
+                }
+                (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
+                    context.scene_generation,
+                    labels);
+            }
         }
     }
     ObserveMappingProbe(context, scenes);

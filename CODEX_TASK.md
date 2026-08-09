@@ -1,13 +1,12 @@
-# CODEX CURRENT TASK - STAGE 36 FURNITURE GRID COORDINATE READ-ONLY CORRECTION
+# CODEX CURRENT TASK - STAGE 37 FURNITURE MANUAL MOVE RUNTIME DELTA PROBE
 
 ## Current objective
 
-继续 F01 的只读基础，并纠正 Stage 34 的网格尺寸误判：以当前
-`Mewgenics.exe` 的家具初始化、房间网格初始化和坐标转换路径为准，将
-`furniture_info.data` 的 580 字节 payload 解码为 4 字节 opaque 头加完整
-24x24 byte 网格；将存档尾部两个字段解码为有符号 `scale_x/scale_y`，并只对
-`-1/+1` 提供安全网格坐标变换；同时解码房间一格边界扩展和
-`built_in_collision` 的运行时行方向。
+优先打通家具原生移动。复用现有 UI 线程与探针报告框架，在当前已验证的家具
+摆放界面中提供 F7 双快照：第一次采集 `FurnitureBuildingUI` 与 House scene 的
+两层对象图，玩家手动移动并放下一个家具后第二次采集，输出变化对象、vtable
+RVA、字节区间和 `int32/double/pointer` 候选。报告用于下一阶段直接锁定当前 build
+的选中家具对象、transform 字段与原生拿起/放置调用接口。
 
 ## Required reading
 
@@ -15,56 +14,37 @@
 2. `docs/furniture-auto-placement-design.md`
 3. `docs/implementation-status.md`
 4. `.auto-cattery/state.json`
-5. `.auto-cattery/reports/stage-34.md`
-6. `.auto-cattery/reports/stage-35.md`
+5. `.auto-cattery/reports/stage-36.md`
+6. 玩家完成的 7 猫 `object_cattree1` 移动前后存档差分
 7. `docs/stage04-failure-retrospective-2026-07-28.md`
 8. 当前 `Mewgenics.exe` 静态证据、三个现有存档、当前资源、代码与
    `git status --short`
 
 ## Confirmed current-build evidence
 
-- 当前 `Mewgenics.exe` SHA-256 为
+- 当前 `Mewgenics.exe` SHA-256 仍为
   `C3A41E436A93FA58CD386EC46DAD5C2A6F21A583D33C3A57A15A2604C726439E`。
-- 家具初始化 RVA `0x2EBC80` 在 `0x2EBD9C` 获得家具信息 payload 后于
-  `0x2EBDA1` 跳过 4 字节，再在 `0x2EBE69` 初始化 24x24 网格，并于
-  `0x2EBEA0..0x2EBEC6` 复制完整 576 字节。
-- 当前 634 条资源记录的 4 字节头均为 0，完整 24x24 网格值均为 `0..5`。
-  Stage 34 观察到的 payload `224..379` 只是当前非零单元集中出现的扁平区间，
-  不是 12x13 行列布局；旧计数仍正确，但坐标形状解释错误。
-- 家具恢复 RVA `0x2EC600..0x2EC627` 将 `entry+0x58/+0x5C` 作为两个有符号
-  `i32` 转成 `double` 写入组件 `+0xB8/+0xC0`；提交 RVA
-  `0x2EE369..0x2EE3A2` 将这两个组件值取整后写回同一字段。
-- 交互 RVA `0x2ECE4B..0x2ECEB5` 只翻转组件 `+0xB8` 的符号；家具网格转换
-  RVA `0x2EE880` 与恢复路径共同证明，在当前支持的 `scale_x/scale_y = ±1`
-  下，单元映射为 `room = saved_position + scale * local_cell`。
-- 水平翻转若保持组件中心不动，保存原点应满足
-  `position_x + ceil(11.5 * scale_x)` 不变；因此 `scale_x: 1 -> -1` 时
-  `position_x` 应增加 23，反向则减少 23。该静态预测仍需玩家存档差分确认。
-- `FurnitureGrid::init` RVA `0x2E8230` 读取房间 width/height 后由
-  `0x2E80FC..0x2E8104` 各扩展一格边界；无自定义碰撞时边界值为 2。存在
-  `built_in_collision` 时按 `height+2` x `width+2` 全矩阵读取，并反转资源行序
-  写入运行时 y 轴。
-- 第 17、32、265 天存档当前分别 10/10、20/20、257/257 件家具的 scale 都是
-  `(1,1)`；因此仍缺少玩家制造的水平翻转前后差分。
+- 7 猫存档中同一 `object_cattree1` 实例手动移动后仅 `x: -6 -> 3`、
+  `y: -7 -> -9`；key、item、room、z、flags、scale 与其他 9 件家具完全不变，
+  前后 SQLite integrity 均为 `ok`。
+- 玩家确认当前家具本身没有旋转入口；MVP 不再等待旋转/翻转证据，只处理现有
+  朝向与原生移动。
+- Stage 36 已证明存档坐标、完整 24x24 家具网格、房间基础碰撞坐标和提交路径；
+  当前缺口集中为运行时选中对象与原生移动接口。
 
-## Stage 36 completion boundary
+## Stage 37 completion boundary
 
-- 将家具基础网格纠正为 payload offset 4 的完整 24x24，并继续保留全部 580
-  字节 opaque payload；非法 tile 只让单件家具网格安全降级。
-- 将尾部字段改为有符号 `scale_x/scale_y`；只支持 `±1`，其他值只让该实例的
-  网格变换不受支持。
-- 提供无写入纯函数，将 24x24 本地单元映射到保存坐标；不生成布局或移动。
-- 提供房间基础碰撞网格解码：默认一格值 2 边界，自定义矩阵尺寸必须严格匹配，
-  值域必须可保存为 byte，资源行序转成运行时 y 轴；异常房间单独降级。
-- 匿名探针输出网格、scale 与房间碰撞支持摘要，不输出路径、账号、猫名或家具
-  实例身份。
-- Debug/Release 构建与 4/4 CTest 通过；三个现有存档只读复核通过。
-- 本阶段不部署、不改版本、不修改活动存档，只创建一个本地提交且不 push。
+- F7 第一次按下采集移动前对象图，第二次按下采集移动后对象图并发布 JSON。
+- 同时采集 `FurnitureBuildingUI` 与 House scene manager，每个根最多两层、96 个
+  可读对象；只输出变化摘要，不输出原始内存字节。
+- 报告包含对象地址、父指针偏移、vtable RVA、变化字节区间和有界数值候选。
+- 家具界面右侧直接显示“已记录移动前”与“采集完成”，无需查看控制台。
+- Debug/Release 聚焦编译和同一单元测试目标通过；Release DLL 直接部署并校验。
+- 本阶段不自动移动家具、不直接写 `.sav`，只创建一个本地提交且不 push。
 
 ## Out of scope
 
-- 把静态水平翻转结论当作玩家存档差分；垂直翻转入口、任意缩放和旋转仍未知。
-- Anchor、Background、门口、墙面、天花板、斜顶等碰撞值的完整语义。
-- 家具用途规划、合法布局求解和任何原生家具拿起/移动/放下。
-- 启用“自动放置”、部署新 DLL、修改游戏文件或活动存档。
+- 本阶段不猜测对象偏移或原生函数签名；等玩家 F7 报告后直接沿 vtable/RVA 追踪。
+- 家具用途规划和合法布局求解不夹带在探针阶段。
+- 不启用批量“自动放置”，不直接修改活动存档。
 - 自动组队、出征、结束一天、淘汰或直接修改活动存档。

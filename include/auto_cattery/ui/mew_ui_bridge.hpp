@@ -28,6 +28,7 @@ namespace autocattery::ui {
 
 class HouseButtonController;
 class HouseMoveProbeController;
+class FurnitureMoveProbeController;
 class InGamePanelController;
 class MewUiHouseButtonView;
 class MewUiManagementPanelView;
@@ -122,6 +123,8 @@ private:
     void* current_house_scene_manager_{};
     std::unique_ptr<HouseButtonController> house_button_controller_;
     std::unique_ptr<HouseMoveProbeController> house_move_probe_controller_;
+    std::unique_ptr<FurnitureMoveProbeController>
+        furniture_move_probe_controller_;
     std::unique_ptr<MewUiManagementPanelView> management_panel_view_;
     std::unique_ptr<InGamePanelController> in_game_panel_controller_;
     std::unique_ptr<MewUiRecommendationMarkerView>
