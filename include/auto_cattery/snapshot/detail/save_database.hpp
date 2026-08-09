@@ -20,6 +20,7 @@ struct CatStorageRecord {
 };
 
 struct FurnitureStorageRecord {
+    std::int64_t key{};
     std::vector<std::byte> blob;
 };
 

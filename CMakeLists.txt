@@ -92,6 +92,7 @@ add_library(auto_cattery_core STATIC
     src/snapshot/cat_personality.cpp
     src/snapshot/domain.cpp
     src/snapshot/furniture_catalog.cpp
+    src/snapshot/furniture_geometry.cpp
     src/snapshot/furniture_room_attributes.cpp
     src/snapshot/house_state_parser.cpp
     src/snapshot/house_state_writer.cpp
@@ -259,6 +260,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/single_cat_move_test_service_tests.cpp
         tests/file_hash_tests.cpp
         tests/furniture_attributes_tests.cpp
+        tests/furniture_geometry_tests.cpp
         tests/game_build_gate_tests.cpp
         tests/cat_blob_parser_tests.cpp
         tests/cat_data_collector_tests.cpp
@@ -328,6 +330,12 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(save_format_probe PRIVATE auto_cattery_core)
     target_compile_features(save_format_probe PRIVATE cxx_std_20)
     autocattery_enable_warnings(save_format_probe)
+
+    add_executable(
+        furniture_geometry_probe tests/furniture_geometry_probe.cpp)
+    target_link_libraries(furniture_geometry_probe PRIVATE auto_cattery_core)
+    target_compile_features(furniture_geometry_probe PRIVATE cxx_std_20)
+    autocattery_enable_warnings(furniture_geometry_probe)
 
     add_executable(dll_smoke_tests tests/dll_smoke_tests.cpp)
     target_compile_features(dll_smoke_tests PRIVATE cxx_std_20)

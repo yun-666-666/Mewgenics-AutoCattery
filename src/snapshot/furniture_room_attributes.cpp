@@ -4,6 +4,7 @@
 #include <cstring>
 #include <span>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace autocattery::snapshot::detail {
 namespace {
@@ -11,39 +12,58 @@ namespace {
 template<class T>
 bool Read(
     std::span<const std::byte> bytes,
-    std::size_t offset,
+    std::size_t& offset,
     T& value) {
     if (offset > bytes.size() || bytes.size() - offset < sizeof(T)) {
         return false;
     }
     std::memcpy(&value, bytes.data() + offset, sizeof(T));
+    offset += sizeof(T);
+    return true;
+}
+
+bool ReadString(
+    std::span<const std::byte> bytes,
+    std::size_t& offset,
+    std::uint32_t& unknown_after_length,
+    std::string& value) {
+    std::uint32_t length{};
+    if (!Read(bytes, offset, length) ||
+        !Read(bytes, offset, unknown_after_length) ||
+        length > bytes.size() - offset) {
+        return false;
+    }
+    value.assign(
+        reinterpret_cast<const char*>(bytes.data() + offset),
+        static_cast<std::size_t>(length));
+    offset += static_cast<std::size_t>(length);
     return true;
 }
 
 bool ParsePlacement(
     std::span<const std::byte> bytes,
     FurniturePlacement& placement) {
-    std::uint64_t item_length{};
-    if (!Read(bytes, 4, item_length) || item_length > bytes.size()) {
+    std::size_t offset{};
+    if (!Read(bytes, offset, placement.format_version) ||
+        placement.format_version != 1U ||
+        !ReadString(
+            bytes, offset,
+            placement.unknown_after_item_length,
+            placement.item_id) ||
+        placement.item_id.empty() ||
+        !Read(bytes, offset, placement.unknown_before_room) ||
+        !ReadString(
+            bytes, offset,
+            placement.unknown_after_room_length,
+            placement.room_id) ||
+        !Read(bytes, offset, placement.position_x) ||
+        !Read(bytes, offset, placement.position_y) ||
+        !Read(bytes, offset, placement.position_z) ||
+        !Read(bytes, offset, placement.unknown_flag_1) ||
+        !Read(bytes, offset, placement.unknown_flag_2)) {
         return false;
     }
-    const std::size_t item_start = 12;
-    const std::size_t header = item_start + item_length;
-    std::uint32_t room_length{};
-    if (header < item_start || !Read(bytes, header + 8, room_length)) {
-        return false;
-    }
-    const std::size_t room_start = header + 16;
-    if (room_start < header || room_length > bytes.size() - room_start) {
-        return false;
-    }
-    placement.item_id.assign(
-        reinterpret_cast<const char*>(bytes.data() + item_start),
-        static_cast<std::size_t>(item_length));
-    placement.room_id.assign(
-        reinterpret_cast<const char*>(bytes.data() + room_start),
-        room_length);
-    return !placement.item_id.empty();
+    return offset == bytes.size();
 }
 
 void Add(RoomAttributes& total, const RoomAttributes& value) {
@@ -62,8 +82,14 @@ bool ParseFurniturePlacements(
     std::string& error) {
     placements.clear();
     placements.reserve(records.size());
+    std::unordered_set<std::int64_t> instance_ids;
     for (const auto& record : records) {
         FurniturePlacement placement;
+        placement.instance_id = record.key;
+        if (!instance_ids.insert(record.key).second) {
+            error = "furniture record has a duplicate instance key";
+            return false;
+        }
         if (!ParsePlacement(record.blob, placement)) {
             error = "furniture record has an unsupported layout";
             return false;

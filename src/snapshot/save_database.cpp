@@ -231,7 +231,7 @@ bool SaveDatabase::ReadFurniture(
     std::vector<FurnitureStorageRecord>& furniture,
     std::string& error) const {
     Statement statement(
-        database_, "SELECT data FROM furniture ORDER BY key", error);
+        database_, "SELECT key, data FROM furniture ORDER BY key", error);
     if (statement.get() == nullptr) {
         return false;
     }
@@ -247,7 +247,9 @@ bool SaveDatabase::ReadFurniture(
             return false;
         }
         FurnitureStorageRecord record;
-        if (!CopyBlob(statement.get(), 0, record.blob, error)) {
+        record.key = static_cast<std::int64_t>(
+            api.column_int64(statement.get(), 0));
+        if (!CopyBlob(statement.get(), 1, record.blob, error)) {
             return false;
         }
         furniture.push_back(std::move(record));

@@ -36,9 +36,11 @@ std::filesystem::path CreateFixture() {
         "CREATE TABLE properties(key TEXT PRIMARY KEY,data INTEGER);"
         "CREATE TABLE cats(key INTEGER PRIMARY KEY,data BLOB);"
         "CREATE TABLE files(key TEXT PRIMARY KEY,data BLOB);"
+        "CREATE TABLE furniture(key INTEGER PRIMARY KEY,data BLOB);"
         "INSERT INTO properties VALUES('current_day',17);"
         "INSERT INTO cats VALUES(42,X'010203');"
-        "INSERT INTO files VALUES('house_state',X'04050607');";
+        "INSERT INTO files VALUES('house_state',X'04050607');"
+        "INSERT INTO furniture VALUES(73,X'08090A');";
     AC_CHECK(api.exec(
         database, kSchemaAndData, nullptr, nullptr, nullptr) == 0);
     AC_CHECK(api.close_v2(database) == 0);
@@ -69,6 +71,12 @@ void RunSaveDatabaseTests() {
             AC_CHECK(database->ReadHouseState(house_state, error));
             AC_CHECK(house_state.has_value());
             AC_CHECK(house_state->size() == 4);
+
+            std::vector<snapshot::detail::FurnitureStorageRecord> furniture;
+            AC_CHECK(database->ReadFurniture(furniture, error));
+            AC_CHECK(furniture.size() == 1);
+            AC_CHECK(furniture.front().key == 73);
+            AC_CHECK(furniture.front().blob.size() == 3);
         }
     }
     std::filesystem::remove(fixture);
