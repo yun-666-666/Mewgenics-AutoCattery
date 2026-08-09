@@ -58,8 +58,10 @@ private:
     void UpdateHouseUiMode(
         const UiContextSnapshot& context,
         const std::vector<RuntimeScene>& scenes);
+#ifdef _DEBUG
     void RunFurnitureNativeMoveTest(
         const UiContextSnapshot& context);
+#endif
     void ClearFurnitureLayoutPreview();
     void StartFurnitureAutoPlacement(std::uint64_t generation);
     void PollFurnitureAutoPlacement(

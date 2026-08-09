@@ -707,9 +707,12 @@ void MewUiBridge::OnTick() {
             writable_house ? house_scene->manager : nullptr);
     }
     PollFurnitureAutoPlacement(context);
-    if (f8_pressed && !shift_pressed && !furniture_execution_active_) {
+#ifdef _DEBUG
+    if (debug_probe_enabled_ && f8_pressed && !shift_pressed &&
+        !furniture_execution_active_) {
         RunFurnitureNativeMoveTest(context);
     }
+#endif
     if (debug_probe_enabled_ && house_move_probe_controller_) {
         const auto event = house_move_probe_controller_->Poll(
             context,
@@ -1225,6 +1228,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     furniture_execution_moved_ = 0;
 }
 
+#ifdef _DEBUG
 void MewUiBridge::RunFurnitureNativeMoveTest(
     const UiContextSnapshot& context) {
     if (!furniture_mode_ ||
@@ -1382,6 +1386,7 @@ void MewUiBridge::RunFurnitureNativeMoveTest(
     (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
         context.scene_generation, labels);
 }
+#endif
 
 void MewUiBridge::ObserveMappingProbe(
     const UiContextSnapshot& context,

@@ -142,8 +142,14 @@ void MewUiHouseButtonView::SetState(
             break;
         }
         MewUI_SetButtonLabelText(button_, label);
+        // Keep the live Button component enabled while it is visible. Turning
+        // the component byte off prevents the game from polling it again on
+        // some House UI paths, so a later visual re-enable can leave a button
+        // that looks ready but never reaches ButtonCallback. Interaction is
+        // gated separately through the MewUI override.
+        MewUI_SetButtonEnabled(
+            button_, state == OrganizeButtonState::Hidden ? 0 : 1);
         MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
-        MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
         return;
     }
 
@@ -175,8 +181,9 @@ void MewUiHouseButtonView::SetState(
         break;
     }
     MewUI_SetButtonLabelText(button_, label);
+    MewUI_SetButtonEnabled(
+        button_, state == OrganizeButtonState::Hidden ? 0 : 1);
     MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
-    MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
 }
 
 void MewUiHouseButtonView::ShowPlaceholder() {
