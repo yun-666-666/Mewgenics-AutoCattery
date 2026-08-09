@@ -56,7 +56,10 @@ Result<void> HouseButtonController::Attach(
     continuation_execute_pending_ = false;
     awaiting_execution_ = false;
     ready_after_ = {};
-    SetState(OrganizeButtonState::Ready);
+    SetState(
+        furniture_mode_ && !furniture_action_available_
+            ? OrganizeButtonState::DisabledBusy
+            : OrganizeButtonState::Ready);
     Logger::Instance().Write(
         LogLevel::Info,
         "HouseButton",
@@ -80,6 +83,7 @@ void HouseButtonController::Detach() noexcept {
     continuation_preview_ = false;
     continuation_execute_pending_ = false;
     awaiting_execution_ = false;
+    furniture_action_available_ = false;
     last_click_ = {};
     ready_after_ = {};
     Logger::Instance().Write(
@@ -99,6 +103,7 @@ void HouseButtonController::AbandonScene() noexcept {
     continuation_preview_ = false;
     continuation_execute_pending_ = false;
     awaiting_execution_ = false;
+    furniture_action_available_ = false;
     last_click_ = {};
     ready_after_ = {};
 }
@@ -118,6 +123,27 @@ void HouseButtonController::SetFurnitureMode(bool furniture_mode) {
     if (furniture_mode_ == furniture_mode) return;
     furniture_mode_ = furniture_mode;
     view_.SetFurnitureMode(furniture_mode_);
+    if (view_.IsAttached()) {
+        SetState(
+            furniture_mode_ && !furniture_action_available_
+                ? OrganizeButtonState::DisabledBusy
+                : OrganizeButtonState::Ready);
+    }
+}
+
+void HouseButtonController::SetFurnitureActionHandler(
+    FurnitureAction handler) {
+    furniture_action_ = std::move(handler);
+}
+
+void HouseButtonController::SetFurnitureActionAvailable(bool available) {
+    furniture_action_available_ = available;
+    if (furniture_mode_ && view_.IsAttached() &&
+        state_ != OrganizeButtonState::Running) {
+        SetState(
+            available ? OrganizeButtonState::Ready
+                      : OrganizeButtonState::DisabledBusy);
+    }
 }
 
 void HouseButtonController::SetState(
@@ -141,7 +167,6 @@ bool HouseButtonController::IsSuppressed() const noexcept {
 void HouseButtonController::HandleClick() {
     if (!view_.IsAttached() ||
         suppressed_ ||
-        furniture_mode_ ||
         state_ != OrganizeButtonState::Ready) {
         return;
     }
@@ -152,6 +177,21 @@ void HouseButtonController::HandleClick() {
         return;
     }
     last_click_ = now;
+
+    if (furniture_mode_) {
+        if (!furniture_action_available_ || !furniture_action_) {
+            return;
+        }
+        furniture_action_available_ = false;
+        SetState(OrganizeButtonState::Running);
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurniturePlacement",
+            "AC3900",
+            "Auto Place clicked; executing the sealed same-room furniture layout one item per UI tick.");
+        furniture_action_(scene_generation_);
+        return;
+    }
 
     if (awaiting_execution_) {
         Logger::Instance().Write(

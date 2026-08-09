@@ -1,54 +1,38 @@
-# CODEX CURRENT TASK - STAGE 38 SINGLE FURNITURE NATIVE MOVEMENT
+# CODEX CURRENT TASK - STAGE 39 SAME-ROOM AUTOMATIC FURNITURE LAYOUT
 
 ## Current objective
 
-优先打通玩家可见的家具原生移动。读取玩家已经完成的三份 F7 报告和当前 build
-静态证据，枚举 House scene 中的 `FurniturePiece`，定位 7 猫存档的
-`object_cattree1`，通过游戏自己的移除、合法性校验和提交函数移动同一房间内的
-一件家具。F8 是本阶段玩家测试入口；通用 gateway 接受明确的目标存档坐标，供
-后续布局规划器复用。
+在 Stage 38 已由玩家验证的原生家具移动 gateway 上，直接实现玩家可见的同房间
+多家具自动布局。右侧“开始分析”生成确定性布局预览；存在可执行移动时启用左侧
+“自动放置”，点击后每个 UI tick 原生移动一件家具，直到完成或第一处失败。
 
-## Player evidence accepted
+## Accepted foundation
 
-- 玩家已生成三份报告：
-  - `furniture-move-probe-20260809-203425.json`
-  - `furniture-move-probe-20260809-203535.json`
-  - `furniture-move-probe-20260809-203545.json`
-- 三份报告的 UI/House 根均达到 96 节点上限；变化对象分别为
-  `65/59`、`59/49`、`42/32`。广泛对象图被猫、物理、UI、音频和 ragdoll
-  占满，因此未直接包含 `FurniturePiece`。
-- 当前 scene 组件可直接枚举，7 猫运行时存在 10 个 `FurniturePiece`，所以对象图
-  上限不再阻塞原生移动。
-- 玩家手动移动同一 `object_cattree1` 时只改变 `x/y`，两个已验证坐标为
-  `(-6,-7)` 与 `(3,-9)`；实例 key、item、room、z、flags、scale 和其他 9 件
-  家具均不变。
+- 玩家已验证 `object_cattree1` 可通过当前 build 的原生移除、校验、提交路径在
+  `(-6,-7)` 与 `(3,-9)` 间移动，并完成保存、退出和重进测试。
+- 当前资源的 634 个家具 24x24 placement grid、11 个房间基础碰撞网格和现有
+  存档的 `scale=±1` 坐标变换已经解码。
+- `FurniturePlacementGateway` 可按 item 与稳定 key 定位同一实例，并在原生拒绝、
+  异常或读回不符时恢复旧位置。
 
-## Confirmed current-build route
+## Stage 39 completion boundary
 
-- `FurniturePiece` vtable RVA：`0xEDE690`。
-- `FurnitureGrid` vtable RVA：`0xEF4C20`。
-- `FurniturePiece+0x38`：transform；`+0x48`：当前 grid；`+0x2D8`：entry。
-- entry：key `+0x00`、item `+0x08`、room `+0x30`、saved x/y `+0x50/+0x54`。
-- transform：x/y/z `+0x80/+0x88/+0x90`、scale x/y `+0xB8/+0xC0`。
-- 原生移除 RVA `0x2EE3D0`；合法性校验 RVA `0x2EDE60`；提交 RVA
-  `0x2EE230`。
-- 当前 build 加载坐标：
-  `world = grid_world + saved + ceil(11.5 * scale)`，z 为 0。
-
-## Stage 38 completion boundary
-
-- 新增通用同房间 `FurniturePlacementGateway`：按 item 和可选稳定 key 定位实例，
-  接受明确目标 saved x/y。
-- 移动顺序固定为：快照旧状态 -> 原生移除 -> 写目标 transform -> 原生校验
-  (`false`) -> 原生提交 -> 读回 grid 与 saved x/y。
-- 校验拒绝、原生异常或提交读回失败时，恢复旧 transform 并重新提交旧 grid；
-  F8 结果和回滚状态写入日志并显示在家具界面。
-- 7 猫测试入口优先 key 5，在 `(-6,-7)` 与 `(3,-9)` 两个玩家已验证坐标间切换。
-- Debug/Release 构建和聚焦单元测试通过；Release DLL 部署并校验；创建一个本地
+- 新增纯 `FurnitureLayoutSolver`，逐房间读取现有家具和房间碰撞网格，以占地从大
+  到小、底部优先、左到右的稳定顺序搜索无重叠坐标。
+- 当前只移动已经放在某个房间、网格和 `scale` 均受支持、且全部占用格位于已知
+  空房间单元上的家具；未知、仓库、墙面/锚点类或无空间家具保持不动并计数。
+- 分析结果保存实例 key、item、room、原坐标和目标坐标；相同输入必须得到相同
+  计划。
+- “开始分析”完成后显示计划移动数并启用“自动放置”；执行前逐件核对当前
+  room/x/y，随后每 tick 调用一次原生 gateway。
+- 原生拒绝、场景变化或实例位置变化时立即停止剩余家具；已成功提交的家具保留，
+  玩家可重新分析继续。
+- Debug/Release 聚焦测试与构建通过，Release DLL 部署并校验；创建一个本地
   commit，不 push。
 
 ## Out of scope
 
-- 本阶段不实现家具用途评分、跨房间分配、合法布局搜索或批量执行。
-- 不直接写 `.sav`，不修改游戏原始文件，不实现家具旋转。
-- 不自动结束一天、休息、出征、组队或淘汰猫。
+- 本阶段不把仓库家具放入房间，不跨房间分配家具，不改变 `scale` 或旋转。
+- 本阶段不按繁育、战斗、育幼等房间用途重新选择家具；该层在下一阶段接入。
+- 不直接写 `.sav`，不修改游戏原始文件，不自动结束一天、休息、出征、组队或
+  淘汰猫。

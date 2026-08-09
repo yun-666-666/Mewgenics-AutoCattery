@@ -49,8 +49,10 @@ Result<void> MewUiHouseButtonView::Attach(
     create_info.label_text = furniture_mode_
         ? (english_ ? "Auto Place" : "自动放置")
         : (english_ ? "Auto-Organize" : "自动整理猫舍");
-    create_info.enabled = furniture_mode_ ? 0 : 1;
-    create_info.activate_enabled = furniture_mode_ ? 0 : 1;
+    const bool initially_enabled =
+        !furniture_mode_ || current_state_ == OrganizeButtonState::Ready;
+    create_info.enabled = initially_enabled ? 1 : 0;
+    create_info.activate_enabled = initially_enabled ? 1 : 0;
     create_info.strict_mouse = 1;
     create_info.interact_override = MEW_BUTTON_INTERACT_FORCE_ENABLED;
     create_info.callback = &ButtonCallback;
@@ -116,10 +118,32 @@ void MewUiHouseButtonView::SetState(
     }
 
     if (furniture_mode_) {
-        MewUI_SetButtonLabelText(
-            button_, english_ ? "Auto Place" : "自动放置");
-        MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
+        const char* label = english_ ? "Analyze First" : "请先分析";
+        bool enabled{};
+        switch (state) {
+        case OrganizeButtonState::Hidden:
+        case OrganizeButtonState::DisabledBusy:
+            break;
+        case OrganizeButtonState::DisabledUnsupportedBuild:
+            label = english_ ? "Unavailable" : "当前版本不可用";
+            break;
+        case OrganizeButtonState::Running:
+            label = english_ ? "Placing..." : "正在放置…";
+            break;
+        case OrganizeButtonState::Ready:
+            label = english_ ? "Auto Place" : "自动放置";
+            enabled = true;
+            break;
+        case OrganizeButtonState::Completed:
+            label = english_ ? "Placement Complete" : "放置已完成";
+            break;
+        case OrganizeButtonState::Failed:
+            label = english_ ? "Placement Stopped" : "放置已停止";
+            break;
+        }
+        MewUI_SetButtonLabelText(button_, label);
+        MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
+        MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
         return;
     }
 

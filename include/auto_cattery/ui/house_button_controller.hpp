@@ -47,6 +47,7 @@ class HouseButtonController {
 public:
     using Clock = std::function<std::chrono::steady_clock::time_point()>;
     using BeforePreview = std::function<void()>;
+    using FurnitureAction = std::function<void(std::uint64_t)>;
 
     HouseButtonController(
         HouseButtonView& view,
@@ -59,6 +60,8 @@ public:
     void AbandonScene() noexcept;
     void SetSuppressed(bool suppressed);
     void SetFurnitureMode(bool furniture_mode);
+    void SetFurnitureActionHandler(FurnitureAction handler);
+    void SetFurnitureActionAvailable(bool available);
     void SetState(
         OrganizeButtonState state,
         std::string_view detail = {});
@@ -79,6 +82,8 @@ private:
     std::string state_detail_;
     bool suppressed_{};
     bool furniture_mode_{};
+    bool furniture_action_available_{};
+    FurnitureAction furniture_action_;
     std::uint64_t scene_generation_{};
     std::chrono::steady_clock::time_point last_click_{};
     std::future<Result<void>> preview_task_;

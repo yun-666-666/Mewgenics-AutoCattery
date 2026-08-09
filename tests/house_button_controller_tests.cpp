@@ -164,6 +164,7 @@ void RunHouseButtonControllerTests() {
 
     controller.SetFurnitureMode(true);
     AC_CHECK(view.furniture_mode);
+    AC_CHECK(view.state == ui::OrganizeButtonState::DisabledBusy);
     view.Click();
     AC_CHECK(workflow.preview_calls == 0);
     controller.SetFurnitureMode(false);
@@ -320,6 +321,26 @@ void RunHouseButtonControllerTests() {
         std::this_thread::yield();
     }
     AC_CHECK(cancelled_workflow.execution_calls == 1);
+
+    FakeHouseButtonView furniture_view;
+    FakeWorkflow furniture_workflow;
+    std::uint64_t furniture_generation{};
+    ui::HouseButtonController furniture_controller(
+        furniture_view,
+        furniture_workflow,
+        [&now] { return now; });
+    furniture_controller.SetFurnitureActionHandler(
+        [&furniture_generation](std::uint64_t generation) {
+            furniture_generation = generation;
+        });
+    AC_CHECK(static_cast<bool>(furniture_controller.Attach(HouseContext())));
+    furniture_controller.SetFurnitureMode(true);
+    furniture_controller.SetFurnitureActionAvailable(true);
+    AC_CHECK(furniture_view.state == ui::OrganizeButtonState::Ready);
+    now += 2s;
+    furniture_view.Click();
+    AC_CHECK(furniture_generation == 1);
+    AC_CHECK(furniture_view.state == ui::OrganizeButtonState::Running);
 }
 
 }  // namespace autocattery::tests

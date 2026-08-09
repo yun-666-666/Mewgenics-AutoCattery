@@ -197,6 +197,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 "furniture analysis found no current House rooms"};
     }
     result.binding_digest = BuildBindingDigest(source, result.rooms);
+    result.layout_plan = furniture_planning::FurnitureLayoutSolver{}.Plan(
+        source.furniture, source.geometry, source.furniture_info);
     return {std::move(result)};
 }
 

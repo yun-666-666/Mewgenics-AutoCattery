@@ -2,6 +2,7 @@
 #include "auto_cattery/snapshot/detail/furniture_geometry.hpp"
 #include "auto_cattery/snapshot/detail/save_database.hpp"
 #include "auto_cattery/snapshot/detail/save_locator.hpp"
+#include "auto_cattery/furniture_planning/layout_solver.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -228,6 +229,107 @@ int wmain(int argument_count, wchar_t** arguments) {
     for (const auto& [value, count] : info_name_unknown_values) {
         std::cout << "furniture_info_unknown_after_name_length=" << value
                   << " count=" << count << '\n';
+    }
+    const auto layout =
+        autocattery::furniture_planning::FurnitureLayoutSolver{}.Plan(
+            placements, geometry, furniture_info);
+    std::cout
+        << "layout_rooms=" << layout.planned_room_count
+        << " considered=" << layout.considered_furniture_count
+        << " moves=" << layout.moves.size()
+        << " kept=" << layout.kept_furniture_count
+        << " warehouse=" << layout.warehouse_furniture_count
+        << " unsupported=" << layout.unsupported_furniture_count
+        << " no_space=" << layout.no_space_furniture_count
+        << '\n';
+    for (const auto& placement : placements) {
+        const auto info = info_by_id.find(placement.item_id);
+        if (info == info_by_id.end()) {
+            continue;
+        }
+        std::map<
+            autocattery::snapshot::detail::FurniturePlacementTile,
+            std::size_t> counts;
+        for (const auto tile : info->second->placement_grid.tiles) {
+            if (tile !=
+                autocattery::snapshot::detail::FurniturePlacementTile::Empty) {
+                ++counts[tile];
+            }
+        }
+        std::cout
+            << "layout_shape item=" << placement.item_id
+            << " key=" << placement.instance_id
+            << " pos=" << placement.position_x << ','
+            << placement.position_y
+            << " hitbox=" << counts[
+                autocattery::snapshot::detail::FurniturePlacementTile::Hitbox]
+            << " solid=" << counts[
+                autocattery::snapshot::detail::FurniturePlacementTile::Solid]
+            << " support=" << counts[
+                autocattery::snapshot::detail::FurniturePlacementTile::Support]
+            << " surface=" << counts[
+                autocattery::snapshot::detail::FurniturePlacementTile::Surface]
+            << " poop=" << counts[
+                autocattery::snapshot::detail::FurniturePlacementTile::PoopLogic]
+            << '\n';
+        const auto room_definition = std::find_if(
+            geometry.rooms.begin(),
+            geometry.rooms.end(),
+            [&placement](const auto& room) {
+                return room.room_id == placement.room_id;
+            });
+        if (room_definition == geometry.rooms.end()) {
+            continue;
+        }
+        const auto room_grid =
+            autocattery::snapshot::detail::DecodeRoomCollisionGrid(
+                *room_definition);
+        std::map<std::pair<int, int>, std::size_t> relations;
+        std::size_t outside{};
+        for (std::size_t y = 0;
+             y < autocattery::snapshot::detail::kFurniturePlacementGridHeight;
+             ++y) {
+            for (std::size_t x = 0;
+                 x < autocattery::snapshot::detail::kFurniturePlacementGridWidth;
+                 ++x) {
+                const auto tile = info->second->placement_grid.At(x, y);
+                if (tile ==
+                    autocattery::snapshot::detail::FurniturePlacementTile::Empty) {
+                    continue;
+                }
+                const auto mapped = placement.MapGridCellToRoom(
+                    static_cast<std::int32_t>(x),
+                    static_cast<std::int32_t>(y));
+                if (!mapped || mapped->x < 0 || mapped->y < 0 ||
+                    static_cast<std::size_t>(mapped->x) >= room_grid.width ||
+                    static_cast<std::size_t>(mapped->y) >= room_grid.height) {
+                    ++outside;
+                    continue;
+                }
+                ++relations[{
+                    static_cast<int>(tile),
+                    room_grid.At(
+                        static_cast<std::size_t>(mapped->x),
+                        static_cast<std::size_t>(mapped->y))}];
+            }
+        }
+        std::cout << "layout_relation item=" << placement.item_id
+                  << " key=" << placement.instance_id
+                  << " outside=" << outside;
+        for (const auto& [relation, count] : relations) {
+            std::cout << " t" << relation.first << "r" << relation.second
+                      << '=' << count;
+        }
+        std::cout << '\n';
+    }
+    for (const auto& move : layout.moves) {
+        std::cout
+            << "layout_move item=" << move.item_id
+            << " key=" << move.stable_key
+            << " room=" << move.room_id
+            << " from=" << move.from_x << ',' << move.from_y
+            << " target=" << move.target_x << ',' << move.target_y
+            << '\n';
     }
     for (const auto& room : geometry.rooms) {
         const auto collision_rows = room.built_in_collision.size();

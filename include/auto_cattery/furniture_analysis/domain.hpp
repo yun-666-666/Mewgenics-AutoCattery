@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "auto_cattery/error.hpp"
+#include "auto_cattery/furniture_planning/layout_solver.hpp"
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
 #include "auto_cattery/snapshot/detail/furniture_geometry.hpp"
 #include "auto_cattery/snapshot/domain.hpp"
@@ -51,6 +52,7 @@ struct FurnitureAnalysisSnapshot {
     std::size_t warehouse_furniture_count{};
     std::size_t furniture_info_coverage{};
     std::size_t furniture_effect_coverage{};
+    furniture_planning::FurnitureLayoutPlan layout_plan;
 };
 
 }  // namespace autocattery::furniture_analysis

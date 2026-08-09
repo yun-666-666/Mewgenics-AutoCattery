@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 38,
+  "active_stage": 39,
   "stages": {
     "1": {
       "status": "completed",
@@ -220,10 +220,16 @@
     },
     "38": {
       "status": "completed_player_validated_same_room_native_move",
-      "commit": null,
+      "commit": "338a07c05f865fed9c7a17c0d297c36534a2138e",
       "capability": "CurrentBuildSameRoomSingleFurnitureNativeValidationCommitAndRollbackGateway",
       "game_validation_status": "player_F7_evidence_accepted;current_build_rvas_and_layout_confirmed;F8_object_cattree1_key5_test_implemented;debug_and_release_targeted_builds_passed;debug_and_release_unit_tests_passed;debug_and_release_dll_load_smoke_passed;release_dll_deployed_and_hash_matched_5A220DF099091329FD48AFF2A331938FCCA3756604BB9C1BF93AD1C47C0B1194;install_verified;player_F8_visual_move_and_save_reload_test_accepted"
+    },
+    "39": {
+      "status": "implementation_complete_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "DeterministicSameRoomFurnitureLayoutPreviewAndTickBatchedNativeAutoPlace",
+      "game_validation_status": "stage38_native_gateway_player_validated;debug_and_release_targeted_builds_passed;debug_and_release_unit_tests_passed;debug_and_release_dll_load_smoke_passed;day17_read_only_plan_rooms1_considered4_moves2_kept2_unsupported6;planned_object_cattree1_key5_and_object_cinderblock1_key3;v0.5.20_release_deployed_and_hash_matched_DB5DBA827A57D998A93B4787066C6E157CE63DBDDE7DEE0B288403D1D8F4A7D2;install_verified;player_start_analysis_auto_place_save_reload_validation_pending"
     }
   },
-  "updated_at": "2026-08-09T21:30:36+08:00"
+  "updated_at": "2026-08-09T22:18:31+08:00"
 }

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <future>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,10 @@ private:
         const UiContextSnapshot& context,
         const std::vector<RuntimeScene>& scenes);
     void RunFurnitureNativeMoveTest(
+        const UiContextSnapshot& context);
+    void ClearFurnitureLayoutPreview();
+    void StartFurnitureAutoPlacement(std::uint64_t generation);
+    void PollFurnitureAutoPlacement(
         const UiContextSnapshot& context);
     void RefreshRuntimeSnapshotContext();
     void ApplyRuntimeConfig();
@@ -116,6 +121,12 @@ private:
     std::future<Result<furniture_analysis::FurnitureAnalysisSnapshot>>
         furniture_analysis_task_;
     std::uint64_t furniture_analysis_task_generation_{};
+    std::optional<furniture_analysis::FurnitureAnalysisSnapshot>
+        furniture_analysis_preview_;
+    bool furniture_execution_active_{};
+    std::uint64_t furniture_execution_generation_{};
+    std::size_t furniture_execution_index_{};
+    std::size_t furniture_execution_moved_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<RuntimeHouseMoveGateway> runtime_move_gateway_;
