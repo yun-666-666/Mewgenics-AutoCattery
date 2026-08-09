@@ -575,6 +575,34 @@ bool ParseFurnitureInfo(
             record.opaque_payload.size(),
             record.opaque_payload.begin());
         offset += record.opaque_payload.size();
+
+        record.placement_grid.supported = true;
+        for (std::size_t tile_index = 0;
+             tile_index < kFurniturePlacementGridCellCount;
+             ++tile_index) {
+            const auto raw = std::to_integer<std::uint8_t>(
+                record.opaque_payload[
+                    kFurniturePlacementGridOffset + tile_index]);
+            if (raw > static_cast<std::uint8_t>(
+                    FurniturePlacementTile::PoopLogic)) {
+                record.placement_grid.supported = false;
+                break;
+            }
+            record.placement_grid.tiles[tile_index] =
+                static_cast<FurniturePlacementTile>(raw);
+        }
+        for (std::size_t payload_index = 0;
+             payload_index < record.opaque_payload.size();
+             ++payload_index) {
+            const bool inside_grid =
+                payload_index >= kFurniturePlacementGridOffset &&
+                payload_index < kFurniturePlacementGridOffset +
+                    kFurniturePlacementGridCellCount;
+            if (!inside_grid && record.opaque_payload[payload_index] !=
+                    std::byte{0}) {
+                ++record.nonzero_bytes_outside_placement_grid;
+            }
+        }
         parsed.records.push_back(std::move(record));
     }
     if (offset != bytes.size()) {

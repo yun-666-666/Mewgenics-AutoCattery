@@ -2,6 +2,7 @@
 
 #include "auto_cattery/snapshot/domain.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -12,6 +13,42 @@
 namespace autocattery::snapshot::detail {
 
 inline constexpr std::size_t kFurnitureInfoOpaquePayloadSize = 580;
+inline constexpr std::size_t kFurniturePlacementGridOffset = 224;
+inline constexpr std::size_t kFurniturePlacementGridWidth = 12;
+inline constexpr std::size_t kFurniturePlacementGridHeight = 13;
+inline constexpr std::size_t kFurniturePlacementGridCellCount =
+    kFurniturePlacementGridWidth * kFurniturePlacementGridHeight;
+static_assert(
+    kFurniturePlacementGridOffset + kFurniturePlacementGridCellCount <=
+    kFurnitureInfoOpaquePayloadSize);
+
+enum class FurniturePlacementTile : std::uint8_t {
+    Empty = 0,
+    Hitbox = 1,
+    Solid = 2,
+    Support = 3,
+    Surface = 4,
+    PoopLogic = 5
+};
+
+struct FurniturePlacementGrid {
+    bool supported{};
+    std::array<
+        FurniturePlacementTile,
+        kFurniturePlacementGridCellCount> tiles{};
+
+    [[nodiscard]] FurniturePlacementTile At(
+        std::size_t x,
+        std::size_t y) const noexcept {
+        return tiles[y * kFurniturePlacementGridWidth + x];
+    }
+
+    [[nodiscard]] std::size_t Count(
+        FurniturePlacementTile tile) const noexcept {
+        return static_cast<std::size_t>(std::count(
+            tiles.begin(), tiles.end(), tile));
+    }
+};
 
 struct RoomGeometryDefinition {
     std::string definition_id;
@@ -42,6 +79,8 @@ struct FurnitureInfoRecord {
     std::string item_id;
     std::uint32_t unknown_after_name_length{};
     std::array<std::byte, kFurnitureInfoOpaquePayloadSize> opaque_payload{};
+    FurniturePlacementGrid placement_grid;
+    std::size_t nonzero_bytes_outside_placement_grid{};
 };
 
 struct FurnitureInfoCatalog {

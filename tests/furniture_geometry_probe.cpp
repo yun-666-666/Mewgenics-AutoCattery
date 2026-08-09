@@ -67,14 +67,20 @@ int wmain(int argument_count, wchar_t** arguments) {
         return 1;
     }
 
-    std::unordered_set<std::string> info_ids;
+    std::map<
+        std::string,
+        const autocattery::snapshot::detail::FurnitureInfoRecord*> info_by_id;
     for (const auto& record : furniture_info.records) {
-        info_ids.insert(record.item_id);
+        info_by_id.emplace(record.item_id, &record);
     }
     std::size_t placed{};
     std::size_t warehouse{};
     std::size_t info_coverage{};
+    std::size_t placement_grid_coverage{};
     std::size_t effect_coverage{};
+    std::map<
+        autocattery::snapshot::detail::FurniturePlacementTile,
+        std::size_t> active_tile_counts;
     std::set<std::string> observed_rooms;
     std::map<std::string, std::size_t> room_counts;
     std::map<std::uint64_t, std::size_t> unknown_values;
@@ -96,7 +102,16 @@ int wmain(int argument_count, wchar_t** arguments) {
             observed_rooms.insert(placement.room_id);
             ++room_counts[placement.room_id];
         }
-        info_coverage += info_ids.contains(placement.item_id) ? 1U : 0U;
+        const auto info = info_by_id.find(placement.item_id);
+        if (info != info_by_id.end()) {
+            ++info_coverage;
+            if (info->second->placement_grid.supported) {
+                ++placement_grid_coverage;
+                for (const auto tile : info->second->placement_grid.tiles) {
+                    ++active_tile_counts[tile];
+                }
+            }
+        }
         effect_coverage += effects.contains(placement.item_id) ? 1U : 0U;
         ++unknown_values[placement.unknown_before_room];
         ++item_length_unknown_values[
@@ -121,6 +136,8 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " warehouse=" << warehouse
         << " observed_rooms=" << observed_rooms.size()
         << " info_coverage=" << info_coverage << '/' << placements.size()
+        << " placement_grid_coverage=" << placement_grid_coverage << '/'
+        << placements.size()
         << " effect_coverage=" << effect_coverage << '/' << placements.size()
         << '\n';
     if (!placements.empty()) {
@@ -155,9 +172,37 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " furniture_info_version=" << furniture_info.format_version
         << " furniture_info_records=" << furniture_info.records.size()
         << '\n';
+    std::size_t supported_grid_records{};
+    std::size_t records_with_nonzero_outside_grid{};
     for (const auto& record : furniture_info.records) {
         ++info_name_unknown_values[record.unknown_after_name_length];
+        supported_grid_records += record.placement_grid.supported ? 1U : 0U;
+        records_with_nonzero_outside_grid +=
+            record.nonzero_bytes_outside_placement_grid != 0U ? 1U : 0U;
     }
+    std::cout
+        << "placement_grid="
+        << autocattery::snapshot::detail::kFurniturePlacementGridWidth
+        << 'x'
+        << autocattery::snapshot::detail::kFurniturePlacementGridHeight
+        << " supported_records=" << supported_grid_records << '/'
+        << furniture_info.records.size()
+        << " nonzero_outside_grid_records="
+        << records_with_nonzero_outside_grid
+        << '\n';
+    std::cout
+        << "active_tiles"
+        << " hitbox=" << active_tile_counts[
+            autocattery::snapshot::detail::FurniturePlacementTile::Hitbox]
+        << " solid=" << active_tile_counts[
+            autocattery::snapshot::detail::FurniturePlacementTile::Solid]
+        << " support=" << active_tile_counts[
+            autocattery::snapshot::detail::FurniturePlacementTile::Support]
+        << " surface=" << active_tile_counts[
+            autocattery::snapshot::detail::FurniturePlacementTile::Surface]
+        << " poop=" << active_tile_counts[
+            autocattery::snapshot::detail::FurniturePlacementTile::PoopLogic]
+        << '\n';
     for (const auto& [value, count] : info_name_unknown_values) {
         std::cout << "furniture_info_unknown_after_name_length=" << value
                   << " count=" << count << '\n';

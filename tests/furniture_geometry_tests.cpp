@@ -65,7 +65,8 @@ std::filesystem::path WriteGpak(
 
 std::vector<std::byte> FurnitureInfo(
     bool truncate_payload = false,
-    bool trailing_byte = false) {
+    bool trailing_byte = false,
+    bool unsupported_grid = false) {
     std::vector<std::byte> bytes;
     Append<std::uint32_t>(bytes, 1);
     Append<std::uint32_t>(bytes, 2);
@@ -74,11 +75,22 @@ std::vector<std::byte> FurnitureInfo(
             bytes, static_cast<std::uint32_t>(item.size()));
         Append<std::uint32_t>(bytes, item == "chair" ? 0U : 3U);
         AppendText(bytes, item);
-        const auto payload_size =
-            snapshot::detail::kFurnitureInfoOpaquePayloadSize;
-        for (std::size_t index = 0; index < payload_size; ++index) {
-            bytes.push_back(static_cast<std::byte>(index % 251U));
-        }
+        std::array<
+            std::byte,
+            snapshot::detail::kFurnitureInfoOpaquePayloadSize> payload{};
+        const auto grid = snapshot::detail::kFurniturePlacementGridOffset;
+        payload[grid] = std::byte{1};
+        payload[grid + 1U] = std::byte{2};
+        payload[grid + snapshot::detail::kFurniturePlacementGridWidth] =
+            std::byte{3};
+        payload[grid + snapshot::detail::kFurniturePlacementGridWidth + 1U] =
+            std::byte{4};
+        payload[
+            grid + snapshot::detail::kFurniturePlacementGridCellCount - 1U] =
+            item == "chair" || !unsupported_grid
+                ? std::byte{5}
+                : std::byte{6};
+        bytes.insert(bytes.end(), payload.begin(), payload.end());
     }
     if (truncate_payload) {
         bytes.pop_back();
@@ -156,7 +168,34 @@ void RunFurnitureGeometryTests() {
     AC_CHECK(furniture.records[0].unknown_after_name_length == 0);
     AC_CHECK(furniture.records[1].unknown_after_name_length == 3);
     AC_CHECK(furniture.records[0].opaque_payload.size() == 580);
+    AC_CHECK(furniture.records[0].placement_grid.supported);
+    AC_CHECK(
+        furniture.records[0].placement_grid.At(0, 0) ==
+        snapshot::detail::FurniturePlacementTile::Hitbox);
+    AC_CHECK(
+        furniture.records[0].placement_grid.At(1, 0) ==
+        snapshot::detail::FurniturePlacementTile::Solid);
+    AC_CHECK(
+        furniture.records[0].placement_grid.At(0, 1) ==
+        snapshot::detail::FurniturePlacementTile::Support);
+    AC_CHECK(
+        furniture.records[0].placement_grid.At(1, 1) ==
+        snapshot::detail::FurniturePlacementTile::Surface);
+    AC_CHECK(
+        furniture.records[0].placement_grid.Count(
+            snapshot::detail::FurniturePlacementTile::PoopLogic) == 1);
+    AC_CHECK(
+        furniture.records[0].nonzero_bytes_outside_placement_grid == 0);
     std::filesystem::remove(geometry_path);
+
+    const auto unsupported_path = WriteGpak({
+        {"data/house.gon", HouseGon()},
+        {"data/furniture_info.data", FurnitureInfo(false, false, true)}});
+    AC_CHECK(snapshot::detail::LoadFurnitureInfoCatalog(
+        unsupported_path, furniture, error));
+    AC_CHECK(furniture.records[0].placement_grid.supported);
+    AC_CHECK(!furniture.records[1].placement_grid.supported);
+    std::filesystem::remove(unsupported_path);
 
     const auto truncated_path = WriteGpak({
         {"data/house.gon", HouseGon()},
