@@ -4,6 +4,8 @@
 
 #include <filesystem>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -17,6 +19,11 @@ enum class FurniturePlacementFlag : std::uint64_t {
 inline constexpr std::uint64_t kKnownFurniturePlacementFlags =
     static_cast<std::uint64_t>(FurniturePlacementFlag::Rare);
 
+struct FurnitureGridCoordinate {
+    std::int32_t x{};
+    std::int32_t y{};
+};
+
 struct FurniturePlacement {
     std::int64_t instance_id{};
     std::uint32_t format_version{};
@@ -28,8 +35,8 @@ struct FurniturePlacement {
     std::int32_t position_x{};
     std::int32_t position_y{};
     std::uint32_t position_z{};
-    std::uint32_t unknown_flag_1{};
-    std::uint32_t unknown_flag_2{};
+    std::int32_t scale_x{};
+    std::int32_t scale_y{};
 
     [[nodiscard]] bool HasPlacementFlag(
         FurniturePlacementFlag flag) const noexcept {
@@ -42,6 +49,36 @@ struct FurniturePlacement {
 
     [[nodiscard]] bool IsRare() const noexcept {
         return HasPlacementFlag(FurniturePlacementFlag::Rare);
+    }
+
+    [[nodiscard]] bool HasSupportedGridScale() const noexcept {
+        const auto supported_axis = [](std::int32_t value) {
+            return value == -1 || value == 1;
+        };
+        return supported_axis(scale_x) && supported_axis(scale_y);
+    }
+
+    [[nodiscard]] std::optional<FurnitureGridCoordinate> MapGridCellToRoom(
+        std::int32_t local_x,
+        std::int32_t local_y) const noexcept {
+        if (!HasSupportedGridScale()) {
+            return std::nullopt;
+        }
+        const auto mapped_x = static_cast<std::int64_t>(position_x) +
+            static_cast<std::int64_t>(scale_x) * local_x;
+        const auto mapped_y = static_cast<std::int64_t>(position_y) +
+            static_cast<std::int64_t>(scale_y) * local_y;
+        constexpr auto minimum =
+            static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+        constexpr auto maximum =
+            static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+        if (mapped_x < minimum || mapped_x > maximum ||
+            mapped_y < minimum || mapped_y > maximum) {
+            return std::nullopt;
+        }
+        return FurnitureGridCoordinate{
+            .x = static_cast<std::int32_t>(mapped_x),
+            .y = static_cast<std::int32_t>(mapped_y)};
     }
 };
 

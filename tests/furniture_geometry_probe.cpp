@@ -89,7 +89,10 @@ int wmain(int argument_count, wchar_t** arguments) {
     std::map<std::uint32_t, std::size_t> item_length_unknown_values;
     std::map<std::uint32_t, std::size_t> room_length_unknown_values;
     std::map<std::uint32_t, std::size_t> info_name_unknown_values;
-    std::map<std::pair<std::uint32_t, std::uint32_t>, std::size_t> flag_pairs;
+    std::map<std::pair<std::int32_t, std::int32_t>, std::size_t> scale_pairs;
+    std::size_t supported_scale_records{};
+    std::size_t horizontal_flip_records{};
+    std::size_t vertical_flip_records{};
     std::int32_t minimum_x = std::numeric_limits<std::int32_t>::max();
     std::int32_t maximum_x = std::numeric_limits<std::int32_t>::min();
     std::int32_t minimum_y = std::numeric_limits<std::int32_t>::max();
@@ -123,8 +126,13 @@ int wmain(int argument_count, wchar_t** arguments) {
             placement.unknown_after_item_length];
         ++room_length_unknown_values[
             placement.unknown_after_room_length];
-        ++flag_pairs[{
-            placement.unknown_flag_1, placement.unknown_flag_2}];
+        ++scale_pairs[{placement.scale_x, placement.scale_y}];
+        const bool supported_scale = placement.HasSupportedGridScale();
+        supported_scale_records += supported_scale ? 1U : 0U;
+        horizontal_flip_records +=
+            supported_scale && placement.scale_x == -1 ? 1U : 0U;
+        vertical_flip_records +=
+            supported_scale && placement.scale_y == -1 ? 1U : 0U;
         minimum_x = std::min(minimum_x, placement.position_x);
         maximum_x = std::max(maximum_x, placement.position_x);
         minimum_y = std::min(minimum_y, placement.position_y);
@@ -171,8 +179,13 @@ int wmain(int argument_count, wchar_t** arguments) {
         std::cout << "unknown_after_room_length=" << value
                   << " count=" << count << '\n';
     }
-    for (const auto& [flags, count] : flag_pairs) {
-        std::cout << "unknown_flags=" << flags.first << ',' << flags.second
+    std::cout
+        << "placement_scales_supported="
+        << supported_scale_records << '/' << placements.size()
+        << " horizontal_flipped=" << horizontal_flip_records
+        << " vertical_flipped=" << vertical_flip_records << '\n';
+    for (const auto& [scales, count] : scale_pairs) {
+        std::cout << "placement_scales=" << scales.first << ',' << scales.second
                   << " count=" << count << '\n';
     }
     std::cout
@@ -220,11 +233,16 @@ int wmain(int argument_count, wchar_t** arguments) {
         const auto collision_rows = room.built_in_collision.size();
         const auto collision_columns = collision_rows == 0U ? 0U :
             room.built_in_collision.front().size();
+        const auto runtime_collision =
+            autocattery::snapshot::detail::DecodeRoomCollisionGrid(room);
         std::cout
             << "room_definition=" << room.definition_id
             << " room_id=" << room.room_id
             << " size=" << room.width << 'x' << room.height
             << " collision=" << collision_columns << 'x' << collision_rows
+            << " runtime_collision=" << runtime_collision.width << 'x'
+            << runtime_collision.height
+            << " supported=" << (runtime_collision.supported ? 1 : 0)
             << '\n';
     }
     for (const auto& house : geometry.houses) {

@@ -34,8 +34,8 @@ snapshot::detail::FurniturePlacement Furniture(
         .position_x = static_cast<std::int32_t>(instance_id),
         .position_y = 0,
         .position_z = 1,
-        .unknown_flag_1 = 1,
-        .unknown_flag_2 = 1};
+        .scale_x = 1,
+        .scale_y = 1};
 }
 
 }  // namespace

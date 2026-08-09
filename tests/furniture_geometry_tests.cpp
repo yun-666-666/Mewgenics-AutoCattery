@@ -110,7 +110,7 @@ rooms {
  R4 { width 16 height 7 }
  R5 { width 16 height 7 }
  R6 { width 16 height 7 }
- Roof { id Attic width 18 height 5
+ Roof { id Attic width 2 height 1
    built_in_collision [[6 6 6 6] [6 0 0 6] [6 2 2 6]]
  }
 }
@@ -157,6 +157,26 @@ void RunFurnitureGeometryTests() {
     AC_CHECK(geometry.rooms.back().built_in_collision.size() == 3);
     AC_CHECK(geometry.rooms.back().built_in_collision.front().size() == 4);
     AC_CHECK(geometry.houses.back().room_positions.back().room_id == "Attic");
+    const auto default_collision =
+        snapshot::detail::DecodeRoomCollisionGrid(geometry.rooms.front());
+    AC_CHECK(default_collision.supported);
+    AC_CHECK(default_collision.width == 18);
+    AC_CHECK(default_collision.height == 9);
+    AC_CHECK(default_collision.At(0, 0) == 2);
+    AC_CHECK(default_collision.At(1, 1) == 0);
+    AC_CHECK(default_collision.At(17, 8) == 2);
+    const auto attic_collision =
+        snapshot::detail::DecodeRoomCollisionGrid(geometry.rooms.back());
+    AC_CHECK(attic_collision.supported);
+    AC_CHECK(attic_collision.width == 4);
+    AC_CHECK(attic_collision.height == 3);
+    AC_CHECK(attic_collision.At(1, 0) == 2);
+    AC_CHECK(attic_collision.At(1, 1) == 0);
+    AC_CHECK(attic_collision.At(1, 2) == 6);
+    auto invalid_room = geometry.rooms.back();
+    invalid_room.built_in_collision.pop_back();
+    AC_CHECK(!snapshot::detail::DecodeRoomCollisionGrid(
+        invalid_room).supported);
 
     snapshot::detail::FurnitureInfoCatalog furniture;
     AC_CHECK(snapshot::detail::LoadFurnitureInfoCatalog(
@@ -168,6 +188,9 @@ void RunFurnitureGeometryTests() {
     AC_CHECK(furniture.records[0].unknown_after_name_length == 0);
     AC_CHECK(furniture.records[1].unknown_after_name_length == 3);
     AC_CHECK(furniture.records[0].opaque_payload.size() == 580);
+    AC_CHECK(snapshot::detail::kFurniturePlacementGridOffset == 4);
+    AC_CHECK(snapshot::detail::kFurniturePlacementGridWidth == 24);
+    AC_CHECK(snapshot::detail::kFurniturePlacementGridHeight == 24);
     AC_CHECK(furniture.records[0].placement_grid.supported);
     AC_CHECK(
         furniture.records[0].placement_grid.At(0, 0) ==

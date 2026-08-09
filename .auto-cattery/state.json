@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 35,
+  "active_stage": 36,
   "stages": {
     "1": {
       "status": "completed",
@@ -195,17 +195,23 @@
       "game_validation_status": "v0.5.17_component_presence_detection_rejected_by_player;live_probe_confirmed_FurnitureBuildingUI_plus_0x78_transitions_0_to_1_to_0;v0.5.18_debug_and_release_builds_passed;4_of_4_ctest_passed_both_configs;release_deployed;normal_house_enter_furniture_exit_furniture_player_validation_passed"
     },
     "34": {
-      "status": "completed_read_only_grid_decode",
+      "status": "completed_historical_grid_counts_shape_superseded_by_stage_36",
       "commit": "eaa21d49ccc107db6ef4644554b46c4769724b50",
-      "capability": "CurrentBuildFurniturePlacementGridReadOnlyDecode",
-      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;day17_10_of_10_day32_20_of_20_day265_257_of_257_active_furniture_grid_coverage;634_of_634_resource_grids_supported;zero_nonzero_bytes_outside_grid;no_deployment"
+      "capability": "HistoricalFurnitureTileCountsWithSuperseded12x13ShapeInterpretation",
+      "game_validation_status": "historical_debug_and_release_builds_and_tile_counts_remain_valid;stage36_current_build_init_path_proved_full_24x24_grid_at_payload_offset_4"
     },
     "35": {
       "status": "completed_read_only_rare_flag_decode",
-      "commit": null,
+      "commit": "6fbb14fbd1c7b1698888a6d4d7654a14dfdd4cb1",
       "capability": "CurrentBuildFurnitureRarePlacementFlagReadOnlyDecode",
       "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;day17_10_of_10_day32_20_of_20_day265_257_of_257_known_placement_flags;day265_3_rare_records;no_deployment"
+    },
+    "36": {
+      "status": "completed_read_only_grid_coordinate_and_scale_decode_player_flip_diff_pending",
+      "commit": null,
+      "capability": "CurrentBuildFull24x24FurnitureGridSignedScaleTransformAndRoomBaseCollisionDecode",
+      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;634_of_634_full_24x24_resource_grids_supported;11_of_11_room_base_collision_grids_supported;day17_10_of_10_day32_20_of_20_day265_257_of_257_grid_and_scale_supported;all_existing_scales_1_1;horizontal_flip_player_save_diff_pending;no_deployment"
     }
   },
-  "updated_at": "2026-08-09T18:06:00+08:00"
+  "updated_at": "2026-08-09T18:47:23+08:00"
 }

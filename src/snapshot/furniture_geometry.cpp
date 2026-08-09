@@ -18,6 +18,7 @@ namespace {
 
 constexpr std::uint32_t kMaximumGpakEntries = 1'000'000U;
 constexpr std::uint32_t kMaximumFurnitureInfoRecords = 1'000'000U;
+constexpr std::size_t kMaximumRoomCollisionCells = 1'000'000U;
 
 template<class T>
 bool ReadStream(std::ifstream& stream, T& value) {
@@ -614,6 +615,59 @@ bool ParseFurnitureInfo(
 }
 
 }  // namespace
+
+RoomCollisionGrid DecodeRoomCollisionGrid(
+    const RoomGeometryDefinition& room) {
+    RoomCollisionGrid decoded;
+    if (room.width <= 0 || room.height <= 0) {
+        return decoded;
+    }
+    const auto width = static_cast<std::int64_t>(room.width) + 2;
+    const auto height = static_cast<std::int64_t>(room.height) + 2;
+    if (width <= 0 || height <= 0) {
+        return decoded;
+    }
+    decoded.width = static_cast<std::size_t>(width);
+    decoded.height = static_cast<std::size_t>(height);
+    if (decoded.width > kMaximumRoomCollisionCells / decoded.height) {
+        return {};
+    }
+    decoded.cells.assign(decoded.width * decoded.height, 0U);
+
+    if (room.built_in_collision.empty()) {
+        for (std::size_t x = 0; x < decoded.width; ++x) {
+            decoded.cells[x] = 2U;
+            decoded.cells[(decoded.height - 1U) * decoded.width + x] = 2U;
+        }
+        for (std::size_t y = 0; y < decoded.height; ++y) {
+            decoded.cells[y * decoded.width] = 2U;
+            decoded.cells[y * decoded.width + decoded.width - 1U] = 2U;
+        }
+        decoded.supported = true;
+        return decoded;
+    }
+
+    if (room.built_in_collision.size() != decoded.height) {
+        return {};
+    }
+    for (std::size_t y = 0; y < decoded.height; ++y) {
+        const auto& source =
+            room.built_in_collision[decoded.height - y - 1U];
+        if (source.size() != decoded.width) {
+            return {};
+        }
+        for (std::size_t x = 0; x < decoded.width; ++x) {
+            const auto value = source[x];
+            if (value < 0 || value > 255) {
+                return {};
+            }
+            decoded.cells[y * decoded.width + x] =
+                static_cast<std::uint8_t>(value);
+        }
+    }
+    decoded.supported = true;
+    return decoded;
+}
 
 bool LoadHouseGeometryCatalog(
     const std::filesystem::path& gpak_path,

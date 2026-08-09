@@ -20,7 +20,9 @@ snapshot::detail::FurnitureStorageRecord FurnitureRecord(
     std::string_view room,
     std::int64_t key = 17,
     std::uint32_t version = 1,
-    std::uint64_t placement_flags = 2) {
+    std::uint64_t placement_flags = 2,
+    std::int32_t scale_x = 1,
+    std::int32_t scale_y = 1) {
     snapshot::detail::FurnitureStorageRecord record;
     record.key = key;
     Append<std::uint32_t>(record.blob, version);
@@ -40,8 +42,8 @@ snapshot::detail::FurnitureStorageRecord FurnitureRecord(
     Append<std::int32_t>(record.blob, -3);
     Append<std::int32_t>(record.blob, -7);
     Append<std::uint32_t>(record.blob, 11);
-    Append<std::uint32_t>(record.blob, 1);
-    Append<std::uint32_t>(record.blob, 1);
+    Append<std::int32_t>(record.blob, scale_x);
+    Append<std::int32_t>(record.blob, scale_y);
     return record;
 }
 
@@ -65,8 +67,13 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(placements[0].position_x == -3);
     AC_CHECK(placements[0].position_y == -7);
     AC_CHECK(placements[0].position_z == 11);
-    AC_CHECK(placements[0].unknown_flag_1 == 1);
-    AC_CHECK(placements[0].unknown_flag_2 == 1);
+    AC_CHECK(placements[0].scale_x == 1);
+    AC_CHECK(placements[0].scale_y == 1);
+    AC_CHECK(placements[0].HasSupportedGridScale());
+    const auto normal_cell = placements[0].MapGridCellToRoom(5, 3);
+    AC_CHECK(normal_cell.has_value());
+    AC_CHECK(normal_cell->x == 2);
+    AC_CHECK(normal_cell->y == -4);
 
     placements.clear();
     AC_CHECK(snapshot::detail::ParseFurniturePlacements(
@@ -75,6 +82,33 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(placements[0].placement_flags == 6);
     AC_CHECK(!placements[0].HasOnlyKnownPlacementFlags());
     AC_CHECK(placements[0].IsRare());
+
+    placements.clear();
+    AC_CHECK(snapshot::detail::ParseFurniturePlacements(
+        {FurnitureRecord("mirror", "Attic", 24, 1, 0, -1, 1)},
+        placements, error));
+    AC_CHECK(placements[0].scale_x == -1);
+    AC_CHECK(placements[0].scale_y == 1);
+    const auto flipped_cell = placements[0].MapGridCellToRoom(5, 3);
+    AC_CHECK(flipped_cell.has_value());
+    AC_CHECK(flipped_cell->x == -8);
+    AC_CHECK(flipped_cell->y == -4);
+
+    placements.clear();
+    AC_CHECK(snapshot::detail::ParseFurniturePlacements(
+        {FurnitureRecord("vertical", "Attic", 25, 1, 0, 1, -1)},
+        placements, error));
+    const auto vertical_cell = placements[0].MapGridCellToRoom(5, 3);
+    AC_CHECK(vertical_cell.has_value());
+    AC_CHECK(vertical_cell->x == 2);
+    AC_CHECK(vertical_cell->y == -10);
+
+    placements.clear();
+    AC_CHECK(snapshot::detail::ParseFurniturePlacements(
+        {FurnitureRecord("unsupported", "Attic", 26, 1, 0, 0, 1)},
+        placements, error));
+    AC_CHECK(!placements[0].HasSupportedGridScale());
+    AC_CHECK(!placements[0].MapGridCellToRoom(1, 1).has_value());
 
     placements.clear();
     AC_CHECK(snapshot::detail::ParseFurniturePlacements(

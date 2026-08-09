@@ -60,8 +60,8 @@ std::string BuildBindingDigest(
         Append(canonical, item.position_x);
         Append(canonical, item.position_y);
         Append(canonical, item.position_z);
-        Append(canonical, item.unknown_flag_1);
-        Append(canonical, item.unknown_flag_2);
+        Append(canonical, item.scale_x);
+        Append(canonical, item.scale_y);
     }
     for (const auto& room : source.geometry.rooms) {
         Append(canonical, room.definition_id);

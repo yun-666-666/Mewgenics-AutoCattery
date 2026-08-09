@@ -13,13 +13,13 @@
 namespace autocattery::snapshot::detail {
 
 inline constexpr std::size_t kFurnitureInfoOpaquePayloadSize = 580;
-inline constexpr std::size_t kFurniturePlacementGridOffset = 224;
-inline constexpr std::size_t kFurniturePlacementGridWidth = 12;
-inline constexpr std::size_t kFurniturePlacementGridHeight = 13;
+inline constexpr std::size_t kFurniturePlacementGridOffset = 4;
+inline constexpr std::size_t kFurniturePlacementGridWidth = 24;
+inline constexpr std::size_t kFurniturePlacementGridHeight = 24;
 inline constexpr std::size_t kFurniturePlacementGridCellCount =
     kFurniturePlacementGridWidth * kFurniturePlacementGridHeight;
 static_assert(
-    kFurniturePlacementGridOffset + kFurniturePlacementGridCellCount <=
+    kFurniturePlacementGridOffset + kFurniturePlacementGridCellCount ==
     kFurnitureInfoOpaquePayloadSize);
 
 enum class FurniturePlacementTile : std::uint8_t {
@@ -56,6 +56,19 @@ struct RoomGeometryDefinition {
     std::int32_t width{};
     std::int32_t height{};
     std::vector<std::vector<std::int32_t>> built_in_collision;
+};
+
+struct RoomCollisionGrid {
+    bool supported{};
+    std::size_t width{};
+    std::size_t height{};
+    std::vector<std::uint8_t> cells;
+
+    [[nodiscard]] std::uint8_t At(
+        std::size_t x,
+        std::size_t y) const noexcept {
+        return cells[y * width + x];
+    }
 };
 
 struct HouseRoomPosition {
@@ -97,5 +110,8 @@ struct FurnitureInfoCatalog {
     const std::filesystem::path& gpak_path,
     FurnitureInfoCatalog& catalog,
     std::string& error);
+
+[[nodiscard]] RoomCollisionGrid DecodeRoomCollisionGrid(
+    const RoomGeometryDefinition& room);
 
 }  // namespace autocattery::snapshot::detail

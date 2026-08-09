@@ -59,8 +59,8 @@ bool ParsePlacement(
         !Read(bytes, offset, placement.position_x) ||
         !Read(bytes, offset, placement.position_y) ||
         !Read(bytes, offset, placement.position_z) ||
-        !Read(bytes, offset, placement.unknown_flag_1) ||
-        !Read(bytes, offset, placement.unknown_flag_2)) {
+        !Read(bytes, offset, placement.scale_x) ||
+        !Read(bytes, offset, placement.scale_y)) {
         return false;
     }
     return offset == bytes.size();
