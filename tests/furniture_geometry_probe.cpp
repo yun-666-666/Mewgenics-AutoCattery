@@ -83,7 +83,9 @@ int wmain(int argument_count, wchar_t** arguments) {
         std::size_t> active_tile_counts;
     std::set<std::string> observed_rooms;
     std::map<std::string, std::size_t> room_counts;
-    std::map<std::uint64_t, std::size_t> unknown_values;
+    std::map<std::uint64_t, std::size_t> placement_flag_values;
+    std::size_t supported_placement_flag_records{};
+    std::size_t rare_records{};
     std::map<std::uint32_t, std::size_t> item_length_unknown_values;
     std::map<std::uint32_t, std::size_t> room_length_unknown_values;
     std::map<std::uint32_t, std::size_t> info_name_unknown_values;
@@ -113,7 +115,10 @@ int wmain(int argument_count, wchar_t** arguments) {
             }
         }
         effect_coverage += effects.contains(placement.item_id) ? 1U : 0U;
-        ++unknown_values[placement.unknown_before_room];
+        ++placement_flag_values[placement.placement_flags];
+        supported_placement_flag_records +=
+            placement.HasOnlyKnownPlacementFlags() ? 1U : 0U;
+        rare_records += placement.IsRare() ? 1U : 0U;
         ++item_length_unknown_values[
             placement.unknown_after_item_length];
         ++room_length_unknown_values[
@@ -150,8 +155,12 @@ int wmain(int argument_count, wchar_t** arguments) {
         std::cout << "observed_room=" << room
                   << " furniture=" << count << '\n';
     }
-    for (const auto& [value, count] : unknown_values) {
-        std::cout << "unknown_before_room=" << value
+    std::cout
+        << "placement_flags_supported="
+        << supported_placement_flag_records << '/' << placements.size()
+        << " rare=" << rare_records << '\n';
+    for (const auto& [value, count] : placement_flag_values) {
+        std::cout << "placement_flags_raw=" << value
                   << " count=" << count << '\n';
     }
     for (const auto& [value, count] : item_length_unknown_values) {

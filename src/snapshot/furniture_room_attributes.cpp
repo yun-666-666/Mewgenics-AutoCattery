@@ -51,7 +51,7 @@ bool ParsePlacement(
             placement.unknown_after_item_length,
             placement.item_id) ||
         placement.item_id.empty() ||
-        !Read(bytes, offset, placement.unknown_before_room) ||
+        !Read(bytes, offset, placement.placement_flags) ||
         !ReadString(
             bytes, offset,
             placement.unknown_after_room_length,

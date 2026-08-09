@@ -19,7 +19,8 @@ snapshot::detail::FurnitureStorageRecord FurnitureRecord(
     std::string_view item,
     std::string_view room,
     std::int64_t key = 17,
-    std::uint32_t version = 1) {
+    std::uint32_t version = 1,
+    std::uint64_t placement_flags = 2) {
     snapshot::detail::FurnitureStorageRecord record;
     record.key = key;
     Append<std::uint32_t>(record.blob, version);
@@ -29,7 +30,7 @@ snapshot::detail::FurnitureStorageRecord FurnitureRecord(
     for (const char byte : item) {
         record.blob.push_back(static_cast<std::byte>(byte));
     }
-    Append<std::uint64_t>(record.blob, 42);
+    Append<std::uint64_t>(record.blob, placement_flags);
     Append<std::uint32_t>(
         record.blob, static_cast<std::uint32_t>(room.size()));
     Append<std::uint32_t>(record.blob, 9);
@@ -56,7 +57,9 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(placements[0].format_version == 1);
     AC_CHECK(placements[0].item_id == "chair");
     AC_CHECK(placements[0].unknown_after_item_length == 7);
-    AC_CHECK(placements[0].unknown_before_room == 42);
+    AC_CHECK(placements[0].placement_flags == 2);
+    AC_CHECK(placements[0].HasOnlyKnownPlacementFlags());
+    AC_CHECK(placements[0].IsRare());
     AC_CHECK(placements[0].room_id == "Attic");
     AC_CHECK(placements[0].unknown_after_room_length == 9);
     AC_CHECK(placements[0].position_x == -3);
@@ -64,6 +67,14 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(placements[0].position_z == 11);
     AC_CHECK(placements[0].unknown_flag_1 == 1);
     AC_CHECK(placements[0].unknown_flag_2 == 1);
+
+    placements.clear();
+    AC_CHECK(snapshot::detail::ParseFurniturePlacements(
+        {FurnitureRecord("lamp", "Attic", 23, 1, 6)}, placements, error));
+    AC_CHECK(placements.size() == 1);
+    AC_CHECK(placements[0].placement_flags == 6);
+    AC_CHECK(!placements[0].HasOnlyKnownPlacementFlags());
+    AC_CHECK(placements[0].IsRare());
 
     placements.clear();
     AC_CHECK(snapshot::detail::ParseFurniturePlacements(

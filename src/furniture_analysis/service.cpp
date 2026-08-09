@@ -54,7 +54,7 @@ std::string BuildBindingDigest(
         Append(canonical, item.format_version);
         Append(canonical, item.item_id);
         Append(canonical, item.unknown_after_item_length);
-        Append(canonical, item.unknown_before_room);
+        Append(canonical, item.placement_flags);
         Append(canonical, item.room_id);
         Append(canonical, item.unknown_after_room_length);
         Append(canonical, item.position_x);

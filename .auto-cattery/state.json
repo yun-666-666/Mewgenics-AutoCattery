@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 34,
+  "active_stage": 35,
   "stages": {
     "1": {
       "status": "completed",
@@ -196,10 +196,16 @@
     },
     "34": {
       "status": "completed_read_only_grid_decode",
-      "commit": null,
+      "commit": "eaa21d49ccc107db6ef4644554b46c4769724b50",
       "capability": "CurrentBuildFurniturePlacementGridReadOnlyDecode",
       "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;day17_10_of_10_day32_20_of_20_day265_257_of_257_active_furniture_grid_coverage;634_of_634_resource_grids_supported;zero_nonzero_bytes_outside_grid;no_deployment"
+    },
+    "35": {
+      "status": "completed_read_only_rare_flag_decode",
+      "commit": null,
+      "capability": "CurrentBuildFurnitureRarePlacementFlagReadOnlyDecode",
+      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;day17_10_of_10_day32_20_of_20_day265_257_of_257_known_placement_flags;day265_3_rare_records;no_deployment"
     }
   },
-  "updated_at": "2026-08-09T17:33:00+08:00"
+  "updated_at": "2026-08-09T18:06:00+08:00"
 }

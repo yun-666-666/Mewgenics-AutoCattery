@@ -10,12 +10,19 @@
 
 namespace autocattery::snapshot::detail {
 
+enum class FurniturePlacementFlag : std::uint64_t {
+    Rare = 0x2
+};
+
+inline constexpr std::uint64_t kKnownFurniturePlacementFlags =
+    static_cast<std::uint64_t>(FurniturePlacementFlag::Rare);
+
 struct FurniturePlacement {
     std::int64_t instance_id{};
     std::uint32_t format_version{};
     std::string item_id;
     std::uint32_t unknown_after_item_length{};
-    std::uint64_t unknown_before_room{};
+    std::uint64_t placement_flags{};
     RoomId room_id;
     std::uint32_t unknown_after_room_length{};
     std::int32_t position_x{};
@@ -23,6 +30,19 @@ struct FurniturePlacement {
     std::uint32_t position_z{};
     std::uint32_t unknown_flag_1{};
     std::uint32_t unknown_flag_2{};
+
+    [[nodiscard]] bool HasPlacementFlag(
+        FurniturePlacementFlag flag) const noexcept {
+        return (placement_flags & static_cast<std::uint64_t>(flag)) != 0U;
+    }
+
+    [[nodiscard]] bool HasOnlyKnownPlacementFlags() const noexcept {
+        return (placement_flags & ~kKnownFurniturePlacementFlags) == 0U;
+    }
+
+    [[nodiscard]] bool IsRare() const noexcept {
+        return HasPlacementFlag(FurniturePlacementFlag::Rare);
+    }
 };
 
 using FurnitureCatalog =

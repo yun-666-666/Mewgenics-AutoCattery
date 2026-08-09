@@ -1,11 +1,10 @@
-# CODEX CURRENT TASK - STAGE 34 FURNITURE PLACEMENT GRID READ-ONLY DECODE
+# CODEX CURRENT TASK - STAGE 35 FURNITURE RARE FLAG READ-ONLY DECODE
 
 ## Current objective
 
-继续 F01 的最小只读增量：从当前 `resources.gpak/data/furniture_info.data`
-确认并解码每件家具的 12x13 放置网格，使后续合法布局不再缺少家具自身的
-Hitbox、Solid、Support、Surface 与 PoopLogic 形状。保持完整 opaque payload，
-未知或未来格式必须按单件家具安全降级。
+继续 F01 的最小只读增量：根据当前 `Mewgenics.exe` 的创建和序列化路径，确认
+存档家具记录原 `u64 unknown_before_room` 的已知位 `0x2` 是 Rare 标志。保留
+完整原始位；任何其他位只使该家具实例的 flags 不受支持，不使整个存档解析失败。
 
 ## Required reading
 
@@ -13,32 +12,34 @@ Hitbox、Solid、Support、Surface 与 PoopLogic 形状。保持完整 opaque pa
 2. `docs/furniture-auto-placement-design.md`
 3. `docs/implementation-status.md`
 4. `.auto-cattery/state.json`
-5. `.auto-cattery/reports/stage-31.md`
+5. `.auto-cattery/reports/stage-34.md`
 6. `docs/stage04-failure-retrospective-2026-07-28.md`
-7. Stage 33 玩家验收、当前代码、当前 Debug 构建结果与 `git status --short`
+7. 当前 `Mewgenics.exe` 静态证据、三个现有存档、当前代码与 `git status --short`
 
 ## Confirmed current-build evidence
 
-- 634 条 `furniture_info.data` 记录的 580 字节 payload 中，仅偏移 `224..379`
-  在当前资源内变化，正好是 12x13 共 156 字节。
-- 当前 634 条网格全部只含 `0..5`；已用本地家具形状与公开家具编辑器说明交叉
-  确认：0 Empty、1 Hitbox、2 Solid、3 Support、4 Surface、5 PoopLogic。
-- 第 17、32、265 天三个存档的全部活动家具均能映射到可解码网格，覆盖分别为
-  10/10、20/20、257/257；资源目录支持 634/634，网格外非零记录为 0。
-- Stage 33 已由玩家确认普通 House、进入家具、退出家具三段模式切换正常。
+- 当前 `Mewgenics.exe` SHA-256 为
+  `C3A41E436A93FA58CD386EC46DAD5C2A6F21A583D33C3A57A15A2604C726439E`。
+- `FurniturePieceEntry` 当前大小为 `0x68`；创建路径 RVA `0x205090` 先把
+  `entry+0x28` 清零，读取资源键 `can_be_rare`，允许且请求稀有时执行
+  `or qword ptr [entry+0x28], 2`。
+- 当前 load/save 路径 RVA `0x22F7E0` / `0x230510` 均把存档中的该 `u64`
+  对应到 `entry+0x28`，证明它是持久化 flags，而不是分析工具自行推断的字段。
+- 第 17、32 天存档分别为 10/10、20/20 条 flags 支持且 Rare=0；第 265 天为
+  257/257 条支持，其中 3 条为 `0x2`，其余 254 条为 0。
 
-## Stage 34 completion boundary
+## Stage 35 completion boundary
 
-- 对当前 580 字节记录保留完整 opaque payload，同时暴露固定 12x13 网格。
-- 非 `0..5` 的单件记录只标记为不支持，不使整个目录或其他家具解析失败。
-- 记录网格外非零字节，供未来 build 识别格式漂移；不为未知字节赋予语义。
-- 匿名探针输出目录与活动家具的网格覆盖率及五类非空 tile 总数，不输出路径、
-  账号、猫名或家具实例身份。
-- Debug/Release 完整构建与 4/4 CTest 通过；三个现有 2/3/4 房存档只读复核通过。
+- 将原字段改为保留原值的 `placement_flags`，只把 `0x2` 暴露为 Rare。
+- 提供已知位检查；出现 `0x2` 之外的位时该实例安全降级，解析其他家具不失败。
+- 匿名探针只输出支持数量、Rare 数量和原始 flags 计数，不输出路径、账号、猫名
+  或家具实例身份。
+- Debug/Release 完整构建与 4/4 CTest 通过；三个现有存档只读复核通过。
 - 本阶段不部署、不改版本、不修改活动存档，只创建一个本地提交且不 push。
 
 ## Out of scope
 
-- 家具用途规划、合法布局求解、方向/旋转、Anchor、房间禁放区与原生家具移动。
+- 尾部两个 `u32` 的语义、方向/旋转、Anchor、房间禁放区和原生家具移动。
+- 家具用途规划与合法布局求解。
 - 启用“自动放置”、部署新 DLL、修改游戏文件或活动存档。
 - 自动组队、出征、结束一天、淘汰或直接修改活动存档。
