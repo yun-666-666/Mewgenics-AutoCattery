@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.18 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.19 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -124,6 +124,7 @@ add_library(auto_cattery_core STATIC
     src/ui/house_move_probe_mapper.cpp
     src/ui/house_move_probe_report.cpp
     src/ui/house_move_probe_session.cpp
+    src/ui/furniture_placement_gateway.cpp
     src/ui/furniture_move_probe_controller.cpp
     src/ui/furniture_move_probe_report.cpp
     src/ui/in_game_panel_controller.cpp
@@ -142,6 +143,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_house_move_adapter.c
     src/ui/mew_ui_house_move_invoke.c
     src/ui/mew_ui_house_move_probe.c
+    src/ui/mew_ui_furniture_move_adapter.c
     src/ui/mew_ui_furniture_move_probe.c
     src/ui/mew_ui_house_move_room_scan.c
     src/ui/mew_ui_house_detail_adapter.c
@@ -284,6 +286,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/lz4_block_tests.cpp
         tests/mew_ui_house_cat_probe_tests.cpp
         tests/mew_ui_house_move_probe_tests.cpp
+        tests/mew_ui_furniture_placement_tests.cpp
         tests/mew_ui_furniture_move_probe_tests.cpp
         tests/mew_ui_safe_node_lookup_tests.cpp
         tests/house_move_probe_session_tests.cpp

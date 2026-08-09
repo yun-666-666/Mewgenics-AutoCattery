@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -22,6 +23,7 @@
 #include "auto_cattery/scoring/combat_ranker.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
+#include "furniture_placement_gateway.hpp"
 #include "furniture_move_probe_controller.hpp"
 #include "house_move_probe_controller.hpp"
 #include "in_game_panel_controller.hpp"
@@ -254,6 +256,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         runtime_move_gateway_->Initialize(
             context.game_root / L"Mewgenics.exe");
     runtime_move_available_ = runtime_move_available;
+    furniture_placement_gateway_ =
+        std::make_unique<FurniturePlacementGateway>();
+    (void)furniture_placement_gateway_->Initialize(
+        context.game_root / L"Mewgenics.exe");
     auto runtime_snapshot_adapter =
         std::make_unique<RuntimeMatchedSaveSnapshotAdapter>(
             context.game_root);
@@ -369,6 +375,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             if (runtime_move_gateway_) {
                 runtime_move_gateway_->SetHouseScene(nullptr);
             }
+            if (furniture_placement_gateway_) {
+                furniture_placement_gateway_->SetHouseScene(nullptr);
+            }
         }
     });
 
@@ -462,6 +471,7 @@ void MewUiBridge::Shutdown() noexcept {
     management_panel_view_.reset();
     config_runtime_.reset();
     organize_workflow_.reset();
+    furniture_placement_gateway_.reset();
     runtime_move_gateway_.reset();
     house_button_view_.reset();
 }
@@ -529,9 +539,12 @@ void MewUiBridge::OnTick() {
         });
     }
 
+    const bool f8_pressed = (GetAsyncKeyState(VK_F8) & 1) != 0;
+    const bool shift_pressed =
+        (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
     if (debug_probe_enabled_) {
         LogSceneSummary(scenes);
-        if ((GetAsyncKeyState(VK_F8) & 1) != 0) {
+        if (f8_pressed && shift_pressed) {
             ExportSceneSummary(scenes);
         }
     }
@@ -625,12 +638,12 @@ void MewUiBridge::OnTick() {
             (GetAsyncKeyState(VK_F10) & 1) != 0,
             (GetAsyncKeyState(VK_ESCAPE) & 1) != 0);
     }
+    const bool writable_house =
+        context.kind == UiContextKind::House &&
+        context.input_enabled &&
+        !context.save_in_progress &&
+        house_scene != scenes.end();
     if (runtime_move_gateway_) {
-        const bool writable_house =
-            context.kind == UiContextKind::House &&
-            context.input_enabled &&
-            !context.save_in_progress &&
-            house_scene != scenes.end();
         runtime_move_gateway_->SetHouseScene(
             writable_house ? house_scene->manager : nullptr);
         current_house_scene_manager_ =
@@ -643,6 +656,13 @@ void MewUiBridge::OnTick() {
             runtime_snapshot_context_generation_ =
                 context.scene_generation;
         }
+    }
+    if (furniture_placement_gateway_) {
+        furniture_placement_gateway_->SetHouseScene(
+            writable_house ? house_scene->manager : nullptr);
+    }
+    if (f8_pressed && !shift_pressed) {
+        RunFurnitureNativeMoveTest(context);
     }
     if (debug_probe_enabled_ && house_move_probe_controller_) {
         const auto event = house_move_probe_controller_->Poll(
@@ -933,6 +953,164 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
             std::to_string(native_room_count) +
             ", available rooms=" +
             std::to_string(available_room_count));
+}
+
+void MewUiBridge::RunFurnitureNativeMoveTest(
+    const UiContextSnapshot& context) {
+    if (!furniture_mode_ ||
+        context.kind != UiContextKind::House ||
+        !context.input_enabled ||
+        context.save_in_progress ||
+        !furniture_placement_gateway_) {
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "FurniturePlacement",
+            "AC3800",
+            "F8 native furniture move test requires the active furniture placement screen.");
+        return;
+    }
+
+    const bool english = config_runtime_ &&
+        config_runtime_->Current().general.language == "en-US";
+    const FurniturePlacementLocator locator{
+        "object_cattree1", std::uint64_t{5}};
+    const auto location = furniture_placement_gateway_->Locate(locator);
+    if (location.status != FurniturePlacementLookupStatus::Found) {
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "FurniturePlacement",
+            "AC3801",
+            "F8 native furniture lookup failed: " + location.message);
+        if (recommendation_marker_controller_) {
+            const auto labels = english
+                ? std::vector<std::string>{
+                      "Native furniture move unavailable",
+                      "Cat Tree A was not uniquely identified",
+                      location.message,
+                      "No furniture was moved"}
+                : std::vector<std::string>{
+                      "原生家具移动不可用",
+                      "未能唯一识别猫爬架 A",
+                      location.message,
+                      "没有移动任何家具"};
+            (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
+                context.scene_generation, labels);
+        }
+        return;
+    }
+
+    const std::array<std::pair<std::int32_t, std::int32_t>, 2> targets =
+        location.saved_x == 3 && location.saved_y == -9
+            ? std::array<std::pair<std::int32_t, std::int32_t>, 2>{
+                  std::pair<std::int32_t, std::int32_t>{-6, -7},
+                  std::pair<std::int32_t, std::int32_t>{3, -9}}
+            : std::array<std::pair<std::int32_t, std::int32_t>, 2>{
+                  std::pair<std::int32_t, std::int32_t>{3, -9},
+                  std::pair<std::int32_t, std::int32_t>{-6, -7}};
+
+    FurniturePlacementMoveResult moved;
+    bool attempted{};
+    for (const auto& [target_x, target_y] : targets) {
+        if (target_x == location.saved_x &&
+            target_y == location.saved_y) {
+            continue;
+        }
+        attempted = true;
+        moved = furniture_placement_gateway_->MoveSameRoom({
+            locator, target_x, target_y});
+        if (moved.status !=
+            FurniturePlacementMoveStatus::RejectedRestored) {
+            break;
+        }
+    }
+    if (!attempted) {
+        moved.status = FurniturePlacementMoveStatus::AlreadyPlaced;
+        moved.stable_key = location.stable_key;
+        moved.from_x = location.saved_x;
+        moved.from_y = location.saved_y;
+        moved.target_x = location.saved_x;
+        moved.target_y = location.saved_y;
+        moved.verified = true;
+        moved.message = "no alternate test coordinate was available";
+    }
+
+    std::ostringstream detail;
+    detail << "F8 native furniture move status="
+           << FurniturePlacementMoveStatusName(moved.status)
+           << " item=object_cattree1 key=" << moved.stable_key
+           << " from=(" << moved.from_x << ',' << moved.from_y << ')'
+           << " target=(" << moved.target_x << ',' << moved.target_y << ')'
+           << " signatures=" << (moved.signatures_valid ? 1 : 0)
+           << " placement=" << (moved.placement_valid ? 1 : 0)
+           << " committed=" << (moved.committed ? 1 : 0)
+           << " verified=" << (moved.verified ? 1 : 0)
+           << " rollback=" << (moved.rollback_attempted ? 1 : 0)
+           << '/' << (moved.rollback_succeeded ? 1 : 0)
+           << " exception=0x" << std::hex << moved.seh_code
+           << " exception_rva=0x" << moved.exception_rva << std::dec;
+    Logger::Instance().Write(
+        moved.status == FurniturePlacementMoveStatus::Moved
+            ? LogLevel::Info
+            : moved.status == FurniturePlacementMoveStatus::RestoreFailed
+                ? LogLevel::Error
+                : LogLevel::Warn,
+        "FurniturePlacement",
+        "AC3802",
+        detail.str());
+
+    if (!recommendation_marker_controller_) {
+        return;
+    }
+    std::vector<std::string> labels;
+    if (moved.status == FurniturePlacementMoveStatus::Moved) {
+        const auto coordinates =
+            "(" + std::to_string(moved.from_x) + "," +
+            std::to_string(moved.from_y) + ") -> (" +
+            std::to_string(moved.target_x) + "," +
+            std::to_string(moved.target_y) + ")";
+        labels = english
+            ? std::vector<std::string>{
+                  "Native furniture move succeeded",
+                  "Cat Tree A " + coordinates,
+                  "Game validation and commit both passed",
+                  "Save, exit, and re-enter to confirm persistence"}
+            : std::vector<std::string>{
+                  "原生家具移动成功",
+                  "猫爬架 A " + coordinates,
+                  "游戏原生校验与提交均已通过",
+                  "请保存、退出并重进确认持久化"};
+    } else if (moved.status ==
+               FurniturePlacementMoveStatus::RestoreFailed) {
+        labels = english
+            ? std::vector<std::string>{
+                  "Furniture move restore was not verified",
+                  "Do not save this test session",
+                  "Exit the game and re-enter the save",
+                  "See AC3802 in the AutoCattery log"}
+            : std::vector<std::string>{
+                  "家具原位置回滚未确认",
+                  "本次测试请不要保存",
+                  "请退出游戏后重新进入存档",
+                  "详情见日志 AC3802"};
+    } else {
+        labels = english
+            ? std::vector<std::string>{
+                  "Native furniture move did not commit",
+                  moved.message,
+                  moved.rollback_succeeded
+                      ? "The original placement was restored"
+                      : "No native removal was performed",
+                  "See AC3802 in the AutoCattery log"}
+            : std::vector<std::string>{
+                  "原生家具移动未提交",
+                  moved.message,
+                  moved.rollback_succeeded
+                      ? "原位置已经恢复"
+                      : "未执行原生移除",
+                  "详情见日志 AC3802"};
+    }
+    (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
+        context.scene_generation, labels);
 }
 
 void MewUiBridge::ObserveMappingProbe(

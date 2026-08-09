@@ -1,50 +1,54 @@
-# CODEX CURRENT TASK - STAGE 37 FURNITURE MANUAL MOVE RUNTIME DELTA PROBE
+# CODEX CURRENT TASK - STAGE 38 SINGLE FURNITURE NATIVE MOVEMENT
 
 ## Current objective
 
-优先打通家具原生移动。复用现有 UI 线程与探针报告框架，在当前已验证的家具
-摆放界面中提供 F7 双快照：第一次采集 `FurnitureBuildingUI` 与 House scene 的
-两层对象图，玩家手动移动并放下一个家具后第二次采集，输出变化对象、vtable
-RVA、字节区间和 `int32/double/pointer` 候选。报告用于下一阶段直接锁定当前 build
-的选中家具对象、transform 字段与原生拿起/放置调用接口。
+优先打通玩家可见的家具原生移动。读取玩家已经完成的三份 F7 报告和当前 build
+静态证据，枚举 House scene 中的 `FurniturePiece`，定位 7 猫存档的
+`object_cattree1`，通过游戏自己的移除、合法性校验和提交函数移动同一房间内的
+一件家具。F8 是本阶段玩家测试入口；通用 gateway 接受明确的目标存档坐标，供
+后续布局规划器复用。
 
-## Required reading
+## Player evidence accepted
 
-1. `AGENTS.md`
-2. `docs/furniture-auto-placement-design.md`
-3. `docs/implementation-status.md`
-4. `.auto-cattery/state.json`
-5. `.auto-cattery/reports/stage-36.md`
-6. 玩家完成的 7 猫 `object_cattree1` 移动前后存档差分
-7. `docs/stage04-failure-retrospective-2026-07-28.md`
-8. 当前 `Mewgenics.exe` 静态证据、三个现有存档、当前资源、代码与
-   `git status --short`
+- 玩家已生成三份报告：
+  - `furniture-move-probe-20260809-203425.json`
+  - `furniture-move-probe-20260809-203535.json`
+  - `furniture-move-probe-20260809-203545.json`
+- 三份报告的 UI/House 根均达到 96 节点上限；变化对象分别为
+  `65/59`、`59/49`、`42/32`。广泛对象图被猫、物理、UI、音频和 ragdoll
+  占满，因此未直接包含 `FurniturePiece`。
+- 当前 scene 组件可直接枚举，7 猫运行时存在 10 个 `FurniturePiece`，所以对象图
+  上限不再阻塞原生移动。
+- 玩家手动移动同一 `object_cattree1` 时只改变 `x/y`，两个已验证坐标为
+  `(-6,-7)` 与 `(3,-9)`；实例 key、item、room、z、flags、scale 和其他 9 件
+  家具均不变。
 
-## Confirmed current-build evidence
+## Confirmed current-build route
 
-- 当前 `Mewgenics.exe` SHA-256 仍为
-  `C3A41E436A93FA58CD386EC46DAD5C2A6F21A583D33C3A57A15A2604C726439E`。
-- 7 猫存档中同一 `object_cattree1` 实例手动移动后仅 `x: -6 -> 3`、
-  `y: -7 -> -9`；key、item、room、z、flags、scale 与其他 9 件家具完全不变，
-  前后 SQLite integrity 均为 `ok`。
-- 玩家确认当前家具本身没有旋转入口；MVP 不再等待旋转/翻转证据，只处理现有
-  朝向与原生移动。
-- Stage 36 已证明存档坐标、完整 24x24 家具网格、房间基础碰撞坐标和提交路径；
-  当前缺口集中为运行时选中对象与原生移动接口。
+- `FurniturePiece` vtable RVA：`0xEDE690`。
+- `FurnitureGrid` vtable RVA：`0xEF4C20`。
+- `FurniturePiece+0x38`：transform；`+0x48`：当前 grid；`+0x2D8`：entry。
+- entry：key `+0x00`、item `+0x08`、room `+0x30`、saved x/y `+0x50/+0x54`。
+- transform：x/y/z `+0x80/+0x88/+0x90`、scale x/y `+0xB8/+0xC0`。
+- 原生移除 RVA `0x2EE3D0`；合法性校验 RVA `0x2EDE60`；提交 RVA
+  `0x2EE230`。
+- 当前 build 加载坐标：
+  `world = grid_world + saved + ceil(11.5 * scale)`，z 为 0。
 
-## Stage 37 completion boundary
+## Stage 38 completion boundary
 
-- F7 第一次按下采集移动前对象图，第二次按下采集移动后对象图并发布 JSON。
-- 同时采集 `FurnitureBuildingUI` 与 House scene manager，每个根最多两层、96 个
-  可读对象；只输出变化摘要，不输出原始内存字节。
-- 报告包含对象地址、父指针偏移、vtable RVA、变化字节区间和有界数值候选。
-- 家具界面右侧直接显示“已记录移动前”与“采集完成”，无需查看控制台。
-- Debug/Release 聚焦编译和同一单元测试目标通过；Release DLL 直接部署并校验。
-- 本阶段不自动移动家具、不直接写 `.sav`，只创建一个本地提交且不 push。
+- 新增通用同房间 `FurniturePlacementGateway`：按 item 和可选稳定 key 定位实例，
+  接受明确目标 saved x/y。
+- 移动顺序固定为：快照旧状态 -> 原生移除 -> 写目标 transform -> 原生校验
+  (`false`) -> 原生提交 -> 读回 grid 与 saved x/y。
+- 校验拒绝、原生异常或提交读回失败时，恢复旧 transform 并重新提交旧 grid；
+  F8 结果和回滚状态写入日志并显示在家具界面。
+- 7 猫测试入口优先 key 5，在 `(-6,-7)` 与 `(3,-9)` 两个玩家已验证坐标间切换。
+- Debug/Release 构建和聚焦单元测试通过；Release DLL 部署并校验；创建一个本地
+  commit，不 push。
 
 ## Out of scope
 
-- 本阶段不猜测对象偏移或原生函数签名；等玩家 F7 报告后直接沿 vtable/RVA 追踪。
-- 家具用途规划和合法布局求解不夹带在探针阶段。
-- 不启用批量“自动放置”，不直接修改活动存档。
-- 自动组队、出征、结束一天、淘汰或直接修改活动存档。
+- 本阶段不实现家具用途评分、跨房间分配、合法布局搜索或批量执行。
+- 不直接写 `.sav`，不修改游戏原始文件，不实现家具旋转。
+- 不自动结束一天、休息、出征、组队或淘汰猫。

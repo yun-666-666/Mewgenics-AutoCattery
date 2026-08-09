@@ -28,6 +28,7 @@ namespace autocattery::ui {
 
 class HouseButtonController;
 class HouseMoveProbeController;
+class FurniturePlacementGateway;
 class FurnitureMoveProbeController;
 class InGamePanelController;
 class MewUiHouseButtonView;
@@ -56,6 +57,8 @@ private:
     void UpdateHouseUiMode(
         const UiContextSnapshot& context,
         const std::vector<RuntimeScene>& scenes);
+    void RunFurnitureNativeMoveTest(
+        const UiContextSnapshot& context);
     void RefreshRuntimeSnapshotContext();
     void ApplyRuntimeConfig();
     SceneObservation ObserveScenes(
@@ -116,6 +119,8 @@ private:
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<RuntimeHouseMoveGateway> runtime_move_gateway_;
+    std::unique_ptr<FurniturePlacementGateway>
+        furniture_placement_gateway_;
     RuntimeMatchedSaveSnapshotAdapter* runtime_snapshot_adapter_{};
     std::unique_ptr<furniture_analysis::FurnitureAnalysisService>
         furniture_analysis_service_;

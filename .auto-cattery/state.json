@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 37,
+  "active_stage": 38,
   "stages": {
     "1": {
       "status": "completed",
@@ -213,11 +213,17 @@
       "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;634_of_634_full_24x24_resource_grids_supported;11_of_11_room_base_collision_grids_supported;day17_10_of_10_day32_20_of_20_day265_257_of_257_grid_and_scale_supported;seven_cat_object_cattree1_manual_move_changed_only_x_minus6_to3_and_y_minus7_to_minus9;other_9_furniture_unchanged;both_save_integrity_checks_ok"
     },
     "37": {
-      "status": "implementation_complete_release_probe_deployed_player_capture_pending",
-      "commit": null,
+      "status": "completed_player_reports_accepted_native_route_resolved",
+      "commit": "1e067f2cfde3b0ade7f26593605b72541f64281c",
       "capability": "FurnitureBuildingUiAndHouseSceneTwoLevelObjectGraphManualMoveDeltaProbe",
-      "game_validation_status": "targeted_debug_and_release_builds_passed;debug_and_release_unit_tests_passed;release_dll_deployed_and_hash_matched_DFEDFADEA642879477DF6E0EEF5E27F6A0DF204B2CFF893264F4315AD707751C;install_verified;player_F7_before_after_capture_pending"
+      "game_validation_status": "targeted_debug_and_release_builds_passed;debug_and_release_unit_tests_passed;release_dll_deployed_and_hash_matched_DFEDFADEA642879477DF6E0EEF5E27F6A0DF204B2CFF893264F4315AD707751C;install_verified;player_reports_20260809_203425_203535_203545_received;both_roots_reached_96_node_limit;scene_component_enumeration_confirmed_10_furniture_pieces"
+    },
+    "38": {
+      "status": "completed_player_validated_same_room_native_move",
+      "commit": null,
+      "capability": "CurrentBuildSameRoomSingleFurnitureNativeValidationCommitAndRollbackGateway",
+      "game_validation_status": "player_F7_evidence_accepted;current_build_rvas_and_layout_confirmed;F8_object_cattree1_key5_test_implemented;debug_and_release_targeted_builds_passed;debug_and_release_unit_tests_passed;debug_and_release_dll_load_smoke_passed;release_dll_deployed_and_hash_matched_5A220DF099091329FD48AFF2A331938FCCA3756604BB9C1BF93AD1C47C0B1194;install_verified;player_F8_visual_move_and_save_reload_test_accepted"
     }
   },
-  "updated_at": "2026-08-09T19:30:30+08:00"
+  "updated_at": "2026-08-09T21:30:36+08:00"
 }

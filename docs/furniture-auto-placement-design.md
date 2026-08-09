@@ -2,9 +2,10 @@
 
 更新日期：2026-08-09
 
-状态：Stage 37 已确认玩家手动移动同一家具时存档只改变 `x/y`，并部署 F7
-运行时双快照对象图探针。下一步用真实报告锁定选中家具对象与原生拿起/放置
-接口；Anchor、完整禁放区、合法布局求解和自动执行仍未完成。
+状态：Stage 38 已接通并经玩家验证当前 build 的单件同房间原生移动：scene 组件枚举定位
+`FurniturePiece`，通过游戏自己的移除、合法性校验与提交函数写回位置，并在失败
+时重新提交旧位置。F8 用 7 猫 `object_cattree1` 验证该路径；Anchor、完整禁放区、
+合法布局求解、跨房间分配和批量自动执行仍未完成。
 
 ### 2026-08-09 Stage 31 实施校正
 
@@ -77,9 +78,27 @@
 - 该报告将直接用于识别选中家具组件、运行时 transform 和当前 build 的原生提交
   函数，随后实现单件 `FurniturePlacementGateway`。
 
-这解决了家具基础网格尺寸、当前 `±1` scale 坐标变换和房间基础碰撞行列映射，
-但尚未证明 Anchor、Background、门口、墙面、天花板、斜顶等碰撞值语义；原生
-移动仍需 Stage 37 的运行时对象报告。合法布局和批量“自动放置”继续禁用。
+### 2026-08-09 Stage 38 单件原生移动
+
+- 玩家返回三份 F7 报告；两个根每次都达到 96 节点上限。对象图被猫、物理、UI、
+  ragdoll 和音频占满，但当前 scene 组件可直接枚举，7 猫运行时确认存在 10 个
+  `FurniturePiece`，因此不再扩展探针。
+- 当前 build 已确认 `FurniturePiece` vtable `0xEDE690`、`FurnitureGrid` vtable
+  `0xEF4C20`，以及 transform、grid、entry、saved x/y 和 scale 字段。
+- 原生路径固定为 `0x2EE3D0` 移除旧占用、`0x2EDE60(piece, grid, false)` 校验、
+  `0x2EE230(piece, grid)` 提交。提交内部恢复 grid 指针、占用、房间字符串、saved
+  x/y 与 scale。
+- 新增通用同房间 `FurniturePlacementGateway`。目标 world 坐标严格复用当前
+  build 的加载公式：`grid_world + saved + ceil(11.5 * scale)`，z 为 0。
+- 每次调用先保留旧 grid、transform 与 entry 坐标；校验拒绝、异常或读回不一致
+  时恢复旧 transform 并重新提交旧 grid。
+- F8 只作为本阶段 7 猫玩家测试入口：定位 `object_cattree1`，优先稳定 key 5，
+  在玩家已证明合法的 `(-6,-7)` 与 `(3,-9)` 间切换。通用 gateway 本身不写死
+  家具类型或坐标。
+
+这解决了家具基础网格尺寸、当前 `±1` scale 坐标变换、房间基础碰撞行列映射和
+单件同房间原生提交，但尚未证明 Anchor、Background、门口、墙面、天花板、斜顶
+等碰撞值语义。合法布局、家具用途选择、跨房间分配和批量“自动放置”继续禁用。
 
 ## 1. 目标
 

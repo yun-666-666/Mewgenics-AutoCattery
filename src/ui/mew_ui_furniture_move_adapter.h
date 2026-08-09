@@ -1,0 +1,101 @@
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define AC_MEW_FURNITURE_TEXT_CAPACITY 64U
+
+typedef enum AcMewFurnitureFindStatus {
+    AC_MEW_FURNITURE_FIND_INVALID = 0,
+    AC_MEW_FURNITURE_FIND_FOUND = 1,
+    AC_MEW_FURNITURE_FIND_NOT_FOUND = 2,
+    AC_MEW_FURNITURE_FIND_AMBIGUOUS = 3
+} AcMewFurnitureFindStatus;
+
+typedef struct AcMewFurniturePieceSnapshot {
+    void* piece;
+    void* grid;
+    void* transform;
+    void* entry;
+    uint64_t stable_key;
+    int32_t saved_x;
+    int32_t saved_y;
+    double world_x;
+    double world_y;
+    double world_z;
+    double scale_x;
+    double scale_y;
+    double grid_world_x;
+    double grid_world_y;
+    char item[AC_MEW_FURNITURE_TEXT_CAPACITY];
+    char room[AC_MEW_FURNITURE_TEXT_CAPACITY];
+} AcMewFurniturePieceSnapshot;
+
+typedef struct AcMewFurnitureFindResult {
+    uint8_t status;
+    uint8_t preferred_key_matched;
+    uint8_t reserved[2];
+    uint32_t item_match_count;
+    AcMewFurniturePieceSnapshot snapshot;
+} AcMewFurnitureFindResult;
+
+typedef struct AcMewNativeFurnitureMoveResult {
+    uint8_t signature_valid;
+    uint8_t piece_valid;
+    uint8_t grid_valid;
+    uint8_t removed;
+    uint8_t placement_valid;
+    uint8_t committed;
+    uint8_t verified;
+    uint8_t rollback_attempted;
+    uint8_t rollback_succeeded;
+    uint8_t reserved[3];
+    uint32_t seh_code;
+    uintptr_t exception_rva;
+    uint64_t stable_key;
+    int32_t old_x;
+    int32_t old_y;
+    int32_t target_x;
+    int32_t target_y;
+    int32_t committed_x;
+    int32_t committed_y;
+} AcMewNativeFurnitureMoveResult;
+
+double AcMewFurnitureWorldAxis(
+    double grid_world_axis,
+    int32_t saved_axis,
+    double scale_axis);
+
+void AcMewFurnitureWorldPosition(
+    double grid_world_x,
+    double grid_world_y,
+    int32_t saved_x,
+    int32_t saved_y,
+    double scale_x,
+    double scale_y,
+    double* world_x,
+    double* world_y,
+    double* world_z);
+
+int AcMewReadFurniturePieceSnapshot(
+    void* piece,
+    AcMewFurniturePieceSnapshot* snapshot);
+
+AcMewFurnitureFindResult AcMewFindFurniturePiece(
+    void* house_scene_manager,
+    const char* item,
+    uint64_t preferred_key,
+    int prefer_key);
+
+AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
+    void* piece,
+    int32_t target_x,
+    int32_t target_y);
+
+#ifdef __cplusplus
+}
+#endif
