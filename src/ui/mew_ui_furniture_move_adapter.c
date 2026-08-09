@@ -389,6 +389,41 @@ int AcMewReadFurniturePieceSnapshot(
     return 1;
 }
 
+size_t AcMewEnumerateFurniturePieces(
+    void* house_scene_manager,
+    AcMewFurniturePieceSnapshot* output,
+    size_t output_capacity,
+    uint8_t* complete) {
+    MewPodVectorPtr* components;
+    size_t count = 0U;
+    uint32_t index;
+    if (complete) {
+        *complete = 0U;
+    }
+    if (!house_scene_manager || !output || output_capacity == 0U ||
+        !complete) {
+        return 0U;
+    }
+    components = AcMewGetValidatedSceneComponents(house_scene_manager);
+    if (!components) {
+        return 0U;
+    }
+    *complete = 1U;
+    for (index = 0U; index < components->size; ++index) {
+        AcMewFurniturePieceSnapshot candidate;
+        if (!AcMewReadFurniturePieceSnapshot(
+                components->data[index], &candidate)) {
+            continue;
+        }
+        if (count == output_capacity) {
+            *complete = 0U;
+            continue;
+        }
+        output[count++] = candidate;
+    }
+    return count;
+}
+
 AcMewFurnitureFindResult AcMewFindFurniturePiece(
     void* house_scene_manager,
     const char* item,

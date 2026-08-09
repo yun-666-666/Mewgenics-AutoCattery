@@ -98,6 +98,12 @@ int AcMewReadFurniturePieceSnapshot(
     void* piece,
     AcMewFurniturePieceSnapshot* snapshot);
 
+size_t AcMewEnumerateFurniturePieces(
+    void* house_scene_manager,
+    AcMewFurniturePieceSnapshot* output,
+    size_t output_capacity,
+    uint8_t* complete);
+
 AcMewFurnitureFindResult AcMewFindFurniturePiece(
     void* house_scene_manager,
     const char* item,

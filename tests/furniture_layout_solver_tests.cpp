@@ -100,6 +100,22 @@ void RunFurnitureLayoutSolverTests() {
         AC_CHECK(supported.moves[0].target_y == -9);
     }
 
+    auto base_info = Info("base", 1, 1);
+    base_info.placement_grid.tiles[
+        9U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
+        snapshot::detail::FurniturePlacementTile::Surface;
+    snapshot::detail::FurnitureInfoCatalog stacked_catalog;
+    stacked_catalog.records.push_back(std::move(base_info));
+    stacked_catalog.records.push_back(Info("upper", 1, 1));
+    const auto stacked = solver.Plan(
+        {Placement(50, "base", "RoomA", -6, -9),
+         Placement(60, "upper", "RoomA", -6, -10)},
+        geometry,
+        stacked_catalog);
+    AC_CHECK(stacked.moves.empty());
+    AC_CHECK(stacked.considered_furniture_count == 0);
+    AC_CHECK(stacked.unsupported_furniture_count == 2);
+
     auto unsupported = furniture;
     unsupported[0].scale_x = 0;
     const auto blocked = solver.Plan(unsupported, geometry, info);

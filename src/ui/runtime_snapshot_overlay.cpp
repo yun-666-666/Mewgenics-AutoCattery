@@ -1,7 +1,9 @@
 #include "runtime_house_state.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace autocattery::ui {
 
@@ -87,6 +89,65 @@ bool RuntimeHouseStateMatches(
         }
     }
     return true;
+}
+
+Result<void> OverlayRuntimeFurnitureState(
+    std::vector<snapshot::detail::FurniturePlacement>& furniture,
+    const RuntimeFurnitureState& runtime) {
+    using Placement = snapshot::detail::FurniturePlacement;
+    std::unordered_map<std::uint64_t, Placement*> saved_by_key;
+    saved_by_key.reserve(furniture.size());
+    for (auto& placement : furniture) {
+        if (placement.instance_id <= 0 ||
+            !saved_by_key.emplace(
+                static_cast<std::uint64_t>(placement.instance_id),
+                &placement).second) {
+            return {ErrorCode::SnapshotInvalid,
+                    "saved furniture identity is incomplete or ambiguous"};
+        }
+    }
+
+    std::unordered_set<std::uint64_t> runtime_keys;
+    runtime_keys.reserve(runtime.placements.size());
+    for (const auto& current : runtime.placements) {
+        if (current.stable_key == 0U ||
+            current.stable_key >
+                static_cast<std::uint64_t>(
+                    std::numeric_limits<std::int64_t>::max()) ||
+            current.item_id.empty() || current.room_id.empty() ||
+            (current.scale_x != -1 && current.scale_x != 1) ||
+            (current.scale_y != -1 && current.scale_y != 1) ||
+            !runtime_keys.insert(current.stable_key).second) {
+            return {ErrorCode::SnapshotInvalid,
+                    "runtime furniture identity is incomplete or ambiguous"};
+        }
+        const auto saved = saved_by_key.find(current.stable_key);
+        if (saved == saved_by_key.end()) {
+            return {ErrorCode::SnapshotInvalid,
+                    "runtime furniture is missing from the selected save"};
+        }
+        if (saved->second->item_id != current.item_id) {
+            return {ErrorCode::SnapshotInvalid,
+                    "runtime furniture item identity changed"};
+        }
+        saved->second->room_id = current.room_id;
+        saved->second->position_x = current.position_x;
+        saved->second->position_y = current.position_y;
+        saved->second->scale_x = current.scale_x;
+        saved->second->scale_y = current.scale_y;
+    }
+
+    const bool missing_live_placement = std::ranges::any_of(
+        furniture,
+        [&runtime_keys](const auto& placement) {
+            return !placement.room_id.empty() &&
+                !runtime_keys.contains(
+                    static_cast<std::uint64_t>(placement.instance_id));
+        });
+    return missing_live_placement
+        ? Result<void>{ErrorCode::SnapshotInvalid,
+                       "current placed furniture coverage is incomplete"}
+        : Result<void>{};
 }
 
 }  // namespace autocattery::ui

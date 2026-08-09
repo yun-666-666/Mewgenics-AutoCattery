@@ -128,6 +128,21 @@ bool AddOccupancy(
     return true;
 }
 
+bool SharesActiveCell(
+    const LayoutItem& left,
+    const LayoutItem& right) {
+    return std::ranges::any_of(
+        left.current_cells,
+        [&right](const auto& left_cell) {
+            return std::ranges::any_of(
+                right.current_cells,
+                [&left_cell](const auto& right_cell) {
+                    return left_cell.x == right_cell.x &&
+                        left_cell.y == right_cell.y;
+                });
+        });
+}
+
 void RemoveOccupancy(
     const RoomCollisionGrid& room,
     const std::vector<OffsetCell>& cells,
@@ -321,10 +336,10 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
                                item.placement->position_y;
                 }) > 1;
             const bool isolated = std::ranges::all_of(
-                item.current_cells,
-                [&room, &occupancy](const auto& cell) {
-                    return !ConsumesOccupancy(cell.tile) ||
-                        occupancy[CellIndex(room, cell.x, cell.y)] == 1U;
+                items,
+                [&item](const auto& candidate) {
+                    return &candidate == &item ||
+                        !SharesActiveCell(item, candidate);
                 });
             if (item.floor_supported && isolated && !shared_origin) {
                 movable.push_back(&item);

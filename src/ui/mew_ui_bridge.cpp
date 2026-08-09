@@ -32,6 +32,7 @@
 #include "mew_ui_house_button_view.hpp"
 #include "mew_ui_house_cat_probe.h"
 #include "mew_ui_house_detail_adapter.h"
+#include "mew_ui_furniture_move_adapter.h"
 #include "mew_ui_house_move_adapter.h"
 #include "mew_ui_mapping_probe.h"
 #include "mew_ui_management_panel_view.hpp"
@@ -50,11 +51,43 @@ namespace {
 
 constexpr std::size_t kSceneProbeCapacity = 64;
 constexpr std::size_t kMappingRecordCapacity = 128;
+constexpr std::size_t kFurnitureSnapshotCapacity = 512;
 constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
 constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
 constexpr auto kFurnitureBuildingComponent = "FurnitureBuildingUI";
+
+Result<RuntimeFurnitureState> CaptureRuntimeFurnitureState(
+    void* house_scene_manager) {
+    std::array<
+        AcMewFurniturePieceSnapshot,
+        kFurnitureSnapshotCapacity> snapshots{};
+    std::uint8_t complete{};
+    const auto count = AcMewEnumerateFurniturePieces(
+        house_scene_manager,
+        snapshots.data(),
+        snapshots.size(),
+        &complete);
+    if (complete == 0U) {
+        return {{}, ErrorCode::SnapshotInvalid,
+                "live furniture enumeration was unavailable or truncated"};
+    }
+    RuntimeFurnitureState state;
+    state.placements.reserve(count);
+    for (std::size_t index = 0; index < count; ++index) {
+        const auto& current = snapshots[index];
+        state.placements.push_back({
+            .stable_key = current.stable_key,
+            .item_id = current.item,
+            .room_id = current.room,
+            .position_x = current.saved_x,
+            .position_y = current.saved_y,
+            .scale_x = static_cast<std::int32_t>(current.scale_x),
+            .scale_y = static_cast<std::int32_t>(current.scale_y)});
+    }
+    return {std::move(state)};
+}
 
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
@@ -962,6 +995,20 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
         !current_house_scene_manager_) {
         return;
     }
+    auto runtime_furniture = CaptureRuntimeFurnitureState(
+        current_house_scene_manager_);
+    if (!runtime_furniture) {
+        runtime_snapshot_adapter_->SetRuntimeContext(0U, 0U);
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "RuntimeSaveSelection",
+            "AC14320",
+            "Live House furniture refresh failed closed: " +
+                runtime_furniture.message);
+        return;
+    }
+    const auto runtime_furniture_count =
+        runtime_furniture.value.placements.size();
     if (!runtime_move_available_) {
         std::array<void*, 16> native_rooms{};
         const auto native_room_count =
@@ -973,7 +1020,8 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
             AcMewCountHouseCats(current_house_scene_manager_);
         runtime_snapshot_adapter_->SetRuntimeContext(
             house_cat_count,
-            native_room_count > 2U ? native_room_count - 2U : 0U);
+            native_room_count > 2U ? native_room_count - 2U : 0U,
+            std::move(runtime_furniture.value));
         return;
     }
     auto runtime = CaptureRuntimeHouseState(
@@ -992,7 +1040,8 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
         runtime.value.available_room_count;
     const auto native_room_count = runtime.value.rooms.size();
     runtime_snapshot_adapter_->SetRuntimeHouseState(
-        std::move(runtime.value));
+        std::move(runtime.value),
+        std::move(runtime_furniture.value));
     Logger::Instance().Write(
         LogLevel::Info,
         "RuntimeSaveSelection",
@@ -1002,7 +1051,9 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
             ", native room components=" +
             std::to_string(native_room_count) +
             ", available rooms=" +
-            std::to_string(available_room_count));
+            std::to_string(available_room_count) +
+            ", furniture=" +
+            std::to_string(runtime_furniture_count));
 }
 
 void MewUiBridge::ClearFurnitureLayoutPreview() {

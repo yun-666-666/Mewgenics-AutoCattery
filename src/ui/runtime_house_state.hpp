@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "auto_cattery/error.hpp"
+#include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
 #include "auto_cattery/snapshot/domain.hpp"
 
 namespace autocattery::ui {
@@ -28,6 +30,20 @@ struct RuntimeHouseState {
     std::vector<RuntimeRoomEvidence> rooms;
 };
 
+struct RuntimeFurniturePlacementState {
+    std::uint64_t stable_key{};
+    std::string item_id;
+    snapshot::RoomId room_id;
+    std::int32_t position_x{};
+    std::int32_t position_y{};
+    std::int32_t scale_x{};
+    std::int32_t scale_y{};
+};
+
+struct RuntimeFurnitureState {
+    std::vector<RuntimeFurniturePlacementState> placements;
+};
+
 [[nodiscard]] Result<std::unordered_map<snapshot::RoomId, RuntimePointer>>
 ResolveRuntimeRoomPointers(
     const snapshot::HouseSnapshot& snapshot,
@@ -45,5 +61,9 @@ ResolveRuntimeRoomPointers(
 [[nodiscard]] bool RuntimeHouseStateMatches(
     const snapshot::HouseSnapshot& snapshot,
     const RuntimeHouseState& runtime);
+
+[[nodiscard]] Result<void> OverlayRuntimeFurnitureState(
+    std::vector<snapshot::detail::FurniturePlacement>& furniture,
+    const RuntimeFurnitureState& runtime);
 
 }  // namespace autocattery::ui

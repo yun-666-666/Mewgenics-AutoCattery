@@ -2,6 +2,10 @@
 #include "runtime_house_move_gateway.hpp"
 
 #include <algorithm>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "test_support.hpp"
 
@@ -49,6 +53,38 @@ const snapshot::RoomSnapshot& Room(
         [id](const auto& candidate) { return candidate.id == id; });
     AC_CHECK(room != snapshot.rooms.end());
     return *room;
+}
+
+snapshot::detail::FurniturePlacement Furniture(
+    std::int64_t key,
+    std::string item,
+    std::string room,
+    std::int32_t x,
+    std::int32_t y) {
+    return {
+        .instance_id = key,
+        .item_id = std::move(item),
+        .room_id = std::move(room),
+        .position_x = x,
+        .position_y = y,
+        .scale_x = 1,
+        .scale_y = 1};
+}
+
+ui::RuntimeFurniturePlacementState RuntimeFurniture(
+    std::uint64_t key,
+    std::string item,
+    std::string room,
+    std::int32_t x,
+    std::int32_t y) {
+    return {
+        .stable_key = key,
+        .item_id = std::move(item),
+        .room_id = std::move(room),
+        .position_x = x,
+        .position_y = y,
+        .scale_x = 1,
+        .scale_y = 1};
 }
 
 }  // namespace
@@ -116,6 +152,40 @@ void RunRuntimeHouseStateTests() {
     no_evidence.rooms.clear();
     AC_CHECK(!static_cast<bool>(
         ui::ResolveRuntimeRoomPointers(ambiguous, no_evidence)));
+
+    std::vector<snapshot::detail::FurniturePlacement> furniture{
+        Furniture(10, "base", "RoomA", 3, -11),
+        Furniture(20, "stored", "", 0, 0)};
+    ui::RuntimeFurnitureState live{
+        .placements = {
+            RuntimeFurniture(10, "base", "RoomA", 0, -11)}};
+    AC_CHECK(static_cast<bool>(
+        ui::OverlayRuntimeFurnitureState(furniture, live)));
+    AC_CHECK(furniture[0].position_x == 0);
+    live.placements[0].position_x = 2;
+    live.placements[0].position_y = -9;
+    AC_CHECK(static_cast<bool>(
+        ui::OverlayRuntimeFurnitureState(furniture, live)));
+    AC_CHECK(furniture[0].position_x == 2);
+    AC_CHECK(furniture[0].position_y == -9);
+
+    auto mismatched = live;
+    mismatched.placements[0].item_id = "different";
+    auto mismatch_source = furniture;
+    AC_CHECK(!static_cast<bool>(
+        ui::OverlayRuntimeFurnitureState(mismatch_source, mismatched)));
+
+    auto duplicate = live;
+    duplicate.placements.push_back(duplicate.placements.front());
+    auto duplicate_source = furniture;
+    AC_CHECK(!static_cast<bool>(
+        ui::OverlayRuntimeFurnitureState(duplicate_source, duplicate)));
+
+    std::vector<snapshot::detail::FurniturePlacement> incomplete{
+        Furniture(10, "base", "RoomA", 3, -11),
+        Furniture(30, "upper", "RoomA", 3, -12)};
+    AC_CHECK(!static_cast<bool>(
+        ui::OverlayRuntimeFurnitureState(incomplete, live)));
 }
 
 }  // namespace autocattery::tests

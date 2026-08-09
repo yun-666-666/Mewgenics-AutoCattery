@@ -20,8 +20,11 @@ public:
 
     void SetRuntimeContext(
         std::size_t house_cat_count,
-        std::size_t available_room_count) noexcept;
-    void SetRuntimeHouseState(RuntimeHouseState state) noexcept;
+        std::size_t available_room_count,
+        RuntimeFurnitureState furniture = {}) noexcept;
+    void SetRuntimeHouseState(
+        RuntimeHouseState state,
+        RuntimeFurnitureState furniture) noexcept;
 
     Result<snapshot::HouseSnapshot> CaptureHouseSnapshot(
         std::uint64_t scene_generation) override;
@@ -35,6 +38,7 @@ private:
     std::size_t house_cat_count_{};
     std::size_t available_room_count_{};
     std::optional<RuntimeHouseState> runtime_state_;
+    std::optional<RuntimeFurnitureState> runtime_furniture_state_;
     std::uint64_t room_mapping_generation_{};
     std::optional<std::unordered_map<
         snapshot::RoomId, RuntimePointer>> room_mapping_;

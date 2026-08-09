@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Refresh furniture instance coordinates, room, and scale from the active House
+  scene on every Start Analysis request instead of reusing the first disk-save
+  snapshot for the rest of the furniture session.
+- Keep both members of a stacked or attached furniture group in place when
+  their active placement cells overlap, preventing a base move from orphaning
+  the small furniture resting on it.
 - Correct furniture-mode detection for the current game build: the always-present
   `FurnitureBuildingUI` component is cached, while its player-verified active
   byte at `+0x78` controls whether the two House buttons use furniture labels.

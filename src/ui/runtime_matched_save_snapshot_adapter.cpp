@@ -46,21 +46,25 @@ RuntimeMatchedSaveSnapshotAdapter::RuntimeMatchedSaveSnapshotAdapter(
 
 void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeContext(
     std::size_t house_cat_count,
-    std::size_t available_room_count) noexcept {
+    std::size_t available_room_count,
+    RuntimeFurnitureState furniture) noexcept {
     std::scoped_lock lock(context_mutex_);
     house_cat_count_ = house_cat_count;
     available_room_count_ = available_room_count;
     runtime_state_.reset();
+    runtime_furniture_state_ = std::move(furniture);
     room_mapping_.reset();
     room_mapping_generation_ = 0;
 }
 
 void RuntimeMatchedSaveSnapshotAdapter::SetRuntimeHouseState(
-    RuntimeHouseState state) noexcept {
+    RuntimeHouseState state,
+    RuntimeFurnitureState furniture) noexcept {
     std::scoped_lock lock(context_mutex_);
     house_cat_count_ = state.cats.size();
     available_room_count_ = state.available_room_count;
     runtime_state_ = std::move(state);
+    runtime_furniture_state_ = std::move(furniture);
 }
 
 Result<snapshot::HouseSnapshot>
@@ -164,13 +168,16 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
     std::size_t expected_cats{};
     std::size_t expected_rooms{};
     std::optional<RuntimeHouseState> runtime_state;
+    std::optional<RuntimeFurnitureState> runtime_furniture_state;
     {
         std::scoped_lock lock(context_mutex_);
         expected_cats = house_cat_count_;
         expected_rooms = available_room_count_;
         runtime_state = runtime_state_;
+        runtime_furniture_state = runtime_furniture_state_;
     }
-    if (expected_cats == 0U || expected_rooms == 0U) {
+    if (expected_cats == 0U || expected_rooms == 0U ||
+        !runtime_furniture_state) {
         return {{}, ErrorCode::SceneUnavailable,
                 "current House furniture analysis context is unavailable"};
     }
@@ -213,6 +220,19 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
     source.house = std::move(selected->house);
     source.furniture = std::move(selected->furniture);
     source.available_room_count = expected_rooms;
+    const auto furniture_overlaid = OverlayRuntimeFurnitureState(
+        source.furniture, *runtime_furniture_state);
+    if (!furniture_overlaid) {
+        return {{}, furniture_overlaid.code,
+                "current House furniture overlay failed: " +
+                    furniture_overlaid.message};
+    }
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "RuntimeSaveSelection",
+        "AC14319",
+        "Furniture analysis snapshot overlaid from current runtime: furniture=" +
+            std::to_string(runtime_furniture_state->placements.size()));
     if (runtime_state) {
         std::unordered_set<snapshot::RoomId> seen;
         for (const auto& room : source.house.rooms) {
