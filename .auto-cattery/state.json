@@ -225,11 +225,11 @@
       "game_validation_status": "player_F7_evidence_accepted;current_build_rvas_and_layout_confirmed;F8_object_cattree1_key5_test_implemented;debug_and_release_targeted_builds_passed;debug_and_release_unit_tests_passed;debug_and_release_dll_load_smoke_passed;release_dll_deployed_and_hash_matched_5A220DF099091329FD48AFF2A331938FCCA3756604BB9C1BF93AD1C47C0B1194;install_verified;player_F8_visual_move_and_save_reload_test_accepted"
     },
     "39": {
-      "status": "v0_5_25_one_room_live_layout_release_deployed_player_validation_pending",
+      "status": "v0_5_26_complete_plan_only_and_player_layout_floor_release_deployed_player_validation_pending",
       "commit": null,
       "capability": "DeterministicSameRoomMaximumCountPackingWithSupportSolidRestackingAndSafeDisassemblyExecution",
-      "game_validation_status": "stage38_native_gateway_player_validated;v0.5.24_player_regression_zero_moves_reproduced;v0.5.25_current_overlap_surface_pooplogic_partial_execution_and_one_room_regressions_passed;release_real_probes_day17_10f_5moves_31ms_day32_20f_6moves_32ms_day265_257f_first_room_6moves_208ms;debug_release_tests_and_dll_smoke_passed;release_deployed_hash_55BC2401D2780E33C58181E392B0C4543E2F673EED9D44621E19AAEA94893A99;install_verified;player_retest_pending"
+      "game_validation_status": "stage38_native_gateway_player_validated;v0.5.25_player_found_failed_installation_staging_moves_executed_as_final_horizontal_layout;v0.5.26_failed_candidate_moves_discarded_multiple_complete_candidates_tried;day17_horizontal_debug_release_read_only_4_direct_attachment_moves_0_blocks;day32_player_manual_layout_debug_release_read_only_0_moves;day265_main_save_release_read_only_only_no_write;debug_release_tests_and_dll_smoke_passed;release_deployed_hash_DA5E671064A2B811EBD3066CF8D0050489BEF62639070C9EF1972284572D8676;install_verified;player_7cat_retest_pending"
     }
   },
-  "updated_at": "2026-08-10T14:08:00+08:00"
+  "updated_at": "2026-08-10T15:51:44+08:00"
 }

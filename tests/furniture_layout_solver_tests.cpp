@@ -158,6 +158,18 @@ void RunFurnitureLayoutSolverTests() {
     }
 
     const std::vector<snapshot::detail::FurniturePlacement>
+        player_compact_layout{
+            Placement(71, "large", "RoomA", -6, -9),
+            Placement(72, "small", "RoomA", -6, -9),
+            Placement(73, "small", "RoomA", -5, -9)};
+    const auto player_compact = solver.Plan(
+        player_compact_layout, geometry, info);
+    AC_CHECK(player_compact.moves.empty());
+    AC_CHECK(player_compact.kept_furniture_count == 3);
+    AC_CHECK(player_compact.unsupported_furniture_count == 0);
+    AC_CHECK(player_compact.installation_blocked_room_count == 0);
+
+    const std::vector<snapshot::detail::FurniturePlacement>
         overlapping_current_layout{
             Placement(80, "large", "RoomA", -6, -9),
             Placement(90, "base", "RoomA", -6, -9),
