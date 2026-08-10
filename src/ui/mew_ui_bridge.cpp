@@ -52,6 +52,7 @@ namespace {
 constexpr std::size_t kSceneProbeCapacity = 64;
 constexpr std::size_t kMappingRecordCapacity = 128;
 constexpr std::size_t kFurnitureSnapshotCapacity = 512;
+constexpr std::size_t kFurnitureGridSnapshotCapacity = 32;
 constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
@@ -85,6 +86,36 @@ Result<RuntimeFurnitureState> CaptureRuntimeFurnitureState(
             .position_y = current.saved_y,
             .scale_x = static_cast<std::int32_t>(current.scale_x),
             .scale_y = static_cast<std::int32_t>(current.scale_y)});
+    }
+    std::array<
+        AcMewFurnitureGridSnapshot,
+        kFurnitureGridSnapshotCapacity> grids{};
+    complete = 0U;
+    const auto grid_count = AcMewEnumerateFurnitureGrids(
+        house_scene_manager,
+        grids.data(),
+        grids.size(),
+        &complete);
+    if (complete == 0U || grid_count == 0U) {
+        return {{}, ErrorCode::RoomDataUnavailable,
+                "live furniture room-grid enumeration was unavailable or truncated"};
+    }
+    state.room_grids.reserve(grid_count);
+    for (std::size_t index = 0; index < grid_count; ++index) {
+        const auto& grid = grids[index];
+        if (grid.room[0] == '\0' ||
+            std::ranges::any_of(
+                state.room_grids,
+                [&grid](const auto& existing) {
+                    return existing.room_id == grid.room;
+                })) {
+            return {{}, ErrorCode::RoomDataUnavailable,
+                    "live furniture room grids were empty or ambiguous"};
+        }
+        state.room_grids.push_back({
+            .room_id = grid.room,
+            .width = grid.width,
+            .height = grid.height});
     }
     return {std::move(state)};
 }
@@ -310,6 +341,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
             if (furniture_execution_active_) {
                 return;
             }
+            if (furniture_layout_session_generation_ != generation) {
+                furniture_layout_session_generation_ = generation;
+                furniture_locked_room_ids_.clear();
+            }
             ClearFurnitureLayoutPreview();
             RefreshRuntimeSnapshotContext();
             if (!furniture_analysis_service_ ||
@@ -319,11 +354,13 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                      std::future_status::ready)) {
                 return;
             }
+            const auto locked_room_ids = furniture_locked_room_ids_;
             furniture_analysis_task_generation_ = generation;
             furniture_analysis_task_ = std::async(
                 std::launch::async,
-                [this, generation] {
-                    return furniture_analysis_service_->Analyze(generation);
+                [this, generation, locked_room_ids] {
+                    return furniture_analysis_service_->Analyze(
+                        generation, locked_room_ids);
                 });
         });
     organize_workflow_ =
@@ -491,6 +528,8 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_execution_generation_ = 0;
     furniture_execution_index_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_layout_session_generation_ = 0;
+    furniture_locked_room_ids_.clear();
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -619,6 +658,20 @@ void MewUiBridge::OnTick() {
                 auto completed = std::move(analysis.value);
                 const auto& plan = completed.layout_plan;
                 const bool executable = !plan.moves.empty();
+                const bool already_complete =
+                    !plan.target_room_id.empty() &&
+                    plan.planned_room_count == 1U &&
+                    plan.moves.empty() &&
+                    plan.evacuation_blocked_room_count == 0U &&
+                    plan.installation_blocked_room_count == 0U;
+                if (already_complete &&
+                    std::ranges::find(
+                        furniture_locked_room_ids_,
+                        plan.target_room_id) ==
+                        furniture_locked_room_ids_.end()) {
+                    furniture_locked_room_ids_.push_back(
+                        plan.target_room_id);
+                }
                 labels = english
                     ? std::vector<std::string>{
                           "Rooms: " + std::to_string(completed.rooms.size()) +
@@ -627,7 +680,9 @@ void MewUiBridge::OnTick() {
                           "Layout: " + std::to_string(plan.moves.size()) +
                               " moves, " +
                               std::to_string(plan.kept_furniture_count) +
-                              " already packed",
+                              " already packed, " +
+                              std::to_string(plan.deferred_furniture_count) +
+                              " deferred",
                           "Skipped: warehouse " +
                               std::to_string(plan.warehouse_furniture_count) +
                               ", unsupported " +
@@ -636,7 +691,9 @@ void MewUiBridge::OnTick() {
                               std::to_string(plan.no_space_furniture_count),
                           executable
                               ? "Auto Place: ready"
-                              : "Auto Place: no safe move needed"}
+                              : (already_complete
+                                  ? "Room complete; run analysis for the next room"
+                                  : "Auto Place: no safe move needed")}
                     : std::vector<std::string>{
                           "房间：" + std::to_string(completed.rooms.size()) +
                               "，家具：" +
@@ -644,7 +701,10 @@ void MewUiBridge::OnTick() {
                           "布局：需移动 " +
                               std::to_string(plan.moves.size()) +
                               " 件，已在紧凑位置 " +
-                              std::to_string(plan.kept_furniture_count) + " 件",
+                              std::to_string(plan.kept_furniture_count) +
+                              " 件，本批延后 " +
+                              std::to_string(plan.deferred_furniture_count) +
+                              " 件",
                           "跳过：仓库 " +
                               std::to_string(plan.warehouse_furniture_count) +
                               "，不支持 " +
@@ -653,7 +713,9 @@ void MewUiBridge::OnTick() {
                               std::to_string(plan.no_space_furniture_count),
                           executable
                               ? "自动放置：可以执行"
-                              : "自动放置：无需安全移动"};
+                              : (already_complete
+                                  ? "本房间已完成，请再次分析下一个房间"
+                                  : "自动放置：无需安全移动")};
                 Logger::Instance().Write(
                     LogLevel::Info,
                     "FurnitureAnalysis",
@@ -664,6 +726,10 @@ void MewUiBridge::OnTick() {
                         std::to_string(plan.planned_room_count) +
                         ", moves=" +
                         std::to_string(plan.moves.size()) +
+                        ", target=" +
+                        SafeTechnicalName(plan.target_room_id) +
+                        ", deferred=" +
+                        std::to_string(plan.deferred_furniture_count) +
                         ", current_blocked=" +
                         std::to_string(
                             plan.current_state_blocked_room_count) +
@@ -978,6 +1044,8 @@ void MewUiBridge::UpdateHouseUiMode(
     }
 
     furniture_mode_ = detected;
+    furniture_layout_session_generation_ = 0;
+    furniture_locked_room_ids_.clear();
     ClearFurnitureLayoutPreview();
     recommendation_detail_targets_.clear();
     mapping_snapshot_request_active_ = false;
@@ -1086,6 +1154,7 @@ void MewUiBridge::StartFurnitureAutoPlacement(
         !context.save_in_progress &&
         context.scene_generation == generation &&
         furniture_placement_gateway_ &&
+        furniture_analysis_service_ &&
         furniture_analysis_preview_.has_value() &&
         furniture_analysis_preview_->scene_generation == generation &&
         !furniture_analysis_preview_->layout_plan.moves.empty();
@@ -1101,6 +1170,26 @@ void MewUiBridge::StartFurnitureAutoPlacement(
             "FurniturePlacement",
             "AC3902",
             "Auto Place rejected because the layout preview or House generation is stale.");
+        return;
+    }
+
+    RefreshRuntimeSnapshotContext();
+    const auto refreshed = furniture_analysis_service_->Analyze(
+        generation, furniture_locked_room_ids_);
+    if (!refreshed ||
+        refreshed.value.binding_digest !=
+            furniture_analysis_preview_->binding_digest) {
+        ClearFurnitureLayoutPreview();
+        if (house_button_controller_) {
+            house_button_controller_->SetState(
+                OrganizeButtonState::Failed,
+                "the furniture layout changed after analysis");
+        }
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "FurniturePlacement",
+            "AC3906",
+            "Auto Place rejected because the sealed whole-house furniture snapshot changed after analysis.");
         return;
     }
 
@@ -1201,7 +1290,11 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             location.message);
         return;
     }
-    if (location.room != move.room_id) {
+    const bool already_at_target =
+        location.room == move.target_room_id &&
+        location.saved_x == move.target_x &&
+        location.saved_y == move.target_y;
+    if (!already_at_target && location.room != move.from_room_id) {
         fail("the planned furniture moved to another room before execution");
         return;
     }
@@ -1211,15 +1304,18 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     std::string message{"the furniture was already at the planned coordinate"};
     auto committed_x = move.target_x;
     auto committed_y = move.target_y;
-    if (location.saved_x != move.target_x ||
-        location.saved_y != move.target_y) {
+    if (!already_at_target) {
         if (location.saved_x != move.from_x ||
             location.saved_y != move.from_y) {
             fail("the planned furniture coordinate changed before execution");
             return;
         }
-        const auto moved = furniture_placement_gateway_->MoveSameRoom({
-            locator, move.target_x, move.target_y});
+        const auto moved = furniture_placement_gateway_->Move({
+            locator,
+            move.target_room_id,
+            move.target_x,
+            move.target_y,
+            true});
         status = moved.status;
         message = moved.message;
         committed_x = moved.target_x;
@@ -1241,7 +1337,8 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         "AC3903",
         "Auto Place item=" + move.item_id +
             " key=" + std::to_string(move.stable_key) +
-            " room=" + SafeTechnicalName(move.room_id) +
+            " room=" + SafeTechnicalName(move.from_room_id) + "->" +
+            SafeTechnicalName(move.target_room_id) +
             " from=(" + std::to_string(move.from_x) + "," +
             std::to_string(move.from_y) + ") planned=(" +
             std::to_string(move.target_x) + "," +
@@ -1257,11 +1354,17 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     const auto total = plan.moves.size();
     const auto moved = furniture_execution_moved_;
     const auto kept = plan.kept_furniture_count;
+    if (!plan.target_room_id.empty() &&
+        std::ranges::find(
+            furniture_locked_room_ids_, plan.target_room_id) ==
+            furniture_locked_room_ids_.end()) {
+        furniture_locked_room_ids_.push_back(plan.target_room_id);
+    }
     if (house_button_controller_) {
         house_button_controller_->SetFurnitureActionAvailable(false);
         house_button_controller_->SetState(
             OrganizeButtonState::Completed,
-            "same-room furniture layout completed");
+            "whole-house furniture layout completed");
     }
     Logger::Instance().Write(
         LogLevel::Info,
@@ -1357,7 +1460,9 @@ void MewUiBridge::RunFurnitureNativeMoveTest(
         }
         attempted = true;
         moved = furniture_placement_gateway_->MoveSameRoom({
-            locator, target_x, target_y});
+            .locator = locator,
+            .target_x = target_x,
+            .target_y = target_y});
         if (moved.status !=
             FurniturePlacementMoveStatus::RejectedRestored) {
             break;

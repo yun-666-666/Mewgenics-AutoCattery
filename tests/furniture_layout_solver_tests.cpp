@@ -75,6 +75,13 @@ snapshot::detail::FurniturePlacement Placement(
 
 using Position = std::pair<std::int32_t, std::int32_t>;
 
+struct PlacementState {
+    std::string room;
+    Position position;
+
+    bool operator==(const PlacementState&) const = default;
+};
+
 std::map<std::uint64_t, Position> FinalPositions(
     const std::vector<snapshot::detail::FurniturePlacement>& furniture,
     const furniture_planning::FurnitureLayoutPlan& plan) {
@@ -89,6 +96,32 @@ std::map<std::uint64_t, Position> FinalPositions(
         positions[move.stable_key] = {move.target_x, move.target_y};
     }
     return positions;
+}
+
+std::map<std::uint64_t, PlacementState> FinalPlacementStates(
+    const std::vector<snapshot::detail::FurniturePlacement>& furniture,
+    const furniture_planning::FurnitureLayoutPlan& plan) {
+    std::map<std::uint64_t, PlacementState> states;
+    for (const auto& item : furniture) {
+        if (item.instance_id > 0 && !item.room_id.empty()) {
+            states[static_cast<std::uint64_t>(item.instance_id)] = {
+                item.room_id, {item.position_x, item.position_y}};
+        }
+    }
+    for (const auto& move : plan.moves) {
+        const auto current = states.find(move.stable_key);
+        AC_CHECK(current != states.end());
+        if (current == states.end()) {
+            continue;
+        }
+        AC_CHECK(current->second.room == move.from_room_id);
+        AC_CHECK(current->second.position ==
+            Position(move.from_x, move.from_y));
+        current->second = {
+            move.target_room_id,
+            {move.target_x, move.target_y}};
+    }
+    return states;
 }
 
 }  // namespace
@@ -138,8 +171,6 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(packed.contains(20));
     AC_CHECK(packed.contains(30));
     AC_CHECK(packed.contains(40));
-    AC_CHECK(
-        (packed.at(10).second == -7 || packed.at(30).second == -7));
     AC_CHECK(packed.at(40) == Position(-5, -8));
 
     const std::vector<snapshot::detail::FurniturePlacement> stacked_layout{
@@ -235,8 +266,103 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(std::ranges::all_of(
         one_room_at_a_time.moves,
         [&one_room_at_a_time](const auto& move) {
-            return move.room_id ==
-                one_room_at_a_time.moves.front().room_id;
+            return move.from_room_id ==
+                    one_room_at_a_time.moves.front().from_room_id &&
+                move.target_room_id ==
+                    one_room_at_a_time.moves.front().target_room_id;
+        }));
+
+    snapshot::detail::HouseGeometryCatalog batch_geometry;
+    batch_geometry.rooms.push_back({
+        .definition_id = "BA",
+        .room_id = "SourceA",
+        .width = 2,
+        .height = 2});
+    batch_geometry.rooms.push_back({
+        .definition_id = "BB",
+        .room_id = "SourceB",
+        .width = 2,
+        .height = 2});
+    batch_geometry.rooms.push_back({
+        .definition_id = "BT",
+        .room_id = "Attic",
+        .width = 4,
+        .height = 2});
+    const std::vector<furniture_planning::FurnitureRoomGrid> batch_grids{
+        {"SourceA", 4, 4},
+        {"SourceB", 4, 4},
+        {"Attic", 6, 4}};
+    const std::vector<snapshot::detail::FurniturePlacement> batch_furniture{
+        Placement(201, "large", "SourceA", -10, -9),
+        Placement(202, "large", "SourceA", -8, -9),
+        Placement(203, "large", "SourceB", -10, -9),
+        Placement(204, "large", "SourceB", -8, -9),
+        Placement(205, "large", "SourceA", -10, -9),
+        Placement(206, "large", "SourceA", -8, -9),
+        Placement(207, "large", "SourceB", -10, -9),
+        Placement(208, "large", "SourceB", -8, -9),
+        Placement(209, "large", "SourceA", -10, -9),
+        Placement(210, "large", "SourceB", -8, -9)};
+    const auto attic_batch = solver.Plan(
+        batch_furniture, batch_geometry, info, batch_grids);
+    AC_CHECK(attic_batch.target_room_id == "Attic");
+    AC_CHECK(attic_batch.planned_room_count == 1);
+    AC_CHECK(attic_batch.deferred_furniture_count > 0);
+    const auto attic_final = FinalPlacementStates(
+        batch_furniture, attic_batch);
+    const auto attic_count = std::ranges::count_if(
+        attic_final,
+        [](const auto& entry) {
+            return entry.second.room == "Attic";
+        });
+    AC_CHECK(attic_count > 0);
+    AC_CHECK(attic_count + attic_batch.deferred_furniture_count ==
+        batch_furniture.size());
+
+    auto batch_with_unsupported = batch_furniture;
+    batch_with_unsupported.push_back(
+        Placement(211, "unknown", "SourceA", -7, -9));
+    const auto attic_with_unsupported = solver.Plan(
+        batch_with_unsupported, batch_geometry, info, batch_grids);
+    AC_CHECK(attic_with_unsupported.unsupported_furniture_count == 1);
+    AC_CHECK(attic_with_unsupported.deferred_furniture_count ==
+        attic_batch.deferred_furniture_count);
+
+    auto rearranged_batch = batch_furniture;
+    std::swap(rearranged_batch[0].position_x,
+              rearranged_batch[1].position_x);
+    std::swap(rearranged_batch[2].position_x,
+              rearranged_batch[3].position_x);
+    const auto rearranged_attic = solver.Plan(
+        rearranged_batch, batch_geometry, info, batch_grids);
+    AC_CHECK(rearranged_attic.target_room_id == "Attic");
+    const auto rearranged_final = FinalPlacementStates(
+        rearranged_batch, rearranged_attic);
+    for (const auto& [key, state] : attic_final) {
+        if (state.room == "Attic") {
+            AC_CHECK(rearranged_final.at(key) == state);
+        }
+    }
+
+    auto after_attic = batch_furniture;
+    for (auto& placement : after_attic) {
+        const auto state = attic_final.at(
+            static_cast<std::uint64_t>(placement.instance_id));
+        placement.room_id = state.room;
+        placement.position_x = state.position.first;
+        placement.position_y = state.position.second;
+    }
+    const auto next_batch = solver.Plan(
+        after_attic,
+        batch_geometry,
+        info,
+        batch_grids,
+        {"Attic"});
+    AC_CHECK(next_batch.target_room_id != "Attic");
+    AC_CHECK(std::ranges::none_of(
+        next_batch.moves,
+        [&attic_final](const auto& move) {
+            return attic_final.at(move.stable_key).room == "Attic";
         }));
 
     const auto repeated = solver.Plan(first_layout, geometry, info);

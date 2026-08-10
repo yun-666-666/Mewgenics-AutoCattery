@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "auto_cattery/furniture_analysis/domain.hpp"
 
@@ -11,7 +12,8 @@ public:
     explicit FurnitureAnalysisService(IFurnitureAnalysisSource& source);
 
     [[nodiscard]] Result<FurnitureAnalysisSnapshot> Analyze(
-        std::uint64_t scene_generation);
+        std::uint64_t scene_generation,
+        const std::vector<snapshot::RoomId>& locked_room_ids = {});
 
 private:
     IFurnitureAnalysisSource& source_;

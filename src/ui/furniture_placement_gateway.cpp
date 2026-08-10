@@ -99,6 +99,17 @@ FurniturePlacementLocation FurniturePlacementGateway::Locate(
 
 FurniturePlacementMoveResult FurniturePlacementGateway::MoveSameRoom(
     const FurniturePlacementRequest& request) const {
+    auto same_room = request;
+    const auto location = Locate(request.locator);
+    if (location.status == FurniturePlacementLookupStatus::Found) {
+        same_room.target_room = location.room;
+    }
+    same_room.strict_target = false;
+    return Move(same_room);
+}
+
+FurniturePlacementMoveResult FurniturePlacementGateway::Move(
+    const FurniturePlacementRequest& request) const {
     FurniturePlacementMoveResult result;
     result.target_x = request.target_x;
     result.target_y = request.target_y;
@@ -111,7 +122,15 @@ FurniturePlacementMoveResult FurniturePlacementGateway::MoveSameRoom(
     result.stable_key = location.stable_key;
     result.from_x = location.saved_x;
     result.from_y = location.saved_y;
-    if (location.saved_x == request.target_x &&
+    result.from_room = location.room;
+    result.target_room = request.target_room;
+    if (request.target_room.empty()) {
+        result.status = FurniturePlacementMoveStatus::Unsupported;
+        result.message = "the target furniture room is empty";
+        return result;
+    }
+    if (location.room == request.target_room &&
+        location.saved_x == request.target_x &&
         location.saved_y == request.target_y) {
         result.status = FurniturePlacementMoveStatus::AlreadyPlaced;
         result.verified = true;
@@ -130,8 +149,40 @@ FurniturePlacementMoveResult FurniturePlacementGateway::MoveSameRoom(
             refreshed.message;
         return result;
     }
-    const auto moved = AcMewMoveFurnitureSameRoom(
-        found.snapshot.piece, request.target_x, request.target_y);
+    AcMewFurnitureGridSnapshot target_grid{};
+    if (location.room == request.target_room) {
+        const auto grids = AcMewFindFurnitureGrid(
+            house_scene_manager_, request.target_room.c_str());
+        if (grids.status != AC_MEW_FURNITURE_FIND_FOUND) {
+            result.status = grids.status == AC_MEW_FURNITURE_FIND_NOT_FOUND
+                ? FurniturePlacementMoveStatus::NotFound
+                : (grids.status == AC_MEW_FURNITURE_FIND_AMBIGUOUS
+                    ? FurniturePlacementMoveStatus::Ambiguous
+                    : FurniturePlacementMoveStatus::Unsupported);
+            result.message = "the current furniture room grid was not uniquely available";
+            return result;
+        }
+        target_grid = grids.snapshot;
+    } else {
+        const auto grids = AcMewFindFurnitureGrid(
+            house_scene_manager_, request.target_room.c_str());
+        if (grids.status != AC_MEW_FURNITURE_FIND_FOUND) {
+            result.status = grids.status == AC_MEW_FURNITURE_FIND_NOT_FOUND
+                ? FurniturePlacementMoveStatus::NotFound
+                : (grids.status == AC_MEW_FURNITURE_FIND_AMBIGUOUS
+                    ? FurniturePlacementMoveStatus::Ambiguous
+                    : FurniturePlacementMoveStatus::Unsupported);
+            result.message = "the target furniture room grid was not uniquely available";
+            return result;
+        }
+        target_grid = grids.snapshot;
+    }
+    const auto moved = AcMewMoveFurnitureToGrid(
+        found.snapshot.piece,
+        &target_grid,
+        request.target_x,
+        request.target_y,
+        request.strict_target ? 0U : 1U);
     result.target_x = moved.target_x;
     result.target_y = moved.target_y;
     result.signatures_valid = moved.signature_valid != 0U;
@@ -147,7 +198,9 @@ FurniturePlacementMoveResult FurniturePlacementGateway::MoveSameRoom(
         result.message =
             moved.target_x == request.target_x &&
                 moved.target_y == request.target_y
-            ? "native furniture validation and commit succeeded"
+            ? (location.room == request.target_room
+                ? "native furniture validation and commit succeeded"
+                : "native cross-room furniture validation and commit succeeded")
             : "native validation selected the closest valid coordinate toward the original placement";
     } else if (result.rollback_attempted && !result.rollback_succeeded) {
         result.status = FurniturePlacementMoveStatus::RestoreFailed;

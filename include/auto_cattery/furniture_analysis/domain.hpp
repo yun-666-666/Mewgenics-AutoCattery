@@ -22,6 +22,7 @@ struct FurnitureAnalysisSourceSnapshot {
     snapshot::detail::FurnitureCatalog furniture_effects;
     std::size_t available_room_count{};
     std::vector<snapshot::RoomId> runtime_detected_room_ids;
+    std::vector<furniture_planning::FurnitureRoomGrid> runtime_room_grids;
 };
 
 class IFurnitureAnalysisSource {

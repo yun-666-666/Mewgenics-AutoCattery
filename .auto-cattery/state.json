@@ -229,7 +229,13 @@
       "commit": null,
       "capability": "DeterministicSameRoomMaximumCountPackingWithSupportSolidRestackingAndSafeDisassemblyExecution",
       "game_validation_status": "stage38_native_gateway_player_validated;v0.5.25_player_found_failed_installation_staging_moves_executed_as_final_horizontal_layout;v0.5.26_failed_candidate_moves_discarded_multiple_complete_candidates_tried;day17_horizontal_debug_release_read_only_4_direct_attachment_moves_0_blocks;day32_player_manual_layout_debug_release_read_only_0_moves;day265_main_save_release_read_only_only_no_write;debug_release_tests_and_dll_smoke_passed;release_deployed_hash_DA5E671064A2B811EBD3066CF8D0050489BEF62639070C9EF1972284572D8676;install_verified;player_7cat_retest_pending"
+    },
+    "40": {
+      "status": "v0_5_27_cross_room_empty_target_layout_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "SessionLockedCrossRoomEmptyTargetCompactFurnitureBatchPlanningWithStrictNativeCoordinates",
+      "game_validation_status": "cross_room_remove_validate_target_grid_commit_reverse_engineered_and_save_persistent;empty_runtime_furniture_grid_enumeration_implemented;session_completed_room_lock_excludes_sources_targets_and_buffers;strict_target_and_whole_house_binding_recheck_implemented;day32_24cat_debug_release_read_only_target_large_attic_37x11_30steps_zero_execution_blocks;day17_7cat_debug_release_read_only_target_floor1_large_18x9_15steps_zero_execution_blocks;day265_main_release_read_only_no_complete_plan_no_write;debug_release_tests_and_dll_smoke_passed;release_deployed_hash_5D38D685BBD3AAB07773CCD17C3D037710010F346F01B6EDB137AA56B2922C00;install_verified;player_validation_pending"
     }
   },
-  "updated_at": "2026-08-10T15:51:44+08:00"
+  "updated_at": "2026-08-10T18:20:00+08:00"
 }

@@ -220,6 +220,14 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
     source.house = std::move(selected->house);
     source.furniture = std::move(selected->furniture);
     source.available_room_count = expected_rooms;
+    source.runtime_room_grids.reserve(
+        runtime_furniture_state->room_grids.size());
+    for (const auto& grid : runtime_furniture_state->room_grids) {
+        source.runtime_room_grids.push_back({
+            .room_id = grid.room_id,
+            .width = grid.width,
+            .height = grid.height});
+    }
     const auto furniture_overlaid = OverlayRuntimeFurnitureState(
         source.furniture, *runtime_furniture_state);
     if (!furniture_overlaid) {

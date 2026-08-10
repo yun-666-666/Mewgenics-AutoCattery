@@ -129,6 +129,8 @@ private:
     std::uint64_t furniture_execution_generation_{};
     std::size_t furniture_execution_index_{};
     std::size_t furniture_execution_moved_{};
+    std::uint64_t furniture_layout_session_generation_{};
+    std::vector<snapshot::RoomId> furniture_locked_room_ids_;
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<RuntimeHouseMoveGateway> runtime_move_gateway_;

@@ -43,8 +43,10 @@ enum class FurniturePlacementMoveStatus {
 
 struct FurniturePlacementRequest {
     FurniturePlacementLocator locator;
+    std::string target_room;
     std::int32_t target_x{};
     std::int32_t target_y{};
+    bool strict_target{};
 };
 
 struct FurniturePlacementMoveResult {
@@ -55,6 +57,8 @@ struct FurniturePlacementMoveResult {
     std::int32_t from_y{};
     std::int32_t target_x{};
     std::int32_t target_y{};
+    std::string from_room;
+    std::string target_room;
     bool signatures_valid{};
     bool placement_valid{};
     bool committed{};
@@ -78,6 +82,8 @@ public:
     [[nodiscard]] FurniturePlacementLocation Locate(
         const FurniturePlacementLocator& locator) const;
     [[nodiscard]] FurniturePlacementMoveResult MoveSameRoom(
+        const FurniturePlacementRequest& request) const;
+    [[nodiscard]] FurniturePlacementMoveResult Move(
         const FurniturePlacementRequest& request) const;
 
 private:

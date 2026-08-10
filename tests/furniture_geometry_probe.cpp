@@ -18,14 +18,56 @@
 #include <vector>
 
 int wmain(int argument_count, wchar_t** arguments) {
-    if (argument_count < 2 || argument_count > 3) {
-        std::cerr << "usage: furniture_geometry_probe <game-root> [save]\n";
+    if (argument_count < 2 || argument_count > 4) {
+        std::cerr << "usage: furniture_geometry_probe <game-root> [save] [room=widthxheight;...]\n";
         return 2;
     }
     const std::filesystem::path game_root(arguments[1]);
     const std::filesystem::path configured_save =
         argument_count == 3 ? std::filesystem::path(arguments[2]) :
+        argument_count == 4 ? std::filesystem::path(arguments[2]) :
                               std::filesystem::path{};
+    std::vector<autocattery::furniture_planning::FurnitureRoomGrid>
+        runtime_room_grids;
+    if (argument_count == 4) {
+        const std::wstring specification(arguments[3]);
+        std::size_t begin{};
+        while (begin < specification.size()) {
+            const auto end = specification.find(L';', begin);
+            const auto token = specification.substr(
+                begin,
+                end == std::wstring::npos
+                    ? std::wstring::npos
+                    : end - begin);
+            const auto equals = token.find(L'=');
+            const auto times = token.find(L'x', equals + 1U);
+            if (equals == std::wstring::npos ||
+                times == std::wstring::npos) {
+                std::cerr << "invalid runtime room grid specification\n";
+                return 2;
+            }
+            const auto room = token.substr(0U, equals);
+            std::string room_id;
+            room_id.reserve(room.size());
+            for (const auto character : room) {
+                if (character > 0x7f) {
+                    std::cerr << "runtime room id must be ASCII\n";
+                    return 2;
+                }
+                room_id.push_back(static_cast<char>(character));
+            }
+            runtime_room_grids.push_back({
+                std::move(room_id),
+                static_cast<std::size_t>(std::stoull(
+                    token.substr(equals + 1U, times - equals - 1U))),
+                static_cast<std::size_t>(std::stoull(
+                    token.substr(times + 1U)))});
+            if (end == std::wstring::npos) {
+                break;
+            }
+            begin = end + 1U;
+        }
+    }
     std::string error;
     const auto save = autocattery::snapshot::detail::FindMostRecentSave(
         configured_save, error);
@@ -232,12 +274,14 @@ int wmain(int argument_count, wchar_t** arguments) {
     }
     const auto layout =
         autocattery::furniture_planning::FurnitureLayoutSolver{}.Plan(
-            placements, geometry, furniture_info);
+            placements, geometry, furniture_info, runtime_room_grids);
     std::cout
         << "layout_rooms=" << layout.planned_room_count
         << " considered=" << layout.considered_furniture_count
         << " moves=" << layout.moves.size()
         << " kept=" << layout.kept_furniture_count
+        << " deferred=" << layout.deferred_furniture_count
+        << " target=" << layout.target_room_id
         << " warehouse=" << layout.warehouse_furniture_count
         << " unsupported=" << layout.unsupported_furniture_count
         << " no_space=" << layout.no_space_furniture_count
@@ -332,7 +376,8 @@ int wmain(int argument_count, wchar_t** arguments) {
         std::cout
             << "layout_move item=" << move.item_id
             << " key=" << move.stable_key
-            << " room=" << move.room_id
+            << " room=" << move.from_room_id << "->"
+            << move.target_room_id
             << " from=" << move.from_x << ',' << move.from_y
             << " target=" << move.target_x << ',' << move.target_y
             << '\n';

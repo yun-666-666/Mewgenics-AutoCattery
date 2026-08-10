@@ -18,6 +18,9 @@ enum {
     AC_FURNITURE_COMMIT_RVA = 0x2EE230,
     AC_FURNITURE_TRANSFORM_OFFSET = 0x38,
     AC_FURNITURE_GRID_OFFSET = 0x48,
+    AC_GRID_ROOM_OFFSET = 0x40,
+    AC_GRID_WIDTH_OFFSET = 0xF0,
+    AC_GRID_HEIGHT_OFFSET = 0xF4,
     AC_FURNITURE_ENTRY_OFFSET = 0x2D8,
     AC_ENTRY_ITEM_OFFSET = 0x08,
     AC_ENTRY_ROOM_OFFSET = 0x30,
@@ -389,6 +392,58 @@ int AcMewReadFurniturePieceSnapshot(
     return 1;
 }
 
+static int AcMewReadFurnitureGridSnapshot(
+    void* grid,
+    AcMewFurnitureGridSnapshot* snapshot) {
+    HMODULE executable;
+    void* transform;
+    if (!grid || !snapshot) {
+        return 0;
+    }
+    memset(snapshot, 0, sizeof(*snapshot));
+    executable = GetModuleHandleW(NULL);
+    if (!AcValidVtable(grid, executable, AC_FURNITURE_GRID_VTABLE_RVA) ||
+        !AcReadableRange(grid, AC_GRID_HEIGHT_OFFSET + sizeof(uint32_t))) {
+        return 0;
+    }
+    __try {
+        transform = *(void**)((uint8_t*)grid + AC_FURNITURE_TRANSFORM_OFFSET);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+    if (!transform ||
+        !AcReadableRange(transform, AC_TRANSFORM_Y_OFFSET + sizeof(double))) {
+        return 0;
+    }
+    __try {
+        snapshot->grid = grid;
+        snapshot->transform = transform;
+        snapshot->world_x = *(double*)((uint8_t*)transform +
+            AC_TRANSFORM_X_OFFSET);
+        snapshot->world_y = *(double*)((uint8_t*)transform +
+            AC_TRANSFORM_Y_OFFSET);
+        snapshot->width = *(uint32_t*)((uint8_t*)grid +
+            AC_GRID_WIDTH_OFFSET);
+        snapshot->height = *(uint32_t*)((uint8_t*)grid +
+            AC_GRID_HEIGHT_OFFSET);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        memset(snapshot, 0, sizeof(*snapshot));
+        return 0;
+    }
+    if (snapshot->width == 0U || snapshot->height == 0U ||
+        snapshot->width > 256U || snapshot->height > 256U ||
+        !AcCopyNarrowString(
+            (const MewNarrowString*)((uint8_t*)grid + AC_GRID_ROOM_OFFSET),
+            snapshot->room,
+            sizeof(snapshot->room))) {
+        memset(snapshot, 0, sizeof(*snapshot));
+        return 0;
+    }
+    return 1;
+}
+
 size_t AcMewEnumerateFurniturePieces(
     void* house_scene_manager,
     AcMewFurniturePieceSnapshot* output,
@@ -422,6 +477,79 @@ size_t AcMewEnumerateFurniturePieces(
         output[count++] = candidate;
     }
     return count;
+}
+
+size_t AcMewEnumerateFurnitureGrids(
+    void* house_scene_manager,
+    AcMewFurnitureGridSnapshot* output,
+    size_t output_capacity,
+    uint8_t* complete) {
+    MewPodVectorPtr* components;
+    size_t count = 0U;
+    uint32_t index;
+    if (complete) {
+        *complete = 0U;
+    }
+    if (!house_scene_manager || !output || output_capacity == 0U ||
+        !complete) {
+        return 0U;
+    }
+    components = AcMewGetValidatedSceneComponents(house_scene_manager);
+    if (!components) {
+        return 0U;
+    }
+    *complete = 1U;
+    for (index = 0U; index < components->size; ++index) {
+        AcMewFurnitureGridSnapshot candidate;
+        if (!AcMewReadFurnitureGridSnapshot(
+                components->data[index], &candidate)) {
+            continue;
+        }
+        if (count == output_capacity) {
+            *complete = 0U;
+            continue;
+        }
+        output[count++] = candidate;
+    }
+    return count;
+}
+
+AcMewFurnitureGridFindResult AcMewFindFurnitureGrid(
+    void* house_scene_manager,
+    const char* room) {
+    AcMewFurnitureGridFindResult result;
+    MewPodVectorPtr* components;
+    uint32_t index;
+    memset(&result, 0, sizeof(result));
+    if (!house_scene_manager || !room || room[0] == '\0') {
+        result.status = AC_MEW_FURNITURE_FIND_INVALID;
+        return result;
+    }
+    components = AcMewGetValidatedSceneComponents(house_scene_manager);
+    if (!components) {
+        result.status = AC_MEW_FURNITURE_FIND_INVALID;
+        return result;
+    }
+    for (index = 0U; index < components->size; ++index) {
+        AcMewFurnitureGridSnapshot candidate;
+        if (!AcMewReadFurnitureGridSnapshot(
+                components->data[index], &candidate) ||
+            strcmp(candidate.room, room) != 0) {
+            continue;
+        }
+        ++result.room_match_count;
+        if (result.room_match_count == 1U) {
+            result.snapshot = candidate;
+        }
+    }
+    if (result.room_match_count == 0U) {
+        result.status = AC_MEW_FURNITURE_FIND_NOT_FOUND;
+    } else if (result.room_match_count == 1U) {
+        result.status = AC_MEW_FURNITURE_FIND_FOUND;
+    } else {
+        result.status = AC_MEW_FURNITURE_FIND_AMBIGUOUS;
+    }
+    return result;
 }
 
 AcMewFurnitureFindResult AcMewFindFurniturePiece(
@@ -475,24 +603,33 @@ AcMewFurnitureFindResult AcMewFindFurniturePiece(
 
 static int AcPlacementMatches(
     void* piece,
-    const AcMewFurniturePieceSnapshot* snapshot,
+    void* expected_entry,
+    void* expected_grid,
+    const char* expected_room,
     int32_t expected_x,
     int32_t expected_y) {
     void* entry;
-    if (!piece || !snapshot ||
+    if (!piece || !expected_entry || !expected_grid || !expected_room ||
         !AcReadableRange(
             piece, AC_FURNITURE_ENTRY_OFFSET + sizeof(void*))) {
         return 0;
     }
     __try {
         entry = *(void**)((uint8_t*)piece + AC_FURNITURE_ENTRY_OFFSET);
+        char room[AC_MEW_FURNITURE_TEXT_CAPACITY];
         return *(void**)((uint8_t*)piece + AC_FURNITURE_GRID_OFFSET) ==
-                   snapshot->grid &&
-            entry == snapshot->entry &&
+                   expected_grid &&
+            entry == expected_entry &&
             *(int32_t*)((uint8_t*)entry + AC_ENTRY_SAVED_X_OFFSET) ==
                 expected_x &&
             *(int32_t*)((uint8_t*)entry + AC_ENTRY_SAVED_Y_OFFSET) ==
-                expected_y;
+                expected_y &&
+            AcCopyNarrowString(
+                (const MewNarrowString*)((uint8_t*)entry +
+                    AC_ENTRY_ROOM_OFFSET),
+                room,
+                sizeof(room)) &&
+            strcmp(room, expected_room) == 0;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         return 0;
@@ -533,7 +670,9 @@ static int AcRestoreFurniturePlacement(
     if (!force_recommit &&
         AcPlacementMatches(
             snapshot->piece,
-            snapshot,
+            snapshot->entry,
+            snapshot->grid,
+            snapshot->room,
             snapshot->saved_x,
             snapshot->saved_y) &&
         AcSnapshotTransformMatches(snapshot)) {
@@ -557,15 +696,19 @@ static int AcRestoreFurniturePlacement(
     commit_piece(snapshot->piece, snapshot->grid);
     return AcPlacementMatches(
         snapshot->piece,
-        snapshot,
+        snapshot->entry,
+        snapshot->grid,
+        snapshot->room,
         snapshot->saved_x,
         snapshot->saved_y);
 }
 
-AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
+AcMewNativeFurnitureMoveResult AcMewMoveFurnitureToGrid(
     void* piece,
+    const AcMewFurnitureGridSnapshot* target_grid,
     int32_t target_x,
-    int32_t target_y) {
+    int32_t target_y,
+    uint8_t allow_closest_valid) {
     AcMewNativeFurnitureMoveResult result;
     AcMewFurniturePieceSnapshot before;
     HMODULE executable;
@@ -593,7 +736,7 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
     result.stable_key = before.stable_key;
     result.old_x = before.saved_x;
     result.old_y = before.saved_y;
-    result.grid_valid = (uint8_t)(before.grid != NULL);
+    result.grid_valid = (uint8_t)(target_grid && target_grid->grid != NULL);
     if (!result.grid_valid) {
         return result;
     }
@@ -603,13 +746,19 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
         (uint8_t*)executable + AC_FURNITURE_VALIDATE_RVA);
     commit_piece = (AcFurnitureCommitFn)(
         (uint8_t*)executable + AC_FURNITURE_COMMIT_RVA);
-    candidate_count = AcMewFurnitureCandidatePath(
-        before.saved_x,
-        before.saved_y,
-        target_x,
-        target_y,
-        candidates,
-        sizeof(candidates) / sizeof(candidates[0]));
+    if (allow_closest_valid) {
+        candidate_count = AcMewFurnitureCandidatePath(
+            before.saved_x,
+            before.saved_y,
+            target_x,
+            target_y,
+            candidates,
+            sizeof(candidates) / sizeof(candidates[0]));
+    } else {
+        candidates[0].x = target_x;
+        candidates[0].y = target_y;
+        candidate_count = 1U;
+    }
     __try {
         remove_piece(piece);
         result.removed = (uint8_t)(
@@ -619,8 +768,8 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
                  candidate_index < candidate_count;
                  ++candidate_index) {
                 AcMewFurnitureWorldPosition(
-                    before.grid_world_x,
-                    before.grid_world_y,
+                    target_grid->world_x,
+                    target_grid->world_y,
                     candidates[candidate_index].x,
                     candidates[candidate_index].y,
                     before.scale_x,
@@ -635,17 +784,19 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
                 *(double*)((uint8_t*)before.transform +
                     AC_TRANSFORM_Z_OFFSET) = target_world_z;
                 result.placement_valid = validate_piece(
-                    piece, before.grid, 0U);
+                    piece, target_grid->grid, 0U);
                 if (!result.placement_valid) {
                     continue;
                 }
                 result.target_x = candidates[candidate_index].x;
                 result.target_y = candidates[candidate_index].y;
-                commit_piece(piece, before.grid);
+                commit_piece(piece, target_grid->grid);
                 result.committed = 1U;
                 result.verified = (uint8_t)AcPlacementMatches(
                     piece,
-                    &before,
+                    before.entry,
+                    target_grid->grid,
+                    target_grid->room,
                     result.target_x,
                     result.target_y);
                 break;
@@ -681,4 +832,24 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
         }
     }
     return result;
+}
+
+AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
+    void* piece,
+    int32_t target_x,
+    int32_t target_y) {
+    AcMewFurniturePieceSnapshot before;
+    AcMewFurnitureGridSnapshot target;
+    memset(&before, 0, sizeof(before));
+    memset(&target, 0, sizeof(target));
+    if (!AcMewReadFurniturePieceSnapshot(piece, &before) ||
+        !AcMewReadFurnitureGridSnapshot(before.grid, &target)) {
+        AcMewNativeFurnitureMoveResult result;
+        memset(&result, 0, sizeof(result));
+        result.target_x = target_x;
+        result.target_y = target_y;
+        return result;
+    }
+    return AcMewMoveFurnitureToGrid(
+        piece, &target, target_x, target_y, 1U);
 }

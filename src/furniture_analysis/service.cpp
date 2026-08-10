@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <map>
 #include <sstream>
+#include <tuple>
 #include <unordered_set>
 
 #include "auto_cattery/workflow/digests.hpp"
@@ -63,6 +64,18 @@ std::string BuildBindingDigest(
         Append(canonical, item.scale_x);
         Append(canonical, item.scale_y);
     }
+    auto runtime_room_grids = source.runtime_room_grids;
+    std::ranges::sort(
+        runtime_room_grids,
+        [](const auto& left, const auto& right) {
+            return std::tie(left.room_id, left.width, left.height) <
+                std::tie(right.room_id, right.width, right.height);
+        });
+    for (const auto& room : runtime_room_grids) {
+        Append(canonical, room.room_id);
+        Append(canonical, room.width);
+        Append(canonical, room.height);
+    }
     for (const auto& room : source.geometry.rooms) {
         Append(canonical, room.definition_id);
         Append(canonical, room.room_id);
@@ -111,7 +124,8 @@ FurnitureAnalysisService::FurnitureAnalysisService(
     : source_(source) {}
 
 Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
-    std::uint64_t scene_generation) {
+    std::uint64_t scene_generation,
+    const std::vector<snapshot::RoomId>& locked_room_ids) {
     if (scene_generation == 0U) {
         return {{}, ErrorCode::SceneUnavailable,
                 "furniture analysis requires a House generation"};
@@ -198,7 +212,11 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     }
     result.binding_digest = BuildBindingDigest(source, result.rooms);
     result.layout_plan = furniture_planning::FurnitureLayoutSolver{}.Plan(
-        source.furniture, source.geometry, source.furniture_info);
+        source.furniture,
+        source.geometry,
+        source.furniture_info,
+        source.runtime_room_grids,
+        locked_room_ids);
     return {std::move(result)};
 }
 

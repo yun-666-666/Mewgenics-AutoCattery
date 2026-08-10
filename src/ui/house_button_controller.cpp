@@ -188,7 +188,7 @@ void HouseButtonController::HandleClick() {
             LogLevel::Info,
             "FurniturePlacement",
             "AC3900",
-            "Auto Place clicked; executing the sealed same-room furniture layout one item per UI tick.");
+            "Auto Place clicked; executing the sealed whole-house furniture layout one item per UI tick.");
         furniture_action_(scene_generation_);
         return;
     }

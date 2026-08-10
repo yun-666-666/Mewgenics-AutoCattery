@@ -40,8 +40,15 @@ struct RuntimeFurniturePlacementState {
     std::int32_t scale_y{};
 };
 
+struct RuntimeFurnitureRoomGridState {
+    snapshot::RoomId room_id;
+    std::size_t width{};
+    std::size_t height{};
+};
+
 struct RuntimeFurnitureState {
     std::vector<RuntimeFurniturePlacementState> placements;
+    std::vector<RuntimeFurnitureRoomGridState> room_grids;
 };
 
 [[nodiscard]] Result<std::unordered_map<snapshot::RoomId, RuntimePointer>>

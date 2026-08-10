@@ -35,6 +35,23 @@ typedef struct AcMewFurniturePieceSnapshot {
     char room[AC_MEW_FURNITURE_TEXT_CAPACITY];
 } AcMewFurniturePieceSnapshot;
 
+typedef struct AcMewFurnitureGridSnapshot {
+    void* grid;
+    void* transform;
+    double world_x;
+    double world_y;
+    uint32_t width;
+    uint32_t height;
+    char room[AC_MEW_FURNITURE_TEXT_CAPACITY];
+} AcMewFurnitureGridSnapshot;
+
+typedef struct AcMewFurnitureGridFindResult {
+    uint8_t status;
+    uint8_t reserved[3];
+    uint32_t room_match_count;
+    AcMewFurnitureGridSnapshot snapshot;
+} AcMewFurnitureGridFindResult;
+
 typedef struct AcMewFurnitureFindResult {
     uint8_t status;
     uint8_t preferred_key_matched;
@@ -104,6 +121,16 @@ size_t AcMewEnumerateFurniturePieces(
     size_t output_capacity,
     uint8_t* complete);
 
+size_t AcMewEnumerateFurnitureGrids(
+    void* house_scene_manager,
+    AcMewFurnitureGridSnapshot* output,
+    size_t output_capacity,
+    uint8_t* complete);
+
+AcMewFurnitureGridFindResult AcMewFindFurnitureGrid(
+    void* house_scene_manager,
+    const char* room);
+
 AcMewFurnitureFindResult AcMewFindFurniturePiece(
     void* house_scene_manager,
     const char* item,
@@ -114,6 +141,13 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
     void* piece,
     int32_t target_x,
     int32_t target_y);
+
+AcMewNativeFurnitureMoveResult AcMewMoveFurnitureToGrid(
+    void* piece,
+    const AcMewFurnitureGridSnapshot* target_grid,
+    int32_t target_x,
+    int32_t target_y,
+    uint8_t allow_closest_valid);
 
 #ifdef __cplusplus
 }

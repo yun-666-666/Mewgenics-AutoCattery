@@ -49,7 +49,9 @@ void RunMewUiFurniturePlacementTests() {
     AC_CHECK(location.status ==
         ui::FurniturePlacementLookupStatus::Unsupported);
     const auto move = gateway.MoveSameRoom({
-        {"object_cattree1", 5U}, 3, -9});
+        .locator = {"object_cattree1", 5U},
+        .target_x = 3,
+        .target_y = -9});
     AC_CHECK(move.status ==
         ui::FurniturePlacementMoveStatus::Unsupported);
 }
