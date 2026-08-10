@@ -186,6 +186,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_execution_generation_ = 0;
     furniture_execution_index_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_execution_committed_move_indices_.clear();
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -1197,6 +1198,7 @@ void MewUiBridge::StartFurnitureAutoPlacement(
     furniture_execution_generation_ = generation;
     furniture_execution_index_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_execution_committed_move_indices_.clear();
     if (recommendation_marker_controller_) {
         const bool english = config_runtime_ &&
             config_runtime_->Current().general.language == "en-US";
@@ -1232,6 +1234,76 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         const auto remaining = total > furniture_execution_index_
             ? total - furniture_execution_index_
             : 0U;
+        std::size_t rollback_completed{};
+        const auto rollback_total =
+            furniture_execution_committed_move_indices_.size();
+        std::string rollback_detail = "rollback was not safe in the current scene";
+        const bool rollback_safe =
+            furniture_analysis_preview_ &&
+            furniture_placement_gateway_ &&
+            furniture_mode_ &&
+            context.kind == UiContextKind::House &&
+            context.input_enabled &&
+            !context.save_in_progress &&
+            context.scene_generation == furniture_execution_generation_;
+        if (rollback_safe) {
+            rollback_detail.clear();
+            const auto& moves =
+                furniture_analysis_preview_->layout_plan.moves;
+            for (auto iterator =
+                     furniture_execution_committed_move_indices_.rbegin();
+                 iterator !=
+                     furniture_execution_committed_move_indices_.rend();
+                 ++iterator) {
+                if (*iterator >= moves.size()) {
+                    rollback_detail =
+                        "rollback cursor exceeded the sealed plan";
+                    break;
+                }
+                const auto& move = moves[*iterator];
+                const FurniturePlacementLocator locator{
+                    move.item_id, move.stable_key};
+                const auto location =
+                    furniture_placement_gateway_->Locate(locator);
+                if (location.status !=
+                        FurniturePlacementLookupStatus::Found ||
+                    location.room != move.target_room_id ||
+                    location.saved_x != move.target_x ||
+                    location.saved_y != move.target_y) {
+                    rollback_detail =
+                        "rollback binding no longer matched the committed target";
+                    break;
+                }
+                const auto restored = furniture_placement_gateway_->Move({
+                    locator,
+                    move.from_room_id,
+                    move.from_x,
+                    move.from_y,
+                    true});
+                if (restored.status != FurniturePlacementMoveStatus::Moved &&
+                    restored.status !=
+                        FurniturePlacementMoveStatus::AlreadyPlaced) {
+                    rollback_detail =
+                        "native rollback rejected " + move.item_id +
+                        ": " + restored.message;
+                    break;
+                }
+                ++rollback_completed;
+            }
+            if (rollback_completed == rollback_total) {
+                rollback_detail = "all committed moves were rolled back";
+            }
+        }
+        Logger::Instance().Write(
+            rollback_completed == rollback_total
+                ? LogLevel::Info
+                : LogLevel::Error,
+            "FurniturePlacement",
+            "AC3907",
+            "Auto Place rollback: restored=" +
+                std::to_string(rollback_completed) + "/" +
+                std::to_string(rollback_total) + "; " + rollback_detail +
+                ".");
         ClearFurnitureLayoutPreview();
         if (house_button_controller_) {
             house_button_controller_->SetState(
@@ -1243,7 +1315,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             "AC3905",
             "Auto Place stopped after " + std::to_string(completed) +
                 " committed moves; remaining=" +
-                std::to_string(remaining) + ": " + reason);
+                std::to_string(remaining) + ": " + reason +
+                "; rollback=" + std::to_string(rollback_completed) +
+                "/" + std::to_string(rollback_total));
         if (recommendation_marker_controller_ && furniture_mode_) {
             const bool english = config_runtime_ &&
                 config_runtime_->Current().general.language == "en-US";
@@ -1252,12 +1326,18 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                       "Auto Place stopped",
                       "Completed: " + std::to_string(completed) +
                           ", remaining: " + std::to_string(remaining),
+                      "Rolled back: " +
+                          std::to_string(rollback_completed) + "/" +
+                          std::to_string(rollback_total),
                       reason,
                       "Run Start Analysis again to continue"}
                 : std::vector<std::string>{
                       "自动放置已停止",
                       "已完成：" + std::to_string(completed) +
                           "，剩余：" + std::to_string(remaining),
+                      "已回滚：" +
+                          std::to_string(rollback_completed) + "/" +
+                          std::to_string(rollback_total),
                       reason,
                       "请再次点击开始分析后继续"};
             (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
@@ -1328,6 +1408,8 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         }
         if (status == FurniturePlacementMoveStatus::Moved) {
             ++furniture_execution_moved_;
+            furniture_execution_committed_move_indices_.push_back(
+                furniture_execution_index_);
         }
     }
 
@@ -1390,11 +1472,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
             context.scene_generation, labels);
     }
-    furniture_analysis_preview_.reset();
-    furniture_execution_active_ = false;
-    furniture_execution_generation_ = 0;
-    furniture_execution_index_ = 0;
-    furniture_execution_moved_ = 0;
+    ClearFurnitureLayoutPreview();
 }
 
 #ifdef _DEBUG

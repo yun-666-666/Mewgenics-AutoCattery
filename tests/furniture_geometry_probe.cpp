@@ -322,6 +322,24 @@ int wmain(int argument_count, wchar_t** arguments) {
             << " poop=" << counts[
                 autocattery::snapshot::detail::FurniturePlacementTile::PoopLogic]
             << '\n';
+        std::cout << "layout_cells item=" << placement.item_id
+                  << " key=" << placement.instance_id;
+        for (std::size_t y = 0;
+             y < autocattery::snapshot::detail::kFurniturePlacementGridHeight;
+             ++y) {
+            for (std::size_t x = 0;
+                 x < autocattery::snapshot::detail::kFurniturePlacementGridWidth;
+                 ++x) {
+                const auto tile = info->second->placement_grid.At(x, y);
+                if (tile ==
+                    autocattery::snapshot::detail::FurniturePlacementTile::Empty) {
+                    continue;
+                }
+                std::cout << " t" << static_cast<int>(tile) << '='
+                          << x << ',' << y;
+            }
+        }
+        std::cout << '\n';
         const auto room_definition = std::find_if(
             geometry.rooms.begin(),
             geometry.rooms.end(),

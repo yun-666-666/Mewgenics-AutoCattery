@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 39,
+  "active_stage": 41,
   "stages": {
     "1": {
       "status": "completed",
@@ -235,7 +235,13 @@
       "commit": null,
       "capability": "SessionLockedCrossRoomEmptyTargetCompactFurnitureBatchPlanningWithStrictNativeCoordinates",
       "game_validation_status": "cross_room_remove_validate_target_grid_commit_reverse_engineered_and_save_persistent;empty_runtime_furniture_grid_enumeration_implemented;session_completed_room_lock_excludes_sources_targets_and_buffers;strict_target_and_whole_house_binding_recheck_implemented;day32_24cat_debug_release_read_only_target_large_attic_37x11_30steps_zero_execution_blocks;day17_7cat_debug_release_read_only_target_floor1_large_18x9_15steps_zero_execution_blocks;day265_main_release_read_only_no_complete_plan_no_write;debug_release_tests_and_dll_smoke_passed;release_deployed_hash_5D38D685BBD3AAB07773CCD17C3D037710010F346F01B6EDB137AA56B2922C00;install_verified;player_validation_pending"
+    },
+    "41": {
+      "status": "v0_5_28_native_valid_hitbox_surface_stacking_and_batch_rollback_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "NativeValidHitboxSolidSurfaceFurniturePackingWithReverseCommittedMoveRollback",
+      "game_validation_status": "stage40_24cat_player_failure_identified_couch_dresser_hitbox_solid_surface_overlap_after_16_commits;hitbox_solid_support_surface_occupancy_and_visual_bounds_implemented;support_accepts_room_floor_furniture_solid_or_surface;committed_move_indices_recorded_and_reverse_batch_rollback_logged_AC3907;debug_release_builds_unit_tests_and_dll_smoke_passed;day17_7cat_debug_release_read_only_10_kept_0_moves;day32_24cat_pre_failure_debug_release_target_attic_24moves_dresser_10_minus8_couch_3_minus9_multilevel_y_minus7_zero_blocks;day32_24cat_current_debug_release_target_attic_27moves_zero_blocks;day265_main_release_read_only_0moves_no_write;release_deployed_hash_47EB142996C6EF359555C8C34D757A12281D2629E5FCBFCF66D4731A95234D8F;install_verified;player_retest_pending"
     }
   },
-  "updated_at": "2026-08-10T18:20:00+08:00"
+  "updated_at": "2026-08-10T20:20:00+08:00"
 }

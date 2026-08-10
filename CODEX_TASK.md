@@ -1,51 +1,48 @@
-# CODEX CURRENT TASK - STAGE 40 EMPTY-ROOM CROSS-ROOM COMPACT LAYOUT
+# CODEX CURRENT TASK - STAGE 41 NATIVE-VALID ATTIC STACKING AND ROLLBACK
 
 ## Current objective
 
-把“开始分析”升级为逐房间、跨房间的确定性紧凑布局：先封存当前整屋家具和房间
-grid，从目标房间的空基础碰撞网格重新求解完整终局，再按精确房间与坐标执行。
-完成一个房间后将它锁定；下一次分析只使用其余未完成房间和家具，绝不把已完成
-房间的家具再次搬出。
+修复 Stage 40 实机发现的假合法终局：阁楼方案不得把家具 Hitbox 塞进另一件家具
+的 Solid/Surface；应利用真正可承重的 Solid/Surface 孔位向上叠放。任一步被原生
+校验拒绝时，按已提交步骤的逆序恢复本批次，不能把临时缓冲家具留在楼下房间。
 
 ## Accepted foundation
 
-- Stage 38 原生 `remove -> validate(piece,target_grid,false) -> commit` 已由玩家 F7
-  记录、反汇编和保存重进验证证明可跨房间持久化。
-- 运行时可枚举空房间 `FurnitureGrid`，字段为 room、width、height；当前实测尺寸：
-  `Floor1_Large=18x9`、小阁楼 `20x7`、大阁楼 `37x11`。
-- Stage 39 已具备家具占地、Solid/Support 拓扑、完整拆装门禁和逐 tick 原生执行。
+- Stage 38 原生跨房间 `remove -> validate(target_grid,false) -> commit` 已验证可保存。
+- Stage 40 可枚举空房间 grid、跨房间规划、严格坐标提交，并在后续批次排除已完成
+  房间中的家具来源。
+- 24 猫 v0.5.27 实机在第 16 个提交后停止：`set_spider_dresser` 计划到与
+  `set_modern_couch` 同层的 `(5,-9)`，原生校验拒绝；此前移到楼下的家具是临时
+  缓冲，并非最终房间分配。
+- 当前资源网格证明该冲突中 dresser Hitbox 会覆盖 couch Solid/Surface；同时
+  7 猫实机合法布局证明 Support 既可连接家具 Solid，也可连接 Surface。
 
-## Stage 40 completion boundary
+## Stage 41 completion boundary
 
-- 分析时使用当前整屋家具快照，不保留玩家原摆位作为优化候选；终局从目标房间的
-  空基础网格与不可移动固定物开始重新求解。
-- 未锁定房间按运行时面积从大到小选择；同面积优先阁楼。24 猫大阁楼为空时也能
-  被枚举并成为第一目标。
-- 目标房间可从所有未锁定房间选入家具。装不下的家具明确延后到下一批，不能发布
-  不完整临时方案；墙面、天花板、未知 tile 和不可证明合法的家具保持固定。
-- 完成批次后锁定目标房间。后续分析既不把锁定房间作为家具来源，也不把它用作
-  临时缓冲区；切换 House generation 或退出家具界面时清空会话锁。
-- 紧凑度按完整家具数量、包围盒面积、最大边/周长、房间地板 Support 数、稳定坐标
-  和实例 key 的字典序确定；相同输入得到相同终局。
-- 拆装模拟可使用任一未锁定且已验证的房间作为临时落点；先解除上层依赖，再移动
-  底座，最后按 Solid/Support 拓扑安装。
-- 自动布局一律严格提交计划房间与坐标，禁止 closest-valid fallback；房间或坐标
-  读回不一致即停止。
-- 点击“自动放置”前重新捕获整屋快照并比较 binding digest；分析后任一家具变化都
-  使整份计划失效。
-- Debug/Release 在同一构建阶段并行提交，聚焦测试、DLL smoke、真实只读探针、
-  DLL-only 部署与安装校验通过；创建一个本地 commit，不 push。
+- 规划占用同时记录 Hitbox、Solid、Support、Surface。
+- Solid/Surface 不得与另一件家具的 Hitbox、Solid 或 Surface 重叠；Hitbox 不得
+  覆盖已有 Solid/Surface。
+- Support 仍须唯一连接房间地面、家具 Solid 或家具 Surface；不得把家具脚之间的
+  空隙误判为可把整件家具嵌入的空间。
+- 紧凑包围盒包含 Hitbox 与 Surface，不再只按 Solid/Support 评价视觉占用。
+- 24 猫失败前存档必须继续选择 `Attic`，并生成包含上层 y 坐标的完整方案；
+  `set_spider_dresser` 不得再与 couch 同层同位。
+- 当前 7 猫已成功布局重复分析必须保持 0 moves，不能被新碰撞规则打散。
+- 自动执行记录实际提交的 move 索引；任一后续移动失败时，按逆序严格恢复所有已
+  提交 move，并单独记录回滚完成数。场景已经失效时不得盲目回滚。
+- Debug/Release 同阶段并行构建；单元测试串行运行；DLL smoke、7/24 猫只读探针、
+  DLL-only 部署和安装校验通过；创建一个本地 commit，不 push。
 
 ## Current evidence boundary
 
-- 24 猫 day 32：目标为 37x11 大阁楼，跨房间计划可生成，0 拆装阻塞。
-- 7 猫 day 17：18x9 一楼大房大于 20x7 小阁楼，因此第一批目标为一楼大房；
-  计划可生成，0 拆装阻塞。
-- 主存档 day 265 只读探针仍不发布完整计划；不得为得到非零结果放宽成危险的部分
-  执行，也不得对主存档写入测试。
+- 24 猫失败前只读回归：目标仍为 37x11 `Attic`；新计划不再生成 couch/dresser
+  同层重叠，并把 dresser、床和小件安排到多层承重点。
+- 24 猫当前部分布局只读回归：仍优先 `Attic`，不把楼下临时缓冲当成已完成分配。
+- 7 猫当前已完成布局：重新分析为 0 moves、10 kept。
+- 主存档继续只读，禁止执行或写入测试。
 
 ## Out of scope
 
 - 不从仓库取家具，不改变 scale 或旋转。
 - 不自动结束一天、休息、出征、组队、淘汰猫或直接写 `.sav`。
-- 当前房间顺序按可用面积，不在本阶段接入繁育/战斗/育幼用途评分。
+- 不将未经过当前游戏原生校验的坐标声明为实机完成。

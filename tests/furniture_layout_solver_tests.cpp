@@ -57,6 +57,57 @@ snapshot::detail::FurnitureInfoRecord PosterInfo(std::string item) {
     return info;
 }
 
+snapshot::detail::FurnitureInfoRecord CouchInfo(std::string item) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    for (const auto x : {9U, 10U, 13U, 14U}) {
+        info.placement_grid.tiles[
+            9U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Support;
+    }
+    for (const auto x : {9U, 14U}) {
+        info.placement_grid.tiles[
+            10U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Hitbox;
+        info.placement_grid.tiles[
+            11U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Hitbox;
+    }
+    for (std::size_t x = 10U; x <= 13U; ++x) {
+        info.placement_grid.tiles[
+            10U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Solid;
+        info.placement_grid.tiles[
+            11U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Surface;
+    }
+    return info;
+}
+
+snapshot::detail::FurnitureInfoRecord DresserInfo(std::string item) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    for (const auto x : {11U, 12U}) {
+        info.placement_grid.tiles[
+            9U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Support;
+        info.placement_grid.tiles[
+            10U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Hitbox;
+        info.placement_grid.tiles[
+            11U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Hitbox;
+    }
+    for (std::size_t x = 10U; x <= 13U; ++x) {
+        info.placement_grid.tiles[
+            12U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Solid;
+    }
+    return info;
+}
+
 snapshot::detail::FurniturePlacement Placement(
     std::int64_t key,
     std::string item,
@@ -271,6 +322,47 @@ void RunFurnitureLayoutSolverTests() {
                 move.target_room_id ==
                     one_room_at_a_time.moves.front().target_room_id;
         }));
+
+    snapshot::detail::HouseGeometryCatalog overlap_geometry;
+    overlap_geometry.rooms.push_back({
+        .definition_id = "OA",
+        .room_id = "SourceA",
+        .width = 6,
+        .height = 5});
+    overlap_geometry.rooms.push_back({
+        .definition_id = "OB",
+        .room_id = "SourceB",
+        .width = 6,
+        .height = 5});
+    overlap_geometry.rooms.push_back({
+        .definition_id = "OT",
+        .room_id = "Attic",
+        .width = 6,
+        .height = 5});
+    snapshot::detail::FurnitureInfoCatalog overlap_info;
+    overlap_info.records.push_back(CouchInfo("couch"));
+    overlap_info.records.push_back(DresserInfo("dresser"));
+    const std::vector<furniture_planning::FurnitureRoomGrid> overlap_grids{
+        {"SourceA", 8, 7},
+        {"SourceB", 8, 7},
+        {"Attic", 8, 7}};
+    const std::vector<snapshot::detail::FurniturePlacement>
+        overlap_furniture{
+            Placement(190, "couch", "SourceA", -8, -9),
+            Placement(191, "dresser", "SourceB", -8, -9)};
+    const auto overlap_plan = solver.Plan(
+        overlap_furniture,
+        overlap_geometry,
+        overlap_info,
+        overlap_grids);
+    AC_CHECK(overlap_plan.target_room_id == "Attic");
+    AC_CHECK(overlap_plan.deferred_furniture_count == 0);
+    const auto overlap_final = FinalPlacementStates(
+        overlap_furniture, overlap_plan);
+    AC_CHECK(overlap_final.at(190).room == "Attic");
+    AC_CHECK(overlap_final.at(191).room == "Attic");
+    AC_CHECK(overlap_final.at(191).position.second ==
+        overlap_final.at(190).position.second + 2);
 
     snapshot::detail::HouseGeometryCatalog batch_geometry;
     batch_geometry.rooms.push_back({
