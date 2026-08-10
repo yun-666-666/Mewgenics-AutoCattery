@@ -20,9 +20,8 @@ using snapshot::detail::FurniturePlacementTile;
 using snapshot::detail::RoomCollisionGrid;
 using snapshot::detail::RoomGeometryDefinition;
 
-constexpr std::int64_t kEmptyOwner = -1;
-constexpr std::size_t kPackingBeamWidth = 128;
-constexpr std::size_t kCandidateBranchesPerState = 16;
+constexpr std::size_t kPackingBeamWidth = 16;
+constexpr std::size_t kCandidateBranchesPerState = 4;
 
 struct OffsetCell {
     std::int32_t x{};
@@ -44,11 +43,20 @@ struct LayoutItem {
     std::size_t solid_count{};
     std::size_t support_count{};
     bool passive{};
+    bool fixed{};
+};
+
+enum class ExecutionPlanResult {
+    Success,
+    CurrentStateInvalid,
+    FinalStateInvalid,
+    EvacuationBlocked,
+    InstallationBlocked
 };
 
 struct Occupancy {
-    std::vector<std::int64_t> solid_owner;
-    std::vector<std::int64_t> support_owner;
+    std::vector<std::uint16_t> solid_count;
+    std::vector<std::uint16_t> support_count;
 };
 
 struct PackState {
@@ -97,7 +105,9 @@ bool IsRecognized(FurniturePlacementTile tile) {
     return tile == FurniturePlacementTile::Empty ||
         tile == FurniturePlacementTile::Hitbox ||
         tile == FurniturePlacementTile::Solid ||
-        tile == FurniturePlacementTile::Support;
+        tile == FurniturePlacementTile::Support ||
+        tile == FurniturePlacementTile::Surface ||
+        tile == FurniturePlacementTile::PoopLogic;
 }
 
 std::vector<OffsetCell> ActiveOffsets(
@@ -247,15 +257,15 @@ bool CanPlace(
     for (const auto& cell : cells) {
         const auto index = CellIndex(room, cell.x, cell.y);
         if (cell.tile == FurniturePlacementTile::Solid) {
-            if (occupancy.solid_owner[index] != kEmptyOwner) {
+            if (occupancy.solid_count[index] != 0U) {
                 return false;
             }
         } else if (cell.tile == FurniturePlacementTile::Support) {
-            if (occupancy.support_owner[index] != kEmptyOwner ||
+            if (occupancy.support_count[index] != 0U ||
                 (room.At(
                      static_cast<std::size_t>(cell.x),
                      static_cast<std::size_t>(cell.y)) != 2U &&
-                 occupancy.solid_owner[index] == kEmptyOwner)) {
+                 occupancy.solid_count[index] == 0U)) {
                 return false;
             }
         }
@@ -265,32 +275,32 @@ bool CanPlace(
 
 void Place(
     const RoomCollisionGrid& room,
-    std::int64_t owner,
+    std::int64_t,
     const std::vector<MappedCell>& cells,
     Occupancy& occupancy) {
     for (const auto& cell : cells) {
         const auto index = CellIndex(room, cell.x, cell.y);
         if (cell.tile == FurniturePlacementTile::Solid) {
-            occupancy.solid_owner[index] = owner;
+            ++occupancy.solid_count[index];
         } else if (cell.tile == FurniturePlacementTile::Support) {
-            occupancy.support_owner[index] = owner;
+            ++occupancy.support_count[index];
         }
     }
 }
 
 void Remove(
     const RoomCollisionGrid& room,
-    std::int64_t owner,
+    std::int64_t,
     const std::vector<MappedCell>& cells,
     Occupancy& occupancy) {
     for (const auto& cell : cells) {
         const auto index = CellIndex(room, cell.x, cell.y);
         if (cell.tile == FurniturePlacementTile::Solid &&
-            occupancy.solid_owner[index] == owner) {
-            occupancy.solid_owner[index] = kEmptyOwner;
+            occupancy.solid_count[index] != 0U) {
+            --occupancy.solid_count[index];
         } else if (cell.tile == FurniturePlacementTile::Support &&
-                   occupancy.support_owner[index] == owner) {
-            occupancy.support_owner[index] = kEmptyOwner;
+                   occupancy.support_count[index] != 0U) {
+            --occupancy.support_count[index];
         }
     }
 }
@@ -299,22 +309,25 @@ bool BuildOccupancy(
     const RoomCollisionGrid& room,
     const std::vector<LayoutItem>& items,
     const std::vector<std::vector<MappedCell>>& cells_by_item,
-    Occupancy& occupancy) {
-    occupancy.solid_owner.assign(room.width * room.height, kEmptyOwner);
-    occupancy.support_owner.assign(room.width * room.height, kEmptyOwner);
+    Occupancy& occupancy,
+    bool allow_existing_conflicts) {
+    occupancy.solid_count.assign(room.width * room.height, 0U);
+    occupancy.support_count.assign(room.width * room.height, 0U);
     for (std::size_t index = 0; index < items.size(); ++index) {
         for (const auto& cell : cells_by_item[index]) {
             if (!Inside(room, cell.x, cell.y) ||
-                !GeometricallyAllowed(room, cells_by_item[index])) {
+                (!allow_existing_conflicts && !items[index].fixed &&
+                 !GeometricallyAllowed(room, cells_by_item[index]))) {
                 return false;
             }
             if (cell.tile == FurniturePlacementTile::Solid) {
                 const auto cell_index = CellIndex(room, cell.x, cell.y);
-                if (occupancy.solid_owner[cell_index] != kEmptyOwner) {
+                if (!allow_existing_conflicts &&
+                    !items[index].fixed &&
+                    occupancy.solid_count[cell_index] != 0U) {
                     return false;
                 }
-                occupancy.solid_owner[cell_index] =
-                    items[index].placement->instance_id;
+                ++occupancy.solid_count[cell_index];
             }
         }
     }
@@ -324,15 +337,15 @@ bool BuildOccupancy(
                 continue;
             }
             const auto cell_index = CellIndex(room, cell.x, cell.y);
-            if (occupancy.support_owner[cell_index] != kEmptyOwner ||
-                (room.At(
-                     static_cast<std::size_t>(cell.x),
-                     static_cast<std::size_t>(cell.y)) != 2U &&
-                 occupancy.solid_owner[cell_index] == kEmptyOwner)) {
+            if (!allow_existing_conflicts && !items[index].fixed &&
+                (occupancy.support_count[cell_index] != 0U ||
+                 (room.At(
+                      static_cast<std::size_t>(cell.x),
+                      static_cast<std::size_t>(cell.y)) != 2U &&
+                  occupancy.solid_count[cell_index] == 0U))) {
                 return false;
             }
-            occupancy.support_owner[cell_index] =
-                items[index].placement->instance_id;
+            ++occupancy.support_count[cell_index];
         }
     }
     return true;
@@ -392,14 +405,29 @@ std::optional<PackState> PackInOrder(
     const std::vector<LayoutItem>& items,
     const std::vector<std::size_t>& order) {
     PackState initial;
-    initial.occupancy.solid_owner.assign(
-        room.width * room.height, kEmptyOwner);
-    initial.occupancy.support_owner.assign(
-        room.width * room.height, kEmptyOwner);
+    initial.occupancy.solid_count.assign(room.width * room.height, 0U);
+    initial.occupancy.support_count.assign(room.width * room.height, 0U);
     initial.candidate_by_item.resize(items.size());
+    for (std::size_t index = 0; index < items.size(); ++index) {
+        if (!items[index].fixed) {
+            continue;
+        }
+        if (items[index].candidates.size() != 1U) {
+            return std::nullopt;
+        }
+        initial.candidate_by_item[index] = 0U;
+        Place(
+            room,
+            items[index].placement->instance_id,
+            items[index].candidates.front(),
+            initial.occupancy);
+    }
     std::vector<PackState> beam{std::move(initial)};
     for (const auto item_index : order) {
         const auto& item = items[item_index];
+        if (item.fixed) {
+            continue;
+        }
         std::vector<PackState> expanded;
         for (const auto& state : beam) {
             std::vector<PackState> local;
@@ -487,22 +515,6 @@ std::vector<std::vector<std::size_t>> PackingOrders(
                    items[right].offsets.size(),
                    -items[right].placement->instance_id};
     });
-    add([&items](std::size_t left, std::size_t right) {
-        return std::tuple{
-                   items[left].offsets.size(),
-                   items[left].solid_count,
-                   items[left].support_count,
-                   -items[left].placement->instance_id} >
-            std::tuple{
-                   items[right].offsets.size(),
-                   items[right].solid_count,
-                   items[right].support_count,
-                   -items[right].placement->instance_id};
-    });
-    add([&items](std::size_t left, std::size_t right) {
-        return items[left].placement->instance_id <
-            items[right].placement->instance_id;
-    });
     return orders;
 }
 
@@ -512,45 +524,6 @@ std::pair<std::int32_t, std::int32_t> OriginOf(
     return {
         cells.front().x - item.offsets.front().x,
         cells.front().y - item.offsets.front().y};
-}
-
-std::vector<std::set<std::size_t>> Dependencies(
-    const RoomCollisionGrid& room,
-    const std::vector<LayoutItem>& items,
-    const std::vector<std::vector<MappedCell>>& cells_by_item,
-    const Occupancy& occupancy) {
-    std::unordered_map<std::int64_t, std::size_t> index_by_owner;
-    for (std::size_t index = 0; index < items.size(); ++index) {
-        index_by_owner.emplace(items[index].placement->instance_id, index);
-    }
-    std::vector<std::set<std::size_t>> dependencies(items.size());
-    for (std::size_t index = 0; index < items.size(); ++index) {
-        for (const auto& cell : cells_by_item[index]) {
-            if (cell.tile != FurniturePlacementTile::Support ||
-                room.At(
-                    static_cast<std::size_t>(cell.x),
-                    static_cast<std::size_t>(cell.y)) == 2U) {
-                continue;
-            }
-            const auto owner = occupancy.solid_owner[
-                CellIndex(room, cell.x, cell.y)];
-            const auto found = index_by_owner.find(owner);
-            if (found != index_by_owner.end() && found->second != index) {
-                dependencies[index].insert(found->second);
-            }
-        }
-    }
-    return dependencies;
-}
-
-bool HasCurrentDependents(
-    std::size_t provider,
-    const std::vector<std::set<std::size_t>>& dependencies) {
-    return std::ranges::any_of(
-        dependencies,
-        [provider](const auto& item_dependencies) {
-            return item_dependencies.contains(provider);
-        });
 }
 
 bool CandidateAvoidsFinalTargets(
@@ -580,7 +553,7 @@ bool CandidateAvoidsFinalTargets(
     return true;
 }
 
-bool AppendExecutionMoves(
+ExecutionPlanResult AppendExecutionMoves(
     const RoomCollisionGrid& room,
     const snapshot::RoomId& room_id,
     const std::vector<LayoutItem>& items,
@@ -594,17 +567,19 @@ bool AppendExecutionMoves(
     }
     Occupancy current_occupancy;
     Occupancy final_occupancy;
-    if (!BuildOccupancy(room, items, current_cells, current_occupancy) ||
-        !BuildOccupancy(room, items, final_cells, final_occupancy)) {
-        return false;
+    if (!BuildOccupancy(
+            room, items, current_cells, current_occupancy, true)) {
+        return ExecutionPlanResult::CurrentStateInvalid;
     }
-    const auto final_dependencies = Dependencies(
-        room, items, final_cells, final_occupancy);
-    const auto initial_dependencies = Dependencies(
-        room, items, current_cells, current_occupancy);
+    if (!BuildOccupancy(
+            room, items, final_cells, final_occupancy, false)) {
+        return ExecutionPlanResult::FinalStateInvalid;
+    }
     std::vector<std::pair<std::int32_t, std::int32_t>> current_origins;
     std::vector<std::pair<std::int32_t, std::int32_t>> final_origins;
     std::vector<bool> pending(items.size());
+    std::vector<bool> moved(items.size());
+    std::vector<bool> forced_staging(items.size());
     current_origins.reserve(items.size());
     final_origins.reserve(items.size());
     for (std::size_t index = 0; index < items.size(); ++index) {
@@ -614,38 +589,62 @@ bool AppendExecutionMoves(
         final_origins.push_back(OriginOf(items[index], final_cells[index]));
         pending[index] = current_origins.back() != final_origins.back();
     }
-    bool dependency_pending_changed = true;
-    while (dependency_pending_changed) {
-        dependency_pending_changed = false;
-        for (std::size_t index = 0; index < items.size(); ++index) {
-            const bool provider_moves = std::ranges::any_of(
-                initial_dependencies[index],
-                [&pending](std::size_t provider) {
-                    return pending[provider];
-                });
-            if (!pending[index] &&
-                (initial_dependencies[index] != final_dependencies[index] ||
-                 provider_moves)) {
-                pending[index] = true;
-                dependency_pending_changed = true;
-            }
-        }
-    }
-    const auto originally_pending = pending;
-    const auto first_move = moves.size();
     std::vector<bool> evacuated(items.size());
     for (std::size_t index = 0; index < items.size(); ++index) {
-        evacuated[index] = !pending[index];
+        evacuated[index] = items[index].fixed || !pending[index];
     }
 
+    std::size_t evacuation_iterations{};
+    const auto max_execution_iterations =
+        items.size() * items.size() * 4U + 64U;
     while (std::ranges::any_of(
         evacuated, [](bool value) { return !value; })) {
-        const auto current_dependencies = Dependencies(
-            room, items, current_cells, current_occupancy);
+        if (++evacuation_iterations > max_execution_iterations) {
+            return ExecutionPlanResult::EvacuationBlocked;
+        }
         bool progressed{};
         for (std::size_t index = 0; index < items.size(); ++index) {
-            if (evacuated[index] ||
-                HasCurrentDependents(index, current_dependencies)) {
+            if (evacuated[index]) {
+                continue;
+            }
+            auto trial_without = current_occupancy;
+            Remove(
+                room,
+                items[index].placement->instance_id,
+                current_cells[index],
+                trial_without);
+            bool preserves_support = true;
+            bool reactivated_dependent = false;
+            for (std::size_t dependent = 0;
+                 dependent < items.size() && preserves_support;
+                 ++dependent) {
+                if (dependent == index) {
+                    continue;
+                }
+                for (const auto& cell : current_cells[dependent]) {
+                    if (cell.tile == FurniturePlacementTile::Support &&
+                        room.At(
+                            static_cast<std::size_t>(cell.x),
+                            static_cast<std::size_t>(cell.y)) != 2U &&
+                        trial_without.solid_count[
+                            CellIndex(room, cell.x, cell.y)] == 0U) {
+                        preserves_support = false;
+                        if (!items[dependent].fixed &&
+                            evacuated[dependent]) {
+                            evacuated[dependent] = false;
+                            pending[dependent] = true;
+                            forced_staging[dependent] = true;
+                            reactivated_dependent = true;
+                        }
+                        break;
+                    }
+                }
+            }
+            if (!preserves_support) {
+                if (reactivated_dependent) {
+                    progressed = true;
+                    break;
+                }
                 continue;
             }
             const auto room_anchored = [&room](
@@ -670,12 +669,36 @@ bool AppendExecutionMoves(
                 break;
             }
 
-            auto trial_without = current_occupancy;
-            Remove(
-                room,
-                items[index].placement->instance_id,
-                current_cells[index],
-                trial_without);
+            if (!forced_staging[index] &&
+                CanPlace(room, trial_without, final_cells[index])) {
+                const auto from = current_origins[index];
+                const auto target = final_origins[index];
+                if (from != target) {
+                    moves.push_back({
+                        static_cast<std::uint64_t>(
+                            items[index].placement->instance_id),
+                        items[index].placement->item_id,
+                        room_id,
+                        from.first,
+                        from.second,
+                        target.first,
+                        target.second});
+                    moved[index] = true;
+                }
+                current_occupancy = trial_without;
+                Place(
+                    room,
+                    items[index].placement->instance_id,
+                    final_cells[index],
+                    current_occupancy);
+                current_cells[index] = final_cells[index];
+                current_origins[index] = target;
+                pending[index] = false;
+                evacuated[index] = true;
+                progressed = true;
+                break;
+            }
+
             std::vector<std::size_t> staging_candidates;
             for (std::size_t candidate_index = 0;
                  candidate_index < items[index].candidates.size();
@@ -753,28 +776,26 @@ bool AppendExecutionMoves(
                 current_occupancy);
             current_cells[index] = candidate;
             current_origins[index] = target;
+            pending[index] = true;
+            moved[index] = true;
+            forced_staging[index] = false;
             evacuated[index] = true;
             progressed = true;
             break;
         }
         if (!progressed) {
-            moves.resize(first_move);
-            return false;
+            return ExecutionPlanResult::EvacuationBlocked;
         }
     }
 
+    std::size_t installation_iterations{};
     while (std::ranges::any_of(pending, [](bool value) { return value; })) {
+        if (++installation_iterations > max_execution_iterations) {
+            return ExecutionPlanResult::InstallationBlocked;
+        }
         bool progressed{};
         for (std::size_t index = 0; index < items.size(); ++index) {
             if (!pending[index]) {
-                continue;
-            }
-            const bool providers_ready = std::ranges::all_of(
-                final_dependencies[index],
-                [&pending](std::size_t provider) {
-                    return !pending[provider];
-                });
-            if (!providers_ready) {
                 continue;
             }
             auto trial = current_occupancy;
@@ -798,6 +819,7 @@ bool AppendExecutionMoves(
                     from.second,
                     target.first,
                     target.second});
+                moved[index] = true;
             }
             current_occupancy = std::move(trial);
             Place(
@@ -812,16 +834,15 @@ bool AppendExecutionMoves(
             break;
         }
         if (!progressed) {
-            moves.resize(first_move);
-            return false;
+            return ExecutionPlanResult::InstallationBlocked;
         }
     }
     for (std::size_t index = 0; index < items.size(); ++index) {
-        if (!originally_pending[index]) {
+        if (!moved[index] && !items[index].fixed) {
             ++kept_count;
         }
     }
-    return true;
+    return ExecutionPlanResult::Success;
 }
 
 }  // namespace
@@ -875,6 +896,7 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
         movable.reserve(placements.size());
         bool room_supported = true;
         std::size_t passive_count{};
+        std::size_t fixed_count{};
         for (const auto* placement : placements) {
             const auto info = info_by_item.find(placement->item_id);
             if (placement->instance_id <= 0 ||
@@ -887,7 +909,11 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
             item.offsets = ActiveOffsets(*placement, *info->second);
             if (item.offsets.empty() ||
                 !MapCells(*placement, item.offsets, item.current_cells) ||
-                !GeometricallyAllowed(room, item.current_cells)) {
+                !std::ranges::all_of(
+                    item.current_cells,
+                    [&room](const auto& cell) {
+                        return Inside(room, cell.x, cell.y);
+                    })) {
                 room_supported = false;
                 break;
             }
@@ -906,8 +932,12 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
                 continue;
             }
             if (item.support_count == 0U) {
-                room_supported = false;
-                break;
+                item.fixed = true;
+                item.candidates.push_back(item.current_cells);
+                movable.push_back(std::move(item));
+                ++fixed_count;
+                ++plan.unsupported_furniture_count;
+                continue;
             }
             item.candidates = GenerateCandidates(room, item);
             if (item.candidates.empty()) {
@@ -917,13 +947,16 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
             movable.push_back(std::move(item));
         }
         if (!room_supported) {
-            plan.unsupported_furniture_count += placements.size();
+            plan.unsupported_furniture_count +=
+                placements.size() - fixed_count;
+            ++plan.current_state_blocked_room_count;
             continue;
         }
 
-        plan.considered_furniture_count += movable.size() + passive_count;
+        const auto optimizable_count = movable.size() - fixed_count;
+        plan.considered_furniture_count += optimizable_count + passive_count;
         plan.kept_furniture_count += passive_count;
-        if (movable.empty()) {
+        if (optimizable_count == 0U) {
             continue;
         }
 
@@ -935,7 +968,7 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
             }
         }
         if (!best) {
-            plan.no_space_furniture_count += movable.size();
+            plan.no_space_furniture_count += optimizable_count;
             continue;
         }
 
@@ -950,25 +983,45 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
                 *best->candidate_by_item[index]];
         }
         if (!complete) {
-            plan.no_space_furniture_count += movable.size();
+            plan.no_space_furniture_count += optimizable_count;
             continue;
         }
 
         const auto first_move = plan.moves.size();
         auto kept = plan.kept_furniture_count;
-        if (!AppendExecutionMoves(
+        const auto execution = AppendExecutionMoves(
                 room,
                 room_id,
                 movable,
                 final_cells,
                 plan.moves,
-                kept)) {
-            plan.moves.resize(first_move);
-            plan.unsupported_furniture_count += movable.size();
+                kept);
+        if (execution != ExecutionPlanResult::Success) {
+            const bool has_partial_moves =
+                plan.moves.size() > first_move;
+            if (execution == ExecutionPlanResult::CurrentStateInvalid ||
+                execution == ExecutionPlanResult::FinalStateInvalid) {
+                ++plan.current_state_blocked_room_count;
+            } else if (execution ==
+                       ExecutionPlanResult::EvacuationBlocked) {
+                ++plan.evacuation_blocked_room_count;
+            } else if (execution ==
+                       ExecutionPlanResult::InstallationBlocked) {
+                ++plan.installation_blocked_room_count;
+            }
+            if (has_partial_moves) {
+                ++plan.planned_room_count;
+                return plan;
+            } else {
+                plan.unsupported_furniture_count += optimizable_count;
+            }
             continue;
         }
         plan.kept_furniture_count = kept;
         ++plan.planned_room_count;
+        if (plan.moves.size() > first_move) {
+            return plan;
+        }
     }
     return plan;
 }

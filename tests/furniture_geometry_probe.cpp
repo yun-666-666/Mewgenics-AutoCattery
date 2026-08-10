@@ -241,6 +241,12 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " warehouse=" << layout.warehouse_furniture_count
         << " unsupported=" << layout.unsupported_furniture_count
         << " no_space=" << layout.no_space_furniture_count
+        << " current_blocked="
+        << layout.current_state_blocked_room_count
+        << " evacuation_blocked="
+        << layout.evacuation_blocked_room_count
+        << " installation_blocked="
+        << layout.installation_blocked_room_count
         << '\n';
     for (const auto& placement : placements) {
         const auto info = info_by_id.find(placement.item_id);

@@ -664,6 +664,15 @@ void MewUiBridge::OnTick() {
                         std::to_string(plan.planned_room_count) +
                         ", moves=" +
                         std::to_string(plan.moves.size()) +
+                        ", current_blocked=" +
+                        std::to_string(
+                            plan.current_state_blocked_room_count) +
+                        ", evacuation_blocked=" +
+                        std::to_string(
+                            plan.evacuation_blocked_room_count) +
+                        ", installation_blocked=" +
+                        std::to_string(
+                            plan.installation_blocked_room_count) +
                         ", unsupported=" +
                         std::to_string(plan.unsupported_furniture_count) +
                         ", no_space=" +

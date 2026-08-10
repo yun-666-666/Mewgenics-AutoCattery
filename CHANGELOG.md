@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Plan one complete room per analysis request instead of solving every unlocked
+  room in one global pass. All supported furniture in that room still
+  participates; analyzing again advances to the next room that needs work.
+- Bound the packing search and retain a useful partial move batch when a full
+  disassembly/reassembly sequence cannot be completed in one pass. This keeps
+  large saves responsive and lets the next analysis continue from live state.
+- Recognize the current resource grid's `Surface` and `PoopLogic` cells as
+  non-occupying placement metadata. Furniture such as beds, couches, chairs,
+  cages, and sinks no longer makes its entire room appear unsupported.
+- Accept the current live House layout as an evacuation source even when
+  manually placed furniture has overlapping Solid cells, duplicate Support
+  occupancy, or a temporarily floating Support cell. The generated target
+  layout remains strictly collision-free and fully anchored.
+- Track every current Solid provider at a shared cell so stacked dependents are
+  removed before any overlapping base, instead of rejecting the entire room as
+  unsupported and incorrectly reporting that no move is needed.
 - Refresh furniture instance coordinates, room, and scale from the active House
   scene on every Start Analysis request instead of reusing the first disk-save
   snapshot for the rest of the furniture session.

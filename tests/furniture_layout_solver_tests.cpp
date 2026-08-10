@@ -157,6 +157,76 @@ void RunFurnitureLayoutSolverTests() {
         AC_CHECK(stacked.moves[2].from_x == stacked.moves[0].target_x);
     }
 
+    const std::vector<snapshot::detail::FurniturePlacement>
+        overlapping_current_layout{
+            Placement(80, "large", "RoomA", -6, -9),
+            Placement(90, "base", "RoomA", -6, -9),
+            Placement(100, "small", "RoomA", -6, -9)};
+    const auto overlapping = solver.Plan(
+        overlapping_current_layout, geometry, info);
+    AC_CHECK(overlapping.planned_room_count == 1);
+    AC_CHECK(overlapping.considered_furniture_count == 3);
+    AC_CHECK(overlapping.unsupported_furniture_count == 0);
+    AC_CHECK(overlapping.no_space_furniture_count == 0);
+    AC_CHECK(!overlapping.moves.empty());
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        floating_current_layout{
+            Placement(110, "large", "RoomA", -6, -9),
+            Placement(120, "small", "RoomA", -4, -8)};
+    const auto floating = solver.Plan(
+        floating_current_layout, geometry, info);
+    AC_CHECK(floating.planned_room_count == 1);
+    AC_CHECK(floating.considered_furniture_count == 2);
+    AC_CHECK(floating.unsupported_furniture_count == 0);
+    AC_CHECK(floating.no_space_furniture_count == 0);
+
+    auto surface_info = AnchoredInfo("surface_base", 1);
+    surface_info.placement_grid.tiles[
+        10U * snapshot::detail::kFurniturePlacementGridWidth + 11U] =
+        FurniturePlacementTile::Surface;
+    auto metadata_info = PosterInfo("metadata_only");
+    metadata_info.placement_grid.tiles[
+        11U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
+        FurniturePlacementTile::Surface;
+    metadata_info.placement_grid.tiles[
+        11U * snapshot::detail::kFurniturePlacementGridWidth + 11U] =
+        FurniturePlacementTile::PoopLogic;
+    auto info_with_metadata = info;
+    info_with_metadata.records.push_back(std::move(surface_info));
+    info_with_metadata.records.push_back(std::move(metadata_info));
+    const std::vector<snapshot::detail::FurniturePlacement> metadata_layout{
+        Placement(130, "surface_base", "RoomA", -6, -9),
+        Placement(140, "metadata_only", "RoomA", -5, -8)};
+    const auto metadata = solver.Plan(
+        metadata_layout, geometry, info_with_metadata);
+    AC_CHECK(metadata.planned_room_count == 1);
+    AC_CHECK(metadata.considered_furniture_count == 2);
+    AC_CHECK(metadata.unsupported_furniture_count == 0);
+    AC_CHECK(metadata.no_space_furniture_count == 0);
+
+    auto two_room_geometry = geometry;
+    two_room_geometry.rooms.push_back({
+        .definition_id = "R2",
+        .room_id = "RoomB",
+        .width = 6,
+        .height = 4});
+    const std::vector<snapshot::detail::FurniturePlacement> two_rooms{
+        Placement(150, "large", "RoomA", -6, -9),
+        Placement(160, "small", "RoomA", -6, -9),
+        Placement(170, "large", "RoomB", -6, -9),
+        Placement(180, "small", "RoomB", -6, -9)};
+    const auto one_room_at_a_time = solver.Plan(
+        two_rooms, two_room_geometry, info);
+    AC_CHECK(one_room_at_a_time.planned_room_count == 1);
+    AC_CHECK(!one_room_at_a_time.moves.empty());
+    AC_CHECK(std::ranges::all_of(
+        one_room_at_a_time.moves,
+        [&one_room_at_a_time](const auto& move) {
+            return move.room_id ==
+                one_room_at_a_time.moves.front().room_id;
+        }));
+
     const auto repeated = solver.Plan(first_layout, geometry, info);
     AC_CHECK(repeated.moves.size() == first.moves.size());
     for (std::size_t index = 0; index < first.moves.size(); ++index) {

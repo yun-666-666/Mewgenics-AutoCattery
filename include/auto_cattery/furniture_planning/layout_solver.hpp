@@ -28,6 +28,9 @@ struct FurnitureLayoutPlan {
     std::size_t warehouse_furniture_count{};
     std::size_t unsupported_furniture_count{};
     std::size_t no_space_furniture_count{};
+    std::size_t current_state_blocked_room_count{};
+    std::size_t evacuation_blocked_room_count{};
+    std::size_t installation_blocked_room_count{};
 };
 
 class FurnitureLayoutSolver final {
