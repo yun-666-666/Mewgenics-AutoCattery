@@ -51,6 +51,22 @@ struct FurnitureReplacementPlacement {
     std::int32_t y{};
 };
 
+struct FurnitureSupportDependent {
+    std::uint64_t stable_key{};
+    std::string item_id;
+    snapshot::RoomId room_id;
+    std::int32_t x{};
+    std::int32_t y{};
+};
+
+[[nodiscard]] std::optional<std::vector<FurnitureSupportDependent>>
+FindFurnitureSupportDependentsTopDown(
+    const snapshot::detail::FurniturePlacement& provider,
+    const std::vector<snapshot::detail::FurniturePlacement>& furniture,
+    const snapshot::detail::HouseGeometryCatalog& geometry,
+    const snapshot::detail::FurnitureInfoCatalog& furniture_info,
+    const std::vector<FurnitureRoomGrid>& runtime_room_grids);
+
 [[nodiscard]] std::optional<FurnitureReplacementPlacement>
 FindNearestFurnitureReplacementPlacement(
     const snapshot::detail::FurniturePlacement& placed,

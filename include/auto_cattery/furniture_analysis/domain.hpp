@@ -57,6 +57,8 @@ struct FurnitureAttributeUpgrade {
     std::int32_t original_y{};
     std::int32_t target_x{};
     std::int32_t target_y{};
+    std::vector<furniture_planning::FurnitureSupportDependent>
+        support_dependents_top_down;
     snapshot::RoomAttributes gain;
 };
 

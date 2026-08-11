@@ -294,6 +294,24 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
             refreshed.message;
         return result;
     }
+    std::vector<AcMewFurnitureSupportDependentRequest> native_dependents;
+    native_dependents.reserve(request.support_dependents_top_down.size());
+    for (const auto& dependent :
+         request.support_dependents_top_down) {
+        if (dependent.locator.item.empty() ||
+            !dependent.locator.preferred_key.has_value() ||
+            *dependent.locator.preferred_key == 0U ||
+            dependent.room != result.placed.room) {
+            result.message =
+                "the support-dependent furniture binding is incomplete";
+            return result;
+        }
+        native_dependents.push_back({
+            .stable_key = *dependent.locator.preferred_key,
+            .expected_item = dependent.locator.item.c_str(),
+            .x = dependent.x,
+            .y = dependent.y});
+    }
     const auto replaced = AcMewReplaceFurnitureWithWarehousePiece(
         house_scene_manager_,
         found.snapshot.piece,
@@ -301,7 +319,9 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
         request.warehouse_item.c_str(),
         &grid.snapshot,
         request.target_x.value_or(result.placed.saved_x),
-        request.target_y.value_or(result.placed.saved_y));
+        request.target_y.value_or(result.placed.saved_y),
+        native_dependents.data(),
+        native_dependents.size());
     result.target_x = replaced.target_x;
     result.target_y = replaced.target_y;
     result.signatures_valid = replaced.signature_valid != 0U;
@@ -312,6 +332,11 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
     result.verified = replaced.verified != 0U;
     result.rollback_attempted = replaced.rollback_attempted != 0U;
     result.rollback_succeeded = replaced.rollback_succeeded != 0U;
+    result.support_dependent_count = replaced.support_dependent_count;
+    result.support_dependents_stored =
+        replaced.support_dependents_stored;
+    result.support_dependents_restored =
+        replaced.support_dependents_restored;
     result.seh_code = replaced.seh_code;
     result.exception_rva = replaced.exception_rva;
     if (result.verified) {

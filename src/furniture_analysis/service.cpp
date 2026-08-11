@@ -381,6 +381,18 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             return {{}, ErrorCode::SnapshotInvalid,
                     "attribute upgrade identity disappeared before planning"};
         }
+        const auto support_dependents =
+            furniture_planning::FindFurnitureSupportDependentsTopDown(
+                *placed,
+                planning_furniture,
+                source.geometry,
+                source.furniture_info,
+                source.runtime_room_grids);
+        if (!support_dependents) {
+            return {{}, ErrorCode::SnapshotInvalid,
+                    "attribute upgrade support chain could not be resolved"};
+        }
+        upgrade.support_dependents_top_down = *support_dependents;
         const auto replacement =
             furniture_planning::FindNearestFurnitureReplacementPlacement(
                 *placed,

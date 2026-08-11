@@ -1,7 +1,7 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
-日期：2026-08-11
-版本：v0.5.35
+日期：2026-08-12
+版本：v0.5.36
 
 ## 结果
 
@@ -20,12 +20,22 @@
   替换件的 24x24 放置网格、房间基础格、当前家具占用和既有 Support 依赖，逐项求出
   距离旧位置最近的目标坐标。新建 scene piece 继承旧家具朝向，后续封存布局允许从
   实际创建坐标继续执行；批次回滚仍单独保留并恢复旧家具原始坐标。
+- v0.5.35 玩家复测 `special_foodbox key=13 -> set_90s_stove key=99` 时，目标
+  `(-10,-11)` 仍被原生合法性校验拒绝。当前存档网格确认 key 13 上方直接或间接
+  支撑 key 68、197、236、221、321；问题不是缺少房间临时空位，而是旧底座的依赖链
+  仍留在 scene 中。v0.5.36 对每次属性替换先计算完整 Support 依赖链，按最上层到
+  最下层逐件调用游戏原生家具栏收回路径，再收回旧底座；随后从仓库 stable key 创建
+  新底座，并按最下层到最上层将依赖件原位创建。执行过程不寻找房间地面或跨房间
+  临时落点；失败时先清理已重建链和新底座，再恢复旧底座及已收回依赖链。
 
 ## 当前 build 证据
 
 - `0x1ABFF0`：五个真实调用点确认参数为 House scene manager、scene context、
   stable key 指针；内部创建并初始化当前 `FurniturePiece`。
 - `0x2EE3D0`：移除家具 grid 占用。
+- `0x2EF0D0`：当前 build 的完整 scene 家具收回路径；内部调用 `0x2EE3D0`，将
+  `FurniturePieceEntry` 的 room 置空，从 scene 注册集合解绑，清空 piece 的 entry
+  指针并排队删除 component。该状态就是家具栏状态，不是模拟摆放。
 - `0x2EDE60`：原生放置合法性校验。
 - `0x2EE230`：提交家具到目标 grid。
 - `0x94A910`：游戏广泛使用的 component 删除路径。完整反汇编确认它读取
@@ -56,6 +66,9 @@
 - v0.5.35 的几何目标求解不会把几何不同的升级候选筛掉；只有家具信息本身无法解析
   时才保留旧坐标交给当前原生路径。确定性回归覆盖“旧位置被另一件家具阻挡，宽替换
   件应移动到最近上一行”的场景，并验证目标从 `(-10,-12)` 变为 `(-10,-11)`。
+- 当前 day 339 存档只读 probe：269 件家具、112 件已摆放、157 件在家具栏、5 个
+  房间；家具 info/grid/effect 覆盖 269/269，146 个 Support 全部合法。失败底座链为
+  `13 -> 68 -> 197 -> 236 -> 221 -> 321`，与 v0.5.36 生成的 top-down 收回顺序一致。
 
 ## 文件
 
@@ -64,7 +77,9 @@
 - Gateway：`src/ui/furniture_placement_gateway.cpp`、
   `src/ui/furniture_placement_gateway.hpp`。
 - 分析与执行：`src/furniture_analysis/service.cpp`、`src/ui/mew_ui_bridge.cpp`、
-  `include/auto_cattery/ui/mew_ui_bridge.hpp`。
+  `src/furniture_planning/layout_solver.cpp`、
+  `include/auto_cattery/furniture_analysis/domain.hpp`、
+  `include/auto_cattery/furniture_planning/layout_solver.hpp`。
 - 房间身份修复：`src/ui/mew_ui_house_move_probe.h`、
   `src/ui/mew_ui_house_move_room_scan.c`、`src/ui/runtime_room_resolution.cpp`、
   `src/ui/runtime_matched_save_snapshot_adapter.cpp`。
@@ -90,6 +105,10 @@
 - v0.5.35 Debug 编译成功，Debug CTest 4/4 通过；独立
   `build-stage45-release` Release 编译成功，Release CTest 4/4 通过。新增几何替换目标、
   邻近候选顺序、替换原坐标保存和后续布局从实际创建位置继续的回归均通过。
+- v0.5.36 `tools\build.ps1 -Configuration Debug`：成功；Debug CTest 4/4 通过；
+  Support 三层链回归确认收回顺序为最上层到最下层。
+- v0.5.36 `tools\build.ps1 -Configuration Release`：成功；Release CTest 4/4
+  通过；Release DLL exports 与 x64 检查通过。
 - `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
   -Configuration Release`：DLL-only 部署成功。
 - `tools\verify_install.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics`：
@@ -97,6 +116,9 @@
 - v0.5.35 build、`dist\Release\AutoCattery.dll` 与实际安装的
   `Mewgenics\mods\AutoCattery.dll` SHA-256 一致：
   `31C8BF38CBCC2A4ED8FDBDE3EA8744BFC8AEDE197FBFF140E1A4E1E07ADB0546`。
+- v0.5.36 build、`dist\Release\AutoCattery.dll` 与实际安装的
+  `Mewgenics\mods\AutoCattery.dll` SHA-256 一致：
+  `6E7DF91D05C41ACBF2100EF9BA4E4A93C22525C7535C065AB49422BB06229E61`。
 - 玩家首次启动暴露 BOM GON 错误后，已在同一 Windows PowerShell 5 后台环境重新
   执行修正后的部署与 `verify_install`：成功；AutoCattery 和
   SkillsPassivesFirstData 的四份职业 GON、`modlist.txt` 均确认 `BOM=False`，四份 GON
@@ -104,11 +126,11 @@
 
 ## 玩家验证状态
 
-v0.5.34 玩家已确认分析门通过，剩余问题收敛为第一件跨几何替换无法沿用旧坐标。
-v0.5.35 已部署，等待玩家实机执行。进入同一测试存档后点击一次“开始分析”，`AC3910`
-应为候选记录新的 `target=(x,y)`；点击“自动放置”后应连续出现 `AC3912`，其中
-`placed_at=(x,y)` 为实际创建坐标，最终出现 `AC3904`。随后保存、退出并重进，确认
-新家具保持在房间、旧家具回到仓库，再次分析不重复提出相同替换。
+v0.5.36 已部署，等待玩家实机执行。完全退出游戏后重新通过 Mewtator 启动，进入同一
+测试存档和家具模式，点击一次“开始分析”，再点击一次“自动放置”。第一项成功日志
+`AC3912` 应包含 `support=5/5->5`，表示五件依赖家具全部真实收回家具栏并全部原位
+重建；批次成功最终出现 `AC3904`。若失败，`AC3907` 必须显示完整回滚。成功后保存、
+完全退出并重进，确认新底座和上层链仍在房间、旧底座已回家具栏。
 
 ## 风险与未做范围
 

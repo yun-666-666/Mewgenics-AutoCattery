@@ -2495,6 +2495,144 @@ FurnitureLayoutPlan PlanWholeHouse(
 
 }  // namespace
 
+std::optional<std::vector<FurnitureSupportDependent>>
+FindFurnitureSupportDependentsTopDown(
+    const FurniturePlacement& provider,
+    const std::vector<FurniturePlacement>& furniture,
+    const snapshot::detail::HouseGeometryCatalog& geometry,
+    const snapshot::detail::FurnitureInfoCatalog& furniture_info,
+    const std::vector<FurnitureRoomGrid>& runtime_room_grids) {
+    if (provider.room_id.empty() || provider.instance_id <= 0) {
+        return std::nullopt;
+    }
+    const auto runtime = std::ranges::find_if(
+        runtime_room_grids,
+        [&provider](const auto& room) {
+            return room.room_id == provider.room_id;
+        });
+    if (runtime == runtime_room_grids.end()) {
+        return std::nullopt;
+    }
+    const auto resolved = ResolveRuntimeRoom(geometry, *runtime);
+    if (!resolved) {
+        return std::nullopt;
+    }
+    const auto& room = *resolved;
+
+    std::unordered_map<std::string, const FurnitureInfoRecord*> info_by_item;
+    info_by_item.reserve(furniture_info.records.size());
+    for (const auto& info : furniture_info.records) {
+        info_by_item.emplace(info.item_id, &info);
+    }
+
+    struct DependencyItem {
+        const FurniturePlacement* placement{};
+        std::vector<std::pair<std::int32_t, std::int32_t>> solids;
+        std::vector<std::pair<std::int32_t, std::int32_t>> supports;
+    };
+    std::vector<DependencyItem> items;
+    for (const auto& placement : furniture) {
+        if (placement.room_id != provider.room_id ||
+            placement.instance_id <= 0) {
+            continue;
+        }
+        const auto info = info_by_item.find(placement.item_id);
+        if (info == info_by_item.end() ||
+            !placement.HasSupportedGridScale() ||
+            !info->second->placement_grid.supported) {
+            return std::nullopt;
+        }
+        const auto offsets = ActiveOffsets(placement, *info->second);
+        std::vector<MappedCell> cells;
+        if (!MapCells(placement, offsets, cells) ||
+            !std::ranges::all_of(cells, [&room](const auto& cell) {
+                return Inside(room, cell.x, cell.y);
+            })) {
+            return std::nullopt;
+        }
+        DependencyItem item;
+        item.placement = &placement;
+        for (const auto& cell : cells) {
+            if (cell.tile == FurniturePlacementTile::Solid) {
+                item.solids.emplace_back(cell.x, cell.y);
+            } else if (cell.tile == FurniturePlacementTile::Support &&
+                       !RoomProvidesBoundarySupport(room, cell.x, cell.y)) {
+                item.supports.emplace_back(cell.x, cell.y);
+            }
+        }
+        std::ranges::sort(item.solids);
+        std::ranges::sort(item.supports);
+        items.push_back(std::move(item));
+    }
+    std::ranges::sort(items, [](const auto& left, const auto& right) {
+        return left.placement->instance_id < right.placement->instance_id;
+    });
+    const auto provider_index = std::ranges::find_if(
+        items,
+        [&provider](const auto& item) {
+            return item.placement->instance_id == provider.instance_id;
+        });
+    if (provider_index == items.end()) {
+        return std::nullopt;
+    }
+
+    const auto directly_depends_on = [](const auto& dependent,
+                                        const auto& supporting) {
+        return std::ranges::any_of(
+            dependent.supports,
+            [&supporting](const auto& support) {
+                return std::ranges::binary_search(
+                    supporting.solids, support);
+            });
+    };
+    std::vector<std::uint8_t> visit_state(items.size(), 0U);
+    std::vector<FurnitureSupportDependent> result;
+    bool cycle{};
+    const auto visit = [&](const auto& self, std::size_t index) -> void {
+        if (cycle || visit_state[index] == 2U) {
+            return;
+        }
+        if (visit_state[index] == 1U) {
+            cycle = true;
+            return;
+        }
+        visit_state[index] = 1U;
+        for (std::size_t dependent = 0; dependent < items.size(); ++dependent) {
+            if (dependent == index ||
+                !directly_depends_on(items[dependent], items[index])) {
+                continue;
+            }
+            self(self, dependent);
+            if (cycle) {
+                return;
+            }
+            const auto stable_key = static_cast<std::uint64_t>(
+                items[dependent].placement->instance_id);
+            if (std::ranges::none_of(
+                    result,
+                    [stable_key](const auto& existing) {
+                        return existing.stable_key == stable_key;
+                    })) {
+                result.push_back({
+                    .stable_key = stable_key,
+                    .item_id = items[dependent].placement->item_id,
+                    .room_id = items[dependent].placement->room_id,
+                    .x = items[dependent].placement->position_x,
+                    .y = items[dependent].placement->position_y});
+            }
+        }
+        visit_state[index] = 2U;
+    };
+    visit(
+        visit,
+        static_cast<std::size_t>(
+            std::distance(items.begin(), provider_index)));
+    if (cycle) {
+        return std::nullopt;
+    }
+    return result;
+}
+
 std::optional<FurnitureReplacementPlacement>
 FindNearestFurnitureReplacementPlacement(
     const FurniturePlacement& placed,

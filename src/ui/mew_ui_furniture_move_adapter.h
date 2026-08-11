@@ -101,7 +101,17 @@ typedef struct AcMewNativeFurnitureReplacementResult {
     uint64_t warehouse_stable_key;
     int32_t target_x;
     int32_t target_y;
+    uint32_t support_dependent_count;
+    uint32_t support_dependents_stored;
+    uint32_t support_dependents_restored;
 } AcMewNativeFurnitureReplacementResult;
+
+typedef struct AcMewFurnitureSupportDependentRequest {
+    uint64_t stable_key;
+    const char* expected_item;
+    int32_t x;
+    int32_t y;
+} AcMewFurnitureSupportDependentRequest;
 
 typedef struct AcMewFurnitureCoordinate {
     int32_t x;
@@ -192,7 +202,9 @@ AcMewReplaceFurnitureWithWarehousePiece(
     const char* expected_warehouse_item,
     const AcMewFurnitureGridSnapshot* target_grid,
     int32_t target_x,
-    int32_t target_y);
+    int32_t target_y,
+    const AcMewFurnitureSupportDependentRequest* support_dependents_top_down,
+    size_t support_dependent_count);
 
 #ifdef __cplusplus
 }

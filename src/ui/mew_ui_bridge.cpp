@@ -159,6 +159,24 @@ std::string SafeTechnicalName(std::string_view value) {
     return output;
 }
 
+std::vector<FurnitureWarehouseReplacementRequest::SupportDependent>
+BuildSupportDependentRequests(
+    const furniture_analysis::FurnitureAttributeUpgrade& upgrade) {
+    std::vector<FurnitureWarehouseReplacementRequest::SupportDependent>
+        result;
+    result.reserve(upgrade.support_dependents_top_down.size());
+    for (const auto& dependent : upgrade.support_dependents_top_down) {
+        result.push_back({
+            .locator = {
+                .item = dependent.item_id,
+                .preferred_key = dependent.stable_key},
+            .room = dependent.room_id,
+            .x = dependent.x,
+            .y = dependent.y});
+    }
+    return result;
+}
+
 std::string SafeDisplayName(std::string_view value) {
     std::string output(value);
     for (auto& character : output) {
@@ -1550,7 +1568,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                             .warehouse_stable_key =
                                 upgrade.placed_stable_key,
                             .target_x = upgrade.original_x,
-                            .target_y = upgrade.original_y});
+                            .target_y = upgrade.original_y,
+                            .support_dependents_top_down =
+                                BuildSupportDependentRequests(upgrade)});
                     if (restored.status !=
                         FurnitureWarehouseReplacementStatus::Replaced) {
                         rollback_detail =
@@ -1648,7 +1668,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 .warehouse_item = upgrade.warehouse_item_id,
                 .warehouse_stable_key = upgrade.warehouse_stable_key,
                 .target_x = upgrade.target_x,
-                .target_y = upgrade.target_y});
+                .target_y = upgrade.target_y,
+                .support_dependents_top_down =
+                    BuildSupportDependentRequests(upgrade)});
         if (replaced.status !=
             FurnitureWarehouseReplacementStatus::Replaced) {
             std::ostringstream rejection;
@@ -1669,6 +1691,10 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                       << (replaced.placement_valid ? 1 : 0)
                       << " committed=" << (replaced.committed ? 1 : 0)
                       << " verified=" << (replaced.verified ? 1 : 0)
+                      << " support="
+                      << replaced.support_dependents_stored << '/'
+                      << replaced.support_dependent_count << "->"
+                      << replaced.support_dependents_restored
                       << " native_rollback="
                       << (replaced.rollback_attempted ? 1 : 0) << '/'
                       << (replaced.rollback_succeeded ? 1 : 0)
@@ -1691,7 +1717,11 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 SafeTechnicalName(upgrade.warehouse_item_id) +
                 " key=" + std::to_string(upgrade.warehouse_stable_key) +
                 " placed_at=(" + std::to_string(replaced.target_x) + "," +
-                std::to_string(replaced.target_y) + ") gain=" +
+                std::to_string(replaced.target_y) + ") support=" +
+                std::to_string(replaced.support_dependents_stored) + "/" +
+                std::to_string(replaced.support_dependent_count) + "->" +
+                std::to_string(replaced.support_dependents_restored) +
+                " gain=" +
                 CompactAttributeGain(upgrade.gain) + ".");
         ++furniture_execution_upgraded_;
         furniture_execution_committed_upgrade_indices_.push_back(

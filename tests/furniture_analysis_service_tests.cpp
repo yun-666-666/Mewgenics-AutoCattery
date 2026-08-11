@@ -137,6 +137,21 @@ void RunFurnitureAnalysisServiceTests() {
         {"tradeoff", snapshot::RoomAttributes{
             .comfort = 100, .stimulation = 0, .health = 100,
             .mutation = 100, .appeal = 100}}};
+    for (const auto& item : {
+             "weak-one", "weak-two", "strong-one", "strong-two",
+             "tradeoff"}) {
+        snapshot::detail::FurnitureInfoRecord info;
+        info.item_id = item;
+        info.placement_grid.supported = true;
+        upgrades.value.furniture_info.records.push_back(std::move(info));
+    }
+    upgrades.value.runtime_room_grids = {
+        {"RoomA", 8, 2,
+         std::vector<std::uint8_t>(16U, 0U),
+         std::vector<std::uint8_t>(16U, 0U)},
+        {"RoomB", 8, 2,
+         std::vector<std::uint8_t>(16U, 0U),
+         std::vector<std::uint8_t>(16U, 0U)}};
     upgrades.value.runtime_scene_piece_count = 3;
     upgrades.value.runtime_placed_piece_count = 2;
     upgrades.value.runtime_warehouse_pieces = {

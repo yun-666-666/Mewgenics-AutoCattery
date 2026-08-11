@@ -311,6 +311,39 @@ void RunFurnitureLayoutSolverTests() {
         AC_CHECK(stacked.moves[2].from_x == stacked.moves[0].target_x);
     }
 
+    snapshot::detail::FurnitureInfoCatalog dependency_info;
+    dependency_info.records = {
+        AnchoredInfo("dependency-base", 1),
+        AnchoredInfo("dependency-middle", 1),
+        AnchoredInfo("dependency-top", 1)};
+    const std::vector<snapshot::detail::FurniturePlacement>
+        dependency_layout{
+            Placement(601, "dependency-base", "RoomA", -6, -9),
+            Placement(602, "dependency-middle", "RoomA", -6, -7),
+            Placement(603, "dependency-top", "RoomA", -6, -5)};
+    const std::vector<furniture_planning::FurnitureRoomGrid>
+        dependency_grids{{
+            "RoomA",
+            6,
+            8,
+            std::vector<std::uint8_t>(48U, 0U),
+            std::vector<std::uint8_t>(48U, 0U)}};
+    const auto support_dependents =
+        furniture_planning::FindFurnitureSupportDependentsTopDown(
+            dependency_layout.front(),
+            dependency_layout,
+            geometry,
+            dependency_info,
+            dependency_grids);
+    AC_CHECK(support_dependents.has_value());
+    AC_CHECK(support_dependents->size() == 2);
+    if (support_dependents->size() == 2) {
+        AC_CHECK((*support_dependents)[0].stable_key == 603);
+        AC_CHECK((*support_dependents)[1].stable_key == 602);
+        AC_CHECK((*support_dependents)[0].x == -6);
+        AC_CHECK((*support_dependents)[0].y == -5);
+    }
+
     const std::vector<snapshot::detail::FurniturePlacement>
         player_compact_layout{
             Placement(71, "large", "RoomA", -6, -9),

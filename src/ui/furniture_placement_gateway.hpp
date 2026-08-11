@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace autocattery::ui {
 
@@ -81,11 +82,19 @@ enum class FurnitureWarehouseReplacementStatus {
 };
 
 struct FurnitureWarehouseReplacementRequest {
+    struct SupportDependent {
+        FurniturePlacementLocator locator;
+        std::string room;
+        std::int32_t x{};
+        std::int32_t y{};
+    };
+
     FurniturePlacementLocator placed;
     std::string warehouse_item;
     std::uint64_t warehouse_stable_key{};
     std::optional<std::int32_t> target_x;
     std::optional<std::int32_t> target_y;
+    std::vector<SupportDependent> support_dependents_top_down;
 };
 
 struct FurnitureWarehouseReplacementResult {
@@ -103,6 +112,9 @@ struct FurnitureWarehouseReplacementResult {
     bool verified{};
     bool rollback_attempted{};
     bool rollback_succeeded{};
+    std::uint32_t support_dependent_count{};
+    std::uint32_t support_dependents_stored{};
+    std::uint32_t support_dependents_restored{};
     std::uint32_t seh_code{};
     std::uintptr_t exception_rva{};
     std::string message;
