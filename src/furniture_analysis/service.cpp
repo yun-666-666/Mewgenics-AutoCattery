@@ -333,6 +333,10 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             .placed_item_id = pair.placed->item_id,
             .warehouse_item_id = pair.warehouse->item_id,
             .target_room_id = pair.placed->room_id,
+            .original_x = pair.placed->position_x,
+            .original_y = pair.placed->position_y,
+            .target_x = pair.placed->position_x,
+            .target_y = pair.placed->position_y,
             .gain = pair.gain});
         Add(result.attribute_upgrade_gain, pair.gain);
     }
@@ -357,7 +361,7 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     }
     result.binding_digest = BuildBindingDigest(source, result.rooms);
     auto planning_furniture = source.furniture;
-    for (const auto& upgrade : result.attribute_upgrades) {
+    for (auto& upgrade : result.attribute_upgrades) {
         const auto placed = std::ranges::find_if(
             planning_furniture,
             [&upgrade](const auto& item) {
@@ -377,9 +381,22 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             return {{}, ErrorCode::SnapshotInvalid,
                     "attribute upgrade identity disappeared before planning"};
         }
-        warehouse->room_id = placed->room_id;
-        warehouse->position_x = placed->position_x;
-        warehouse->position_y = placed->position_y;
+        const auto replacement =
+            furniture_planning::FindNearestFurnitureReplacementPlacement(
+                *placed,
+                *warehouse,
+                planning_furniture,
+                source.geometry,
+                source.furniture_info,
+                source.runtime_room_grids);
+        if (replacement) {
+            upgrade.target_room_id = replacement->room_id;
+            upgrade.target_x = replacement->x;
+            upgrade.target_y = replacement->y;
+        }
+        warehouse->room_id = upgrade.target_room_id;
+        warehouse->position_x = upgrade.target_x;
+        warehouse->position_y = upgrade.target_y;
         warehouse->position_z = placed->position_z;
         warehouse->scale_x = placed->scale_x;
         warehouse->scale_y = placed->scale_y;

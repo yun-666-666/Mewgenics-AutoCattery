@@ -147,6 +147,10 @@ void RunFurnitureAnalysisServiceTests() {
     AC_CHECK(upgrade_result.value.attribute_upgrades.size() == 2);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].warehouse_stable_key == 3);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].placed_stable_key == 1);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].original_x == 1);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].original_y == 0);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].target_x == 1);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].target_y == 0);
     AC_CHECK(upgrade_result.value.attribute_upgrades[1].warehouse_stable_key == 4);
     AC_CHECK(upgrade_result.value.attribute_upgrades[1].placed_stable_key == 2);
     AC_CHECK(upgrade_result.value.attribute_upgrade_gain.comfort == 6);

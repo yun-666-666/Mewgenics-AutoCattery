@@ -53,6 +53,10 @@ struct FurnitureAttributeUpgrade {
     std::string placed_item_id;
     std::string warehouse_item_id;
     snapshot::RoomId target_room_id;
+    std::int32_t original_x{};
+    std::int32_t original_y{};
+    std::int32_t target_x{};
+    std::int32_t target_y{};
     snapshot::RoomAttributes gain;
 };
 

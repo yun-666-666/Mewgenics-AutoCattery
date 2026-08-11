@@ -2495,6 +2495,166 @@ FurnitureLayoutPlan PlanWholeHouse(
 
 }  // namespace
 
+std::optional<FurnitureReplacementPlacement>
+FindNearestFurnitureReplacementPlacement(
+    const FurniturePlacement& placed,
+    const FurniturePlacement& warehouse,
+    const std::vector<FurniturePlacement>& furniture,
+    const snapshot::detail::HouseGeometryCatalog& geometry,
+    const snapshot::detail::FurnitureInfoCatalog& furniture_info,
+    const std::vector<FurnitureRoomGrid>& runtime_room_grids) {
+    if (placed.room_id.empty() || placed.instance_id <= 0 ||
+        warehouse.instance_id <= 0) {
+        return std::nullopt;
+    }
+    const auto runtime = std::ranges::find_if(
+        runtime_room_grids,
+        [&placed](const auto& room) {
+            return room.room_id == placed.room_id;
+        });
+    if (runtime == runtime_room_grids.end()) {
+        return std::nullopt;
+    }
+    const auto resolved = ResolveRuntimeRoom(geometry, *runtime);
+    if (!resolved) {
+        return std::nullopt;
+    }
+    const auto& room = *resolved;
+
+    std::unordered_map<std::string, const FurnitureInfoRecord*> info_by_item;
+    info_by_item.reserve(furniture_info.records.size());
+    for (const auto& info : furniture_info.records) {
+        info_by_item.emplace(info.item_id, &info);
+    }
+    const auto replacement_info = info_by_item.find(warehouse.item_id);
+    const auto placed_info = info_by_item.find(placed.item_id);
+    if (replacement_info == info_by_item.end() ||
+        placed_info == info_by_item.end()) {
+        return std::nullopt;
+    }
+
+    FurniturePlacement replacement = warehouse;
+    replacement.room_id = placed.room_id;
+    replacement.position_x = placed.position_x;
+    replacement.position_y = placed.position_y;
+    replacement.position_z = placed.position_z;
+    replacement.scale_x = placed.scale_x;
+    replacement.scale_y = placed.scale_y;
+    LayoutItem replacement_item;
+    replacement_item.placement = &replacement;
+    replacement_item.offsets = ActiveOffsets(
+        replacement, *replacement_info->second);
+    if (replacement_item.offsets.empty()) {
+        return std::nullopt;
+    }
+    replacement_item.candidates = GenerateCandidates(room, replacement_item);
+    if (replacement_item.candidates.empty()) {
+        return std::nullopt;
+    }
+
+    Occupancy occupancy;
+    occupancy.hitbox_count.assign(room.width * room.height, 0U);
+    occupancy.solid_count.assign(room.width * room.height, 0U);
+    occupancy.poop_count.assign(room.width * room.height, 0U);
+    std::vector<std::vector<MappedCell>> other_cells;
+    for (const auto& item : furniture) {
+        if (item.room_id != placed.room_id ||
+            item.instance_id == placed.instance_id) {
+            continue;
+        }
+        const auto info = info_by_item.find(item.item_id);
+        if (info == info_by_item.end()) {
+            continue;
+        }
+        const auto offsets = ActiveOffsets(item, *info->second);
+        std::vector<MappedCell> cells;
+        if (offsets.empty() || !MapCells(item, offsets, cells) ||
+            !std::ranges::all_of(cells, [&room](const auto& cell) {
+                return Inside(room, cell.x, cell.y);
+            })) {
+            continue;
+        }
+        Place(room, item.instance_id, cells, occupancy);
+        other_cells.push_back(std::move(cells));
+    }
+
+    const auto placed_offsets = ActiveOffsets(placed, *placed_info->second);
+    std::vector<MappedCell> placed_cells;
+    std::vector<bool> old_body(room.width * room.height, false);
+    if (!placed_offsets.empty() &&
+        MapCells(placed, placed_offsets, placed_cells)) {
+        for (const auto& cell : placed_cells) {
+            if (Inside(room, cell.x, cell.y) &&
+                (cell.tile == FurniturePlacementTile::Hitbox ||
+                 cell.tile == FurniturePlacementTile::Solid ||
+                 cell.tile == FurniturePlacementTile::PoopLogic)) {
+                old_body[CellIndex(room, cell.x, cell.y)] = true;
+            }
+        }
+    }
+    const auto cell_count = room.width * room.height;
+    if (runtime->base_cells.size() == cell_count &&
+        runtime->live_cells.size() == cell_count) {
+        for (std::size_t index = 0; index < cell_count; ++index) {
+            if (old_body[index] || BodyOccupied(occupancy, index) ||
+                runtime->live_cells[index] == runtime->base_cells[index]) {
+                continue;
+            }
+            if (runtime->live_cells[index] == 1U) {
+                occupancy.hitbox_count[index] = 1U;
+            } else if (runtime->live_cells[index] == 2U) {
+                occupancy.solid_count[index] = 1U;
+            } else if (runtime->live_cells[index] == 5U) {
+                occupancy.poop_count[index] = 1U;
+            }
+        }
+    }
+
+    std::optional<FurnitureReplacementPlacement> best;
+    std::tuple<std::int64_t, std::int64_t, std::int64_t,
+               std::int32_t, std::int32_t> best_rank;
+    for (const auto& candidate : replacement_item.candidates) {
+        if (!CanPlace(room, occupancy, candidate)) {
+            continue;
+        }
+        auto trial = occupancy;
+        Place(room, replacement.instance_id, candidate, trial);
+        const bool keeps_dependents = std::ranges::all_of(
+            other_cells,
+            [&room, &trial](const auto& cells) {
+                return std::ranges::all_of(
+                    cells,
+                    [&room, &trial](const auto& cell) {
+                        return cell.tile != FurniturePlacementTile::Support ||
+                            SupportSatisfied(room, trial, cell.x, cell.y);
+                    });
+            });
+        if (!keeps_dependents) {
+            continue;
+        }
+        const auto origin_x = candidate.front().x -
+            replacement_item.offsets.front().x;
+        const auto origin_y = candidate.front().y -
+            replacement_item.offsets.front().y;
+        const auto delta_x = static_cast<std::int64_t>(origin_x) -
+            placed.position_x;
+        const auto delta_y = static_cast<std::int64_t>(origin_y) -
+            placed.position_y;
+        const auto abs_x = delta_x < 0 ? -delta_x : delta_x;
+        const auto abs_y = delta_y < 0 ? -delta_y : delta_y;
+        const auto rank = std::tuple{
+            abs_x + abs_y, abs_y, abs_x, origin_y, origin_x};
+        if (!best || rank < best_rank) {
+            best = FurnitureReplacementPlacement{
+                .room_id = placed.room_id,
+                .x = origin_x,
+                .y = origin_y};
+            best_rank = rank;
+        }
+    }
+    return best;
+}
+
 FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
     const std::vector<FurniturePlacement>& furniture,
     const snapshot::detail::HouseGeometryCatalog& geometry,

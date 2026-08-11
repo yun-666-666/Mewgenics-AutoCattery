@@ -73,6 +73,14 @@ snapshot::detail::FurnitureInfoRecord PosterInfo(std::string item) {
     return info;
 }
 
+snapshot::detail::FurnitureInfoRecord WidePosterInfo(std::string item) {
+    auto info = PosterInfo(std::move(item));
+    info.placement_grid.tiles[
+        12U * snapshot::detail::kFurniturePlacementGridWidth + 11U] =
+        FurniturePlacementTile::Hitbox;
+    return info;
+}
+
 snapshot::detail::FurnitureInfoRecord CouchInfo(std::string item) {
     snapshot::detail::FurnitureInfoRecord info;
     info.item_id = std::move(item);
@@ -228,6 +236,32 @@ void RunFurnitureLayoutSolverTests() {
     info.records.push_back(AnchoredInfo("base", 1));
     info.records.push_back(SmallInfo("small"));
     info.records.push_back(PosterInfo("poster"));
+
+    snapshot::detail::FurnitureInfoCatalog replacement_info;
+    replacement_info.records.push_back(PosterInfo("old"));
+    replacement_info.records.push_back(PosterInfo("blocker"));
+    replacement_info.records.push_back(WidePosterInfo("replacement"));
+    const auto old = Placement(1, "old", "RoomA", -10, -12);
+    const auto blocker = Placement(2, "blocker", "RoomA", -9, -12);
+    const auto warehouse = Placement(3, "replacement", "", 0, 0);
+    const std::vector<snapshot::detail::FurniturePlacement>
+        replacement_furniture{old, blocker, warehouse};
+    std::vector<std::uint8_t> replacement_base(12U, 0U);
+    auto replacement_live = replacement_base;
+    replacement_live[0] = 1U;
+    replacement_live[1] = 1U;
+    const auto replacement_target =
+        furniture_planning::FindNearestFurnitureReplacementPlacement(
+            old,
+            warehouse,
+            replacement_furniture,
+            geometry,
+            replacement_info,
+            {{"RoomA", 4, 3, replacement_base, replacement_live}});
+    AC_CHECK(replacement_target.has_value());
+    AC_CHECK(replacement_target->room_id == "RoomA");
+    AC_CHECK(replacement_target->x == -10);
+    AC_CHECK(replacement_target->y == -11);
 
     const std::vector<snapshot::detail::FurniturePlacement> first_layout{
         Placement(10, "large", "RoomA", -6, -9),

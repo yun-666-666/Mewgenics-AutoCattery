@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -43,6 +44,21 @@ struct FurnitureLayoutPlan {
     std::size_t evacuation_blocked_room_count{};
     std::size_t installation_blocked_room_count{};
 };
+
+struct FurnitureReplacementPlacement {
+    snapshot::RoomId room_id;
+    std::int32_t x{};
+    std::int32_t y{};
+};
+
+[[nodiscard]] std::optional<FurnitureReplacementPlacement>
+FindNearestFurnitureReplacementPlacement(
+    const snapshot::detail::FurniturePlacement& placed,
+    const snapshot::detail::FurniturePlacement& warehouse,
+    const std::vector<snapshot::detail::FurniturePlacement>& furniture,
+    const snapshot::detail::HouseGeometryCatalog& geometry,
+    const snapshot::detail::FurnitureInfoCatalog& furniture_info,
+    const std::vector<FurnitureRoomGrid>& runtime_room_grids);
 
 class FurnitureLayoutSolver final {
 public:

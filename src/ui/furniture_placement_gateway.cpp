@@ -300,8 +300,10 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
         request.warehouse_stable_key,
         request.warehouse_item.c_str(),
         &grid.snapshot,
-        result.placed.saved_x,
-        result.placed.saved_y);
+        request.target_x.value_or(result.placed.saved_x),
+        request.target_y.value_or(result.placed.saved_y));
+    result.target_x = replaced.target_x;
+    result.target_y = replaced.target_y;
     result.signatures_valid = replaced.signature_valid != 0U;
     result.warehouse_piece_created =
         replaced.warehouse_piece_created != 0U;

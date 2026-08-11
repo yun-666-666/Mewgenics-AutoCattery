@@ -117,19 +117,16 @@ static int AcSupportedScale(double value) {
     return value == 1.0 || value == -1.0;
 }
 
-static int AcAppendFurnitureCandidate(
+static int AcAppendUniqueFurnitureCandidate(
     AcMewFurnitureCoordinate* output,
     size_t output_capacity,
     size_t* count,
-    int32_t old_x,
-    int32_t old_y,
     int64_t x,
     int64_t y) {
     size_t index;
     if (!output || !count || *count >= output_capacity ||
         x < INT32_MIN || x > INT32_MAX ||
-        y < INT32_MIN || y > INT32_MAX ||
-        (x == old_x && y == old_y)) {
+        y < INT32_MIN || y > INT32_MAX) {
         return 0;
     }
     for (index = 0U; index < *count; ++index) {
@@ -142,6 +139,21 @@ static int AcAppendFurnitureCandidate(
     output[*count].y = (int32_t)y;
     ++*count;
     return 1;
+}
+
+static int AcAppendFurnitureCandidate(
+    AcMewFurnitureCoordinate* output,
+    size_t output_capacity,
+    size_t* count,
+    int32_t old_x,
+    int32_t old_y,
+    int64_t x,
+    int64_t y) {
+    if (x == old_x && y == old_y) {
+        return 0;
+    }
+    return AcAppendUniqueFurnitureCandidate(
+        output, output_capacity, count, x, y);
 }
 
 size_t AcMewFurnitureCandidatePath(
@@ -184,6 +196,44 @@ size_t AcMewFurnitureCandidatePath(
             output, output_capacity, &count, old_x, old_y, (int64_t)x + 1, y);
         AcAppendFurnitureCandidate(
             output, output_capacity, &count, old_x, old_y, x, (int64_t)y + 1);
+    }
+    return count;
+}
+
+size_t AcMewFurnitureNearbyCandidates(
+    int32_t target_x,
+    int32_t target_y,
+    AcMewFurnitureCoordinate* output,
+    size_t output_capacity) {
+    size_t count = 0U;
+    int64_t radius;
+    if (!output || output_capacity == 0U) {
+        return 0U;
+    }
+    AcAppendUniqueFurnitureCandidate(
+        output, output_capacity, &count, target_x, target_y);
+    for (radius = 1; radius <= 32 && count < output_capacity; ++radius) {
+        int64_t delta_x;
+        for (delta_x = -radius;
+             delta_x <= radius && count < output_capacity;
+             ++delta_x) {
+            const int64_t delta_y = radius -
+                (delta_x < 0 ? -delta_x : delta_x);
+            AcAppendUniqueFurnitureCandidate(
+                output,
+                output_capacity,
+                &count,
+                (int64_t)target_x + delta_x,
+                (int64_t)target_y + delta_y);
+            if (delta_y != 0 && count < output_capacity) {
+                AcAppendUniqueFurnitureCandidate(
+                    output,
+                    output_capacity,
+                    &count,
+                    (int64_t)target_x + delta_x,
+                    (int64_t)target_y - delta_y);
+            }
+        }
     }
     return count;
 }
@@ -1041,6 +1091,9 @@ AcMewReplaceFurnitureWithWarehousePiece(
     double target_world_x;
     double target_world_y;
     double target_world_z;
+    AcMewFurnitureCoordinate candidates[256];
+    size_t candidate_count;
+    size_t candidate_index;
     memset(&result, 0, sizeof(result));
     memset(&placed_before, 0, sizeof(placed_before));
     memset(&warehouse_piece, 0, sizeof(warehouse_piece));
@@ -1048,6 +1101,11 @@ AcMewReplaceFurnitureWithWarehousePiece(
     result.warehouse_stable_key = warehouse_stable_key;
     result.target_x = target_x;
     result.target_y = target_y;
+    candidate_count = AcMewFurnitureNearbyCandidates(
+        target_x,
+        target_y,
+        candidates,
+        sizeof(candidates) / sizeof(candidates[0]));
     executable = GetModuleHandleW(NULL);
     result.signature_valid =
         (uint8_t)AcNativeSignaturesMatch(executable);
@@ -1107,25 +1165,36 @@ AcMewReplaceFurnitureWithWarehousePiece(
                     expected_warehouse_item) == 0);
         }
         if (result.warehouse_piece_created) {
-            AcMewFurnitureWorldPosition(
-                verified_grid.world_x,
-                verified_grid.world_y,
-                target_x,
-                target_y,
-                warehouse_piece.scale_x,
-                warehouse_piece.scale_y,
-                &target_world_x,
-                &target_world_y,
-                &target_world_z);
             *(double*)((uint8_t*)warehouse_piece.transform +
-                AC_TRANSFORM_X_OFFSET) = target_world_x;
+                AC_TRANSFORM_SCALE_X_OFFSET) = placed_before.scale_x;
             *(double*)((uint8_t*)warehouse_piece.transform +
-                AC_TRANSFORM_Y_OFFSET) = target_world_y;
-            *(double*)((uint8_t*)warehouse_piece.transform +
-                AC_TRANSFORM_Z_OFFSET) = target_world_z;
-            result.placement_valid = validate_piece(
-                created_piece, verified_grid.grid, 0U);
-            if (result.placement_valid) {
+                AC_TRANSFORM_SCALE_Y_OFFSET) = placed_before.scale_y;
+            for (candidate_index = 0U;
+                 candidate_index < candidate_count;
+                 ++candidate_index) {
+                AcMewFurnitureWorldPosition(
+                    verified_grid.world_x,
+                    verified_grid.world_y,
+                    candidates[candidate_index].x,
+                    candidates[candidate_index].y,
+                    placed_before.scale_x,
+                    placed_before.scale_y,
+                    &target_world_x,
+                    &target_world_y,
+                    &target_world_z);
+                *(double*)((uint8_t*)warehouse_piece.transform +
+                    AC_TRANSFORM_X_OFFSET) = target_world_x;
+                *(double*)((uint8_t*)warehouse_piece.transform +
+                    AC_TRANSFORM_Y_OFFSET) = target_world_y;
+                *(double*)((uint8_t*)warehouse_piece.transform +
+                    AC_TRANSFORM_Z_OFFSET) = target_world_z;
+                result.placement_valid = validate_piece(
+                    created_piece, verified_grid.grid, 0U);
+                if (!result.placement_valid) {
+                    continue;
+                }
+                result.target_x = candidates[candidate_index].x;
+                result.target_y = candidates[candidate_index].y;
                 commit_piece(created_piece, verified_grid.grid);
                 result.committed = 1U;
                 if (AcPlacementMatches(
@@ -1133,13 +1202,14 @@ AcMewReplaceFurnitureWithWarehousePiece(
                         warehouse_piece.entry,
                         verified_grid.grid,
                         verified_grid.room,
-                        target_x,
-                        target_y)) {
+                        result.target_x,
+                        result.target_y)) {
                     delete_component(placed_piece);
                     result.old_piece_deleted =
                         (uint8_t)AcMewComponentDeleteQueued(placed_piece);
                     result.verified = result.old_piece_deleted;
                 }
+                break;
             }
         }
     }

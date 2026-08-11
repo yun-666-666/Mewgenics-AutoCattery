@@ -84,6 +84,8 @@ struct FurnitureWarehouseReplacementRequest {
     FurniturePlacementLocator placed;
     std::string warehouse_item;
     std::uint64_t warehouse_stable_key{};
+    std::optional<std::int32_t> target_x;
+    std::optional<std::int32_t> target_y;
 };
 
 struct FurnitureWarehouseReplacementResult {
@@ -92,6 +94,8 @@ struct FurnitureWarehouseReplacementResult {
     FurniturePlacementLocation placed;
     std::uint64_t warehouse_stable_key{};
     std::string warehouse_item;
+    std::int32_t target_x{};
+    std::int32_t target_y{};
     bool signatures_valid{};
     bool warehouse_piece_created{};
     bool placement_valid{};

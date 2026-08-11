@@ -44,6 +44,12 @@ key 会生成新的 `FurniturePiece` 后，把属性升级接入现有“自动�
   `Set-Content -Encoding utf8` 给职业 GON 和 `modlist.txt` 写入 UTF-8 BOM，游戏启动
   报 `GON ERROR: More symbols exists after file completed parsing`。部署必须改为无 BOM
   UTF-8，并让安装校验主动拒绝 BOM 后再交付。
+- v0.5.34 玩家已确认分析成功并生成 46 个属性升级、3 个布局移动，但第一次替换
+  `special_fightidol -> set_bone_tv` 在原坐标被原生合法性校验拒绝，批次按设计回滚为
+  0/49。v0.5.35 不缩减属性升级候选：分析时使用新家具的 24x24 放置网格和当前房间
+  占用，先求出距离旧位置最近且不会破坏现有支撑关系的坐标；创建件采用旧家具朝向，
+  原生执行再从该几何目标落地，若实际坐标有调整则后续布局从实际位置继续。
+  Debug/Release 与部署通过后交给玩家复测，不 push。
 
 ## Player validation gate
 

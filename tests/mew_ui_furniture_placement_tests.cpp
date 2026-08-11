@@ -57,6 +57,18 @@ void RunMewUiFurniturePlacementTests() {
             return candidate.x == 4 && candidate.y == -8;
         }));
 
+    AcMewFurnitureCoordinate nearby[16]{};
+    const auto nearby_count = AcMewFurnitureNearbyCandidates(
+        4, -8, nearby, 16);
+    AC_CHECK(nearby_count == 16);
+    AC_CHECK(nearby[0].x == 4);
+    AC_CHECK(nearby[0].y == -8);
+    AC_CHECK(std::ranges::any_of(
+        std::span{nearby, nearby_count},
+        [](const auto& candidate) {
+            return candidate.x == 5 && candidate.y == -8;
+        }));
+
     const auto missing = AcMewFindFurniturePiece(
         nullptr, "object_cattree1", 5U, 1);
     AC_CHECK(missing.status == AC_MEW_FURNITURE_FIND_INVALID);

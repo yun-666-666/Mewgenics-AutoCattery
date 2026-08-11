@@ -1,7 +1,7 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-11
-版本：v0.5.34
+版本：v0.5.35
 
 ## 结果
 
@@ -14,6 +14,12 @@
   grid，设置目标 transform，经原生校验和提交读回后排队删除旧 scene piece。
 - 单项失败会删除新对象并恢复旧家具；批次后续失败会先逆序恢复布局移动，再逆序
   交换已完成的属性升级，并通过 `AC3907` 报告回滚结果。
+- v0.5.34 玩家实测已通过分析门，但第一项
+  `special_fightidol key=207 -> set_bone_tv key=97` 因沿用旧家具坐标而被原生放置拒绝，
+  安全回滚后显示完成 0、剩余 49。v0.5.35 保留全部跨几何属性候选；分析阶段使用
+  替换件的 24x24 放置网格、房间基础格、当前家具占用和既有 Support 依赖，逐项求出
+  距离旧位置最近的目标坐标。新建 scene piece 继承旧家具朝向，后续封存布局允许从
+  实际创建坐标继续执行；批次回滚仍单独保留并恢复旧家具原始坐标。
 
 ## 当前 build 证据
 
@@ -47,6 +53,9 @@
   `EF-BB-BF` UTF-8 BOM，玩家启动时出现 `GON ERROR: More symbols exists after file
   completed parsing`。部署现已改用 `.NET UTF8Encoding(false)` 明确写无 BOM UTF-8，
   安装校验也会主动拒绝 BOM，避免再次把语法正文正确但编码不兼容的 GON 交付。
+- v0.5.35 的几何目标求解不会把几何不同的升级候选筛掉；只有家具信息本身无法解析
+  时才保留旧坐标交给当前原生路径。确定性回归覆盖“旧位置被另一件家具阻挡，宽替换
+  件应移动到最近上一行”的场景，并验证目标从 `(-10,-12)` 变为 `(-10,-11)`。
 
 ## 文件
 
@@ -78,13 +87,16 @@
   单字节删除状态回归测试通过。
 - v0.5.34 Debug 与 Release 联合持久构建：成功；两种配置 CTest 均为 4/4 通过；
   DLL exports 与 x64 检查通过；五房通用房间身份回归通过。
+- v0.5.35 Debug 编译成功，Debug CTest 4/4 通过；独立
+  `build-stage45-release` Release 编译成功，Release CTest 4/4 通过。新增几何替换目标、
+  邻近候选顺序、替换原坐标保存和后续布局从实际创建位置继续的回归均通过。
 - `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
   -Configuration Release`：DLL-only 部署成功。
 - `tools\verify_install.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics`：
   通过；14 个职业重投配置均保持用户设置 20。
-- v0.5.34 build、`dist\Release\AutoCattery.dll` 与实际安装的
+- v0.5.35 build、`dist\Release\AutoCattery.dll` 与实际安装的
   `Mewgenics\mods\AutoCattery.dll` SHA-256 一致：
-  `A04F0B626D2618141659D65CBBD80F1D920B6A705892AC9235D98FBAD9AC5CE5`。
+  `31C8BF38CBCC2A4ED8FDBDE3EA8744BFC8AEDE197FBFF140E1A4E1E07ADB0546`。
 - 玩家首次启动暴露 BOM GON 错误后，已在同一 Windows PowerShell 5 后台环境重新
   执行修正后的部署与 `verify_install`：成功；AutoCattery 和
   SkillsPassivesFirstData 的四份职业 GON、`modlist.txt` 均确认 `BOM=False`，四份 GON
@@ -92,12 +104,11 @@
 
 ## 玩家验证状态
 
-v0.5.33 玩家实测已确认仍显示“分析不可用”，不能算实机验收通过。v0.5.34 第一次
-启动又暴露部署编码回归，现已修正并重新部署。玩家下一步先确认游戏能正常进入；进入
-同一存档后只点击一次“开始分析”。本轮分析门必须同时满足：`AC14315` 家具数大于 0、
-出现 `AC14319`、`AC3201` 和 `AC3901`，且没有 `AC3205`。只有该门通过后才允许点击
-“自动放置”，观察 `AC3912` 和最终 `AC3904`，或失败时的 `AC3907`；随后保存、退出
-并重进，确认新家具保持在房间、旧家具回到仓库，再次分析不重复提出相同替换。
+v0.5.34 玩家已确认分析门通过，剩余问题收敛为第一件跨几何替换无法沿用旧坐标。
+v0.5.35 已部署，等待玩家实机执行。进入同一测试存档后点击一次“开始分析”，`AC3910`
+应为候选记录新的 `target=(x,y)`；点击“自动放置”后应连续出现 `AC3912`，其中
+`placed_at=(x,y)` 为实际创建坐标，最终出现 `AC3904`。随后保存、退出并重进，确认
+新家具保持在房间、旧家具回到仓库，再次分析不重复提出相同替换。
 
 ## 风险与未做范围
 

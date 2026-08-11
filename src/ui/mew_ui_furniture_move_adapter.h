@@ -116,6 +116,12 @@ size_t AcMewFurnitureCandidatePath(
     AcMewFurnitureCoordinate* output,
     size_t output_capacity);
 
+size_t AcMewFurnitureNearbyCandidates(
+    int32_t target_x,
+    int32_t target_y,
+    AcMewFurnitureCoordinate* output,
+    size_t output_capacity);
+
 double AcMewFurnitureWorldAxis(
     double grid_world_axis,
     int32_t saved_axis,
