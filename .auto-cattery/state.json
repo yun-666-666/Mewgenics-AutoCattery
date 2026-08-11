@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 44,
+  "active_stage": 45,
   "stages": {
     "1": {
       "status": "completed",
@@ -259,7 +259,13 @@
       "commit": null,
       "capability": "ReadOnlyWarehouseDrawerToRoomStableKeyAndNativeObjectGraphDeltaProbe",
       "game_validation_status": "public_107_percent_save_replaced_former_8cat_slot_with_single_backup_integrity_and_hash_verified;debug_and_release_4_of_4_ctest_passed;release_deployed_hash_ED747FD65C939137382136BB57839A62BDEFC0798A2A0E3381D3B4ADCE6C53D1;player_F7_reports_20260811_183525_and_183547_accepted;scene_furniture_complete_111_to_112_key474_and_112_to_113_key467;current_save_integrity_ok;automatic_warehouse_take_place_not_implemented"
+    },
+    "45": {
+      "status": "implementation_complete_v0_5_34_release_redeployed_after_gon_bom_startup_fix_player_analysis_validation_pending",
+      "commit": null,
+      "capability": "CurrentBuildAutomaticWarehouseAttributeReplacementBeforeFurnitureLayoutWithReverseBatchRollback",
+      "game_validation_status": "current_build_create_delete_validate_commit_routes_static_evidence_confirmed;v0.5.32_player_analysis_failed_furniture_zero_due_16bit_delete_state_filter;v0.5.33_single_byte_delete_state_regression_test_added_and_runtime_furniture_112_restored_but_player_analysis_failed_runtime_room_identity_incomplete;v0.5.34_runtime_probe_added_Floor2_Small_and_furniture_analysis_adds_available_normal_rooms_without_promoting_unused_AdventureBox_component;generic_five_snapshot_rooms_seven_native_components_no_fifth_room_cat_vote_regression;debug_and_release_4_of_4_ctest_passed;first_windows_powershell5_background_deploy_wrote_utf8_bom_to_gon_and_modlist_causing_player_GON_startup_error;deploy_now_writes_utf8_without_bom_and_verify_install_rejects_bom;four_class_gon_files_and_modlist_confirmed_bom_false_and_v0.5.34_redeployed_hash_A04F0B626D2618141659D65CBBD80F1D920B6A705892AC9235D98FBAD9AC5CE5;install_verified;player_must_confirm_launch_then_analysis_AC3201_AC3901_without_AC3205_before_automatic_placement_validation"
     }
   },
-  "updated_at": "2026-08-11T18:39:34+08:00"
+  "updated_at": "2026-08-11T21:50:00+08:00"
 }

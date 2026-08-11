@@ -70,8 +70,44 @@ struct FurniturePlacementMoveResult {
     std::string message;
 };
 
+enum class FurnitureWarehouseReplacementStatus {
+    Replaced,
+    Unsupported,
+    NotFound,
+    Ambiguous,
+    RejectedRestored,
+    FailedRestored,
+    RestoreFailed
+};
+
+struct FurnitureWarehouseReplacementRequest {
+    FurniturePlacementLocator placed;
+    std::string warehouse_item;
+    std::uint64_t warehouse_stable_key{};
+};
+
+struct FurnitureWarehouseReplacementResult {
+    FurnitureWarehouseReplacementStatus status{
+        FurnitureWarehouseReplacementStatus::Unsupported};
+    FurniturePlacementLocation placed;
+    std::uint64_t warehouse_stable_key{};
+    std::string warehouse_item;
+    bool signatures_valid{};
+    bool warehouse_piece_created{};
+    bool placement_valid{};
+    bool committed{};
+    bool verified{};
+    bool rollback_attempted{};
+    bool rollback_succeeded{};
+    std::uint32_t seh_code{};
+    std::uintptr_t exception_rva{};
+    std::string message;
+};
+
 [[nodiscard]] const char* FurniturePlacementMoveStatusName(
     FurniturePlacementMoveStatus status) noexcept;
+[[nodiscard]] const char* FurnitureWarehouseReplacementStatusName(
+    FurnitureWarehouseReplacementStatus status) noexcept;
 
 class FurniturePlacementGateway {
 public:
@@ -85,6 +121,8 @@ public:
         const FurniturePlacementRequest& request) const;
     [[nodiscard]] FurniturePlacementMoveResult Move(
         const FurniturePlacementRequest& request) const;
+    [[nodiscard]] FurnitureWarehouseReplacementResult ReplaceWithWarehouse(
+        const FurnitureWarehouseReplacementRequest& request) const;
 
 private:
     bool build_supported_{};

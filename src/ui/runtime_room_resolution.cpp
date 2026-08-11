@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string>
 #include <unordered_set>
 
 namespace autocattery::ui {
@@ -82,7 +83,10 @@ ResolveRuntimeRoomPointers(
     }
     if (ids.empty() || ids.size() != pointers.size() || ids.size() > 8U) {
         return {{}, ErrorCode::RoomDataUnavailable,
-                "runtime room identity is incomplete"};
+                "runtime room identity is incomplete: snapshot rooms=" +
+                    std::to_string(ids.size()) +
+                    ", runtime candidates=" +
+                    std::to_string(pointers.size())};
     }
 
     Votes votes;

@@ -126,6 +126,10 @@ void RunMewUiHouseMoveProbeTests() {
     }
     AC_CHECK(
         std::strcmp(AcMewMoveProbeRoomId(3U), "Attic") == 0);
+    AC_CHECK(
+        std::strcmp(AcMewMoveProbeRoomId(4U), "AdventureBox") == 0);
+    AC_CHECK(
+        std::strcmp(AcMewMoveProbeRoomId(5U), "Floor2_Small") == 0);
     AC_CHECK(AcMewMoveProbeRoomId(AC_MEW_MOVE_PROBE_ROOM_COUNT) == nullptr);
 
     SYSTEM_INFO system_info{};

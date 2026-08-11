@@ -28,6 +28,46 @@ snapshot::HouseSnapshot TwoRoomSnapshot() {
     return snapshot;
 }
 
+snapshot::HouseSnapshot FiveRoomSnapshotWithEmptyFifthRoom() {
+    snapshot::HouseSnapshot snapshot;
+    snapshot.capabilities.read_room_assignments = true;
+    snapshot.cats = {
+        {.id = 1, .room_id = "Floor1_Large"},
+        {.id = 2, .room_id = "Attic"},
+        {.id = 3, .room_id = "Floor1_Small"},
+        {.id = 4, .room_id = "Floor2_Large"}
+    };
+    snapshot.rooms = {
+        {.id = "Floor1_Large", .residents = {1}},
+        {.id = "Attic", .residents = {2}},
+        {.id = "Floor1_Small", .residents = {3}},
+        {.id = "Floor2_Large", .residents = {4}},
+        {.id = "Floor2_Small"}
+    };
+    return snapshot;
+}
+
+ui::RuntimeHouseState SevenNativeRoomsWithEmptyFifthRoom() {
+    return {
+        .available_room_count = 5,
+        .cats = {
+            {1, 1001, 100},
+            {2, 1002, 200},
+            {3, 1003, 300},
+            {4, 1004, 400}
+        },
+        .rooms = {
+            {100, {"Floor1_Large"}},
+            {200, {"Attic"}},
+            {300, {"Floor1_Small"}},
+            {400, {"Floor2_Large"}},
+            {500, {"Floor2_Small"}},
+            {600, {"AdventureBox"}},
+            {700, {}}
+        }
+    };
+}
+
 ui::RuntimeHouseState RuntimeState(
     ui::RuntimePointer first_room_for_cat_one) {
     return {
@@ -152,6 +192,21 @@ void RunRuntimeHouseStateTests() {
     no_evidence.rooms.clear();
     AC_CHECK(!static_cast<bool>(
         ui::ResolveRuntimeRoomPointers(ambiguous, no_evidence)));
+
+    const auto five_rooms = FiveRoomSnapshotWithEmptyFifthRoom();
+    const auto seven_native_rooms = SevenNativeRoomsWithEmptyFifthRoom();
+    const auto five_room_mapping =
+        ui::ResolveRuntimeRoomPointers(five_rooms, seven_native_rooms);
+    AC_CHECK(static_cast<bool>(five_room_mapping));
+    if (five_room_mapping) {
+        AC_CHECK(five_room_mapping.value.size() == 5U);
+        AC_CHECK(five_room_mapping.value.at("Floor2_Small") == 500U);
+    }
+
+    auto unknown_cat_room = seven_native_rooms;
+    unknown_cat_room.cats.front().room = 600U;
+    AC_CHECK(!static_cast<bool>(
+        ui::ResolveRuntimeRoomPointers(five_rooms, unknown_cat_room)));
 
     std::vector<snapshot::detail::FurniturePlacement> furniture{
         Furniture(10, "base", "RoomA", 3, -11),

@@ -9,6 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $resolvedGameRoot = (Resolve-Path -LiteralPath $GameRoot).Path
 
 if (-not (Test-Path -LiteralPath (Join-Path $resolvedGameRoot 'Mewgenics.exe'))) {
@@ -82,18 +83,26 @@ if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
     }
     $baseRerollData = & $renderRerolls $baseClasses
     $advancedRerollData = & $renderRerolls $advancedClasses
-    Set-Content -LiteralPath (Join-Path $dataModRoot 'data\classes\classes.gon.merge') `
-        -Value $baseRerollData -Encoding utf8
-    Set-Content -LiteralPath (Join-Path $dataModRoot 'data\classes\advanced_classes.gon.merge') `
-        -Value $advancedRerollData -Encoding utf8
+    [System.IO.File]::WriteAllLines(
+        (Join-Path $dataModRoot 'data\classes\classes.gon.merge'),
+        [string[]]$baseRerollData,
+        $utf8NoBom)
+    [System.IO.File]::WriteAllLines(
+        (Join-Path $dataModRoot 'data\classes\advanced_classes.gon.merge'),
+        [string[]]$advancedRerollData,
+        $utf8NoBom)
     $compatibleRerollRoot = Join-Path $mewtatorMods 'SkillsPassivesFirstData'
     if (Test-Path -LiteralPath $compatibleRerollRoot -PathType Container) {
         $compatibleClassRoot = Join-Path $compatibleRerollRoot 'data\classes'
         New-Item -ItemType Directory -Force -Path $compatibleClassRoot | Out-Null
-        Set-Content -LiteralPath (Join-Path $compatibleClassRoot 'classes.gon.merge') `
-            -Value $baseRerollData -Encoding utf8
-        Set-Content -LiteralPath (Join-Path $compatibleClassRoot 'advanced_classes.gon.merge') `
-            -Value $advancedRerollData -Encoding utf8
+        [System.IO.File]::WriteAllLines(
+            (Join-Path $compatibleClassRoot 'classes.gon.merge'),
+            [string[]]$baseRerollData,
+            $utf8NoBom)
+        [System.IO.File]::WriteAllLines(
+            (Join-Path $compatibleClassRoot 'advanced_classes.gon.merge'),
+            [string[]]$advancedRerollData,
+            $utf8NoBom)
     }
     Copy-Item -LiteralPath (Join-Path $source 'swfs\auto_cattery_house.swf') -Destination (Join-Path $dataModRoot 'swfs') -Force
     Copy-Item -LiteralPath (Join-Path $source 'swfs\swflist.gon.append') -Destination (Join-Path $dataModRoot 'swfs') -Force
@@ -106,7 +115,10 @@ if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
     })
     $enabledMods = @($enabledMods | Where-Object { $_ -ine 'AutoCattery' })
     $enabledMods += 'AutoCattery'
-    Set-Content -LiteralPath $modListPath -Value $enabledMods -Encoding utf8
+    [System.IO.File]::WriteAllLines(
+        $modListPath,
+        [string[]]$enabledMods,
+        $utf8NoBom)
 }
 
 Write-Host 'DLL deployed to the non-recursive Mewjector mods directory.'

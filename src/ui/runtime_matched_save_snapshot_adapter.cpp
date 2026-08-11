@@ -221,6 +221,7 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
     source.house = std::move(selected->house);
     source.furniture = std::move(selected->furniture);
     source.available_room_count = expected_rooms;
+    AddAvailableEmptyRooms(source.house, expected_rooms);
     source.runtime_scene_piece_count =
         runtime_furniture_state->scene_piece_count;
     source.runtime_placed_piece_count =
@@ -260,19 +261,12 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
             ", warehouse pieces=" +
             std::to_string(runtime_furniture_state->warehouse_pieces.size()));
     if (runtime_state) {
-        std::unordered_set<snapshot::RoomId> seen;
-        for (const auto& room : source.house.rooms) {
-            seen.insert(room.id);
-        }
         for (const auto& room : runtime_state->rooms) {
             for (const auto& id : room.detected_ids) {
                 if (id.empty()) {
                     continue;
                 }
                 source.runtime_detected_room_ids.push_back(id);
-                if (seen.insert(id).second) {
-                    source.house.rooms.push_back({.id = id});
-                }
             }
         }
         const auto overlaid = OverlayRuntimeHouseState(

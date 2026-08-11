@@ -16,6 +16,8 @@ enum {
     AC_FURNITURE_REMOVE_RVA = 0x2EE3D0,
     AC_FURNITURE_VALIDATE_RVA = 0x2EDE60,
     AC_FURNITURE_COMMIT_RVA = 0x2EE230,
+    AC_FURNITURE_CREATE_PIECE_RVA = 0x1ABFF0,
+    AC_COMPONENT_DELETE_RVA = 0x94A910,
     AC_FURNITURE_TRANSFORM_OFFSET = 0x38,
     AC_FURNITURE_GRID_OFFSET = 0x48,
     AC_GRID_ROOM_OFFSET = 0x40,
@@ -26,6 +28,8 @@ enum {
     AC_GRID_BASE_WIDTH_OFFSET = 0x110,
     AC_GRID_BASE_HEIGHT_OFFSET = 0x114,
     AC_FURNITURE_ENTRY_OFFSET = 0x2D8,
+    AC_COMPONENT_CONTEXT_OFFSET = 0x18,
+    AC_COMPONENT_CONTEXT_DELETE_STATE_OFFSET = 0x18,
     AC_ENTRY_ITEM_OFFSET = 0x08,
     AC_ENTRY_ROOM_OFFSET = 0x30,
     AC_ENTRY_SAVED_X_OFFSET = 0x50,
@@ -43,6 +47,11 @@ typedef uint8_t (__fastcall *AcFurnitureValidateFn)(
     void* grid,
     uint8_t alternate_rules);
 typedef void (__fastcall *AcFurnitureCommitFn)(void* piece, void* grid);
+typedef void* (__fastcall *AcFurnitureCreatePieceFn)(
+    void* scene_manager,
+    void* context,
+    const uint64_t* stable_key);
+typedef void (__fastcall *AcComponentDeleteFn)(void* component);
 
 static int AcReadableRange(const void* pointer, size_t byte_count) {
     uintptr_t current;
@@ -203,6 +212,17 @@ static int AcNativeSignaturesMatch(HMODULE executable) {
         0x48, 0x89, 0x74, 0x24, 0x20,
         0x57, 0x48, 0x83, 0xEC, 0x50
     };
+    static const uint8_t create_piece_signature[] = {
+        0x48, 0x89, 0x5C, 0x24, 0x10,
+        0x48, 0x89, 0x6C, 0x24, 0x18,
+        0x56, 0x57, 0x41, 0x56,
+        0x48, 0x83, 0xEC, 0x20
+    };
+    static const uint8_t delete_component_signature[] = {
+        0x40, 0x56, 0x48, 0x83, 0xEC, 0x20,
+        0x48, 0x8B, 0x71, 0x18,
+        0x48, 0x85, 0xF6
+    };
     return executable &&
         AcSignatureMatches(
             (const uint8_t*)executable + AC_FURNITURE_REMOVE_RVA,
@@ -215,7 +235,15 @@ static int AcNativeSignaturesMatch(HMODULE executable) {
         AcSignatureMatches(
             (const uint8_t*)executable + AC_FURNITURE_COMMIT_RVA,
             commit_signature,
-            sizeof(commit_signature));
+            sizeof(commit_signature)) &&
+        AcSignatureMatches(
+            (const uint8_t*)executable + AC_FURNITURE_CREATE_PIECE_RVA,
+            create_piece_signature,
+            sizeof(create_piece_signature)) &&
+        AcSignatureMatches(
+            (const uint8_t*)executable + AC_COMPONENT_DELETE_RVA,
+            delete_component_signature,
+            sizeof(delete_component_signature));
 }
 
 static int AcValidVtable(
@@ -263,6 +291,51 @@ static LONG AcCaptureException(
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+static LONG AcCaptureReplacementException(
+    EXCEPTION_POINTERS* exception,
+    HMODULE executable,
+    AcMewNativeFurnitureReplacementResult* result) {
+    if (exception && exception->ExceptionRecord && result) {
+        const uintptr_t address =
+            (uintptr_t)exception->ExceptionRecord->ExceptionAddress;
+        const uintptr_t base = (uintptr_t)executable;
+        const uint32_t image_size = AcImageSize(executable);
+        result->seh_code = exception->ExceptionRecord->ExceptionCode;
+        result->exception_rva =
+            address >= base && address - base < image_size
+                ? address - base
+                : 0U;
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+int AcMewComponentDeleteQueued(void* component) {
+    void* context;
+    if (!component || !AcReadableRange(
+            component, AC_COMPONENT_CONTEXT_OFFSET + sizeof(void*))) {
+        return 0;
+    }
+    __try {
+        context = *(void**)((uint8_t*)component +
+            AC_COMPONENT_CONTEXT_OFFSET);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+    if (!context || !AcReadableRange(
+            context,
+            AC_COMPONENT_CONTEXT_DELETE_STATE_OFFSET + sizeof(uint8_t))) {
+        return 0;
+    }
+    __try {
+        return *(uint8_t*)((uint8_t*)context +
+            AC_COMPONENT_CONTEXT_DELETE_STATE_OFFSET) != 0U;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
 double AcMewFurnitureWorldAxis(
     double grid_world_axis,
     int32_t saved_axis,
@@ -301,7 +374,7 @@ int AcMewReadFurniturePieceSnapshot(
     void* grid;
     void* grid_transform;
     void* entry;
-    if (!piece || !snapshot) {
+    if (!piece || !snapshot || AcMewComponentDeleteQueued(piece)) {
         return 0;
     }
     memset(snapshot, 0, sizeof(*snapshot));
@@ -919,4 +992,187 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureSameRoom(
     }
     return AcMewMoveFurnitureToGrid(
         piece, &target, target_x, target_y, 1U);
+}
+
+static int AcSceneContainsFurnitureKey(
+    void* house_scene_manager,
+    uint64_t stable_key) {
+    MewPodVectorPtr* components;
+    uint32_t index;
+    if (!house_scene_manager || stable_key == 0U) {
+        return 0;
+    }
+    components = AcMewGetValidatedSceneComponents(house_scene_manager);
+    if (!components) {
+        return 1;
+    }
+    for (index = 0U; index < components->size; ++index) {
+        AcMewFurniturePieceSnapshot snapshot;
+        if (AcMewReadFurniturePieceSnapshot(
+                components->data[index], &snapshot) &&
+            snapshot.stable_key == stable_key) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+AcMewNativeFurnitureReplacementResult
+AcMewReplaceFurnitureWithWarehousePiece(
+    void* house_scene_manager,
+    void* placed_piece,
+    uint64_t warehouse_stable_key,
+    const char* expected_warehouse_item,
+    const AcMewFurnitureGridSnapshot* target_grid,
+    int32_t target_x,
+    int32_t target_y) {
+    AcMewNativeFurnitureReplacementResult result;
+    AcMewFurniturePieceSnapshot placed_before;
+    AcMewFurniturePieceSnapshot warehouse_piece;
+    AcMewFurnitureGridSnapshot verified_grid;
+    HMODULE executable;
+    void* context;
+    void* created_piece;
+    AcFurnitureRemoveFn remove_piece;
+    AcFurnitureValidateFn validate_piece;
+    AcFurnitureCommitFn commit_piece;
+    AcFurnitureCreatePieceFn create_piece;
+    AcComponentDeleteFn delete_component;
+    double target_world_x;
+    double target_world_y;
+    double target_world_z;
+    memset(&result, 0, sizeof(result));
+    memset(&placed_before, 0, sizeof(placed_before));
+    memset(&warehouse_piece, 0, sizeof(warehouse_piece));
+    memset(&verified_grid, 0, sizeof(verified_grid));
+    result.warehouse_stable_key = warehouse_stable_key;
+    result.target_x = target_x;
+    result.target_y = target_y;
+    executable = GetModuleHandleW(NULL);
+    result.signature_valid =
+        (uint8_t)AcNativeSignaturesMatch(executable);
+    result.placed_piece_valid = (uint8_t)(
+        AcMewReadFurniturePieceSnapshot(
+            placed_piece, &placed_before) &&
+        placed_before.grid != NULL);
+    if (result.placed_piece_valid) {
+        result.placed_stable_key = placed_before.stable_key;
+    }
+    result.target_grid_valid = (uint8_t)(
+        target_grid && target_grid->grid &&
+        AcMewReadFurnitureGridSnapshot(
+            target_grid->grid, &verified_grid) &&
+        strcmp(verified_grid.room, target_grid->room) == 0);
+    if (!result.signature_valid || !result.placed_piece_valid ||
+        !result.target_grid_valid || !house_scene_manager ||
+        warehouse_stable_key == 0U ||
+        warehouse_stable_key == placed_before.stable_key ||
+        !expected_warehouse_item || expected_warehouse_item[0] == '\0' ||
+        AcSceneContainsFurnitureKey(
+            house_scene_manager, warehouse_stable_key)) {
+        return result;
+    }
+    context = MewUI_GetContextFromScene(house_scene_manager);
+    if (!context) {
+        return result;
+    }
+    remove_piece = (AcFurnitureRemoveFn)(
+        (uint8_t*)executable + AC_FURNITURE_REMOVE_RVA);
+    validate_piece = (AcFurnitureValidateFn)(
+        (uint8_t*)executable + AC_FURNITURE_VALIDATE_RVA);
+    commit_piece = (AcFurnitureCommitFn)(
+        (uint8_t*)executable + AC_FURNITURE_COMMIT_RVA);
+    create_piece = (AcFurnitureCreatePieceFn)(
+        (uint8_t*)executable + AC_FURNITURE_CREATE_PIECE_RVA);
+    delete_component = (AcComponentDeleteFn)(
+        (uint8_t*)executable + AC_COMPONENT_DELETE_RVA);
+    created_piece = NULL;
+    __try {
+        remove_piece(placed_piece);
+        result.old_piece_removed = (uint8_t)(
+            *(void**)((uint8_t*)placed_piece +
+                AC_FURNITURE_GRID_OFFSET) == NULL);
+        if (result.old_piece_removed) {
+            created_piece = create_piece(
+                house_scene_manager, context, &warehouse_stable_key);
+            result.warehouse_piece_created = (uint8_t)(
+                created_piece &&
+                AcMewReadFurniturePieceSnapshot(
+                    created_piece, &warehouse_piece) &&
+                warehouse_piece.stable_key == warehouse_stable_key &&
+                warehouse_piece.grid == NULL &&
+                warehouse_piece.room[0] == '\0' &&
+                strcmp(
+                    warehouse_piece.item,
+                    expected_warehouse_item) == 0);
+        }
+        if (result.warehouse_piece_created) {
+            AcMewFurnitureWorldPosition(
+                verified_grid.world_x,
+                verified_grid.world_y,
+                target_x,
+                target_y,
+                warehouse_piece.scale_x,
+                warehouse_piece.scale_y,
+                &target_world_x,
+                &target_world_y,
+                &target_world_z);
+            *(double*)((uint8_t*)warehouse_piece.transform +
+                AC_TRANSFORM_X_OFFSET) = target_world_x;
+            *(double*)((uint8_t*)warehouse_piece.transform +
+                AC_TRANSFORM_Y_OFFSET) = target_world_y;
+            *(double*)((uint8_t*)warehouse_piece.transform +
+                AC_TRANSFORM_Z_OFFSET) = target_world_z;
+            result.placement_valid = validate_piece(
+                created_piece, verified_grid.grid, 0U);
+            if (result.placement_valid) {
+                commit_piece(created_piece, verified_grid.grid);
+                result.committed = 1U;
+                if (AcPlacementMatches(
+                        created_piece,
+                        warehouse_piece.entry,
+                        verified_grid.grid,
+                        verified_grid.room,
+                        target_x,
+                        target_y)) {
+                    delete_component(placed_piece);
+                    result.old_piece_deleted =
+                        (uint8_t)AcMewComponentDeleteQueued(placed_piece);
+                    result.verified = result.old_piece_deleted;
+                }
+            }
+        }
+    }
+    __except (AcCaptureReplacementException(
+        GetExceptionInformation(), executable, &result)) {}
+    if (result.verified) {
+        return result;
+    }
+    if (result.old_piece_removed || result.warehouse_piece_created ||
+        result.committed || result.seh_code != 0U) {
+        result.rollback_attempted = 1U;
+        __try {
+            if (created_piece) {
+                void* created_grid = *(void**)(
+                    (uint8_t*)created_piece + AC_FURNITURE_GRID_OFFSET);
+                if (created_grid) {
+                    remove_piece(created_piece);
+                }
+                delete_component(created_piece);
+            }
+            if (!result.old_piece_deleted) {
+                result.rollback_succeeded = (uint8_t)
+                    AcRestoreFurniturePlacement(
+                        &placed_before,
+                        remove_piece,
+                        commit_piece,
+                        1);
+            }
+        }
+        __except (AcCaptureReplacementException(
+            GetExceptionInformation(), executable, &result)) {
+            result.rollback_succeeded = 0U;
+        }
+    }
+    return result;
 }

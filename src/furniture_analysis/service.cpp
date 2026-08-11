@@ -356,8 +356,37 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 "furniture analysis found no current House rooms"};
     }
     result.binding_digest = BuildBindingDigest(source, result.rooms);
+    auto planning_furniture = source.furniture;
+    for (const auto& upgrade : result.attribute_upgrades) {
+        const auto placed = std::ranges::find_if(
+            planning_furniture,
+            [&upgrade](const auto& item) {
+                return item.instance_id ==
+                    static_cast<std::int64_t>(
+                        upgrade.placed_stable_key);
+            });
+        const auto warehouse = std::ranges::find_if(
+            planning_furniture,
+            [&upgrade](const auto& item) {
+                return item.instance_id ==
+                    static_cast<std::int64_t>(
+                        upgrade.warehouse_stable_key);
+            });
+        if (placed == planning_furniture.end() ||
+            warehouse == planning_furniture.end()) {
+            return {{}, ErrorCode::SnapshotInvalid,
+                    "attribute upgrade identity disappeared before planning"};
+        }
+        warehouse->room_id = placed->room_id;
+        warehouse->position_x = placed->position_x;
+        warehouse->position_y = placed->position_y;
+        warehouse->position_z = placed->position_z;
+        warehouse->scale_x = placed->scale_x;
+        warehouse->scale_y = placed->scale_y;
+        placed->room_id.clear();
+    }
     result.layout_plan = furniture_planning::FurnitureLayoutSolver{}.Plan(
-        source.furniture,
+        planning_furniture,
         source.geometry,
         source.furniture_info,
         source.runtime_room_grids,

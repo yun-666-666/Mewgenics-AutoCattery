@@ -1,64 +1,62 @@
-# CODEX CURRENT TASK - STAGE 44 WAREHOUSE TAKE/PLACE EVIDENCE PROBE
+# CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
 ## Current objective
 
-在 Stage 43 已能显示家具五属性升级候选后，继续定位当前 build 从仓库抽屉取出家具并
-放入房间的真实原生路径。先把公开的 107% 完成存档替换到原 8 猫测试槽，保留单份
-可恢复备份；再把 F7 改为专用只读探针，记录玩家手动完成一次“仓库 -> 房间”操作
-前后的家具实例和相关原生对象变化，为下一阶段实现可预览、可取消、可回滚的仓库
-属性升级替换提供当前 build 证据。
+在 Stage 43 已能分析仓库家具五属性升级、Stage 44 已由玩家真实取放证明仓库 stable
+key 会生成新的 `FurniturePiece` 后，把属性升级接入现有“自动放置”批次。执行时先把
+更优仓库家具替换到原家具位置，再按替换后的稳定 key 执行布局计划；任何一步失败都
+停止后续操作并尽可能逆序恢复本批次。
 
-## Accepted runtime and local evidence
+## Accepted current-build evidence
 
-- 玩家已确认 Stage 43 能成功显示 45 个属性升级候选；第五房间仍未解锁，玩家明确
-  要求不再把该问题作为当前验收项。
-- 主存档运行时只枚举到 142 个已摆 `FurniturePiece`；115 件仓库家具没有对应的
-  grid-null scene piece，因此不能把现有 placed-piece move API 直接套到仓库实例。
-- 当前可执行文件包含 `HouseInventory`、`FurnitureEditor`、
-  `FurnitureClickHandler`、`FurniturePiece_PickedUpFromDrawer` 和
-  `FurniturePiece_PlacedInRoom` 等当前 build 类型/事件名，但没有可靠函数签名或调用
-  约定证据，不能仅凭字符串直接调用。
-- 第三槽原测试档当前只读快照为 7 猫、2 房、day 17；它是此前 8 猫测试槽的后续
-  状态。公开 107% 存档已通过 Defender、SQLite 完整性、项目 save-format 和 snapshot
-  探针检查后替换该槽；主存档和第二槽未修改。
+- 玩家 Stage 44 两次手动仓库取放分别新增 stable key 474 和 467，证明仓库实例进入
+  房间时会创建保留原存档 stable key 的新 scene piece。
+- 当前 `Mewgenics.exe` 五个真实调用点确认 `0x1ABFF0` 的参数为 House scene
+  manager、scene context、stable key 指针；该函数创建并初始化当前 build 的
+  `FurniturePiece`。
+- 当前游戏自身代码存在“创建 FurniturePiece -> 设置 transform -> 原生校验 ->
+  提交 grid”的完整调用链。
+- 已验证并复用移除占用 `0x2EE3D0`、合法性校验 `0x2EDE60`、提交
+  `0x2EE230`；组件删除路径 `0x94A910` 会在 component context `+0x18` 设置
+  删除状态，调用者不读取返回值。
 
-## Stage 44 completion boundary
+## Stage 45 completion boundary
 
-- 第三槽替换前只创建一份备份，备份 hash 与原档一致；替换后目标 hash 与下载并
-  解压的源存档一致，`PRAGMA integrity_check=ok`，不存在 WAL/SHM。
-- F7 第一次采集必须记录当前 scene `FurniturePiece` 集合及
-  `FurnitureBuildingUI`、`HouseInventory`、`FurnitureEditor`、
-  `FurnitureClickHandler`、House scene manager 的有界对象图。
-- 玩家手动从仓库抽屉取出一件家具、放进任一房间后第二次按 F7；报告必须列出前后
-  scene piece 数量、完整性、出现/消失/位置变化的 stable key、item、room、坐标及
-  grid 状态，同时保存上述五个根对象的差异。
-- 报告不保存原始内存字节，不读取账号凭据，不调用任何未知仓库函数，不自动取出、
-  放置或替换家具。
-- 版本升级为 v0.5.31；Debug/Release 构建和现有 CTest 通过后 DLL-only 部署并验证
-  安装；不 push。最终原生路径仍由玩家完成一次 F7 手动取放采样后继续验证。
+- `FurniturePlacementGateway` 支持按 warehouse stable key 创建家具，并在原家具
+  房间/坐标通过原生校验后提交；提交读回成功才删除已清空占用的旧 scene piece。
+- 创建、校验、提交或删除失败时，删除新对象并恢复旧家具的 transform/grid；批次
+  后续失败时，先逆序恢复布局移动，再逆序交换已完成的属性替换。
+- 已排队删除的 `FurniturePiece` 不再参与 scene 枚举、stable key 冲突检查或定位，
+  防止同一 tick 的延迟清理干扰下一次替换及回滚。
+- 分析器使用虚拟替换后的 stable key 生成布局计划；自动放置先逐 tick 执行全部属性
+  替换，再执行布局移动。只存在属性升级时按钮也必须可用。
+- v0.5.32 玩家实测发现删除状态过滤错误读取了 `context+0x18` 的两个字节，导致
+  正常家具因 `+0x19` 非零被全部误判为待删除，运行时覆盖记录为 furniture=0。
+  v0.5.33 必须只读取游戏实际比较的 `context+0x18` 单字节，并加入对应回归测试。
+- v0.5.33 玩家实测已恢复 112 件运行时家具，但五房完成存档仍在房间覆盖阶段失败。
+  通用根因有两处：运行时房间探针漏掉第五普通房间 `Floor2_Small`；家具分析路径
+  没有按已解锁房间数补齐普通房间，却会把探针检测到的无人使用 `AdventureBox`
+  辅助组件加入待映射快照。v0.5.34 必须统一普通房间集合，并覆盖 5 个快照房间、
+  7 个原生组件、第五房无猫投票且 2 个组件无关的回归。
+- 版本升级为 v0.5.34；Debug/Release 构建和 CTest 通过后 DLL-only 部署并验证安装；
+  不 push。
+- v0.5.34 首次后台部署使用 Windows PowerShell 5，旧脚本的
+  `Set-Content -Encoding utf8` 给职业 GON 和 `modlist.txt` 写入 UTF-8 BOM，游戏启动
+  报 `GON ERROR: More symbols exists after file completed parsing`。部署必须改为无 BOM
+  UTF-8，并让安装校验主动拒绝 BOM 后再交付。
 
-## Player validation result
+## Player validation gate
 
-- 玩家生成了两份 schema 2 报告：`furniture-move-probe-20260811-183525.json` 和
-  `furniture-move-probe-20260811-183547.json`；日志确认每份报告均来自一次完整的
-  F7 前态采集、手动仓库取放和 F7 后态采集。
-- 第一次操作的 scene `FurniturePiece` 完整枚举从 111 增至 112，唯一新增项为
-  `set_junk_suspendedshelf`，stable key 474，房间 `Floor2_Large`，保存坐标
-  `(-8,-6)`，grid 存在。
-- 第二次操作的完整枚举从 112 增至 113，唯一新增项为 `small_bobble_spots`，
-  stable key 467，房间 `Floor2_Large`，保存坐标 `(-5,-11)`，grid 存在。
-- 两次采样都没有已摆 scene piece 消失或改变位置。`FurnitureBuildingUI`、
-  `FurnitureClickHandler` 和 House scene manager 均记录到有界对象图差异；当前 build
-  未找到独立的 `HouseInventory` 和 `FurnitureEditor` 组件，因此对应根以 0 节点明确
-  记录，而不是伪造对象或签名。
-- 当前证据证明手动从仓库取出时会创建带原存档 stable key 的新 scene piece，但仍未
-  证明可安全调用的仓库取出函数签名或调用约定。Stage 44 只读证据探针验收完成；自动
-  仓库取放和属性替换留给后续独立阶段。
+- 使用可恢复测试槽完全重启后进入家具模式，只点击一次“开始分析”；确认日志出现
+  `AC14319`、`AC3201`、`AC3901` 且没有 `AC3205`，面板显示属性替换数和布局移动数。
+- 点击“自动放置”，确认家具逐件替换/移动且没有崩溃；日志应出现 `AC3912`，最终
+  成功出现 `AC3904`，失败回滚出现 `AC3907`。
+- 保存、完全退出并重进，确认新家具仍在目标房间，旧家具已回仓库；再次分析不应
+  重复提出相同的已完成替换。
 
 ## Safety boundary
 
-- 不自动启动、进入或控制游戏；需要实机验证时只给玩家清晰测试步骤。
-- 不自动移动猫、休息、结束一天、出征、组队或淘汰。
-- 仓库原生取放路径未由当前 build 的真实采样证明前，不调用未知函数，不把属性候选
-  加入可执行 move 批次，也不声明已经自动替换仓库家具。
-- 不修改主存档和第二槽；第三槽旧测试档备份必须保留在原位。
+- 不自动启动、进入或控制游戏；实机验证由玩家操作。
+- 不自动移动猫、休息、结束一天、出征、组队、淘汰或移动受保护对象。
+- 不修改原游戏文件和活动存档；不删除家具存档记录。
+- 第五房间未解锁问题已由玩家移出范围，不重新纳入本阶段。

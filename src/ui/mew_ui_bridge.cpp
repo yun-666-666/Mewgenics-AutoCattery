@@ -216,8 +216,11 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_analysis_preview_.reset();
     furniture_execution_active_ = false;
     furniture_execution_generation_ = 0;
+    furniture_execution_upgrade_index_ = 0;
     furniture_execution_index_ = 0;
+    furniture_execution_upgraded_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_execution_committed_upgrade_indices_.clear();
     furniture_execution_committed_move_indices_.clear();
     last_tick_time_ = {};
     last_scene_summary_.clear();
@@ -561,8 +564,12 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_analysis_preview_.reset();
     furniture_execution_active_ = false;
     furniture_execution_generation_ = 0;
+    furniture_execution_upgrade_index_ = 0;
     furniture_execution_index_ = 0;
+    furniture_execution_upgraded_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_execution_committed_upgrade_indices_.clear();
+    furniture_execution_committed_move_indices_.clear();
     furniture_layout_session_generation_ = 0;
     furniture_locked_room_ids_.clear();
     last_tick_time_ = {};
@@ -692,7 +699,9 @@ void MewUiBridge::OnTick() {
             if (analysis) {
                 auto completed = std::move(analysis.value);
                 const auto& plan = completed.layout_plan;
-                const bool executable = !plan.moves.empty();
+                const bool executable =
+                    !plan.moves.empty() ||
+                    !completed.attribute_upgrades.empty();
                 const bool already_complete =
                     !plan.target_room_id.empty() &&
                     plan.planned_room_count == 1U &&
@@ -734,8 +743,8 @@ void MewUiBridge::OnTick() {
                                   std::to_string(
                                       completed.warehouse_furniture_count),
                               executable
-                                  ? "Auto Place: layout moves ready; upgrades remain preview-only"
-                                  : "Better combination found; warehouse replacement is preview-only"}
+                                  ? "Auto Place: upgrades and layout are ready"
+                                  : "Auto Place: no safe operation is ready"}
                         : std::vector<std::string>{
                               "房间：" +
                                   std::to_string(completed.rooms.size()) +
@@ -757,8 +766,8 @@ void MewUiBridge::OnTick() {
                                   std::to_string(
                                       completed.warehouse_furniture_count),
                               executable
-                                  ? "自动放置：仅布局移动可执行；属性替换仍为预览"
-                                  : "已发现更优属性组合；仓库替换当前仅预览"};
+                                  ? "自动放置：属性替换与布局均可执行"
+                                  : "自动放置：当前没有安全操作"};
                 } else {
                     labels = english
                         ? std::vector<std::string>{
@@ -1275,8 +1284,12 @@ void MewUiBridge::ClearFurnitureLayoutPreview() {
     furniture_analysis_preview_.reset();
     furniture_execution_active_ = false;
     furniture_execution_generation_ = 0;
+    furniture_execution_upgrade_index_ = 0;
     furniture_execution_index_ = 0;
+    furniture_execution_upgraded_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_execution_committed_upgrade_indices_.clear();
+    furniture_execution_committed_move_indices_.clear();
     if (house_button_controller_) {
         house_button_controller_->SetFurnitureActionAvailable(false);
     }
@@ -1295,7 +1308,8 @@ void MewUiBridge::StartFurnitureAutoPlacement(
         furniture_analysis_service_ &&
         furniture_analysis_preview_.has_value() &&
         furniture_analysis_preview_->scene_generation == generation &&
-        !furniture_analysis_preview_->layout_plan.moves.empty();
+        (!furniture_analysis_preview_->layout_plan.moves.empty() ||
+         !furniture_analysis_preview_->attribute_upgrades.empty());
     if (!valid) {
         ClearFurnitureLayoutPreview();
         if (house_button_controller_) {
@@ -1333,25 +1347,35 @@ void MewUiBridge::StartFurnitureAutoPlacement(
 
     furniture_execution_active_ = true;
     furniture_execution_generation_ = generation;
+    furniture_execution_upgrade_index_ = 0;
     furniture_execution_index_ = 0;
+    furniture_execution_upgraded_ = 0;
     furniture_execution_moved_ = 0;
+    furniture_execution_committed_upgrade_indices_.clear();
     furniture_execution_committed_move_indices_.clear();
     if (recommendation_marker_controller_) {
         const bool english = config_runtime_ &&
             config_runtime_->Current().general.language == "en-US";
-        const auto total =
+        const auto upgrades =
+            furniture_analysis_preview_->attribute_upgrades.size();
+        const auto moves =
             furniture_analysis_preview_->layout_plan.moves.size();
+        const auto total = upgrades + moves;
         const auto labels = english
             ? std::vector<std::string>{
                   "Auto Place started",
-                  "Planned furniture: " + std::to_string(total),
+                  "Planned operations: " + std::to_string(total),
+                  "Upgrades: " + std::to_string(upgrades) +
+                      ", layout moves: " + std::to_string(moves),
                   "Moving one item per UI tick",
-                  "The process stops on the first rejected item"}
+                  "The process stops and rolls back on the first rejection"}
             : std::vector<std::string>{
                   "自动放置已开始",
-                  "计划家具：" + std::to_string(total) + " 件",
+                  "计划操作：" + std::to_string(total) + " 项",
+                  "属性替换：" + std::to_string(upgrades) +
+                      "，布局移动：" + std::to_string(moves),
                   "每个 UI tick 移动一件",
-                  "遇到首个拒绝项即停止剩余家具"};
+                  "遇到首个拒绝项即停止并回滚"};
         (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
             generation, labels);
     }
@@ -1363,17 +1387,79 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         return;
     }
 
+    const auto finish = [this, &context] {
+        if (!furniture_analysis_preview_) {
+            return;
+        }
+        const auto& plan = furniture_analysis_preview_->layout_plan;
+        const auto upgrades = furniture_execution_upgraded_;
+        const auto moved = furniture_execution_moved_;
+        const auto kept = plan.kept_furniture_count;
+        if (!plan.target_room_id.empty() &&
+            plan.deferred_furniture_count == 0U &&
+            std::ranges::find(
+                furniture_locked_room_ids_, plan.target_room_id) ==
+                furniture_locked_room_ids_.end()) {
+            furniture_locked_room_ids_.push_back(plan.target_room_id);
+        }
+        if (house_button_controller_) {
+            house_button_controller_->SetFurnitureActionAvailable(false);
+            house_button_controller_->SetState(
+                OrganizeButtonState::Completed,
+                "warehouse upgrades and furniture layout completed");
+        }
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurniturePlacement",
+            "AC3904",
+            "Auto Place completed: upgrades=" +
+                std::to_string(upgrades) + "/" +
+                std::to_string(
+                    furniture_analysis_preview_->attribute_upgrades.size()) +
+                ", layout_moves=" + std::to_string(moved) + "/" +
+                std::to_string(plan.moves.size()) +
+                ", already_packed=" + std::to_string(kept) + ".");
+        if (recommendation_marker_controller_) {
+            const bool english = config_runtime_ &&
+                config_runtime_->Current().general.language == "en-US";
+            const auto labels = english
+                ? std::vector<std::string>{
+                      "Auto Place complete",
+                      "Warehouse upgrades: " + std::to_string(upgrades),
+                      "Committed layout moves: " + std::to_string(moved),
+                      "Already packed: " + std::to_string(kept),
+                      "Save, exit, and re-enter to confirm the result"}
+                : std::vector<std::string>{
+                      "自动放置完成",
+                      "仓库属性替换：" + std::to_string(upgrades) + " 件",
+                      "已提交布局移动：" + std::to_string(moved) + " 件",
+                      "原本已紧凑：" + std::to_string(kept) + " 件",
+                      "请保存、退出并重进确认结果"};
+            (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
+                context.scene_generation, labels);
+        }
+        ClearFurnitureLayoutPreview();
+    };
+
     const auto fail = [this, &context](std::string reason) {
-        const auto completed = furniture_execution_moved_;
-        const auto total = furniture_analysis_preview_
+        const auto completed =
+            furniture_execution_upgraded_ + furniture_execution_moved_;
+        const auto total_upgrades = furniture_analysis_preview_
+            ? furniture_analysis_preview_->attribute_upgrades.size()
+            : 0U;
+        const auto total_moves = furniture_analysis_preview_
             ? furniture_analysis_preview_->layout_plan.moves.size()
             : 0U;
-        const auto remaining = total > furniture_execution_index_
-            ? total - furniture_execution_index_
+        const auto completed_steps =
+            furniture_execution_upgrade_index_ + furniture_execution_index_;
+        const auto total = total_upgrades + total_moves;
+        const auto remaining = total > completed_steps
+            ? total - completed_steps
             : 0U;
         std::size_t rollback_completed{};
         const auto rollback_total =
-            furniture_execution_committed_move_indices_.size();
+            furniture_execution_committed_move_indices_.size() +
+            furniture_execution_committed_upgrade_indices_.size();
         std::string rollback_detail = "rollback was not safe in the current scene";
         const bool rollback_safe =
             furniture_analysis_preview_ &&
@@ -1426,6 +1512,51 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                     break;
                 }
                 ++rollback_completed;
+            }
+            if (rollback_completed ==
+                furniture_execution_committed_move_indices_.size()) {
+                const auto& upgrades =
+                    furniture_analysis_preview_->attribute_upgrades;
+                for (auto iterator =
+                         furniture_execution_committed_upgrade_indices_.rbegin();
+                     iterator !=
+                         furniture_execution_committed_upgrade_indices_.rend();
+                     ++iterator) {
+                    if (*iterator >= upgrades.size()) {
+                        rollback_detail =
+                            "upgrade rollback cursor exceeded the sealed plan";
+                        break;
+                    }
+                    const auto& upgrade = upgrades[*iterator];
+                    const FurniturePlacementLocator replacement_locator{
+                        upgrade.warehouse_item_id,
+                        upgrade.warehouse_stable_key};
+                    const auto replacement =
+                        furniture_placement_gateway_->Locate(
+                            replacement_locator);
+                    if (replacement.status !=
+                            FurniturePlacementLookupStatus::Found ||
+                        replacement.room != upgrade.target_room_id) {
+                        rollback_detail =
+                            "upgrade rollback binding no longer matched the replacement";
+                        break;
+                    }
+                    const auto restored =
+                        furniture_placement_gateway_->ReplaceWithWarehouse({
+                            .placed = replacement_locator,
+                            .warehouse_item = upgrade.placed_item_id,
+                            .warehouse_stable_key =
+                                upgrade.placed_stable_key});
+                    if (restored.status !=
+                        FurnitureWarehouseReplacementStatus::Replaced) {
+                        rollback_detail =
+                            "native upgrade rollback rejected " +
+                            upgrade.warehouse_item_id + ": " +
+                            restored.message;
+                        break;
+                    }
+                    ++rollback_completed;
+                }
             }
             if (rollback_completed == rollback_total) {
                 rollback_detail = "all committed moves were rolled back";
@@ -1493,9 +1624,85 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         return;
     }
 
+    const auto& upgrades =
+        furniture_analysis_preview_->attribute_upgrades;
+    if (furniture_execution_upgrade_index_ < upgrades.size()) {
+        const auto upgrade =
+            upgrades[furniture_execution_upgrade_index_];
+        const FurniturePlacementLocator placed_locator{
+            upgrade.placed_item_id, upgrade.placed_stable_key};
+        const auto placed =
+            furniture_placement_gateway_->Locate(placed_locator);
+        if (placed.status != FurniturePlacementLookupStatus::Found ||
+            placed.room != upgrade.target_room_id) {
+            fail("the placed furniture for an attribute upgrade is no longer bound to its analyzed room");
+            return;
+        }
+        const auto replaced =
+            furniture_placement_gateway_->ReplaceWithWarehouse({
+                .placed = placed_locator,
+                .warehouse_item = upgrade.warehouse_item_id,
+                .warehouse_stable_key = upgrade.warehouse_stable_key});
+        if (replaced.status !=
+            FurnitureWarehouseReplacementStatus::Replaced) {
+            std::ostringstream rejection;
+            rejection << "native warehouse replacement rejected "
+                      << SafeTechnicalName(upgrade.placed_item_id)
+                      << " key=" << upgrade.placed_stable_key
+                      << " -> "
+                      << SafeTechnicalName(upgrade.warehouse_item_id)
+                      << " key=" << upgrade.warehouse_stable_key
+                      << " status="
+                      << FurnitureWarehouseReplacementStatusName(
+                             replaced.status)
+                      << " signature="
+                      << (replaced.signatures_valid ? 1 : 0)
+                      << " created="
+                      << (replaced.warehouse_piece_created ? 1 : 0)
+                      << " placement="
+                      << (replaced.placement_valid ? 1 : 0)
+                      << " committed=" << (replaced.committed ? 1 : 0)
+                      << " verified=" << (replaced.verified ? 1 : 0)
+                      << " native_rollback="
+                      << (replaced.rollback_attempted ? 1 : 0) << '/'
+                      << (replaced.rollback_succeeded ? 1 : 0)
+                      << " seh=0x" << std::hex << std::uppercase
+                      << replaced.seh_code << " rva=0x"
+                      << replaced.exception_rva << std::dec << ": "
+                      << replaced.message;
+            fail(rejection.str());
+            return;
+        }
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurniturePlacement",
+            "AC3912",
+            "Auto Place attribute upgrade room=" +
+                SafeTechnicalName(upgrade.target_room_id) +
+                " placed=" + SafeTechnicalName(upgrade.placed_item_id) +
+                " key=" + std::to_string(upgrade.placed_stable_key) +
+                " -> warehouse=" +
+                SafeTechnicalName(upgrade.warehouse_item_id) +
+                " key=" + std::to_string(upgrade.warehouse_stable_key) +
+                " gain=" + CompactAttributeGain(upgrade.gain) + ".");
+        ++furniture_execution_upgraded_;
+        furniture_execution_committed_upgrade_indices_.push_back(
+            furniture_execution_upgrade_index_);
+        ++furniture_execution_upgrade_index_;
+        if (furniture_execution_upgrade_index_ == upgrades.size() &&
+            furniture_analysis_preview_->layout_plan.moves.empty()) {
+            finish();
+        }
+        return;
+    }
+
     const auto& plan = furniture_analysis_preview_->layout_plan;
     if (furniture_execution_index_ >= plan.moves.size()) {
-        fail("the furniture execution cursor exceeded the sealed plan");
+        if (furniture_execution_index_ == plan.moves.size()) {
+            finish();
+        } else {
+            fail("the furniture execution cursor exceeded the sealed plan");
+        }
         return;
     }
     const auto move = plan.moves[furniture_execution_index_];
@@ -1587,48 +1794,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     if (furniture_execution_index_ != plan.moves.size()) {
         return;
     }
-
-    const auto total = plan.moves.size();
-    const auto moved = furniture_execution_moved_;
-    const auto kept = plan.kept_furniture_count;
-    if (!plan.target_room_id.empty() &&
-        plan.deferred_furniture_count == 0U &&
-        std::ranges::find(
-            furniture_locked_room_ids_, plan.target_room_id) ==
-            furniture_locked_room_ids_.end()) {
-        furniture_locked_room_ids_.push_back(plan.target_room_id);
-    }
-    if (house_button_controller_) {
-        house_button_controller_->SetFurnitureActionAvailable(false);
-        house_button_controller_->SetState(
-            OrganizeButtonState::Completed,
-            "whole-house furniture layout completed");
-    }
-    Logger::Instance().Write(
-        LogLevel::Info,
-        "FurniturePlacement",
-        "AC3904",
-        "Auto Place completed: planned=" + std::to_string(total) +
-            ", moved=" + std::to_string(moved) +
-            ", already_packed=" + std::to_string(kept) + ".");
-    if (recommendation_marker_controller_) {
-        const bool english = config_runtime_ &&
-            config_runtime_->Current().general.language == "en-US";
-        const auto labels = english
-            ? std::vector<std::string>{
-                  "Auto Place complete",
-                  "Committed moves: " + std::to_string(moved),
-                  "Already packed: " + std::to_string(kept),
-                  "Save, exit, and re-enter to confirm the full layout"}
-            : std::vector<std::string>{
-                  "自动放置完成",
-                  "已提交移动：" + std::to_string(moved) + " 件",
-                  "原本已紧凑：" + std::to_string(kept) + " 件",
-                  "请保存、退出并重进确认完整布局"};
-        (void)recommendation_marker_controller_->ShowFurnitureAnalysis(
-            context.scene_generation, labels);
-    }
-    ClearFurnitureLayoutPreview();
+    finish();
 }
 
 #ifdef _DEBUG

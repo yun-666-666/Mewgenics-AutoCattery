@@ -2,13 +2,30 @@
 #include "mew_ui_furniture_move_adapter.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstring>
 #include <span>
+#include <string_view>
 
 #include "test_support.hpp"
 
 namespace autocattery::tests {
 
 void RunMewUiFurniturePlacementTests() {
+    alignas(void*) std::array<std::byte, 0x20> component{};
+    alignas(void*) std::array<std::byte, 0x20> component_context{};
+    void* component_context_pointer = component_context.data();
+    std::memcpy(
+        component.data() + 0x18,
+        &component_context_pointer,
+        sizeof(component_context_pointer));
+    component_context[0x18] = std::byte{0};
+    component_context[0x19] = std::byte{0x7F};
+    AC_CHECK(AcMewComponentDeleteQueued(component.data()) == 0);
+    component_context[0x18] = std::byte{1};
+    AC_CHECK(AcMewComponentDeleteQueued(component.data()) == 1);
+
     AC_CHECK(AcMewFurnitureWorldAxis(100.0, -6, 1.0) == 106.0);
     AC_CHECK(AcMewFurnitureWorldAxis(100.0, 3, 1.0) == 115.0);
     AC_CHECK(AcMewFurnitureWorldAxis(100.0, -6, -1.0) == 83.0);
@@ -54,6 +71,16 @@ void RunMewUiFurniturePlacementTests() {
         .target_y = -9});
     AC_CHECK(move.status ==
         ui::FurniturePlacementMoveStatus::Unsupported);
+    const auto replacement = gateway.ReplaceWithWarehouse({
+        .placed = {"weak-chair", 1U},
+        .warehouse_item = "strong-chair",
+        .warehouse_stable_key = 2U});
+    AC_CHECK(replacement.status ==
+        ui::FurnitureWarehouseReplacementStatus::Unsupported);
+    AC_CHECK(std::string_view{
+        ui::FurnitureWarehouseReplacementStatusName(
+            ui::FurnitureWarehouseReplacementStatus::Replaced)} ==
+        "replaced");
 }
 
 }  // namespace autocattery::tests

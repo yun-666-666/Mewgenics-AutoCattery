@@ -127,8 +127,12 @@ private:
         furniture_analysis_preview_;
     bool furniture_execution_active_{};
     std::uint64_t furniture_execution_generation_{};
+    std::size_t furniture_execution_upgrade_index_{};
     std::size_t furniture_execution_index_{};
+    std::size_t furniture_execution_upgraded_{};
     std::size_t furniture_execution_moved_{};
+    std::vector<std::size_t>
+        furniture_execution_committed_upgrade_indices_;
     std::vector<std::size_t> furniture_execution_committed_move_indices_;
     std::uint64_t furniture_layout_session_generation_{};
     std::vector<snapshot::RoomId> furniture_locked_room_ids_;

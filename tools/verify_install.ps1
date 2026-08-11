@@ -6,6 +6,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $resolvedGameRoot = (Resolve-Path -LiteralPath $GameRoot).Path
+
+function Assert-NoUtf8Bom {
+    param([Parameter(Mandatory)][string]$Path)
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw "Installed GON/mod list file must be UTF-8 without BOM: $Path"
+    }
+}
 $runtimeRequired = @(
     'Mewgenics.exe',
     'version.dll',
@@ -70,6 +81,10 @@ $baseRerollData = Get-Content -LiteralPath `
     (Join-Path $dataModRoot 'data\classes\classes.gon.merge') -Raw
 $advancedRerollData = Get-Content -LiteralPath `
     (Join-Path $dataModRoot 'data\classes\advanced_classes.gon.merge') -Raw
+$baseRerollPath = Join-Path $dataModRoot 'data\classes\classes.gon.merge'
+$advancedRerollPath = Join-Path $dataModRoot 'data\classes\advanced_classes.gon.merge'
+Assert-NoUtf8Bom -Path $baseRerollPath
+Assert-NoUtf8Bom -Path $advancedRerollPath
 $expectedRerollLine = "AddLevelUpRerolls $rerollCount"
 if (($baseRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7 -or
     ($advancedRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7) {
@@ -77,10 +92,14 @@ if (($baseRerollData | Select-String -Pattern ([regex]::Escape($expectedRerollLi
 }
 $compatibleRerollRoot = Join-Path $mewtatorMods 'SkillsPassivesFirstData'
 if (Test-Path -LiteralPath $compatibleRerollRoot -PathType Container) {
-    $compatibleBase = Get-Content -LiteralPath `
-        (Join-Path $compatibleRerollRoot 'data\classes\classes.gon.merge') -Raw
-    $compatibleAdvanced = Get-Content -LiteralPath `
-        (Join-Path $compatibleRerollRoot 'data\classes\advanced_classes.gon.merge') -Raw
+    $compatibleBasePath =
+        Join-Path $compatibleRerollRoot 'data\classes\classes.gon.merge'
+    $compatibleAdvancedPath =
+        Join-Path $compatibleRerollRoot 'data\classes\advanced_classes.gon.merge'
+    Assert-NoUtf8Bom -Path $compatibleBasePath
+    Assert-NoUtf8Bom -Path $compatibleAdvancedPath
+    $compatibleBase = Get-Content -LiteralPath $compatibleBasePath -Raw
+    $compatibleAdvanced = Get-Content -LiteralPath $compatibleAdvancedPath -Raw
     if (($compatibleBase | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7 -or
         ($compatibleAdvanced | Select-String -Pattern ([regex]::Escape($expectedRerollLine)) -AllMatches).Matches.Count -ne 7) {
         throw 'Installed SkillsPassivesFirstData rerolls do not match the AutoCattery setting.'
@@ -88,6 +107,7 @@ if (Test-Path -LiteralPath $compatibleRerollRoot -PathType Container) {
 }
 
 $modListPath = Join-Path $mewtatorMods 'modlist.txt'
+Assert-NoUtf8Bom -Path $modListPath
 $enabledMods = @(if (Test-Path -LiteralPath $modListPath) {
     @(Get-Content -LiteralPath $modListPath | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 } else {

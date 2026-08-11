@@ -82,6 +82,27 @@ typedef struct AcMewNativeFurnitureMoveResult {
     int32_t committed_y;
 } AcMewNativeFurnitureMoveResult;
 
+typedef struct AcMewNativeFurnitureReplacementResult {
+    uint8_t signature_valid;
+    uint8_t placed_piece_valid;
+    uint8_t target_grid_valid;
+    uint8_t warehouse_piece_created;
+    uint8_t old_piece_removed;
+    uint8_t placement_valid;
+    uint8_t committed;
+    uint8_t verified;
+    uint8_t old_piece_deleted;
+    uint8_t rollback_attempted;
+    uint8_t rollback_succeeded;
+    uint8_t reserved;
+    uint32_t seh_code;
+    uintptr_t exception_rva;
+    uint64_t placed_stable_key;
+    uint64_t warehouse_stable_key;
+    int32_t target_x;
+    int32_t target_y;
+} AcMewNativeFurnitureReplacementResult;
+
 typedef struct AcMewFurnitureCoordinate {
     int32_t x;
     int32_t y;
@@ -99,6 +120,8 @@ double AcMewFurnitureWorldAxis(
     double grid_world_axis,
     int32_t saved_axis,
     double scale_axis);
+
+int AcMewComponentDeleteQueued(void* component);
 
 void AcMewFurnitureWorldPosition(
     double grid_world_x,
@@ -154,6 +177,16 @@ AcMewNativeFurnitureMoveResult AcMewMoveFurnitureToGrid(
     int32_t target_x,
     int32_t target_y,
     uint8_t allow_closest_valid);
+
+AcMewNativeFurnitureReplacementResult
+AcMewReplaceFurnitureWithWarehousePiece(
+    void* house_scene_manager,
+    void* placed_piece,
+    uint64_t warehouse_stable_key,
+    const char* expected_warehouse_item,
+    const AcMewFurnitureGridSnapshot* target_grid,
+    int32_t target_x,
+    int32_t target_y);
 
 #ifdef __cplusplus
 }

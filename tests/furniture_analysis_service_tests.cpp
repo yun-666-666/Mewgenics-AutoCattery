@@ -158,6 +158,7 @@ void RunFurnitureAnalysisServiceTests() {
     AC_CHECK(upgrade_result.value.runtime_placed_piece_count == 2);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_count == 1);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_match_count == 1);
+    AC_CHECK(upgrade_result.value.layout_plan.warehouse_furniture_count == 3);
     AC_CHECK(std::ranges::none_of(
         upgrade_result.value.attribute_upgrades,
         [](const auto& upgrade) {
