@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 42,
+  "active_stage": 43,
   "stages": {
     "1": {
       "status": "completed",
@@ -247,7 +247,13 @@
       "commit": null,
       "capability": "ExactNativeFurnitureGridSemanticsWithMultiLevelSolidAnchorChainsAndFreshRuntimeReanalysis",
       "game_validation_status": "native_validate_commit_semantics_applied_to_current_final_staging_and_execution;support_on_surface_zero;explicit_analysis_recaptures_current_runtime_grids_and_clears_completed_room_locks;24cat_current_and_pre_failure_debug_release_read_only_all_20_to_attic_deferred_zero;repeat_analysis_zero_moves_kept_20;wallmounted_hitbox_only_items_move_under_native_collision_rules;debug_release_4_of_4_ctest_passed;release_deployed_hash_F35D2E8380233180992F9F0F40BD9A0FE7C1FE829BE1282A7341849C84DB1293;install_verified;player_native_execution_retest_pending"
+    },
+    "43": {
+      "status": "v0_5_30_five_room_label_sync_and_attribute_upgrade_preview_release_deployed_player_validation_pending",
+      "commit": null,
+      "capability": "FiveRoomSaveCorrectionResilientHouseButtonLabelAndUniqueParetoFurnitureUpgradePreview",
+      "game_validation_status": "main_save_house_storage_upgrades_4_to_5_single_field_transaction_integrity_ok;existing_backup_preserved;button_attach_and_mode_transition_label_resync_implemented;five_attribute_unique_warehouse_upgrade_matching_implemented;warehouse_scene_native_take_place_path_unproven_preview_only;debug_release_4_of_4_ctest_passed;release_deployed_hash_D7992A2F74ECC0386877BEDA7CA5CD0A309E961B7D11687FA31C51530E3FFBC5;install_verified;player_validation_pending"
     }
   },
-  "updated_at": "2026-08-11T15:01:45+08:00"
+  "updated_at": "2026-08-11T17:04:30+08:00"
 }

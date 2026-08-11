@@ -48,8 +48,15 @@ struct RuntimeFurnitureRoomGridState {
     std::vector<std::uint8_t> live_cells;
 };
 
+struct RuntimeWarehouseFurniturePieceState {
+    std::uint64_t stable_key{};
+    std::string item_id;
+};
+
 struct RuntimeFurnitureState {
+    std::size_t scene_piece_count{};
     std::vector<RuntimeFurniturePlacementState> placements;
+    std::vector<RuntimeWarehouseFurniturePieceState> warehouse_pieces;
     std::vector<RuntimeFurnitureRoomGridState> room_grids;
 };
 

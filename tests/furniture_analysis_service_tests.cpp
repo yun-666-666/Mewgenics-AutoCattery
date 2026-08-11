@@ -1,5 +1,6 @@
 #include "auto_cattery/furniture_analysis/service.hpp"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
@@ -109,6 +110,59 @@ void RunFurnitureAnalysisServiceTests() {
     const auto invalid_generation = service.Analyze(0);
     AC_CHECK(!static_cast<bool>(invalid_generation));
     AC_CHECK(anonymous.capture_calls == 1);
+
+    FakeFurnitureAnalysisSource upgrades;
+    upgrades.value.house.source_save_name = "attribute-upgrades.sav";
+    upgrades.value.available_room_count = 2;
+    upgrades.value.house.rooms = {{.id = "RoomA"}, {.id = "RoomB"}};
+    upgrades.value.furniture = {
+        Furniture(1, "weak-one", "RoomA"),
+        Furniture(2, "weak-two", "RoomB"),
+        Furniture(3, "strong-one", ""),
+        Furniture(4, "strong-two", ""),
+        Furniture(5, "tradeoff", "")};
+    upgrades.value.furniture_effects = {
+        {"weak-one", snapshot::RoomAttributes{
+            .comfort = 1, .stimulation = 1, .health = 1,
+            .mutation = 1, .appeal = 1}},
+        {"weak-two", snapshot::RoomAttributes{
+            .comfort = 2, .stimulation = 2, .health = 2,
+            .mutation = 2, .appeal = 2}},
+        {"strong-one", snapshot::RoomAttributes{
+            .comfort = 5, .stimulation = 5, .health = 5,
+            .mutation = 5, .appeal = 5}},
+        {"strong-two", snapshot::RoomAttributes{
+            .comfort = 4, .stimulation = 4, .health = 4,
+            .mutation = 4, .appeal = 4}},
+        {"tradeoff", snapshot::RoomAttributes{
+            .comfort = 100, .stimulation = 0, .health = 100,
+            .mutation = 100, .appeal = 100}}};
+    upgrades.value.runtime_scene_piece_count = 3;
+    upgrades.value.runtime_placed_piece_count = 2;
+    upgrades.value.runtime_warehouse_pieces = {
+        {.stable_key = 3, .item_id = "strong-one"}};
+    furniture_analysis::FurnitureAnalysisService upgrade_service(upgrades);
+    const auto upgrade_result = upgrade_service.Analyze(93);
+    AC_CHECK(static_cast<bool>(upgrade_result));
+    AC_CHECK(upgrade_result.value.attribute_upgrades.size() == 2);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].warehouse_stable_key == 3);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].placed_stable_key == 1);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[1].warehouse_stable_key == 4);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[1].placed_stable_key == 2);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.comfort == 6);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.stimulation == 6);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.health == 6);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.mutation == 6);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.appeal == 6);
+    AC_CHECK(upgrade_result.value.runtime_scene_piece_count == 3);
+    AC_CHECK(upgrade_result.value.runtime_placed_piece_count == 2);
+    AC_CHECK(upgrade_result.value.runtime_warehouse_piece_count == 1);
+    AC_CHECK(upgrade_result.value.runtime_warehouse_piece_match_count == 1);
+    AC_CHECK(std::ranges::none_of(
+        upgrade_result.value.attribute_upgrades,
+        [](const auto& upgrade) {
+            return upgrade.warehouse_item_id == "tradeoff";
+        }));
 }
 
 }  // namespace autocattery::tests

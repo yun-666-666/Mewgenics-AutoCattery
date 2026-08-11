@@ -38,6 +38,7 @@ public:
     void SetState(
         ui::OrganizeButtonState new_state,
         std::string_view) override {
+        ++state_calls;
         state = new_state;
     }
 
@@ -65,6 +66,7 @@ public:
     int detach_calls{};
     int abandon_calls{};
     int placeholder_calls{};
+    int state_calls{};
     ui::OrganizeButtonState state{ui::OrganizeButtonState::Hidden};
     ClickHandler click_handler;
 };
@@ -161,10 +163,16 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(view.attach_calls == 1);
     AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
     AC_CHECK(workflow.preview_calls == 0);
+    const auto attach_state_calls = view.state_calls;
+    controller.Poll();
+    AC_CHECK(view.state_calls == attach_state_calls + 1);
 
     controller.SetFurnitureMode(true);
     AC_CHECK(view.furniture_mode);
     AC_CHECK(view.state == ui::OrganizeButtonState::DisabledBusy);
+    const auto furniture_state_calls = view.state_calls;
+    controller.Poll();
+    AC_CHECK(view.state_calls == furniture_state_calls + 1);
     view.Click();
     AC_CHECK(workflow.preview_calls == 0);
     controller.SetFurnitureMode(false);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <functional>
 #include <future>
 #include <string>
@@ -93,6 +94,8 @@ private:
     bool continuation_execute_pending_{};
     bool awaiting_execution_{};
     std::chrono::steady_clock::time_point ready_after_{};
+    std::size_t state_sync_poll_{};
+    std::size_t next_state_sync_poll_{};
 };
 
 }  // namespace autocattery::ui

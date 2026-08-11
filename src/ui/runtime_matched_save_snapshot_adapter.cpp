@@ -10,11 +10,12 @@
 namespace autocattery::ui {
 namespace {
 
-constexpr std::array<const char*, 4> kAvailableRoomOrder{
+constexpr std::array<const char*, 5> kAvailableRoomOrder{
     "Floor1_Large",
     "Attic",
     "Floor1_Small",
-    "Floor2_Large"
+    "Floor2_Large",
+    "Floor2_Small"
 };
 
 void AddAvailableEmptyRooms(
@@ -220,6 +221,17 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
     source.house = std::move(selected->house);
     source.furniture = std::move(selected->furniture);
     source.available_room_count = expected_rooms;
+    source.runtime_scene_piece_count =
+        runtime_furniture_state->scene_piece_count;
+    source.runtime_placed_piece_count =
+        runtime_furniture_state->placements.size();
+    source.runtime_warehouse_pieces.reserve(
+        runtime_furniture_state->warehouse_pieces.size());
+    for (const auto& piece : runtime_furniture_state->warehouse_pieces) {
+        source.runtime_warehouse_pieces.push_back({
+            .stable_key = piece.stable_key,
+            .item_id = piece.item_id});
+    }
     source.runtime_room_grids.reserve(
         runtime_furniture_state->room_grids.size());
     for (const auto& grid : runtime_furniture_state->room_grids) {
@@ -242,7 +254,11 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
         "RuntimeSaveSelection",
         "AC14319",
         "Furniture analysis snapshot overlaid from current runtime: furniture=" +
-            std::to_string(runtime_furniture_state->placements.size()));
+            std::to_string(runtime_furniture_state->placements.size()) +
+            ", scene pieces=" +
+            std::to_string(runtime_furniture_state->scene_piece_count) +
+            ", warehouse pieces=" +
+            std::to_string(runtime_furniture_state->warehouse_pieces.size()));
     if (runtime_state) {
         std::unordered_set<snapshot::RoomId> seen;
         for (const auto& room : source.house.rooms) {

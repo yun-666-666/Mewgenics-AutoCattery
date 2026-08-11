@@ -23,6 +23,13 @@ struct FurnitureAnalysisSourceSnapshot {
     std::size_t available_room_count{};
     std::vector<snapshot::RoomId> runtime_detected_room_ids;
     std::vector<furniture_planning::FurnitureRoomGrid> runtime_room_grids;
+    std::size_t runtime_scene_piece_count{};
+    std::size_t runtime_placed_piece_count{};
+    struct WarehousePieceEvidence {
+        std::uint64_t stable_key{};
+        std::string item_id;
+    };
+    std::vector<WarehousePieceEvidence> runtime_warehouse_pieces;
 };
 
 class IFurnitureAnalysisSource {
@@ -40,6 +47,15 @@ struct FurnitureAnalysisRoom {
     snapshot::RoomAttributes attributes;
 };
 
+struct FurnitureAttributeUpgrade {
+    std::uint64_t placed_stable_key{};
+    std::uint64_t warehouse_stable_key{};
+    std::string placed_item_id;
+    std::string warehouse_item_id;
+    snapshot::RoomId target_room_id;
+    snapshot::RoomAttributes gain;
+};
+
 struct FurnitureAnalysisSnapshot {
     std::uint64_t scene_generation{};
     std::optional<std::int64_t> game_day;
@@ -53,6 +69,12 @@ struct FurnitureAnalysisSnapshot {
     std::size_t warehouse_furniture_count{};
     std::size_t furniture_info_coverage{};
     std::size_t furniture_effect_coverage{};
+    std::size_t runtime_scene_piece_count{};
+    std::size_t runtime_placed_piece_count{};
+    std::size_t runtime_warehouse_piece_count{};
+    std::size_t runtime_warehouse_piece_match_count{};
+    std::vector<FurnitureAttributeUpgrade> attribute_upgrades;
+    snapshot::RoomAttributes attribute_upgrade_gain;
     furniture_planning::FurnitureLayoutPlan layout_plan;
 };
 

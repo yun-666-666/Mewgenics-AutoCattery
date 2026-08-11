@@ -5,6 +5,7 @@
 #include <map>
 #include <sstream>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "auto_cattery/workflow/digests.hpp"
@@ -20,6 +21,40 @@ void Add(
     total.health += value.health;
     total.mutation += value.mutation;
     total.appeal += value.appeal;
+}
+
+snapshot::RoomAttributes Subtract(
+    const snapshot::RoomAttributes& improved,
+    const snapshot::RoomAttributes& current) {
+    return {
+        .comfort = improved.comfort - current.comfort,
+        .stimulation = improved.stimulation - current.stimulation,
+        .health = improved.health - current.health,
+        .mutation = improved.mutation - current.mutation,
+        .appeal = improved.appeal - current.appeal};
+}
+
+bool Dominates(
+    const snapshot::RoomAttributes& improved,
+    const snapshot::RoomAttributes& current) {
+    const bool no_worse =
+        improved.comfort >= current.comfort &&
+        improved.stimulation >= current.stimulation &&
+        improved.health >= current.health &&
+        improved.mutation >= current.mutation &&
+        improved.appeal >= current.appeal;
+    const bool strictly_better =
+        improved.comfort > current.comfort ||
+        improved.stimulation > current.stimulation ||
+        improved.health > current.health ||
+        improved.mutation > current.mutation ||
+        improved.appeal > current.appeal;
+    return no_worse && strictly_better;
+}
+
+double TotalGain(const snapshot::RoomAttributes& gain) {
+    return gain.comfort + gain.stimulation + gain.health +
+        gain.mutation + gain.appeal;
 }
 
 template<class T>
@@ -81,6 +116,19 @@ std::string BuildBindingDigest(
         for (const auto cell : room.live_cells) {
             Append(canonical, static_cast<unsigned int>(cell));
         }
+    }
+    Append(canonical, source.runtime_scene_piece_count);
+    Append(canonical, source.runtime_placed_piece_count);
+    auto warehouse_pieces = source.runtime_warehouse_pieces;
+    std::ranges::sort(
+        warehouse_pieces,
+        [](const auto& left, const auto& right) {
+            return std::tie(left.stable_key, left.item_id) <
+                std::tie(right.stable_key, right.item_id);
+        });
+    for (const auto& piece : warehouse_pieces) {
+        Append(canonical, piece.stable_key);
+        Append(canonical, piece.item_id);
     }
     for (const auto& room : source.geometry.rooms) {
         Append(canonical, room.definition_id);
@@ -178,6 +226,28 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         source.house.source_save_name);
     result.cat_count = source.house.cats.size();
     result.furniture_count = source.furniture.size();
+    result.runtime_scene_piece_count = source.runtime_scene_piece_count;
+    result.runtime_placed_piece_count = source.runtime_placed_piece_count;
+    result.runtime_warehouse_piece_count =
+        source.runtime_warehouse_pieces.size();
+    std::unordered_map<
+        std::uint64_t,
+        const snapshot::detail::FurniturePlacement*> furniture_by_key;
+    furniture_by_key.reserve(source.furniture.size());
+    for (const auto& item : source.furniture) {
+        if (item.instance_id > 0) {
+            furniture_by_key.emplace(
+                static_cast<std::uint64_t>(item.instance_id), &item);
+        }
+    }
+    for (const auto& piece : source.runtime_warehouse_pieces) {
+        const auto saved = furniture_by_key.find(piece.stable_key);
+        if (saved != furniture_by_key.end() &&
+            saved->second->room_id.empty() &&
+            saved->second->item_id == piece.item_id) {
+            ++result.runtime_warehouse_piece_match_count;
+        }
+    }
     for (const auto& item : source.furniture) {
         result.furniture_info_coverage +=
             info_ids.contains(item.item_id) ? 1U : 0U;
@@ -196,6 +266,75 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         if (effect != source.furniture_effects.end()) {
             Add(room.attributes, effect->second);
         }
+    }
+
+    struct UpgradePair {
+        const snapshot::detail::FurniturePlacement* placed{};
+        const snapshot::detail::FurniturePlacement* warehouse{};
+        snapshot::RoomAttributes gain;
+    };
+    std::vector<UpgradePair> upgrade_pairs;
+    for (const auto& warehouse : source.furniture) {
+        if (!warehouse.room_id.empty() || warehouse.instance_id <= 0) {
+            continue;
+        }
+        const auto improved =
+            source.furniture_effects.find(warehouse.item_id);
+        if (improved == source.furniture_effects.end()) {
+            continue;
+        }
+        for (const auto& placed : source.furniture) {
+            if (placed.room_id.empty() || placed.instance_id <= 0) {
+                continue;
+            }
+            const auto current =
+                source.furniture_effects.find(placed.item_id);
+            if (current == source.furniture_effects.end() ||
+                !Dominates(improved->second, current->second)) {
+                continue;
+            }
+            upgrade_pairs.push_back({
+                .placed = &placed,
+                .warehouse = &warehouse,
+                .gain = Subtract(improved->second, current->second)});
+        }
+    }
+    std::ranges::sort(
+        upgrade_pairs,
+        [](const auto& left, const auto& right) {
+            const auto left_gain = TotalGain(left.gain);
+            const auto right_gain = TotalGain(right.gain);
+            if (left_gain != right_gain) {
+                return left_gain > right_gain;
+            }
+            return std::tie(
+                       left.warehouse->instance_id,
+                       left.placed->instance_id) <
+                std::tie(
+                       right.warehouse->instance_id,
+                       right.placed->instance_id);
+        });
+    std::unordered_set<std::uint64_t> used_placed;
+    std::unordered_set<std::uint64_t> used_warehouse;
+    for (const auto& pair : upgrade_pairs) {
+        const auto placed_key =
+            static_cast<std::uint64_t>(pair.placed->instance_id);
+        const auto warehouse_key =
+            static_cast<std::uint64_t>(pair.warehouse->instance_id);
+        if (used_placed.contains(placed_key) ||
+            used_warehouse.contains(warehouse_key)) {
+            continue;
+        }
+        used_placed.insert(placed_key);
+        used_warehouse.insert(warehouse_key);
+        result.attribute_upgrades.push_back({
+            .placed_stable_key = placed_key,
+            .warehouse_stable_key = warehouse_key,
+            .placed_item_id = pair.placed->item_id,
+            .warehouse_item_id = pair.warehouse->item_id,
+            .target_room_id = pair.placed->room_id,
+            .gain = pair.gain});
+        Add(result.attribute_upgrade_gain, pair.gain);
     }
 
     result.identified_room_count = identified.size();

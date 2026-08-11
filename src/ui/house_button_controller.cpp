@@ -10,6 +10,7 @@ namespace {
 
 constexpr auto kClickDebounce = std::chrono::milliseconds(500);
 constexpr auto kFailureHold = std::chrono::milliseconds(500);
+constexpr std::size_t kLastStateSyncPoll = 128U;
 
 }  // namespace
 
@@ -86,6 +87,8 @@ void HouseButtonController::Detach() noexcept {
     furniture_action_available_ = false;
     last_click_ = {};
     ready_after_ = {};
+    state_sync_poll_ = 0U;
+    next_state_sync_poll_ = 0U;
     Logger::Instance().Write(
         LogLevel::Info,
         "HouseButton",
@@ -106,6 +109,8 @@ void HouseButtonController::AbandonScene() noexcept {
     furniture_action_available_ = false;
     last_click_ = {};
     ready_after_ = {};
+    state_sync_poll_ = 0U;
+    next_state_sync_poll_ = 0U;
 }
 
 void HouseButtonController::SetSuppressed(bool suppressed) {
@@ -154,6 +159,8 @@ void HouseButtonController::SetState(
     view_.SetState(
         suppressed_ ? OrganizeButtonState::Hidden : state,
         suppressed_ ? std::string_view{} : std::string_view{state_detail_});
+    state_sync_poll_ = 0U;
+    next_state_sync_poll_ = 1U;
 }
 
 bool HouseButtonController::IsAttached() const noexcept {
@@ -214,6 +221,20 @@ void HouseButtonController::HandleClick() {
 }
 
 void HouseButtonController::Poll() {
+    if (view_.IsAttached() && next_state_sync_poll_ != 0U) {
+        ++state_sync_poll_;
+        if (state_sync_poll_ == next_state_sync_poll_) {
+            view_.SetState(
+                suppressed_ ? OrganizeButtonState::Hidden : state_,
+                suppressed_ ? std::string_view{}
+                            : std::string_view{state_detail_});
+            if (next_state_sync_poll_ >= kLastStateSyncPoll) {
+                next_state_sync_poll_ = 0U;
+            } else {
+                next_state_sync_poll_ *= 2U;
+            }
+        }
+    }
     if (continuation_preview_pending_) {
         continuation_preview_pending_ = false;
         StartPreview(true);

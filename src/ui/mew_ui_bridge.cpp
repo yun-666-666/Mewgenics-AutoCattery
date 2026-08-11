@@ -75,9 +75,16 @@ Result<RuntimeFurnitureState> CaptureRuntimeFurnitureState(
                 "live furniture enumeration was unavailable or truncated"};
     }
     RuntimeFurnitureState state;
+    state.scene_piece_count = count;
     state.placements.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
         const auto& current = snapshots[index];
+        if (current.grid == nullptr || current.room[0] == '\0') {
+            state.warehouse_pieces.push_back({
+                .stable_key = current.stable_key,
+                .item_id = current.item});
+            continue;
+        }
         state.placements.push_back({
             .stable_key = current.stable_key,
             .item_id = current.item,
@@ -161,6 +168,17 @@ std::string SafeDisplayName(std::string_view value) {
         }
     }
     return output.empty() ? "Cat" : output;
+}
+
+std::string CompactAttributeGain(
+    const snapshot::RoomAttributes& gain) {
+    std::ostringstream output;
+    output << "C+" << gain.comfort
+           << " S+" << gain.stimulation
+           << " H+" << gain.health
+           << " M+" << gain.mutation
+           << " A+" << gain.appeal;
+    return output.str();
 }
 
 std::string TimestampForFilename() {
@@ -679,6 +697,7 @@ void MewUiBridge::OnTick() {
                     !plan.target_room_id.empty() &&
                     plan.planned_room_count == 1U &&
                     plan.moves.empty() &&
+                    completed.attribute_upgrades.empty() &&
                     plan.deferred_furniture_count == 0U &&
                     plan.evacuation_blocked_room_count == 0U &&
                     plan.installation_blocked_room_count == 0U;
@@ -690,8 +709,59 @@ void MewUiBridge::OnTick() {
                     furniture_locked_room_ids_.push_back(
                         plan.target_room_id);
                 }
-                labels = english
-                    ? std::vector<std::string>{
+                if (!completed.attribute_upgrades.empty()) {
+                    const auto gain = CompactAttributeGain(
+                        completed.attribute_upgrade_gain);
+                    labels = english
+                        ? std::vector<std::string>{
+                              "Rooms: " +
+                                  std::to_string(completed.rooms.size()) +
+                                  ", furniture: " +
+                                  std::to_string(completed.furniture_count),
+                              "Layout: " +
+                                  std::to_string(plan.moves.size()) +
+                                  " moves, " +
+                                  std::to_string(plan.kept_furniture_count) +
+                                  " already packed",
+                              "Attribute upgrades: " +
+                                  std::to_string(
+                                      completed.attribute_upgrades.size()) +
+                                  " (" + gain + ")",
+                              "Warehouse scene pieces: " +
+                                  std::to_string(
+                                      completed.runtime_warehouse_piece_match_count) +
+                                  "/" +
+                                  std::to_string(
+                                      completed.warehouse_furniture_count),
+                              executable
+                                  ? "Auto Place: layout moves ready; upgrades remain preview-only"
+                                  : "Better combination found; warehouse replacement is preview-only"}
+                        : std::vector<std::string>{
+                              "房间：" +
+                                  std::to_string(completed.rooms.size()) +
+                                  "，家具：" +
+                                  std::to_string(completed.furniture_count),
+                              "布局：需移动 " +
+                                  std::to_string(plan.moves.size()) +
+                                  " 件，已在紧凑位置 " +
+                                  std::to_string(plan.kept_furniture_count) +
+                                  " 件",
+                              "属性升级候选：" +
+                                  std::to_string(
+                                      completed.attribute_upgrades.size()) +
+                                  " 件（" + gain + "）",
+                              "仓库场景对象：" +
+                                  std::to_string(
+                                      completed.runtime_warehouse_piece_match_count) +
+                                  "/" +
+                                  std::to_string(
+                                      completed.warehouse_furniture_count),
+                              executable
+                                  ? "自动放置：仅布局移动可执行；属性替换仍为预览"
+                                  : "已发现更优属性组合；仓库替换当前仅预览"};
+                } else {
+                    labels = english
+                        ? std::vector<std::string>{
                           "Rooms: " + std::to_string(completed.rooms.size()) +
                               ", furniture: " +
                               std::to_string(completed.furniture_count),
@@ -712,7 +782,7 @@ void MewUiBridge::OnTick() {
                               : (already_complete
                                   ? "Room complete; run analysis for the next room"
                                   : "Auto Place: no safe move needed")}
-                    : std::vector<std::string>{
+                        : std::vector<std::string>{
                           "房间：" + std::to_string(completed.rooms.size()) +
                               "，家具：" +
                               std::to_string(completed.furniture_count),
@@ -734,6 +804,7 @@ void MewUiBridge::OnTick() {
                               : (already_complete
                                   ? "本房间已完成，请再次分析下一个房间"
                                   : "自动放置：无需安全移动")};
+                }
                 Logger::Instance().Write(
                     LogLevel::Info,
                     "FurnitureAnalysis",
@@ -761,7 +832,48 @@ void MewUiBridge::OnTick() {
                         std::to_string(plan.unsupported_furniture_count) +
                         ", no_space=" +
                         std::to_string(plan.no_space_furniture_count) +
+                        ", attribute_upgrades=" +
+                        std::to_string(completed.attribute_upgrades.size()) +
                         ", binding=" + completed.binding_digest + ".");
+                Logger::Instance().Write(
+                    LogLevel::Info,
+                    "FurnitureAnalysis",
+                    "AC3911",
+                    "Warehouse scene probe: saved=" +
+                        std::to_string(completed.warehouse_furniture_count) +
+                        ", scene_pieces=" +
+                        std::to_string(completed.runtime_scene_piece_count) +
+                        ", placed_pieces=" +
+                        std::to_string(completed.runtime_placed_piece_count) +
+                        ", grid_null_pieces=" +
+                        std::to_string(completed.runtime_warehouse_piece_count) +
+                        ", matched=" +
+                        std::to_string(
+                            completed.runtime_warehouse_piece_match_count) +
+                        ".");
+                for (std::size_t index = 0;
+                     index < std::min<std::size_t>(
+                         completed.attribute_upgrades.size(), 8U);
+                     ++index) {
+                    const auto& upgrade = completed.attribute_upgrades[index];
+                    Logger::Instance().Write(
+                        LogLevel::Info,
+                        "FurnitureAnalysis",
+                        "AC3910",
+                        "Attribute upgrade " + std::to_string(index + 1U) +
+                            ": room=" +
+                            SafeTechnicalName(upgrade.target_room_id) +
+                            " placed=" +
+                            SafeTechnicalName(upgrade.placed_item_id) +
+                            " key=" +
+                            std::to_string(upgrade.placed_stable_key) +
+                            " -> warehouse=" +
+                            SafeTechnicalName(upgrade.warehouse_item_id) +
+                            " key=" +
+                            std::to_string(upgrade.warehouse_stable_key) +
+                            " gain=" +
+                            CompactAttributeGain(upgrade.gain) + ".");
+                }
                 furniture_analysis_preview_ = std::move(completed);
                 if (house_button_controller_) {
                     house_button_controller_->SetFurnitureActionAvailable(
@@ -1104,6 +1216,10 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
     }
     const auto runtime_furniture_count =
         runtime_furniture.value.placements.size();
+    const auto runtime_scene_piece_count =
+        runtime_furniture.value.scene_piece_count;
+    const auto runtime_warehouse_piece_count =
+        runtime_furniture.value.warehouse_pieces.size();
     if (!runtime_move_available_) {
         std::array<void*, 16> native_rooms{};
         const auto native_room_count =
@@ -1148,7 +1264,11 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
             ", available rooms=" +
             std::to_string(available_room_count) +
             ", furniture=" +
-            std::to_string(runtime_furniture_count));
+            std::to_string(runtime_furniture_count) +
+            ", scene pieces=" +
+            std::to_string(runtime_scene_piece_count) +
+            ", warehouse pieces=" +
+            std::to_string(runtime_warehouse_piece_count));
 }
 
 void MewUiBridge::ClearFurnitureLayoutPreview() {
