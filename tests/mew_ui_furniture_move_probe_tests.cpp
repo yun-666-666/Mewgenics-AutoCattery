@@ -111,6 +111,20 @@ void RunMewUiFurnitureMoveProbeTests() {
     auto report = std::make_unique<ui::FurnitureMoveProbeReport>();
     report->scene_generation = 17;
     report->furniture_ui = *difference;
+    report->scene_furniture = {
+        .before_count = 10,
+        .after_count = 11,
+        .before_complete = true,
+        .after_complete = true,
+        .appeared = {{
+            .stable_key = 77,
+            .item = "warehouse-chair",
+            .room = "Floor1_Small",
+            .saved_x = 3,
+            .saved_y = -4,
+            .grid_present = true
+        }}
+    };
     AcMewCompareFurnitureMoveSamples(
         before.get(),
         before.get(),
@@ -127,9 +141,12 @@ void RunMewUiFurnitureMoveProbeTests() {
     std::ifstream input(written.value, std::ios::binary);
     const std::string text{
         std::istreambuf_iterator<char>(input), {}};
-    AC_CHECK(text.find("furniture_manual_move_object_graph_delta") !=
+    AC_CHECK(text.find("warehouse_furniture_manual_take_place_delta") !=
              std::string::npos);
     AC_CHECK(text.find("FurnitureBuildingUI") != std::string::npos);
+    AC_CHECK(text.find("HouseInventory") != std::string::npos);
+    AC_CHECK(text.find("warehouse-chair") != std::string::npos);
+    AC_CHECK(text.find("\"stable_key\": 77") != std::string::npos);
     AC_CHECK(text.find("\"offset\": 88") != std::string::npos);
     input.close();
     std::filesystem::remove_all(directory);

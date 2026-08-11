@@ -16,7 +16,10 @@ extern "C" {
 
 typedef enum AcMewFurnitureProbeRootKind {
     AC_MEW_FURNITURE_PROBE_UI = 1,
-    AC_MEW_FURNITURE_PROBE_HOUSE_SCENE = 2
+    AC_MEW_FURNITURE_PROBE_HOUSE_SCENE = 2,
+    AC_MEW_FURNITURE_PROBE_HOUSE_INVENTORY = 3,
+    AC_MEW_FURNITURE_PROBE_EDITOR = 4,
+    AC_MEW_FURNITURE_PROBE_CLICK_HANDLER = 5
 } AcMewFurnitureProbeRootKind;
 
 typedef enum AcMewFurnitureProbeNodeStatus {

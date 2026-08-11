@@ -992,13 +992,13 @@ void MewUiBridge::OnTick() {
                     labels = english
                         ? std::vector<std::string>{
                               "Furniture probe: before captured",
-                              "Move and place one furniture item",
-                              "Press F7 again after placement",
+                              "Take one item from the warehouse drawer",
+                              "Place it in a room, then press F7 again",
                               "The MOD will not move it automatically"}
                         : std::vector<std::string>{
                               "家具探针：已记录移动前",
-                              "请手动移动并放下一件家具",
-                              "放好后再次按 F7",
+                              "请从仓库抽屉取出一件家具",
+                              "把它放进任一房间后再次按 F7",
                               "MOD 不会自动移动家具"};
                 } else if (event.kind ==
                     FurnitureMoveProbeEventKind::ReportWritten) {

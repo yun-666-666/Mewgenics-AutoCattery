@@ -30,8 +30,18 @@ std::string Hex(std::uint64_t value) {
 }
 
 const char* RootName(std::uint8_t root_kind) {
-    return root_kind == AC_MEW_FURNITURE_PROBE_UI
-        ? "FurnitureBuildingUI" : "HouseSceneManager";
+    switch (root_kind) {
+    case AC_MEW_FURNITURE_PROBE_UI:
+        return "FurnitureBuildingUI";
+    case AC_MEW_FURNITURE_PROBE_HOUSE_INVENTORY:
+        return "HouseInventory";
+    case AC_MEW_FURNITURE_PROBE_EDITOR:
+        return "FurnitureEditor";
+    case AC_MEW_FURNITURE_PROBE_CLICK_HANDLER:
+        return "FurnitureClickHandler";
+    default:
+        return "HouseSceneManager";
+    }
 }
 
 const char* StatusName(std::uint8_t status) {
@@ -117,7 +127,9 @@ nlohmann::json NodeDifference(
     };
 }
 
-nlohmann::json Difference(const AcMewFurnitureMoveDiff& difference) {
+nlohmann::json Difference(
+    const AcMewFurnitureMoveDiff& difference,
+    const char* root_name = nullptr) {
     auto nodes = nlohmann::json::array();
     for (std::uint32_t index = 0;
          index < difference.changed_node_count;
@@ -125,11 +137,42 @@ nlohmann::json Difference(const AcMewFurnitureMoveDiff& difference) {
         nodes.push_back(NodeDifference(difference.changed_nodes[index]));
     }
     return {
-        {"root", RootName(difference.root_kind)},
+        {"root", root_name ? root_name : RootName(difference.root_kind)},
         {"before_node_count", difference.before_node_count},
         {"after_node_count", difference.after_node_count},
         {"changed_node_count", difference.changed_node_count},
         {"changed_nodes", std::move(nodes)}
+    };
+}
+
+nlohmann::json Piece(const FurnitureProbePiece& piece) {
+    return {
+        {"stable_key", piece.stable_key},
+        {"item", piece.item},
+        {"room", piece.room},
+        {"saved_x", piece.saved_x},
+        {"saved_y", piece.saved_y},
+        {"grid_present", piece.grid_present}
+    };
+}
+
+nlohmann::json Pieces(const std::vector<FurnitureProbePiece>& pieces) {
+    auto result = nlohmann::json::array();
+    for (const auto& piece : pieces) {
+        result.push_back(Piece(piece));
+    }
+    return result;
+}
+
+nlohmann::json SceneFurniture(const FurnitureProbeSceneDelta& delta) {
+    return {
+        {"before_count", delta.before_count},
+        {"after_count", delta.after_count},
+        {"before_complete", delta.before_complete},
+        {"after_complete", delta.after_complete},
+        {"appeared", Pieces(delta.appeared)},
+        {"disappeared", Pieces(delta.disappeared)},
+        {"changed", Pieces(delta.changed)}
     };
 }
 
@@ -146,16 +189,22 @@ Result<std::filesystem::path> WriteFurnitureMoveProbeReport(
     }
 
     nlohmann::json root{
-        {"schema_version", 1},
-        {"probe", "furniture_manual_move_object_graph_delta"},
+        {"schema_version", 2},
+        {"probe", "warehouse_furniture_manual_take_place_delta"},
         {"scene_generation", report.scene_generation},
         {"capture",
-            "Press F7 before a manual move and F7 again after placement."},
+            "Press F7, manually take one warehouse furniture item from the drawer and place it in a room, then press F7 again."},
         {"contents",
-            "Bounded object graph deltas, offsets, vtable RVAs and numeric candidates; no raw memory bytes."},
+            "Bounded object graph deltas plus scene furniture stable-key changes; no raw memory bytes."},
+        {"scene_furniture", SceneFurniture(report.scene_furniture)},
         {"roots", nlohmann::json::array({
-            Difference(report.furniture_ui),
-            Difference(report.house_scene)})}
+            Difference(report.furniture_ui, "FurnitureBuildingUI"),
+            Difference(report.house_inventory, "HouseInventory"),
+            Difference(report.furniture_editor, "FurnitureEditor"),
+            Difference(
+                report.furniture_click_handler,
+                "FurnitureClickHandler"),
+            Difference(report.house_scene, "HouseSceneManager")})}
     };
 
     const auto filename =

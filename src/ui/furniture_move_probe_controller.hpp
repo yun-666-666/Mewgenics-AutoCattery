@@ -4,8 +4,10 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "auto_cattery/ui/scene_context.hpp"
+#include "mew_ui_furniture_move_adapter.h"
 #include "mew_ui_furniture_move_probe.h"
 
 namespace autocattery::ui {
@@ -50,9 +52,18 @@ private:
     std::uint64_t scene_generation_{};
     void* house_scene_manager_{};
     void* furniture_ui_{};
+    void* house_inventory_{};
+    void* furniture_editor_{};
+    void* furniture_click_handler_{};
     std::filesystem::path diagnostics_root_;
     std::unique_ptr<AcMewFurnitureMoveSample> before_furniture_ui_;
+    std::unique_ptr<AcMewFurnitureMoveSample> before_house_inventory_;
+    std::unique_ptr<AcMewFurnitureMoveSample> before_furniture_editor_;
+    std::unique_ptr<AcMewFurnitureMoveSample>
+        before_furniture_click_handler_;
     std::unique_ptr<AcMewFurnitureMoveSample> before_house_scene_;
+    std::vector<AcMewFurniturePieceSnapshot> before_furniture_pieces_;
+    bool before_furniture_pieces_complete_{};
 };
 
 }  // namespace autocattery::ui

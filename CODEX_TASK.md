@@ -1,44 +1,64 @@
-# CODEX CURRENT TASK - STAGE 43 FIVE-ROOM CORRECTION, BUTTON LABEL SYNC, AND FURNITURE ATTRIBUTE UPGRADES
+# CODEX CURRENT TASK - STAGE 44 WAREHOUSE TAKE/PLACE EVIDENCE PROBE
 
 ## Current objective
 
-修复 v0.5.29 实机暴露的三个玩家可见问题：主存档仍只有 4 个实际房间；House
-按钮在进入游戏或从家具界面返回时会先显示原版 `Clean Up!`，直到鼠标悬停才恢复
-AutoCattery 中文文案；旧家具布局只要几何合法就会显示“无需移动”，完全没有比较
-仓库中后来获得的更优家具属性。
+在 Stage 43 已能显示家具五属性升级候选后，继续定位当前 build 从仓库抽屉取出家具并
+放入房间的真实原生路径。先把公开的 107% 完成存档替换到原 8 猫测试槽，保留单份
+可恢复备份；再把 F7 改为专用只读探针，记录玩家手动完成一次“仓库 -> 房间”操作
+前后的家具实例和相关原生对象变化，为下一阶段实现可预览、可取消、可回滚的仓库
+属性升级替换提供当前 build 证据。
 
-## Accepted runtime evidence
+## Accepted runtime and local evidence
 
-- 主存档家具界面截图明确显示阁楼下左上区域仍为封板，实际只有阁楼、右上、左下、
-  右下 4 个房间；`properties.house_storage_upgrades=4` 与该画面一致。
-- House 初次出现以及从家具界面返回时，AutoCattery 按钮会显示 `Clean Up!`；鼠标
-  悬停后才显示 `自动整理猫舍`，证明按钮状态标签没有覆盖完整的初始/返回更新窗口。
-- 主存档有 257 件家具，其中 142 件已摆放、115 件在仓库；当前原生 House scene
-  只枚举到 142 个 FurniturePiece，未发现仓库家具对应的 grid-null scene piece。
-- 当前家具属性目录已完整覆盖 257/257 件家具，包含 Comfort、Stimulation、Health、
-  Mutation、Appeal；旧布局合法不能再等同于属性组合已最优。
+- 玩家已确认 Stage 43 能成功显示 45 个属性升级候选；第五房间仍未解锁，玩家明确
+  要求不再把该问题作为当前验收项。
+- 主存档运行时只枚举到 142 个已摆 `FurniturePiece`；115 件仓库家具没有对应的
+  grid-null scene piece，因此不能把现有 placed-piece move API 直接套到仓库实例。
+- 当前可执行文件包含 `HouseInventory`、`FurnitureEditor`、
+  `FurnitureClickHandler`、`FurniturePiece_PickedUpFromDrawer` 和
+  `FurniturePiece_PlacedInRoom` 等当前 build 类型/事件名，但没有可靠函数签名或调用
+  约定证据，不能仅凭字符串直接调用。
+- 第三槽原测试档当前只读快照为 7 猫、2 房、day 17；它是此前 8 猫测试槽的后续
+  状态。公开 107% 存档已通过 Defender、SQLite 完整性、项目 save-format 和 snapshot
+  探针检查后替换该槽；主存档和第二槽未修改。
 
-## Stage 43 completion boundary
+## Stage 44 completion boundary
 
-- 复用现有修改前主存档备份，不创建第二份；把主存档
-  `house_storage_upgrades` 从 4 修正为 5，只允许该次事务改变这一字段，并完成 SQLite
-  完整性校验。最终 5 房画面由玩家亲自进入游戏确认，Codex 不自主启动或操作游戏。
-- House 按钮在 attach、家具模式切换和返回正常 House 模式后的初始可见帧持续重同步
-  当前状态标签，不能再依赖 hover 才从 `Clean Up!` 变成 AutoCattery 文案。
-- 家具分析必须比较已摆家具与仓库家具的五项属性。至少识别“仓库家具五项属性均
-  不低于某件已摆家具、且至少一项更高”的无损升级候选，唯一匹配家具实例，汇总
-  各属性净增，并在 UI/日志中明确显示“检测到更优属性组合”，不能继续显示“无需
-  移动”。
-- 只读记录存档仓库数量、当前 scene FurniturePiece 总数、已摆 piece、grid-null
-  仓库 piece 及与存档仓库 key 的匹配数。仓库 piece/原生取放路径未证明前，不执行
-  仓库替换，不把属性候选混入可执行原生 move 批次。
-- 版本升级为 v0.5.30；新增按钮重同步、唯一属性升级匹配和仓库 scene probe 回归。
-  Debug/Release 构建与单元测试通过后 DLL-only 部署；不 push。
+- 第三槽替换前只创建一份备份，备份 hash 与原档一致；替换后目标 hash 与下载并
+  解压的源存档一致，`PRAGMA integrity_check=ok`，不存在 WAL/SHM。
+- F7 第一次采集必须记录当前 scene `FurniturePiece` 集合及
+  `FurnitureBuildingUI`、`HouseInventory`、`FurnitureEditor`、
+  `FurnitureClickHandler`、House scene manager 的有界对象图。
+- 玩家手动从仓库抽屉取出一件家具、放进任一房间后第二次按 F7；报告必须列出前后
+  scene piece 数量、完整性、出现/消失/位置变化的 stable key、item、room、坐标及
+  grid 状态，同时保存上述五个根对象的差异。
+- 报告不保存原始内存字节，不读取账号凭据，不调用任何未知仓库函数，不自动取出、
+  放置或替换家具。
+- 版本升级为 v0.5.31；Debug/Release 构建和现有 CTest 通过后 DLL-only 部署并验证
+  安装；不 push。最终原生路径仍由玩家完成一次 F7 手动取放采样后继续验证。
+
+## Player validation result
+
+- 玩家生成了两份 schema 2 报告：`furniture-move-probe-20260811-183525.json` 和
+  `furniture-move-probe-20260811-183547.json`；日志确认每份报告均来自一次完整的
+  F7 前态采集、手动仓库取放和 F7 后态采集。
+- 第一次操作的 scene `FurniturePiece` 完整枚举从 111 增至 112，唯一新增项为
+  `set_junk_suspendedshelf`，stable key 474，房间 `Floor2_Large`，保存坐标
+  `(-8,-6)`，grid 存在。
+- 第二次操作的完整枚举从 112 增至 113，唯一新增项为 `small_bobble_spots`，
+  stable key 467，房间 `Floor2_Large`，保存坐标 `(-5,-11)`，grid 存在。
+- 两次采样都没有已摆 scene piece 消失或改变位置。`FurnitureBuildingUI`、
+  `FurnitureClickHandler` 和 House scene manager 均记录到有界对象图差异；当前 build
+  未找到独立的 `HouseInventory` 和 `FurnitureEditor` 组件，因此对应根以 0 节点明确
+  记录，而不是伪造对象或签名。
+- 当前证据证明手动从仓库取出时会创建带原存档 stable key 的新 scene piece，但仍未
+  证明可安全调用的仓库取出函数签名或调用约定。Stage 44 只读证据探针验收完成；自动
+  仓库取放和属性替换留给后续独立阶段。
 
 ## Safety boundary
 
 - 不自动启动、进入或控制游戏；需要实机验证时只给玩家清晰测试步骤。
 - 不自动移动猫、休息、结束一天、出征、组队或淘汰。
-- 仓库原生取放路径未由当前 build 的真实证据证明前，不调用 remove/validate/commit
-  处理仓库家具，也不把分析候选声明为已自动替换。
-- 不修改除主存档 `house_storage_upgrades` 之外的存档数据；现有备份必须保留在原位。
+- 仓库原生取放路径未由当前 build 的真实采样证明前，不调用未知函数，不把属性候选
+  加入可执行 move 批次，也不声明已经自动替换仓库家具。
+- 不修改主存档和第二槽；第三槽旧测试档备份必须保留在原位。
