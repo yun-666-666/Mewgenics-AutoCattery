@@ -226,7 +226,9 @@ RuntimeMatchedSaveSnapshotAdapter::Capture(
         source.runtime_room_grids.push_back({
             .room_id = grid.room_id,
             .width = grid.width,
-            .height = grid.height});
+            .height = grid.height,
+            .base_cells = grid.base_cells,
+            .live_cells = grid.live_cells});
     }
     const auto furniture_overlaid = OverlayRuntimeFurnitureState(
         source.furniture, *runtime_furniture_state);

@@ -19,8 +19,12 @@ enum {
     AC_FURNITURE_TRANSFORM_OFFSET = 0x38,
     AC_FURNITURE_GRID_OFFSET = 0x48,
     AC_GRID_ROOM_OFFSET = 0x40,
+    AC_GRID_LIVE_DATA_OFFSET = 0xE8,
     AC_GRID_WIDTH_OFFSET = 0xF0,
     AC_GRID_HEIGHT_OFFSET = 0xF4,
+    AC_GRID_BASE_DATA_OFFSET = 0x108,
+    AC_GRID_BASE_WIDTH_OFFSET = 0x110,
+    AC_GRID_BASE_HEIGHT_OFFSET = 0x114,
     AC_FURNITURE_ENTRY_OFFSET = 0x2D8,
     AC_ENTRY_ITEM_OFFSET = 0x08,
     AC_ENTRY_ROOM_OFFSET = 0x30,
@@ -403,7 +407,7 @@ static int AcMewReadFurnitureGridSnapshot(
     memset(snapshot, 0, sizeof(*snapshot));
     executable = GetModuleHandleW(NULL);
     if (!AcValidVtable(grid, executable, AC_FURNITURE_GRID_VTABLE_RVA) ||
-        !AcReadableRange(grid, AC_GRID_HEIGHT_OFFSET + sizeof(uint32_t))) {
+        !AcReadableRange(grid, AC_GRID_BASE_HEIGHT_OFFSET + sizeof(uint32_t))) {
         return 0;
     }
     __try {
@@ -439,6 +443,69 @@ static int AcMewReadFurnitureGridSnapshot(
             snapshot->room,
             sizeof(snapshot->room))) {
         memset(snapshot, 0, sizeof(*snapshot));
+        return 0;
+    }
+    return 1;
+}
+
+int AcMewCopyFurnitureGridCells(
+    const AcMewFurnitureGridSnapshot* snapshot,
+    uint8_t* base_output,
+    uint8_t* live_output,
+    size_t output_capacity) {
+    HMODULE executable;
+    uint8_t* base_data;
+    uint8_t* live_data;
+    uint32_t live_width;
+    uint32_t live_height;
+    uint32_t base_width;
+    uint32_t base_height;
+    size_t cell_count;
+    if (!snapshot || !snapshot->grid || !base_output || !live_output ||
+        snapshot->width == 0U || snapshot->height == 0U) {
+        return 0;
+    }
+    executable = GetModuleHandleW(NULL);
+    if (!AcValidVtable(
+            snapshot->grid, executable, AC_FURNITURE_GRID_VTABLE_RVA) ||
+        !AcReadableRange(
+            snapshot->grid,
+            AC_GRID_BASE_HEIGHT_OFFSET + sizeof(uint32_t))) {
+        return 0;
+    }
+    __try {
+        live_data = *(uint8_t**)((uint8_t*)snapshot->grid +
+            AC_GRID_LIVE_DATA_OFFSET);
+        live_width = *(uint32_t*)((uint8_t*)snapshot->grid +
+            AC_GRID_WIDTH_OFFSET);
+        live_height = *(uint32_t*)((uint8_t*)snapshot->grid +
+            AC_GRID_HEIGHT_OFFSET);
+        base_data = *(uint8_t**)((uint8_t*)snapshot->grid +
+            AC_GRID_BASE_DATA_OFFSET);
+        base_width = *(uint32_t*)((uint8_t*)snapshot->grid +
+            AC_GRID_BASE_WIDTH_OFFSET);
+        base_height = *(uint32_t*)((uint8_t*)snapshot->grid +
+            AC_GRID_BASE_HEIGHT_OFFSET);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+    if (live_width != snapshot->width || live_height != snapshot->height ||
+        base_width != snapshot->width || base_height != snapshot->height ||
+        snapshot->width > 256U || snapshot->height > 256U) {
+        return 0;
+    }
+    cell_count = (size_t)snapshot->width * (size_t)snapshot->height;
+    if (cell_count == 0U || cell_count > output_capacity ||
+        !AcReadableRange(base_data, cell_count) ||
+        !AcReadableRange(live_data, cell_count)) {
+        return 0;
+    }
+    __try {
+        memcpy(base_output, base_data, cell_count);
+        memcpy(live_output, live_data, cell_count);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
         return 0;
     }
     return 1;

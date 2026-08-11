@@ -25,6 +25,8 @@ struct FurnitureRoomGrid {
     snapshot::RoomId room_id;
     std::size_t width{};
     std::size_t height{};
+    std::vector<std::uint8_t> base_cells;
+    std::vector<std::uint8_t> live_cells;
 };
 
 struct FurnitureLayoutPlan {

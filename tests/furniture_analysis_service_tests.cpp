@@ -73,8 +73,26 @@ void RunFurnitureAnalysisServiceTests() {
         AC_CHECK(first.value.furniture_effect_coverage == room_count + 1U);
         const auto second = service.Analyze(77);
         AC_CHECK(static_cast<bool>(second));
+        AC_CHECK(source.capture_calls == 2);
         AC_CHECK(first.value.binding_digest == second.value.binding_digest);
     }
+
+    FakeFurnitureAnalysisSource refreshed_layout;
+    refreshed_layout.value.house.source_save_name = "current-layout.sav";
+    refreshed_layout.value.available_room_count = 1;
+    refreshed_layout.value.house.rooms = {{.id = "Attic"}};
+    refreshed_layout.value.runtime_room_grids.push_back({
+        "Attic", 2, 1, {2U, 0U}, {2U, 1U}});
+    furniture_analysis::FurnitureAnalysisService refreshed_service(
+        refreshed_layout);
+    const auto before_manual_move = refreshed_service.Analyze(92);
+    AC_CHECK(static_cast<bool>(before_manual_move));
+    refreshed_layout.value.runtime_room_grids.front().live_cells[1] = 2U;
+    const auto after_manual_move = refreshed_service.Analyze(92);
+    AC_CHECK(static_cast<bool>(after_manual_move));
+    AC_CHECK(refreshed_layout.capture_calls == 2);
+    AC_CHECK(before_manual_move.value.binding_digest !=
+        after_manual_move.value.binding_digest);
 
     FakeFurnitureAnalysisSource anonymous;
     anonymous.value.house.source_save_name = "anonymous.sav";

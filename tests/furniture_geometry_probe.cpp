@@ -13,9 +13,242 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+namespace {
+
+using autocattery::snapshot::detail::FurnitureInfoRecord;
+using autocattery::snapshot::detail::FurniturePlacement;
+using autocattery::snapshot::detail::FurniturePlacementTile;
+using autocattery::snapshot::detail::HouseGeometryCatalog;
+using autocattery::snapshot::detail::RoomCollisionGrid;
+
+struct SupportAudit {
+    std::size_t total{};
+    std::size_t room_solid{};
+    std::size_t furniture_solid{};
+    std::size_t surface_only{};
+    std::size_t unsupported{};
+    std::size_t outside{};
+};
+
+std::map<std::string, RoomCollisionGrid> ResolveAuditRooms(
+    const HouseGeometryCatalog& geometry,
+    const std::vector<
+        autocattery::furniture_planning::FurnitureRoomGrid>& runtime_rooms) {
+    std::map<std::string, RoomCollisionGrid> rooms;
+    std::set<std::string> runtime_resolved;
+    for (const auto& runtime : runtime_rooms) {
+        const auto cell_count = runtime.width * runtime.height;
+        if (!runtime.base_cells.empty() || !runtime.live_cells.empty()) {
+            if (runtime.width != 0U && runtime.height != 0U &&
+                runtime.base_cells.size() == cell_count &&
+                runtime.live_cells.size() == cell_count) {
+                rooms[runtime.room_id] = {
+                    .supported = true,
+                    .width = runtime.width,
+                    .height = runtime.height,
+                    .cells = runtime.base_cells};
+                runtime_resolved.insert(runtime.room_id);
+            }
+            continue;
+        }
+        for (const auto& definition : geometry.rooms) {
+            if (definition.room_id != runtime.room_id) {
+                continue;
+            }
+            auto decoded =
+                autocattery::snapshot::detail::DecodeRoomCollisionGrid(
+                    definition);
+            if (decoded.supported && decoded.width == runtime.width &&
+                decoded.height == runtime.height) {
+                rooms[runtime.room_id] = std::move(decoded);
+                runtime_resolved.insert(runtime.room_id);
+                break;
+            }
+        }
+    }
+    for (const auto& definition : geometry.rooms) {
+        if (runtime_resolved.contains(definition.room_id)) {
+            continue;
+        }
+        auto decoded =
+            autocattery::snapshot::detail::DecodeRoomCollisionGrid(
+                definition);
+        if (!decoded.supported) {
+            continue;
+        }
+        const auto existing = rooms.find(definition.room_id);
+        if (existing == rooms.end() ||
+            decoded.width * decoded.height >
+                existing->second.width * existing->second.height) {
+            rooms[definition.room_id] = std::move(decoded);
+        }
+    }
+    return rooms;
+}
+
+SupportAudit AuditSupports(
+    const std::vector<FurniturePlacement>& placements,
+    const std::map<std::string, const FurnitureInfoRecord*>& info_by_id,
+    const std::map<std::string, RoomCollisionGrid>& rooms) {
+    using Coordinate = std::pair<std::int32_t, std::int32_t>;
+    std::map<std::string, std::map<Coordinate, std::size_t>> solids;
+    std::map<std::string, std::map<Coordinate, std::size_t>> surfaces;
+    for (const auto& placement : placements) {
+        const auto info = info_by_id.find(placement.item_id);
+        if (info == info_by_id.end()) {
+            continue;
+        }
+        for (std::size_t y = 0;
+             y < autocattery::snapshot::detail::kFurniturePlacementGridHeight;
+             ++y) {
+            for (std::size_t x = 0;
+                 x < autocattery::snapshot::detail::kFurniturePlacementGridWidth;
+                 ++x) {
+                const auto tile = info->second->placement_grid.At(x, y);
+                if (tile != FurniturePlacementTile::Solid &&
+                    tile != FurniturePlacementTile::Surface) {
+                    continue;
+                }
+                const auto mapped = placement.MapGridCellToRoom(
+                    static_cast<std::int32_t>(x),
+                    static_cast<std::int32_t>(y));
+                if (!mapped) {
+                    continue;
+                }
+                auto& cells = tile == FurniturePlacementTile::Solid
+                    ? solids[placement.room_id]
+                    : surfaces[placement.room_id];
+                ++cells[{mapped->x, mapped->y}];
+            }
+        }
+    }
+
+    SupportAudit audit;
+    for (const auto& placement : placements) {
+        const auto info = info_by_id.find(placement.item_id);
+        const auto room = rooms.find(placement.room_id);
+        if (info == info_by_id.end() || room == rooms.end()) {
+            continue;
+        }
+        for (std::size_t y = 0;
+             y < autocattery::snapshot::detail::kFurniturePlacementGridHeight;
+             ++y) {
+            for (std::size_t x = 0;
+                 x < autocattery::snapshot::detail::kFurniturePlacementGridWidth;
+                 ++x) {
+                if (info->second->placement_grid.At(x, y) !=
+                    FurniturePlacementTile::Support) {
+                    continue;
+                }
+                ++audit.total;
+                const auto mapped = placement.MapGridCellToRoom(
+                    static_cast<std::int32_t>(x),
+                    static_cast<std::int32_t>(y));
+                if (!mapped || mapped->x < 0 || mapped->y < 0 ||
+                    static_cast<std::size_t>(mapped->x) >=
+                        room->second.width ||
+                    static_cast<std::size_t>(mapped->y) >=
+                        room->second.height) {
+                    ++audit.outside;
+                    continue;
+                }
+                const Coordinate coordinate{mapped->x, mapped->y};
+                if (room->second.At(
+                        static_cast<std::size_t>(mapped->x),
+                        static_cast<std::size_t>(mapped->y)) == 2U) {
+                    ++audit.room_solid;
+                } else if (solids[placement.room_id].contains(coordinate)) {
+                    ++audit.furniture_solid;
+                } else if (surfaces[placement.room_id].contains(coordinate)) {
+                    ++audit.surface_only;
+                } else {
+                    ++audit.unsupported;
+                }
+            }
+        }
+    }
+    return audit;
+}
+
+void PrintSupportAudit(std::string_view label, const SupportAudit& audit) {
+    std::cout << label
+              << " total=" << audit.total
+              << " room_solid=" << audit.room_solid
+              << " furniture_solid=" << audit.furniture_solid
+              << " surface_only=" << audit.surface_only
+              << " unsupported=" << audit.unsupported
+              << " outside=" << audit.outside << '\n';
+}
+
+std::vector<autocattery::furniture_planning::FurnitureRoomGrid>
+RebuildRuntimeLiveGrids(
+    const std::vector<autocattery::furniture_planning::FurnitureRoomGrid>&
+        runtime_rooms,
+    const std::map<std::string, RoomCollisionGrid>& resolved_rooms,
+    const std::vector<FurniturePlacement>& placements,
+    const std::map<std::string, const FurnitureInfoRecord*>& info_by_id) {
+    auto rebuilt = runtime_rooms;
+    for (auto& runtime : rebuilt) {
+        const auto resolved = resolved_rooms.find(runtime.room_id);
+        if (resolved == resolved_rooms.end() ||
+            resolved->second.width != runtime.width ||
+            resolved->second.height != runtime.height) {
+            continue;
+        }
+        runtime.base_cells = resolved->second.cells;
+        runtime.live_cells = runtime.base_cells;
+    }
+    for (const auto& placement : placements) {
+        const auto info = info_by_id.find(placement.item_id);
+        const auto runtime = std::ranges::find_if(
+            rebuilt,
+            [&placement](const auto& candidate) {
+                return candidate.room_id == placement.room_id;
+            });
+        if (info == info_by_id.end() || runtime == rebuilt.end() ||
+            runtime->live_cells.empty()) {
+            continue;
+        }
+        for (std::size_t y = 0;
+             y < autocattery::snapshot::detail::kFurniturePlacementGridHeight;
+             ++y) {
+            for (std::size_t x = 0;
+                 x < autocattery::snapshot::detail::kFurniturePlacementGridWidth;
+                 ++x) {
+                const auto tile = info->second->placement_grid.At(x, y);
+                std::uint8_t value{};
+                if (tile == FurniturePlacementTile::Hitbox) {
+                    value = 1U;
+                } else if (tile == FurniturePlacementTile::Solid) {
+                    value = 2U;
+                } else if (tile == FurniturePlacementTile::PoopLogic) {
+                    value = 5U;
+                } else {
+                    continue;
+                }
+                const auto mapped = placement.MapGridCellToRoom(
+                    static_cast<std::int32_t>(x),
+                    static_cast<std::int32_t>(y));
+                if (!mapped || mapped->x < 0 || mapped->y < 0 ||
+                    static_cast<std::size_t>(mapped->x) >= runtime->width ||
+                    static_cast<std::size_t>(mapped->y) >= runtime->height) {
+                    continue;
+                }
+                runtime->live_cells[
+                    static_cast<std::size_t>(mapped->y) * runtime->width +
+                    static_cast<std::size_t>(mapped->x)] = value;
+            }
+        }
+    }
+    return rebuilt;
+}
+
+}  // namespace
 
 int wmain(int argument_count, wchar_t** arguments) {
     if (argument_count < 2 || argument_count > 4) {
@@ -292,6 +525,63 @@ int wmain(int argument_count, wchar_t** arguments) {
         << " installation_blocked="
         << layout.installation_blocked_room_count
         << '\n';
+    const auto audit_rooms = ResolveAuditRooms(
+        geometry, runtime_room_grids);
+    PrintSupportAudit(
+        "support_audit_current",
+        AuditSupports(placements, info_by_id, audit_rooms));
+    auto final_placements = placements;
+    for (const auto& move : layout.moves) {
+        const auto placement = std::ranges::find_if(
+            final_placements,
+            [&move](const auto& candidate) {
+                return candidate.instance_id ==
+                        static_cast<std::int64_t>(move.stable_key) &&
+                    candidate.item_id == move.item_id;
+            });
+        if (placement == final_placements.end()) {
+            continue;
+        }
+        placement->room_id = move.target_room_id;
+        placement->position_x = move.target_x;
+        placement->position_y = move.target_y;
+    }
+    PrintSupportAudit(
+        "support_audit_planned_final",
+        AuditSupports(final_placements, info_by_id, audit_rooms));
+    if (!runtime_room_grids.empty()) {
+        const autocattery::furniture_planning::FurnitureLayoutSolver solver;
+        const auto final_runtime_room_grids = RebuildRuntimeLiveGrids(
+            runtime_room_grids,
+            audit_rooms,
+            final_placements,
+            info_by_id);
+        const auto next_layout = solver.Plan(
+            final_placements,
+            geometry,
+            furniture_info,
+            final_runtime_room_grids);
+        std::cout
+            << "layout_next rooms=" << next_layout.planned_room_count
+            << " considered=" << next_layout.considered_furniture_count
+            << " moves=" << next_layout.moves.size()
+            << " kept=" << next_layout.kept_furniture_count
+            << " deferred=" << next_layout.deferred_furniture_count
+            << " target=" << next_layout.target_room_id
+            << " unsupported=" << next_layout.unsupported_furniture_count
+            << " no_space=" << next_layout.no_space_furniture_count
+            << '\n';
+        for (const auto& move : next_layout.moves) {
+            if (move.item_id == "ceiling_cage") {
+                std::cout
+                    << "layout_next_ceiling_cage room="
+                    << move.from_room_id << "->" << move.target_room_id
+                    << " from=" << move.from_x << ',' << move.from_y
+                    << " target=" << move.target_x << ',' << move.target_y
+                    << '\n';
+            }
+        }
+    }
     for (const auto& placement : placements) {
         const auto info = info_by_id.find(placement.item_id);
         if (info == info_by_id.end()) {

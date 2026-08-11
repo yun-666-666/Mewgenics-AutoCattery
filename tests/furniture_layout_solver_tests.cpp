@@ -47,6 +47,22 @@ snapshot::detail::FurnitureInfoRecord SmallInfo(std::string item) {
     return info;
 }
 
+snapshot::detail::FurnitureInfoRecord HangingInfo(std::string item) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    info.placement_grid.tiles[
+        9U * snapshot::detail::kFurniturePlacementGridWidth + 11U] =
+        FurniturePlacementTile::Solid;
+    info.placement_grid.tiles[
+        11U * snapshot::detail::kFurniturePlacementGridWidth + 11U] =
+        FurniturePlacementTile::Solid;
+    info.placement_grid.tiles[
+        14U * snapshot::detail::kFurniturePlacementGridWidth + 10U] =
+        FurniturePlacementTile::Support;
+    return info;
+}
+
 snapshot::detail::FurnitureInfoRecord PosterInfo(std::string item) {
     snapshot::detail::FurnitureInfoRecord info;
     info.item_id = std::move(item);
@@ -104,6 +120,29 @@ snapshot::detail::FurnitureInfoRecord DresserInfo(std::string item) {
         info.placement_grid.tiles[
             12U * snapshot::detail::kFurniturePlacementGridWidth + x] =
             FurniturePlacementTile::Solid;
+    }
+    return info;
+}
+
+snapshot::detail::FurnitureInfoRecord BoneSinkInfo(std::string item) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    for (std::size_t x = 10U; x <= 12U; ++x) {
+        info.placement_grid.tiles[
+            9U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Support;
+        info.placement_grid.tiles[
+            10U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Hitbox;
+        info.placement_grid.tiles[
+            11U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Solid;
+    }
+    for (const auto x : {11U, 12U}) {
+        info.placement_grid.tiles[
+            12U * snapshot::detail::kFurniturePlacementGridWidth + x] =
+            FurniturePlacementTile::Surface;
     }
     return info;
 }
@@ -222,7 +261,6 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(packed.contains(20));
     AC_CHECK(packed.contains(30));
     AC_CHECK(packed.contains(40));
-    AC_CHECK(packed.at(40) == Position(-5, -8));
 
     const std::vector<snapshot::detail::FurniturePlacement> stacked_layout{
         Placement(60, "large", "RoomA", -6, -9),
@@ -362,7 +400,120 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(overlap_final.at(190).room == "Attic");
     AC_CHECK(overlap_final.at(191).room == "Attic");
     AC_CHECK(overlap_final.at(191).position.second ==
-        overlap_final.at(190).position.second + 2);
+        overlap_final.at(190).position.second + 1);
+
+    snapshot::detail::FurnitureInfoCatalog surface_support_info;
+    surface_support_info.records.push_back(BoneSinkInfo("bone_sink"));
+    surface_support_info.records.push_back(AnchoredInfo("cinderblock", 2));
+    const std::vector<snapshot::detail::FurniturePlacement>
+        surface_support_furniture{
+            Placement(192, "bone_sink", "SourceA", -8, -9),
+            Placement(193, "cinderblock", "SourceB", -8, -9)};
+    const auto surface_support_plan = solver.Plan(
+        surface_support_furniture,
+        overlap_geometry,
+        surface_support_info,
+        overlap_grids);
+    AC_CHECK(surface_support_plan.target_room_id == "Attic");
+    AC_CHECK(surface_support_plan.deferred_furniture_count == 0);
+    const auto surface_support_final = FinalPlacementStates(
+        surface_support_furniture, surface_support_plan);
+    AC_CHECK(surface_support_final.at(192).room == "Attic");
+    AC_CHECK(surface_support_final.at(193).room == "Attic");
+    AC_CHECK(!(
+        surface_support_final.at(193).position.first ==
+            surface_support_final.at(192).position.first + 1 &&
+        surface_support_final.at(193).position.second ==
+            surface_support_final.at(192).position.second + 1));
+
+    snapshot::detail::FurnitureInfoCatalog exact_runtime_info;
+    exact_runtime_info.records.push_back(AnchoredInfo("exact_mobile", 1));
+    exact_runtime_info.records.push_back(PosterInfo("fixed_hitbox"));
+    std::vector<std::uint8_t> exact_attic_base(8U * 7U, 0U);
+    exact_attic_base[4U] = 2U;
+    exact_attic_base[5U] = 2U;
+    auto exact_attic_live = exact_attic_base;
+    exact_attic_live[1U * 8U + 4U] = 1U;
+    const std::vector<furniture_planning::FurnitureRoomGrid>
+        exact_runtime_grids{
+            {"SourceA", 8, 7},
+            {"Attic", 8, 7, exact_attic_base, exact_attic_live}};
+    const std::vector<snapshot::detail::FurniturePlacement>
+        exact_runtime_furniture{
+            Placement(194, "exact_mobile", "SourceA", -8, -9),
+            Placement(195, "fixed_hitbox", "Attic", -6, -11)};
+    const auto exact_runtime_plan = solver.Plan(
+        exact_runtime_furniture,
+        overlap_geometry,
+        exact_runtime_info,
+        exact_runtime_grids);
+    AC_CHECK(exact_runtime_plan.target_room_id == "Attic");
+    AC_CHECK(exact_runtime_plan.unsupported_furniture_count == 0);
+    const auto exact_mobile_move = std::ranges::find_if(
+        exact_runtime_plan.moves,
+        [](const auto& move) { return move.stable_key == 194U; });
+    AC_CHECK(exact_mobile_move != exact_runtime_plan.moves.end());
+    if (exact_mobile_move != exact_runtime_plan.moves.end()) {
+        AC_CHECK(exact_mobile_move->target_x == -5);
+        AC_CHECK(exact_mobile_move->target_y == -9);
+    }
+    AC_CHECK(std::ranges::any_of(
+        exact_runtime_plan.moves,
+        [](const auto& move) { return move.stable_key == 195U; }));
+
+    snapshot::detail::HouseGeometryCatalog anchor_chain_geometry;
+    for (const auto* room_id :
+         {"SourceA", "SourceB", "SourceC", "SourceHang", "Attic"}) {
+        anchor_chain_geometry.rooms.push_back({
+            .definition_id = std::string("Anchor_") + room_id,
+            .room_id = room_id,
+            .width = 4,
+            .height = 5});
+    }
+    snapshot::detail::FurnitureInfoCatalog anchor_chain_info;
+    anchor_chain_info.records.push_back(AnchoredInfo("tower", 1));
+    anchor_chain_info.records.push_back(HangingInfo("hanging"));
+    std::vector<std::uint8_t> hanging_base(6U * 7U, 0U);
+    hanging_base[6U * 6U + 2U] = 2U;
+    auto hanging_live = hanging_base;
+    hanging_live[1U * 6U + 3U] = 2U;
+    hanging_live[3U * 6U + 3U] = 2U;
+    std::vector<std::uint8_t> anchor_target_base(6U * 7U, 0U);
+    anchor_target_base[2U] = 2U;
+    const std::vector<furniture_planning::FurnitureRoomGrid>
+        anchor_chain_grids{
+            {"SourceA", 6, 7},
+            {"SourceB", 6, 7},
+            {"SourceC", 6, 7},
+            {"SourceHang", 6, 7, hanging_base, hanging_live},
+            {"Attic", 6, 7, anchor_target_base, anchor_target_base}};
+    const std::vector<snapshot::detail::FurniturePlacement>
+        anchor_chain_furniture{
+            Placement(196, "tower", "SourceA", -8, -9),
+            Placement(197, "tower", "SourceB", -8, -9),
+            Placement(198, "tower", "SourceC", -8, -9),
+            Placement(199, "hanging", "SourceHang", -8, -8)};
+    const auto anchor_chain_plan = solver.Plan(
+        anchor_chain_furniture,
+        anchor_chain_geometry,
+        anchor_chain_info,
+        anchor_chain_grids);
+    AC_CHECK(anchor_chain_plan.target_room_id == "Attic");
+    AC_CHECK(anchor_chain_plan.deferred_furniture_count == 0);
+    AC_CHECK(anchor_chain_plan.unsupported_furniture_count == 0);
+    const auto anchor_chain_final = FinalPlacementStates(
+        anchor_chain_furniture, anchor_chain_plan);
+    AC_CHECK(std::ranges::all_of(
+        anchor_chain_final,
+        [](const auto& entry) {
+            return entry.second.room == "Attic";
+        }));
+    AC_CHECK(std::ranges::any_of(
+        anchor_chain_plan.moves,
+        [](const auto& move) {
+            return move.stable_key == 199U &&
+                move.target_room_id == "Attic";
+        }));
 
     snapshot::detail::HouseGeometryCatalog batch_geometry;
     batch_geometry.rooms.push_back({

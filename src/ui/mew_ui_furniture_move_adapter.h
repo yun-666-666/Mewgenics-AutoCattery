@@ -127,6 +127,12 @@ size_t AcMewEnumerateFurnitureGrids(
     size_t output_capacity,
     uint8_t* complete);
 
+int AcMewCopyFurnitureGridCells(
+    const AcMewFurnitureGridSnapshot* snapshot,
+    uint8_t* base_output,
+    uint8_t* live_output,
+    size_t output_capacity);
+
 AcMewFurnitureGridFindResult AcMewFindFurnitureGrid(
     void* house_scene_manager,
     const char* room);

@@ -75,6 +75,12 @@ std::string BuildBindingDigest(
         Append(canonical, room.room_id);
         Append(canonical, room.width);
         Append(canonical, room.height);
+        for (const auto cell : room.base_cells) {
+            Append(canonical, static_cast<unsigned int>(cell));
+        }
+        for (const auto cell : room.live_cells) {
+            Append(canonical, static_cast<unsigned int>(cell));
+        }
     }
     for (const auto& room : source.geometry.rooms) {
         Append(canonical, room.definition_id);
