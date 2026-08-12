@@ -239,8 +239,23 @@ void RunRuntimeHouseStateTests() {
     std::vector<snapshot::detail::FurniturePlacement> incomplete{
         Furniture(10, "base", "RoomA", 3, -11),
         Furniture(30, "upper", "RoomA", 3, -12)};
-    AC_CHECK(!static_cast<bool>(
+    AC_CHECK(static_cast<bool>(
         ui::OverlayRuntimeFurnitureState(incomplete, live)));
+    AC_CHECK(incomplete[0].room_id == "RoomA");
+    AC_CHECK(incomplete[1].room_id.empty());
+
+    std::vector<snapshot::detail::FurniturePlacement> replaced{
+        Furniture(10, "old", "RoomA", 3, -11),
+        Furniture(20, "new", "", 0, 0)};
+    ui::RuntimeFurnitureState replacement_live{
+        .placements = {
+            RuntimeFurniture(20, "new", "RoomA", 1, -9)}};
+    AC_CHECK(static_cast<bool>(
+        ui::OverlayRuntimeFurnitureState(replaced, replacement_live)));
+    AC_CHECK(replaced[0].room_id.empty());
+    AC_CHECK(replaced[1].room_id == "RoomA");
+    AC_CHECK(replaced[1].position_x == 1);
+    AC_CHECK(replaced[1].position_y == -9);
 }
 
 }  // namespace autocattery::tests

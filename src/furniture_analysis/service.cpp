@@ -336,18 +336,32 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             if (current == source.furniture_effects.end()) {
                 continue;
             }
-            const bool balanced_attic = placed.room_id == "Attic";
-            if (balanced_attic
-                    ? !CoreDominates(improved->second, current->second)
-                    : !Dominates(improved->second, current->second)) {
-                continue;
-            }
             const auto gain = Subtract(
                 improved->second, current->second);
             const auto current_room = identified.find(placed.room_id);
+            const auto current_attributes = current_room == identified.end()
+                ? snapshot::RoomAttributes{}
+                : current_room->second.attributes;
             const auto improved_room = current_room == identified.end()
                 ? gain
                 : Added(current_room->second.attributes, gain);
+            const bool balanced_attic = placed.room_id == "Attic";
+            const auto current_rank = std::tuple{
+                CoreMinimum(current_attributes),
+                CoreTotal(current_attributes),
+                current_attributes.appeal};
+            const auto improved_rank = std::tuple{
+                CoreMinimum(improved_room),
+                CoreTotal(improved_room),
+                improved_room.appeal};
+            const bool direct_upgrade = balanced_attic
+                ? CoreDominates(improved->second, current->second)
+                : Dominates(improved->second, current->second);
+            if (balanced_attic
+                    ? !direct_upgrade
+                    : (!direct_upgrade && improved_rank <= current_rank)) {
+                continue;
+            }
             upgrade_pairs.push_back({
                 .placed = &placed,
                 .warehouse = &warehouse,

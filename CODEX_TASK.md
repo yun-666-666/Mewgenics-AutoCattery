@@ -107,6 +107,25 @@ day 339 验收条件以及构建部署顺序。不得退回“冻结目标房，
   Appeal/Stimulation/Evolution/Comfort +5；修复候选截断后的来源房占用快照后，
   第一批会重排阁楼并调入 key 265，规划前后保持最新快照 177/177 全数 Support
   合法，模拟第二批继续调入 key 283。
+- v0.5.43 玩家最新实机日志确认三处剩余回归：属性替换后未保存存档仍保留旧 placed
+  stable key，导致后续分析连续 `AC3205 current placed furniture coverage is incomplete`；
+  关闭再打开家具界面会清空已完成房间锁并重新选择阁楼；锁定阁楼后普通房只走整房
+  重排，真实布局全部落入 `evacuation_blocked=1`。修复必须以完整运行时枚举覆盖未保存
+  家具房间状态、让锁跨家具界面开关保留到当前 House scene 结束，并让普通房复用有界
+  单件局部压紧，且紧凑评分只计算可移动家具、静态墙面/天花板对象只参与碰撞和
+  Support 硬门。最新 day 339 保存槽 223 件、144 placed、79 warehouse、当前 Support
+  182/182；只读锁定序列必须从 Attic 推进到 Floor1_Large、Floor1_Small、
+  Floor2_Large、Floor2_Small，所有返回批次 moves>0、evacuation=0、Support 182/182。
+- v0.5.44 玩家截图与最新 v0.5.43 日志确认，普通房每执行一件局部移动就被 UI 锁定，
+  五房各做一批后直接返回 `rooms=0, moves=0`；同时普通房局部路径只压紧现有家具，
+  不持续从 78 件仓库家具填空。修复必须仅在求解器完整确认房间无安全改善时返回
+  `exhausted_room_ids`，执行一批移动不等于完成，任何 current/final state、evacuation、
+  installation 或 Support 阻断都不得锁房。普通房优先从仓库单件安全安装，仓库不可用
+  后再考虑跨房候选；低属性旧家具既接受逐项占优替换，也接受能提高房间
+  `核心最低值 -> 核心总和 -> Appeal` 排名的取舍型替换，阁楼仍要求核心逐项不降。
+  最新 day 339 只读状态为 222 件、144 placed、78 warehouse、Support 184/184；有界
+  序列必须让 Floor1_Large 连续多批后再进入 Floor1_Small 仓库填充，且所有批次无
+  current/evacuation/installation blocker。
 
 - 使用可恢复测试槽完全重启后进入家具模式，只点击一次“开始分析”；确认日志出现
   `AC14319`、`AC3201`、`AC3901` 且没有 `AC3205`，面板显示属性替换数和布局移动数。

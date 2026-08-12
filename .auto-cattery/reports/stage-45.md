@@ -204,11 +204,72 @@
   `23DD099AB0B201F9ED5CA2263FB96C496B01308604A9BFD632960C1190DAA389`。
 - 自动验收已通过，玩家实机执行、保存、退出重进持久化验证待完成。
 
-玩家完全退出游戏后重新通过 Mewtator 启动，进入同一测试存档和家具模式，点击一次
-“开始分析”。面板应显示非零阁楼移动；点击“自动放置”后应先重排阁楼现有家具，
-再把 Stimulation +5 雕像调入。批次成功最终出现 `AC3904`；若失败，`AC3907` 必须
-显示完整回滚。再次分析应继续下一批并尝试 Evolution +5 雕像，不重复第一批或返回
-`moves=0`。成功后保存、完全退出并重进，确认布局和跨房雕像持久化。
+## v0.5.43 最新实机日志修复
+
+- 2026-08-12 20:56:20–20:58:59 的 v0.5.42 最新日志已逐行核对。按钮并非没有收到
+  点击：每次均出现 `AC3203`。第一次执行 6 项属性替换后，20:57:39、20:57:42、
+  20:57:43 连续三次分析都以 `AC3205 current placed furniture coverage is incomplete`
+  失败。根因是未保存存档仍把被替换的旧 stable key 记录为 placed，而完整运行时枚举
+  已把仓库的新 stable key 放入房间；旧覆盖器错误要求所有存档 placed key 仍在 scene。
+- 运行时家具枚举完整时，v0.5.43 以枚举结果作为当前房间成员权威：先把存档家具视为
+  仓库，再逐项覆盖当前 scene 里的 room、坐标和朝向。仍严格拒绝未知 stable key、
+  item 不一致、重复 key、无效房间或无效 scale；只是允许未保存的已替换旧 key 回到
+  仓库状态。新增“旧 key 回仓库、新 key 在房间”的回归测试。
+- 最新日志同时证明成功阁楼批次后再次分析返回 `rooms=0, moves=0,
+  evacuation_blocked=1`；关闭再打开家具界面后又选择阁楼。v0.5.43 不再在家具界面
+  开关时清空完成房间锁，锁保留到当前 House scene generation 结束；切换存档或离开
+  House 后下一次分析才开始新的房间序列。
+- 普通房原先只走整房重排，真实支撑链会让所有候选落入 `evacuation_blocked`。当前
+  普通房复用有界单件局部压紧；碰撞和 Support 审计仍包含静态墙面、吊挂和不可移动
+  家具，但“是否更紧凑”的比较只计算本批可移动家具，避免静态墙画撑满房间外框后
+  永远掩盖地面家具的真实局部改善。
+- 2026-08-12 20:58:58 最新 day 339 保存槽只读状态为 223 件家具、144 placed、79
+  warehouse、五房均存在，当前 Support 182/182。最终 Debug probe 验证：未锁定时
+  `target=Attic, moves=2`；锁定 Attic 后普通房产生非零安全批次；锁定
+  `Attic;Floor1_Small;Floor2_Large` 后 `target=Floor1_Large, moves=1`；再锁定
+  Floor1_Large 后 `target=Floor2_Small, moves=1`。所有展示批次均为
+  `evacuation_blocked=0`、`installation_blocked=0`，规划前后 Support 保持 182/182。
+- v0.5.43 最终 Debug/Release 构建、CTest、部署、安装 hash 与玩家实机复测状态见本节
+  后续交付更新。
+
+## v0.5.44 普通房持续优化、仓库填充与低属性替换
+
+- 玩家 v0.5.43 实机结束画面和最新日志确认：普通房每次只执行 1 件局部移动，UI 随即
+  把本批目标房加入锁定集合；五房各执行一批后所有房间被锁，后续分析直接返回
+  `rooms=0, moves=0`。因此右侧房间即使只有 2 件家具、左侧仍有空位、仓库仍有 78 件，
+  求解器也不再评估。
+- v0.5.44 的布局计划新增显式 `exhausted_room_ids`。执行一批移动只代表取得进展，
+  不再自动锁房；只有完整评估后没有仓库填充、局部压紧、整房候选或执行阻断的房间
+  才标记为穷尽。`CurrentStateInvalid`、`FinalStateInvalid`、`EvacuationBlocked`、
+  `InstallationBlocked` 或最终 Support 审计失败的房间均不得标记完成。
+- 普通房先保留当前整屋占用，专门尝试一件 `warehouse -> target room` 安装，不撤离或
+  重装目标房现有家具；仓库仍有可用家具时，候选截断优先保留仓库件，不让其他房间
+  候选挤掉仓库填空机会。仓库件确实放不下后，才继续局部压紧和后续候选。
+- 普通房属性替换不再只接受五项逐项占优；若替换能提高房间的
+  `核心最低值 -> 核心总和 -> Appeal` 字典序排名，也允许小幅属性取舍。阁楼继续要求
+  Comfort、Stimulation、Health、Mutation 核心逐项不降低，避免破坏平衡策略。
+- 聚焦 Release 单元测试通过，覆盖：普通房连续局部移动不锁定、仓库候选超过搜索上限
+  时仍优先填空、仓库安装不触碰现有布局、运行时网格异常时不返回 exhausted、普通房
+  取舍型整体属性改善，以及阁楼拒绝核心属性下降的极端替换。
+- 2026-08-12 最新 day 339 只读 probe：222 件家具、144 placed、78 warehouse、五房
+  齐全，当前 Support `184/184`。传入当前实机网格 Attic `37x11`、四个普通房
+  `18x9` 后，有界序列为：batch 1-5 连续选择 `Floor1_Large` 做房内压紧；batch 6
+  将 key 323 `set_bone_table` 从仓库放入 `Floor1_Small`；batch 7 将 key 89
+  `object_toxicwaste` 放入；batch 8 将 key 195 `object_radio_30s` 放入。每批均为
+  `unsupported=0`、`current_blocked=0`、`evacuation_blocked=0`、
+  `installation_blocked=0`，首批规划后 Support 仍为 `184/184`。
+- 本次按玩家要求以功能完成为先，不执行 `tools\verify_install.ps1` 或安装 hash 检查。
+  最终 Release `ALL_BUILD` 于 2026-08-12 23:42:48 完成；新 DLL 于 23:38:03
+  生成。随后直接对该构建运行 Release CTest，4/4 全部通过；DLL exports 与 x64 检查
+  通过。`tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 成功部署 DLL 和 UI data mod，并保留玩家现有 20 次升级重投
+  设置。未运行安装验证或 hash 审计，玩家实机功能复测待完成。
+
+玩家完全退出游戏后重新通过 Mewtator 启动，进入同一测试存档和家具模式。重复点击
+“开始分析”与“自动放置”：同一普通房应连续获得多批压紧或仓库填充，不应执行一件
+后跳房或在仍有空位时返回 `rooms=0, moves=0`。完成一房后应自动推进下一房；关闭再
+打开家具界面后，同一 House scene 的完成房间锁仍保留。观察低属性家具是否被整体
+属性更优的仓库家具替换。成功后保存、完全退出并重进，确认布局和替换持久化。
 
 ## 风险与未做范围
 

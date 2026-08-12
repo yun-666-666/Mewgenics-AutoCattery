@@ -844,6 +844,90 @@ void RunFurnitureLayoutSolverTests() {
             return attic_final.at(move.stable_key).room == "Attic";
         }));
 
+    snapshot::detail::HouseGeometryCatalog locked_attic_geometry;
+    locked_attic_geometry.rooms = {
+        {.definition_id = "LockedAttic",
+         .room_id = "Attic", .width = 2, .height = 1},
+        {.definition_id = "OrdinaryRoom",
+         .room_id = "Floor1_Small", .width = 4, .height = 2}};
+    const std::vector<snapshot::detail::FurniturePlacement>
+        locked_attic_furniture{
+            Placement(701, "large", "Floor1_Small", -6, -9),
+            Placement(702, "small", "Floor1_Small", -6, -9)};
+    const std::vector<furniture_planning::FurnitureRoomGrid>
+        locked_attic_grids{
+            {"Attic", 2, 1},
+            {"Floor1_Small", 6, 4}};
+    const auto ordinary_room_batch = solver.Plan(
+        locked_attic_furniture,
+        locked_attic_geometry,
+        info,
+        locked_attic_grids,
+        {"Attic"});
+    AC_CHECK(ordinary_room_batch.target_room_id == "Floor1_Small");
+    AC_CHECK(ordinary_room_batch.planned_room_count == 1U);
+    AC_CHECK(!ordinary_room_batch.moves.empty());
+    AC_CHECK(ordinary_room_batch.evacuation_blocked_room_count == 0U);
+    AC_CHECK(std::ranges::all_of(
+        ordinary_room_batch.moves,
+        [](const auto& move) {
+            return move.from_room_id == "Floor1_Small" &&
+                move.target_room_id == "Floor1_Small";
+        }));
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        warehouse_room_fill{
+            Placement(801, "large", "Floor1_Small", -6, -9),
+            Placement(802, "small", "", 0, 0)};
+    const auto warehouse_room_batch = solver.Plan(
+        warehouse_room_fill,
+        locked_attic_geometry,
+        info,
+        locked_attic_grids,
+        {"Attic"});
+    AC_CHECK(warehouse_room_batch.target_room_id == "Floor1_Small");
+    AC_CHECK(warehouse_room_batch.moves.size() == 1U);
+    AC_CHECK(furniture_planning::IsWarehouseLayoutMove(
+        warehouse_room_batch.moves.front()));
+    AC_CHECK(warehouse_room_batch.exhausted_room_ids.empty());
+
+    std::vector<snapshot::detail::FurniturePlacement>
+        warehouse_priority_furniture{
+            Placement(901, "large", "Floor1_Small", -6, -9),
+            Placement(902, "small", "Floor2_Large", -6, -9)};
+    for (std::int64_t key = 903; key < 935; ++key) {
+        warehouse_priority_furniture.push_back(
+            Placement(key, "small", "", 0, 0));
+    }
+    const auto warehouse_priority_batch = solver.Plan(
+        warehouse_priority_furniture,
+        locked_attic_geometry,
+        info,
+        locked_attic_grids,
+        {"Attic"});
+    AC_CHECK(!warehouse_priority_batch.moves.empty());
+    AC_CHECK(furniture_planning::IsWarehouseLayoutMove(
+        warehouse_priority_batch.moves.front()));
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        blocked_room_furniture{
+            Placement(950, "large", "Floor1_Small", -6, -9)};
+    auto blocked_room_grids = locked_attic_grids;
+    blocked_room_grids[1].base_cells.assign(24U, 0U);
+    blocked_room_grids[1].live_cells.assign(24U, 0U);
+    blocked_room_grids[1].live_cells[0] = 3U;
+    const auto blocked_room_batch = solver.Plan(
+        blocked_room_furniture,
+        locked_attic_geometry,
+        info,
+        blocked_room_grids,
+        {"Attic"});
+    AC_CHECK(blocked_room_batch.moves.empty());
+    AC_CHECK(blocked_room_batch.exhausted_room_ids.empty());
+    AC_CHECK(blocked_room_batch.current_state_blocked_room_count != 0U ||
+        blocked_room_batch.installation_blocked_room_count != 0U ||
+        blocked_room_batch.unsupported_furniture_count != 0U);
+
     const auto repeated = solver.Plan(first_layout, geometry, info);
     AC_CHECK(repeated.moves.size() == first.moves.size());
     for (std::size_t index = 0; index < first.moves.size(); ++index) {

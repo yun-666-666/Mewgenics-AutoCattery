@@ -251,18 +251,18 @@ RebuildRuntimeLiveGrids(
 }  // namespace
 
 int wmain(int argument_count, wchar_t** arguments) {
-    if (argument_count < 2 || argument_count > 4) {
-        std::cerr << "usage: furniture_geometry_probe <game-root> [save] [room=widthxheight;...]\n";
+    if (argument_count < 2 || argument_count > 5) {
+        std::cerr << "usage: furniture_geometry_probe <game-root> [save] [room=widthxheight;...] [locked-room;...]\n";
         return 2;
     }
     const std::filesystem::path game_root(arguments[1]);
     const std::filesystem::path configured_save =
         argument_count == 3 ? std::filesystem::path(arguments[2]) :
-        argument_count == 4 ? std::filesystem::path(arguments[2]) :
+        argument_count >= 4 ? std::filesystem::path(arguments[2]) :
                               std::filesystem::path{};
     std::vector<autocattery::furniture_planning::FurnitureRoomGrid>
         runtime_room_grids;
-    if (argument_count == 4) {
+    if (argument_count >= 4) {
         const std::wstring specification(arguments[3]);
         std::size_t begin{};
         while (begin < specification.size()) {
@@ -295,6 +295,35 @@ int wmain(int argument_count, wchar_t** arguments) {
                     token.substr(equals + 1U, times - equals - 1U))),
                 static_cast<std::size_t>(std::stoull(
                     token.substr(times + 1U)))});
+            if (end == std::wstring::npos) {
+                break;
+            }
+            begin = end + 1U;
+        }
+    }
+    std::vector<autocattery::snapshot::RoomId> locked_room_ids;
+    if (argument_count == 5) {
+        const std::wstring specification(arguments[4]);
+        std::size_t begin{};
+        while (begin < specification.size()) {
+            const auto end = specification.find(L';', begin);
+            const auto token = specification.substr(
+                begin,
+                end == std::wstring::npos
+                    ? std::wstring::npos
+                    : end - begin);
+            std::string room_id;
+            room_id.reserve(token.size());
+            for (const auto character : token) {
+                if (character > 0x7f) {
+                    std::cerr << "locked room id must be ASCII\n";
+                    return 2;
+                }
+                room_id.push_back(static_cast<char>(character));
+            }
+            if (!room_id.empty()) {
+                locked_room_ids.push_back(std::move(room_id));
+            }
             if (end == std::wstring::npos) {
                 break;
             }
@@ -527,7 +556,7 @@ int wmain(int argument_count, wchar_t** arguments) {
             geometry,
             furniture_info,
             runtime_room_grids,
-            {},
+            locked_room_ids,
             effects);
     std::cout
         << "layout_rooms=" << layout.planned_room_count
@@ -584,7 +613,7 @@ int wmain(int argument_count, wchar_t** arguments) {
                 geometry,
                 furniture_info,
                 sequence_runtime_room_grids,
-                {},
+                locked_room_ids,
                 effects);
             std::cout
                 << "layout_sequence batch=" << batch

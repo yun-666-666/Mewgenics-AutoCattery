@@ -9,6 +9,7 @@
 #include <set>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 namespace autocattery::furniture_planning {
@@ -2539,16 +2540,16 @@ bool CurrentWholeHousePreservesSupport(
         rooms, furniture, info_by_item, {});
 }
 
-struct LocalAtticImprovement {
+struct LocalRoomImprovement {
     std::vector<FurnitureLayoutMove> moves;
     std::size_t kept_count{};
     std::size_t selected_count{};
     snapshot::RoomAttributes attributes;
     std::tuple<std::int64_t, std::int32_t, std::int32_t,
-               std::int32_t, std::int32_t> bounds_score;
+               std::int32_t, std::int32_t, std::int64_t> bounds_score;
 };
 
-std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
+std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
     const std::map<snapshot::RoomId, RoomCollisionGrid>& rooms,
     const std::set<snapshot::RoomId>& unsafe_rooms,
     const snapshot::RoomId& target_room_id,
@@ -2561,6 +2562,111 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
     const snapshot::RoomAttributes& current_attributes,
     const FurnitureCatalog& furniture_effects,
     std::size_t base_kept_count) {
+    (void)unsafe_rooms;
+    const auto target = rooms.find(target_room_id);
+    if (target == rooms.end() ||
+        !CurrentWholeHousePreservesSupport(
+            rooms, furniture, info_by_item)) {
+        return std::nullopt;
+    }
+
+    Occupancy occupancy;
+    occupancy.hitbox_count.assign(
+        target->second.width * target->second.height, 0U);
+    occupancy.solid_count.assign(
+        target->second.width * target->second.height, 0U);
+    occupancy.poop_count.assign(
+        target->second.width * target->second.height, 0U);
+    std::unordered_set<const FurniturePlacement*> occupied_items;
+    const auto add_current = [&](const LayoutItem& item) {
+        if (item.placement->room_id != target_room_id ||
+            !occupied_items.insert(item.placement).second) {
+            return true;
+        }
+        if (!std::ranges::all_of(
+                item.current_cells,
+                [&target](const auto& cell) {
+                    return Inside(target->second, cell.x, cell.y);
+                })) {
+            return false;
+        }
+        Place(
+            target->second,
+            item.placement->instance_id,
+            item.current_cells,
+            occupancy);
+        return true;
+    };
+    for (const auto& item : target_static_base) {
+        if (!add_current(item)) {
+            return std::nullopt;
+        }
+    }
+    for (const auto& item : target_items) {
+        if (!add_current(item)) {
+            return std::nullopt;
+        }
+    }
+    for (std::size_t index = required_count;
+         index < target_items.size();
+         ++index) {
+        const auto& incoming = target_items[index];
+        if (!incoming.placement->room_id.empty()) {
+            continue;
+        }
+        for (const auto& candidate : incoming.candidates) {
+            if (!CanPlace(target->second, occupancy, candidate)) {
+                continue;
+            }
+            const auto origin = OriginOf(incoming, candidate);
+            std::vector<FurnitureLayoutMove> moves{{
+                static_cast<std::uint64_t>(
+                    incoming.placement->instance_id),
+                incoming.placement->item_id,
+                {},
+                target_room_id,
+                0,
+                0,
+                origin.first,
+                origin.second}};
+            if (!CurrentWholeHousePreservesSupport(
+                    rooms, furniture, info_by_item) ||
+                !WholeHouseMovesPreserveSupport(
+                    rooms, furniture, info_by_item, moves)) {
+                continue;
+            }
+            auto attributes = current_attributes;
+            const auto effect = furniture_effects.find(
+                incoming.placement->item_id);
+            if (effect != furniture_effects.end()) {
+                AddAttributes(attributes, effect->second);
+            }
+            LocalRoomImprovement improvement{
+                .moves = std::move(moves),
+                .kept_count = base_kept_count,
+                .selected_count = required_count + 1U,
+                .attributes = attributes,
+                .bounds_score = {}};
+            return improvement;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<LocalRoomImprovement> FindLocalRoomImprovement(
+    const std::map<snapshot::RoomId, RoomCollisionGrid>& rooms,
+    const std::set<snapshot::RoomId>& unsafe_rooms,
+    const snapshot::RoomId& target_room_id,
+    const std::vector<FurniturePlacement>& furniture,
+    const std::unordered_map<std::string, const FurnitureInfoRecord*>&
+        info_by_item,
+    const std::vector<LayoutItem>& target_items,
+    const std::vector<LayoutItem>& target_static_base,
+    std::size_t required_count,
+    const snapshot::RoomAttributes& current_attributes,
+    const FurnitureCatalog& furniture_effects,
+    std::size_t base_kept_count,
+    bool allow_preferred_incoming) {
     const auto target = rooms.find(target_room_id);
     if (target == rooms.end() ||
         !CurrentWholeHousePreservesSupport(
@@ -2586,10 +2692,31 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
         return std::nullopt;
     }
 
-    const auto current_bounds = BoundsScore(*current);
-    std::optional<LocalAtticImprovement> best;
-    const auto better = [](const LocalAtticImprovement& left,
-                           const LocalAtticImprovement& right) {
+    const auto movable_bounds_score = [](
+        const std::vector<std::vector<MappedCell>>& cells_by_item) {
+        PackState bounds;
+        for (const auto& cells : cells_by_item) {
+            ExpandBounds(bounds, cells);
+        }
+        const auto [area, longest, perimeter, width, height] =
+            BoundsScore(bounds);
+        return std::tuple{
+            area,
+            longest,
+            perimeter,
+            width,
+            height,
+            bounds.coordinate_sum};
+    };
+    std::vector<std::vector<MappedCell>> current_required_cells;
+    current_required_cells.reserve(required_items.size());
+    for (const auto& item : required_items) {
+        current_required_cells.push_back(item.current_cells);
+    }
+    const auto current_bounds = movable_bounds_score(current_required_cells);
+    std::optional<LocalRoomImprovement> best;
+    const auto better = [](const LocalRoomImprovement& left,
+                           const LocalRoomImprovement& right) {
         const auto left_attributes = std::tuple{
             CoreMinimum(left.attributes),
             CoreTotal(left.attributes),
@@ -2635,8 +2762,7 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
 
     const auto consider = [&](std::vector<LayoutItem> items,
                               std::vector<std::vector<MappedCell>> final_cells,
-                              snapshot::RoomAttributes attributes,
-                              const PackState& final_state) {
+                              snapshot::RoomAttributes attributes) {
         std::vector<FurnitureLayoutMove> moves;
         auto kept = base_kept_count;
         std::vector<LayoutItem> static_items = target_static_base;
@@ -2674,12 +2800,13 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
                 rooms, furniture, info_by_item, moves)) {
             return;
         }
-        LocalAtticImprovement improvement{
+        const auto local_bounds = movable_bounds_score(final_cells);
+        LocalRoomImprovement improvement{
             .moves = std::move(moves),
             .kept_count = kept,
             .selected_count = items.size(),
             .attributes = attributes,
-            .bounds_score = BoundsScore(final_state)};
+            .bounds_score = local_bounds};
         if (!best || better(improvement, *best)) {
             best = std::move(improvement);
         }
@@ -2689,7 +2816,8 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
          incoming_index < target_items.size();
          ++incoming_index) {
         const auto& incoming = target_items[incoming_index];
-        if (!IsPreferredAtticIdol(incoming.placement->item_id)) {
+        if (!allow_preferred_incoming ||
+            !IsPreferredAtticIdol(incoming.placement->item_id)) {
             continue;
         }
         const auto effect = furniture_effects.find(
@@ -2747,8 +2875,7 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
             consider(
                 std::move(selected_items),
                 std::move(final_cells),
-                improved_attributes,
-                final_state);
+                improved_attributes);
         }
 
         for (std::size_t relocation_index = 0;
@@ -2843,8 +2970,7 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
                     consider(
                         std::move(selected_items),
                         std::move(final_cells),
-                        improved_attributes,
-                        final_state);
+                        improved_attributes);
                 }
             }
         }
@@ -2903,9 +3029,6 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
                         ? relocated_cells
                         : required_items[index].current_cells);
             }
-            if (BoundsScore(final_state) >= current_bounds) {
-                continue;
-            }
             std::vector<std::vector<MappedCell>> final_cells;
             final_cells.reserve(required_items.size());
             for (std::size_t index = 0;
@@ -2916,13 +3039,16 @@ std::optional<LocalAtticImprovement> FindLocalAtticImprovement(
                         ? relocated_cells
                         : required_items[index].current_cells);
             }
+            if (movable_bounds_score(final_cells) >= current_bounds) {
+                continue;
+            }
             consider(
                 required_items,
                 std::move(final_cells),
-                current_attributes,
-                final_state);
+                current_attributes);
         }
     }
+
     return best;
 }
 
@@ -2942,14 +3068,11 @@ FurnitureLayoutPlan PlanWholeHouse(
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const FurnitureCatalog& furniture_effects) {
     FurnitureLayoutPlan plan;
-    const std::set<snapshot::RoomId> locked_rooms(
+    std::set<snapshot::RoomId> locked_rooms(
         locked_room_ids.begin(), locked_room_ids.end());
     std::map<snapshot::RoomId, RoomCollisionGrid> rooms;
     for (const auto& runtime : runtime_room_grids) {
         if (runtime.room_id.empty() || runtime.room_id == "AdventureBox") {
-            continue;
-        }
-        if (locked_rooms.contains(runtime.room_id)) {
             continue;
         }
         const auto resolved = ResolveRuntimeRoom(geometry, runtime);
@@ -3120,10 +3243,17 @@ FurnitureLayoutPlan PlanWholeHouse(
             return left < right;
         });
 
+    bool current_state_blocked{};
     bool evacuation_blocked{};
     bool installation_blocked{};
     bool found_geometric_candidate{};
     for (const auto& target_room_id : target_rooms) {
+        if (locked_rooms.contains(target_room_id)) {
+            continue;
+        }
+        bool room_current_state_blocked{};
+        bool room_evacuation_blocked{};
+        bool room_installation_blocked{};
         const auto& target_room = rooms.at(target_room_id);
         const bool balanced_attic = target_room_id == "Attic" &&
             !furniture_effects.empty();
@@ -3136,7 +3266,16 @@ FurnitureLayoutPlan PlanWholeHouse(
         std::size_t target_omitted_incoming_count{};
         target_items.reserve(eligible_items.size());
         incoming_items.reserve(eligible_items.size());
+        const bool warehouse_available = std::ranges::any_of(
+            eligible_items,
+            [](const auto& item) {
+                return item.placement->room_id.empty();
+            });
         for (const auto& source_item : eligible_items) {
+            if (locked_rooms.contains(source_item.placement->room_id)) {
+                target_static_base.push_back(source_item);
+                continue;
+            }
             auto item = source_item;
             item.candidates = GenerateCandidates(target_room, item);
             if (item.candidates.empty()) {
@@ -3145,6 +3284,12 @@ FurnitureLayoutPlan PlanWholeHouse(
             } else if (item.placement->room_id == target_room_id) {
                 target_items.push_back(std::move(item));
             } else {
+                if (!balanced_attic && warehouse_available &&
+                    !item.placement->room_id.empty()) {
+                    target_static_base.push_back(std::move(item));
+                    ++target_omitted_incoming_count;
+                    continue;
+                }
                 incoming_items.push_back(std::move(item));
             }
         }
@@ -3301,12 +3446,11 @@ FurnitureLayoutPlan PlanWholeHouse(
             : static_cast<std::size_t>(
                 std::distance(required.begin(), first_incoming));
 
-        // The attic contract is current-layout-first: try the bounded local
-        // relocation plus preferred-idol path before the broad repacking
-        // candidates. The broad path remains only as a fallback when no
-        // executable local improvement exists.
-        if (balanced_attic) {
-            const auto local = FindLocalAtticImprovement(
+        // Ordinary rooms must keep consuming safe warehouse furniture while
+        // space remains.  A single local relocation is progress, not proof
+        // that the room is finished.
+        if (!balanced_attic) {
+            const auto warehouse_fill = FindLocalWarehouseFill(
                 rooms,
                 unsafe_rooms,
                 target_room_id,
@@ -3318,6 +3462,36 @@ FurnitureLayoutPlan PlanWholeHouse(
                 current_attributes,
                 furniture_effects,
                 plan.kept_furniture_count);
+            if (warehouse_fill) {
+                plan.kept_furniture_count = warehouse_fill->kept_count;
+                plan.deferred_furniture_count =
+                    target_unplaceable_movable_count +
+                    target_omitted_incoming_count +
+                    target_items.size() - warehouse_fill->selected_count;
+                plan.moves = warehouse_fill->moves;
+                plan.target_room_id = target_room_id;
+                plan.planned_room_count = 1U;
+                return plan;
+            }
+        }
+
+        // Every room is current-layout-first. A bounded one-item relocation
+        // can safely make progress in rooms whose full repack is blocked by a
+        // support chain. Broad repacking remains a fallback.
+        if (balanced_attic || target_room_id != "Attic") {
+            const auto local = FindLocalRoomImprovement(
+                rooms,
+                unsafe_rooms,
+                target_room_id,
+                furniture,
+                info_by_item,
+                target_items,
+                target_static_base,
+                required_count,
+                current_attributes,
+                furniture_effects,
+                plan.kept_furniture_count,
+                balanced_attic);
             if (local) {
                 plan.kept_furniture_count = local->kept_count;
                 plan.deferred_furniture_count =
@@ -3534,17 +3708,35 @@ FurnitureLayoutPlan PlanWholeHouse(
                         info_by_item,
                         candidate_plan.moves)) {
                     installation_blocked = true;
+                    room_installation_blocked = true;
                     plan.kept_furniture_count = base_kept;
                     continue;
                 }
                 return candidate_plan;
             }
+            current_state_blocked = current_state_blocked ||
+                execution == ExecutionPlanResult::CurrentStateInvalid ||
+                execution == ExecutionPlanResult::FinalStateInvalid;
             evacuation_blocked = evacuation_blocked ||
                 execution == ExecutionPlanResult::EvacuationBlocked;
             installation_blocked = installation_blocked ||
                 execution == ExecutionPlanResult::InstallationBlocked;
+            room_current_state_blocked = room_current_state_blocked ||
+                execution == ExecutionPlanResult::CurrentStateInvalid ||
+                execution == ExecutionPlanResult::FinalStateInvalid;
+            room_evacuation_blocked = room_evacuation_blocked ||
+                execution == ExecutionPlanResult::EvacuationBlocked;
+            room_installation_blocked = room_installation_blocked ||
+                execution == ExecutionPlanResult::InstallationBlocked;
         }
+        if (room_current_state_blocked || room_evacuation_blocked ||
+            room_installation_blocked) {
+            continue;
+        }
+        plan.exhausted_room_ids.push_back(target_room_id);
+        locked_rooms.insert(target_room_id);
     }
+    plan.current_state_blocked_room_count = current_state_blocked ? 1U : 0U;
     plan.evacuation_blocked_room_count = evacuation_blocked ? 1U : 0U;
     plan.installation_blocked_room_count = installation_blocked ? 1U : 0U;
     if (!found_geometric_candidate) {

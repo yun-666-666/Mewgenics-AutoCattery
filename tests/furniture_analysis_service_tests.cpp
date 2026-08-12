@@ -282,6 +282,42 @@ void RunFurnitureAnalysisServiceTests() {
             balanced_attic_result.value.attribute_upgrades[0]
                 .gain.health == 6);
     }
+
+    FakeFurnitureAnalysisSource ordinary_tradeoff;
+    ordinary_tradeoff.value.house.source_save_name =
+        "ordinary-tradeoff.sav";
+    ordinary_tradeoff.value.available_room_count = 1;
+    ordinary_tradeoff.value.house.rooms = {{.id = "RoomA"}};
+    ordinary_tradeoff.value.furniture = {
+        Furniture(20, "uneven-current", "RoomA"),
+        Furniture(21, "balanced-tradeoff", "")};
+    ordinary_tradeoff.value.furniture[0].position_x = 0;
+    ordinary_tradeoff.value.furniture_effects = {
+        {"uneven-current", snapshot::RoomAttributes{
+            .comfort = 10, .stimulation = 1, .health = 10,
+            .mutation = 10, .appeal = 0}},
+        {"balanced-tradeoff", snapshot::RoomAttributes{
+            .comfort = 2, .stimulation = 9, .health = 2,
+            .mutation = 2, .appeal = 0}}};
+    ordinary_tradeoff.value.furniture_info.records = {
+        SingleCellInfo("uneven-current"),
+        SingleCellInfo("balanced-tradeoff")};
+    ordinary_tradeoff.value.runtime_room_grids = {
+        {"RoomA", 1, 1, {0U}, {1U}}};
+    furniture_analysis::FurnitureAnalysisService ordinary_tradeoff_service(
+        ordinary_tradeoff);
+    const auto ordinary_tradeoff_result =
+        ordinary_tradeoff_service.Analyze(96);
+    AC_CHECK(static_cast<bool>(ordinary_tradeoff_result));
+    AC_CHECK(ordinary_tradeoff_result.value.attribute_upgrades.size() == 1);
+    if (ordinary_tradeoff_result.value.attribute_upgrades.size() == 1) {
+        const auto& upgrade =
+            ordinary_tradeoff_result.value.attribute_upgrades.front();
+        AC_CHECK(upgrade.placed_stable_key == 20);
+        AC_CHECK(upgrade.warehouse_stable_key == 21);
+        AC_CHECK(upgrade.gain.comfort == -8);
+        AC_CHECK(upgrade.gain.stimulation == 8);
+    }
 }
 
 }  // namespace autocattery::tests

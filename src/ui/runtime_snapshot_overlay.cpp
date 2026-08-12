@@ -109,6 +109,15 @@ Result<void> OverlayRuntimeFurnitureState(
 
     std::unordered_set<std::uint64_t> runtime_keys;
     runtime_keys.reserve(runtime.placements.size());
+
+    // The save can lag behind the live House after an Auto Place batch.  In
+    // particular, a warehouse replacement becomes the live placed stable key
+    // while the replaced stable key is still recorded as placed until the
+    // player saves.  The native enumeration is complete at this point, so it
+    // is the authority for which saved records are currently in a room.
+    for (auto& placement : furniture) {
+        placement.room_id.clear();
+    }
     for (const auto& current : runtime.placements) {
         if (current.stable_key == 0U ||
             current.stable_key >
@@ -137,17 +146,7 @@ Result<void> OverlayRuntimeFurnitureState(
         saved->second->scale_y = current.scale_y;
     }
 
-    const bool missing_live_placement = std::ranges::any_of(
-        furniture,
-        [&runtime_keys](const auto& placement) {
-            return !placement.room_id.empty() &&
-                !runtime_keys.contains(
-                    static_cast<std::uint64_t>(placement.instance_id));
-        });
-    return missing_live_placement
-        ? Result<void>{ErrorCode::SnapshotInvalid,
-                       "current placed furniture coverage is incomplete"}
-        : Result<void>{};
+    return {};
 }
 
 }  // namespace autocattery::ui

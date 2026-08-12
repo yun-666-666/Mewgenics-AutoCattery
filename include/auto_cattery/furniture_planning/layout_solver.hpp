@@ -32,6 +32,7 @@ struct FurnitureRoomGrid {
 
 struct FurnitureLayoutPlan {
     snapshot::RoomId target_room_id;
+    std::vector<snapshot::RoomId> exhausted_room_ids;
     std::vector<FurnitureLayoutMove> moves;
     std::size_t planned_room_count{};
     std::size_t considered_furniture_count{};
