@@ -106,6 +106,22 @@ typedef struct AcMewNativeFurnitureReplacementResult {
     uint32_t support_dependents_restored;
 } AcMewNativeFurnitureReplacementResult;
 
+typedef struct AcMewNativeWarehousePlacementResult {
+    uint8_t signature_valid;
+    uint8_t target_grid_valid;
+    uint8_t warehouse_piece_created;
+    uint8_t placement_valid;
+    uint8_t committed;
+    uint8_t verified;
+    uint8_t rollback_attempted;
+    uint8_t rollback_succeeded;
+    uint32_t seh_code;
+    uintptr_t exception_rva;
+    uint64_t warehouse_stable_key;
+    int32_t target_x;
+    int32_t target_y;
+} AcMewNativeWarehousePlacementResult;
+
 typedef struct AcMewFurnitureSupportDependentRequest {
     uint64_t stable_key;
     const char* expected_item;
@@ -208,6 +224,18 @@ AcMewReplaceFurnitureWithWarehousePiece(
     int32_t target_y,
     const AcMewFurnitureSupportDependentRequest* support_dependents_top_down,
     size_t support_dependent_count);
+
+AcMewNativeWarehousePlacementResult AcMewPlaceWarehouseFurniture(
+    void* house_scene_manager,
+    uint64_t warehouse_stable_key,
+    const char* expected_warehouse_item,
+    const AcMewFurnitureGridSnapshot* target_grid,
+    int32_t target_x,
+    int32_t target_y);
+
+AcMewNativeWarehousePlacementResult AcMewStorePlacedFurniture(
+    void* house_scene_manager,
+    void* placed_piece);
 
 #ifdef __cplusplus
 }

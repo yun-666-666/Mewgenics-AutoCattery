@@ -219,7 +219,7 @@ void MewUiRecommendationMarkerView::SetStatus(
     }
     if (status == RecommendationUiStatus::ProbeRequired) {
         MewUI_SetButtonLabelText(
-            button_, english_ ? "Probe Required" : "需要兼容性探针");
+            button_, english_ ? "Generating..." : "正在生成推荐...");
         return;
     }
     if (status == RecommendationUiStatus::Marked) {

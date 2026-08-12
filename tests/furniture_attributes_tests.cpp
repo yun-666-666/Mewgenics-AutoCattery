@@ -155,7 +155,42 @@ void RunFurnitureAttributesTests() {
         AC_CHECK(snapshot::detail::LoadFurnitureCatalog(
             game_root / "resources.gpak", live, error));
         AC_CHECK(live.size() > 600);
-        AC_CHECK(live.at("special_comfortidol").comfort == 5);
+        const auto& comfort = live.at("special_comfortidol");
+        AC_CHECK(comfort.comfort == 5);
+        AC_CHECK(comfort.stimulation == 0);
+        AC_CHECK(comfort.health == 0);
+        AC_CHECK(comfort.mutation == 0);
+        AC_CHECK(comfort.appeal == 0);
+
+        const auto& stimulation = live.at("special_stimulationidol");
+        AC_CHECK(stimulation.comfort == 0);
+        AC_CHECK(stimulation.stimulation == 5);
+        AC_CHECK(stimulation.health == 0);
+        AC_CHECK(stimulation.mutation == 0);
+        AC_CHECK(stimulation.appeal == 0);
+
+        const auto& health = live.at("special_healthidol");
+        AC_CHECK(health.comfort == 0);
+        AC_CHECK(health.stimulation == 0);
+        AC_CHECK(health.health == 5);
+        AC_CHECK(health.mutation == 0);
+        AC_CHECK(health.appeal == 0);
+
+        const auto& evolution = live.at("special_evolutionidol");
+        AC_CHECK(evolution.comfort == 0);
+        AC_CHECK(evolution.stimulation == 0);
+        AC_CHECK(evolution.health == 0);
+        AC_CHECK(evolution.mutation == 5);
+        AC_CHECK(evolution.appeal == 0);
+
+        const auto& appeal = live.at("special_appealidol");
+        AC_CHECK(appeal.comfort == 0);
+        AC_CHECK(appeal.stimulation == 0);
+        AC_CHECK(appeal.health == 0);
+        AC_CHECK(appeal.mutation == 0);
+        AC_CHECK(appeal.appeal == 5);
+
+        AC_CHECK(live.at("special_fightidol").comfort == -5);
     }
 }
 

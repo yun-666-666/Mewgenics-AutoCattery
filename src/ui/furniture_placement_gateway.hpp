@@ -81,6 +81,45 @@ enum class FurnitureWarehouseReplacementStatus {
     RestoreFailed
 };
 
+enum class FurnitureWarehousePlacementStatus {
+    Placed,
+    Stored,
+    Unsupported,
+    NotFound,
+    Ambiguous,
+    RejectedRestored,
+    FailedRestored,
+    RestoreFailed
+};
+
+struct FurnitureWarehousePlacementRequest {
+    std::string warehouse_item;
+    std::uint64_t warehouse_stable_key{};
+    std::string target_room;
+    std::int32_t target_x{};
+    std::int32_t target_y{};
+};
+
+struct FurnitureWarehousePlacementResult {
+    FurnitureWarehousePlacementStatus status{
+        FurnitureWarehousePlacementStatus::Unsupported};
+    std::uint64_t warehouse_stable_key{};
+    std::string warehouse_item;
+    std::string target_room;
+    std::int32_t target_x{};
+    std::int32_t target_y{};
+    bool signatures_valid{};
+    bool warehouse_piece_created{};
+    bool placement_valid{};
+    bool committed{};
+    bool verified{};
+    bool rollback_attempted{};
+    bool rollback_succeeded{};
+    std::uint32_t seh_code{};
+    std::uintptr_t exception_rva{};
+    std::string message;
+};
+
 struct FurnitureWarehouseReplacementRequest {
     struct SupportDependent {
         FurniturePlacementLocator locator;
@@ -124,6 +163,8 @@ struct FurnitureWarehouseReplacementResult {
     FurniturePlacementMoveStatus status) noexcept;
 [[nodiscard]] const char* FurnitureWarehouseReplacementStatusName(
     FurnitureWarehouseReplacementStatus status) noexcept;
+[[nodiscard]] const char* FurnitureWarehousePlacementStatusName(
+    FurnitureWarehousePlacementStatus status) noexcept;
 
 class FurniturePlacementGateway {
 public:
@@ -139,6 +180,10 @@ public:
         const FurniturePlacementRequest& request) const;
     [[nodiscard]] FurnitureWarehouseReplacementResult ReplaceWithWarehouse(
         const FurnitureWarehouseReplacementRequest& request) const;
+    [[nodiscard]] FurnitureWarehousePlacementResult PlaceFromWarehouse(
+        const FurnitureWarehousePlacementRequest& request) const;
+    [[nodiscard]] FurnitureWarehousePlacementResult StorePlacedFurniture(
+        const FurniturePlacementLocator& locator) const;
 
 private:
     bool build_supported_{};

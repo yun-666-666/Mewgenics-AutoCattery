@@ -439,6 +439,22 @@ int wmain(int argument_count, wchar_t** arguments) {
         std::cout << "observed_room=" << room
                   << " furniture=" << count << '\n';
     }
+    for (const auto& placement : placements) {
+        if (placement.item_id == "special_stimulationidol" ||
+            placement.item_id == "special_evolutionidol" ||
+            placement.item_id == "special_comfortidol" ||
+            placement.item_id == "special_appealidol" ||
+            placement.item_id == "special_healthidol") {
+            std::cout
+                << "idol_location item=" << placement.item_id
+                << " key=" << placement.instance_id
+                << " room="
+                << (placement.room_id.empty() ? "Warehouse" :
+                    placement.room_id)
+                << " pos=" << placement.position_x << ','
+                << placement.position_y << '\n';
+        }
+    }
     std::cout
         << "placement_flags_supported="
         << supported_placement_flag_records << '/' << placements.size()
@@ -507,7 +523,12 @@ int wmain(int argument_count, wchar_t** arguments) {
     }
     const auto layout =
         autocattery::furniture_planning::FurnitureLayoutSolver{}.Plan(
-            placements, geometry, furniture_info, runtime_room_grids);
+            placements,
+            geometry,
+            furniture_info,
+            runtime_room_grids,
+            {},
+            effects);
     std::cout
         << "layout_rooms=" << layout.planned_room_count
         << " considered=" << layout.considered_furniture_count
@@ -551,34 +572,57 @@ int wmain(int argument_count, wchar_t** arguments) {
         AuditSupports(final_placements, info_by_id, audit_rooms));
     if (!runtime_room_grids.empty()) {
         const autocattery::furniture_planning::FurnitureLayoutSolver solver;
-        const auto final_runtime_room_grids = RebuildRuntimeLiveGrids(
-            runtime_room_grids,
-            audit_rooms,
-            final_placements,
-            info_by_id);
-        const auto next_layout = solver.Plan(
-            final_placements,
-            geometry,
-            furniture_info,
-            final_runtime_room_grids);
-        std::cout
-            << "layout_next rooms=" << next_layout.planned_room_count
-            << " considered=" << next_layout.considered_furniture_count
-            << " moves=" << next_layout.moves.size()
-            << " kept=" << next_layout.kept_furniture_count
-            << " deferred=" << next_layout.deferred_furniture_count
-            << " target=" << next_layout.target_room_id
-            << " unsupported=" << next_layout.unsupported_furniture_count
-            << " no_space=" << next_layout.no_space_furniture_count
-            << '\n';
-        for (const auto& move : next_layout.moves) {
-            if (move.item_id == "ceiling_cage") {
+        auto sequence_placements = final_placements;
+        for (std::size_t batch = 2U; batch <= 8U; ++batch) {
+            const auto sequence_runtime_room_grids = RebuildRuntimeLiveGrids(
+                runtime_room_grids,
+                audit_rooms,
+                sequence_placements,
+                info_by_id);
+            const auto next_layout = solver.Plan(
+                sequence_placements,
+                geometry,
+                furniture_info,
+                sequence_runtime_room_grids,
+                {},
+                effects);
+            std::cout
+                << "layout_sequence batch=" << batch
+                << " rooms=" << next_layout.planned_room_count
+                << " considered=" << next_layout.considered_furniture_count
+                << " moves=" << next_layout.moves.size()
+                << " kept=" << next_layout.kept_furniture_count
+                << " deferred=" << next_layout.deferred_furniture_count
+                << " target=" << next_layout.target_room_id
+                << " unsupported=" << next_layout.unsupported_furniture_count
+                << " no_space=" << next_layout.no_space_furniture_count
+                << '\n';
+            if (next_layout.moves.empty()) {
+                break;
+            }
+            for (const auto& move : next_layout.moves) {
                 std::cout
-                    << "layout_next_ceiling_cage room="
-                    << move.from_room_id << "->" << move.target_room_id
+                    << "layout_sequence_move batch=" << batch
+                    << " item=" << move.item_id
+                    << " key=" << move.stable_key
+                    << " room=" << move.from_room_id << "->"
+                    << move.target_room_id
                     << " from=" << move.from_x << ',' << move.from_y
                     << " target=" << move.target_x << ',' << move.target_y
                     << '\n';
+                const auto placement = std::ranges::find_if(
+                    sequence_placements,
+                    [&move](const auto& candidate) {
+                        return candidate.instance_id ==
+                                static_cast<std::int64_t>(move.stable_key) &&
+                            candidate.item_id == move.item_id;
+                    });
+                if (placement == sequence_placements.end()) {
+                    continue;
+                }
+                placement->room_id = move.target_room_id;
+                placement->position_x = move.target_x;
+                placement->position_y = move.target_y;
             }
         }
     }

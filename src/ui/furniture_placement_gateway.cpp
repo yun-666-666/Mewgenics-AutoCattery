@@ -90,6 +90,29 @@ const char* FurnitureWarehouseReplacementStatusName(
     return "unsupported";
 }
 
+const char* FurnitureWarehousePlacementStatusName(
+    FurnitureWarehousePlacementStatus status) noexcept {
+    switch (status) {
+        case FurnitureWarehousePlacementStatus::Placed:
+            return "placed";
+        case FurnitureWarehousePlacementStatus::Stored:
+            return "stored";
+        case FurnitureWarehousePlacementStatus::Unsupported:
+            return "unsupported";
+        case FurnitureWarehousePlacementStatus::NotFound:
+            return "not_found";
+        case FurnitureWarehousePlacementStatus::Ambiguous:
+            return "ambiguous";
+        case FurnitureWarehousePlacementStatus::RejectedRestored:
+            return "rejected_restored";
+        case FurnitureWarehousePlacementStatus::FailedRestored:
+            return "failed_restored";
+        case FurnitureWarehousePlacementStatus::RestoreFailed:
+            return "restore_failed";
+    }
+    return "unsupported";
+}
+
 bool FurniturePlacementGateway::Initialize(
     const std::filesystem::path& game_executable) {
     house_scene_manager_ = nullptr;
@@ -360,6 +383,124 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
         result.status = FurnitureWarehouseReplacementStatus::Unsupported;
         result.message =
             "the current build signatures or warehouse furniture identity were not accepted";
+    }
+    return result;
+}
+
+FurnitureWarehousePlacementResult
+FurniturePlacementGateway::PlaceFromWarehouse(
+    const FurnitureWarehousePlacementRequest& request) const {
+    FurnitureWarehousePlacementResult result;
+    result.warehouse_item = request.warehouse_item;
+    result.warehouse_stable_key = request.warehouse_stable_key;
+    result.target_room = request.target_room;
+    result.target_x = request.target_x;
+    result.target_y = request.target_y;
+    if (!build_supported_ || !house_scene_manager_ ||
+        request.warehouse_item.empty() ||
+        request.warehouse_stable_key == 0U ||
+        request.target_room.empty()) {
+        result.message =
+            "native warehouse placement is unavailable or incomplete";
+        return result;
+    }
+    const auto grid = AcMewFindFurnitureGrid(
+        house_scene_manager_, request.target_room.c_str());
+    if (grid.status != AC_MEW_FURNITURE_FIND_FOUND) {
+        result.status = grid.status == AC_MEW_FURNITURE_FIND_NOT_FOUND
+            ? FurnitureWarehousePlacementStatus::NotFound
+            : (grid.status == AC_MEW_FURNITURE_FIND_AMBIGUOUS
+                ? FurnitureWarehousePlacementStatus::Ambiguous
+                : FurnitureWarehousePlacementStatus::Unsupported);
+        result.message =
+            "the target furniture room grid was not uniquely available";
+        return result;
+    }
+    const auto placed = AcMewPlaceWarehouseFurniture(
+        house_scene_manager_,
+        request.warehouse_stable_key,
+        request.warehouse_item.c_str(),
+        &grid.snapshot,
+        request.target_x,
+        request.target_y);
+    result.signatures_valid = placed.signature_valid != 0U;
+    result.warehouse_piece_created =
+        placed.warehouse_piece_created != 0U;
+    result.placement_valid = placed.placement_valid != 0U;
+    result.committed = placed.committed != 0U;
+    result.verified = placed.verified != 0U;
+    result.rollback_attempted = placed.rollback_attempted != 0U;
+    result.rollback_succeeded = placed.rollback_succeeded != 0U;
+    result.seh_code = placed.seh_code;
+    result.exception_rva = placed.exception_rva;
+    if (result.verified) {
+        result.status = FurnitureWarehousePlacementStatus::Placed;
+        result.message =
+            "the warehouse furniture was created and committed to the target room";
+    } else if (result.rollback_attempted && !result.rollback_succeeded) {
+        result.status = FurnitureWarehousePlacementStatus::RestoreFailed;
+        result.message =
+            "warehouse placement failed and the created piece could not be stored safely";
+    } else if (result.rollback_succeeded && !result.placement_valid) {
+        result.status =
+            FurnitureWarehousePlacementStatus::RejectedRestored;
+        result.message =
+            "the target coordinate was rejected and the created piece was returned to storage";
+    } else if (result.rollback_succeeded) {
+        result.status = FurnitureWarehousePlacementStatus::FailedRestored;
+        result.message =
+            "warehouse placement failed and the created piece was returned to storage";
+    } else {
+        result.message =
+            "the current build signatures or warehouse identity were not accepted";
+    }
+    return result;
+}
+
+FurnitureWarehousePlacementResult
+FurniturePlacementGateway::StorePlacedFurniture(
+    const FurniturePlacementLocator& locator) const {
+    FurnitureWarehousePlacementResult result;
+    result.warehouse_item = locator.item;
+    const auto location = Locate(locator);
+    if (location.status != FurniturePlacementLookupStatus::Found) {
+        result.status = location.status ==
+                FurniturePlacementLookupStatus::NotFound
+            ? FurnitureWarehousePlacementStatus::NotFound
+            : (location.status == FurniturePlacementLookupStatus::Ambiguous
+                ? FurnitureWarehousePlacementStatus::Ambiguous
+                : FurnitureWarehousePlacementStatus::Unsupported);
+        result.message = location.message;
+        return result;
+    }
+    result.warehouse_stable_key = location.stable_key;
+    result.target_room = location.room;
+    result.target_x = location.saved_x;
+    result.target_y = location.saved_y;
+    const auto found = AcMewFindFurniturePiece(
+        house_scene_manager_,
+        locator.item.c_str(),
+        locator.preferred_key.value_or(0U),
+        locator.preferred_key.has_value() ? 1 : 0);
+    if (found.status != AC_MEW_FURNITURE_FIND_FOUND) {
+        result.message =
+            "the furniture scene changed before returning the piece to storage";
+        return result;
+    }
+    const auto stored = AcMewStorePlacedFurniture(
+        house_scene_manager_, found.snapshot.piece);
+    result.signatures_valid = stored.signature_valid != 0U;
+    result.verified = stored.verified != 0U;
+    result.rollback_attempted = stored.rollback_attempted != 0U;
+    result.rollback_succeeded = stored.rollback_succeeded != 0U;
+    result.seh_code = stored.seh_code;
+    result.exception_rva = stored.exception_rva;
+    if (result.verified) {
+        result.status = FurnitureWarehousePlacementStatus::Stored;
+        result.message = "the placed furniture was returned to storage";
+    } else {
+        result.message =
+            "the placed furniture could not be returned to storage";
     }
     return result;
 }

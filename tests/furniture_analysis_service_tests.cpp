@@ -184,7 +184,16 @@ void RunFurnitureAnalysisServiceTests() {
     AC_CHECK(upgrade_result.value.runtime_placed_piece_count == 2);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_count == 1);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_match_count == 1);
-    AC_CHECK(upgrade_result.value.layout_plan.warehouse_furniture_count == 3);
+    AC_CHECK(upgrade_result.value.layout_plan.warehouse_furniture_count == 1);
+    AC_CHECK(std::ranges::none_of(
+        upgrade_result.value.layout_plan.moves,
+        [&upgrade_result](const auto& move) {
+            return std::ranges::any_of(
+                upgrade_result.value.attribute_upgrades,
+                [&move](const auto& upgrade) {
+                    return upgrade.placed_stable_key == move.stable_key;
+                });
+        }));
     AC_CHECK(std::ranges::none_of(
         upgrade_result.value.attribute_upgrades,
         [](const auto& upgrade) {
@@ -227,6 +236,51 @@ void RunFurnitureAnalysisServiceTests() {
             "fits");
         AC_CHECK(executable_result.value.attribute_upgrades[0].target_x == 0);
         AC_CHECK(executable_result.value.attribute_upgrades[0].target_y == 0);
+    }
+
+    FakeFurnitureAnalysisSource balanced_attic;
+    balanced_attic.value.house.source_save_name = "balanced-attic.sav";
+    balanced_attic.value.available_room_count = 1;
+    balanced_attic.value.house.rooms = {{.id = "Attic"}};
+    balanced_attic.value.furniture = {
+        Furniture(10, "stimulating-unhealthy", "Attic"),
+        Furniture(11, "balanced-replacement", ""),
+        Furniture(12, "health-only-tradeoff", "")};
+    balanced_attic.value.furniture[0].position_x = 0;
+    balanced_attic.value.furniture_effects = {
+        {"stimulating-unhealthy", snapshot::RoomAttributes{
+            .comfort = 1, .stimulation = 8, .health = -5,
+            .mutation = 1, .appeal = 5}},
+        {"balanced-replacement", snapshot::RoomAttributes{
+            .comfort = 2, .stimulation = 8, .health = 1,
+            .mutation = 2, .appeal = 0}},
+        {"health-only-tradeoff", snapshot::RoomAttributes{
+            .comfort = 10, .stimulation = 1, .health = 10,
+            .mutation = 10, .appeal = 100}}};
+    balanced_attic.value.furniture_info.records = {
+        SingleCellInfo("stimulating-unhealthy"),
+        SingleCellInfo("balanced-replacement"),
+        SingleCellInfo("health-only-tradeoff")};
+    balanced_attic.value.runtime_room_grids = {
+        {"Attic", 1, 1, {0U}, {1U}}};
+    furniture_analysis::FurnitureAnalysisService balanced_attic_service(
+        balanced_attic);
+    const auto balanced_attic_result = balanced_attic_service.Analyze(95);
+    AC_CHECK(static_cast<bool>(balanced_attic_result));
+    AC_CHECK(balanced_attic_result.value.attribute_upgrades.size() == 1);
+    if (balanced_attic_result.value.attribute_upgrades.size() == 1) {
+        AC_CHECK(
+            balanced_attic_result.value.attribute_upgrades[0]
+                .warehouse_stable_key == 11);
+        AC_CHECK(
+            balanced_attic_result.value.attribute_upgrades[0]
+                .warehouse_item_id == "balanced-replacement");
+        AC_CHECK(
+            balanced_attic_result.value.attribute_upgrades[0]
+                .gain.stimulation == 0);
+        AC_CHECK(
+            balanced_attic_result.value.attribute_upgrades[0]
+                .gain.health == 6);
     }
 }
 

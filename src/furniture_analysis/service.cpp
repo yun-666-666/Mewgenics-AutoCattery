@@ -52,6 +52,42 @@ bool Dominates(
     return no_worse && strictly_better;
 }
 
+bool CoreDominates(
+    const snapshot::RoomAttributes& improved,
+    const snapshot::RoomAttributes& current) {
+    const bool no_worse =
+        improved.comfort >= current.comfort &&
+        improved.stimulation >= current.stimulation &&
+        improved.health >= current.health &&
+        improved.mutation >= current.mutation;
+    const bool strictly_better =
+        improved.comfort > current.comfort ||
+        improved.stimulation > current.stimulation ||
+        improved.health > current.health ||
+        improved.mutation > current.mutation;
+    return no_worse && strictly_better;
+}
+
+double CoreMinimum(const snapshot::RoomAttributes& attributes) {
+    return std::min({
+        attributes.comfort,
+        attributes.stimulation,
+        attributes.health,
+        attributes.mutation});
+}
+
+double CoreTotal(const snapshot::RoomAttributes& attributes) {
+    return attributes.comfort + attributes.stimulation +
+        attributes.health + attributes.mutation;
+}
+
+snapshot::RoomAttributes Added(
+    snapshot::RoomAttributes current,
+    const snapshot::RoomAttributes& gain) {
+    Add(current, gain);
+    return current;
+}
+
 double TotalGain(const snapshot::RoomAttributes& gain) {
     return gain.comfort + gain.stimulation + gain.health +
         gain.mutation + gain.appeal;
@@ -272,8 +308,13 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         const snapshot::detail::FurniturePlacement* placed{};
         const snapshot::detail::FurniturePlacement* warehouse{};
         snapshot::RoomAttributes gain;
+        bool balanced_attic{};
+        double balanced_minimum{};
+        double balanced_total{};
     };
     std::vector<UpgradePair> upgrade_pairs;
+    const std::unordered_set<snapshot::RoomId> locked_rooms(
+        locked_room_ids.begin(), locked_room_ids.end());
     for (const auto& warehouse : source.furniture) {
         if (!warehouse.room_id.empty() || warehouse.instance_id <= 0) {
             continue;
@@ -287,21 +328,54 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             if (placed.room_id.empty() || placed.instance_id <= 0) {
                 continue;
             }
-            const auto current =
-                source.furniture_effects.find(placed.item_id);
-            if (current == source.furniture_effects.end() ||
-                !Dominates(improved->second, current->second)) {
+            if (locked_rooms.contains(placed.room_id)) {
                 continue;
             }
+            const auto current =
+                source.furniture_effects.find(placed.item_id);
+            if (current == source.furniture_effects.end()) {
+                continue;
+            }
+            const bool balanced_attic = placed.room_id == "Attic";
+            if (balanced_attic
+                    ? !CoreDominates(improved->second, current->second)
+                    : !Dominates(improved->second, current->second)) {
+                continue;
+            }
+            const auto gain = Subtract(
+                improved->second, current->second);
+            const auto current_room = identified.find(placed.room_id);
+            const auto improved_room = current_room == identified.end()
+                ? gain
+                : Added(current_room->second.attributes, gain);
             upgrade_pairs.push_back({
                 .placed = &placed,
                 .warehouse = &warehouse,
-                .gain = Subtract(improved->second, current->second)});
+                .gain = gain,
+                .balanced_attic = balanced_attic,
+                .balanced_minimum = CoreMinimum(improved_room),
+                .balanced_total = CoreTotal(improved_room)});
         }
     }
     std::ranges::sort(
         upgrade_pairs,
         [](const auto& left, const auto& right) {
+            if (left.balanced_attic != right.balanced_attic) {
+                return left.balanced_attic;
+            }
+            if (left.balanced_attic) {
+                if (left.balanced_minimum != right.balanced_minimum) {
+                    return left.balanced_minimum > right.balanced_minimum;
+                }
+                if (left.balanced_total != right.balanced_total) {
+                    return left.balanced_total > right.balanced_total;
+                }
+                const auto left_core_gain = CoreTotal(left.gain);
+                const auto right_core_gain = CoreTotal(right.gain);
+                if (left_core_gain != right_core_gain) {
+                    return left_core_gain > right_core_gain;
+                }
+            }
             const auto left_gain = TotalGain(left.gain);
             const auto right_gain = TotalGain(right.gain);
             if (left_gain != right_gain) {
@@ -385,6 +459,19 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         placed->room_id.clear();
     }
 
+    // A replaced scene piece is queued for deferred component deletion by
+    // the game after it returns to the warehouse. Recreating that same stable
+    // key later in this sealed batch races the still-live component and has
+    // crashed the current build at Mewgenics.exe+0x5959A. Keep the returned
+    // furniture available in the real warehouse, but defer it from layout
+    // planning until the player's next analysis captures the settled scene.
+    std::erase_if(
+        planning_furniture,
+        [&used_placed](const auto& item) {
+            return item.instance_id > 0 && used_placed.contains(
+                static_cast<std::uint64_t>(item.instance_id));
+        });
+
     result.identified_room_count = identified.size();
     result.rooms.reserve(std::max(
         identified.size(), source.available_room_count));
@@ -409,7 +496,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         source.geometry,
         source.furniture_info,
         source.runtime_room_grids,
-        locked_room_ids);
+        locked_room_ids,
+        source.furniture_effects);
     return {std::move(result)};
 }
 

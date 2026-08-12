@@ -396,11 +396,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
                 return;
             }
             furniture_layout_session_generation_ = generation;
-            // A player-requested analysis is always a fresh observation of
-            // the current House.  Completed-room locks are only an execution
-            // detail; carrying them across another explicit click would hide
-            // furniture that the player moved after the previous layout.
-            furniture_locked_room_ids_.clear();
+            // Completed rooms stay locked while the player remains in the
+            // same furniture-mode session so repeated analysis advances to
+            // the next room. Entering or leaving furniture mode resets them.
             ClearFurnitureLayoutPreview();
             RefreshRuntimeSnapshotContext();
             if (!furniture_analysis_service_ ||
@@ -720,12 +718,15 @@ void MewUiBridge::OnTick() {
                 const bool executable =
                     !plan.moves.empty() ||
                     !completed.attribute_upgrades.empty();
+                const bool layout_blocked =
+                    plan.current_state_blocked_room_count != 0U ||
+                    plan.evacuation_blocked_room_count != 0U ||
+                    plan.installation_blocked_room_count != 0U;
                 const bool already_complete =
                     !plan.target_room_id.empty() &&
                     plan.planned_room_count == 1U &&
                     plan.moves.empty() &&
                     completed.attribute_upgrades.empty() &&
-                    plan.deferred_furniture_count == 0U &&
                     plan.evacuation_blocked_room_count == 0U &&
                     plan.installation_blocked_room_count == 0U;
                 if (already_complete &&
@@ -806,9 +807,11 @@ void MewUiBridge::OnTick() {
                               std::to_string(plan.no_space_furniture_count),
                           executable
                               ? "Auto Place: ready"
+                              : (layout_blocked
+                                  ? "Auto Place: layout is blocked; existing furniture was not treated as complete"
                               : (already_complete
                                   ? "Room complete; run analysis for the next room"
-                                  : "Auto Place: no safe move needed")}
+                                  : "Auto Place: no safe move needed"))}
                         : std::vector<std::string>{
                           "房间：" + std::to_string(completed.rooms.size()) +
                               "，家具：" +
@@ -828,9 +831,11 @@ void MewUiBridge::OnTick() {
                               std::to_string(plan.no_space_furniture_count),
                           executable
                               ? "自动放置：可以执行"
+                              : (layout_blocked
+                                  ? "自动放置：布局受阻，未把现状误判为已放满"
                               : (already_complete
                                   ? "本房间已完成，请再次分析下一个房间"
-                                  : "自动放置：无需安全移动")};
+                                  : "自动放置：无需安全移动"))};
                 }
                 Logger::Instance().Write(
                     LogLevel::Info,
@@ -1416,7 +1421,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         const auto moved = furniture_execution_moved_;
         const auto kept = plan.kept_furniture_count;
         if (!plan.target_room_id.empty() &&
-            plan.deferred_furniture_count == 0U &&
+            plan.planned_room_count == 1U &&
             std::ranges::find(
                 furniture_locked_room_ids_, plan.target_room_id) ==
                 furniture_locked_room_ids_.end()) {
@@ -1506,6 +1511,20 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 const auto& move = moves[*iterator];
                 const FurniturePlacementLocator locator{
                     move.item_id, move.stable_key};
+                if (furniture_planning::IsWarehouseLayoutMove(move)) {
+                    const auto stored =
+                        furniture_placement_gateway_->StorePlacedFurniture(
+                            locator);
+                    if (stored.status !=
+                        FurnitureWarehousePlacementStatus::Stored) {
+                        rollback_detail =
+                            "native rollback could not return warehouse furniture " +
+                            move.item_id + ": " + stored.message;
+                        break;
+                    }
+                    ++rollback_completed;
+                    continue;
+                }
                 const auto location =
                     furniture_placement_gateway_->Locate(locator);
                 if (location.status !=
@@ -1746,6 +1765,63 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     const auto move = plan.moves[furniture_execution_index_];
     const FurniturePlacementLocator locator{
         move.item_id, move.stable_key};
+    if (furniture_planning::IsWarehouseLayoutMove(move)) {
+        const auto placed =
+            furniture_placement_gateway_->PlaceFromWarehouse({
+                .warehouse_item = move.item_id,
+                .warehouse_stable_key = move.stable_key,
+                .target_room = move.target_room_id,
+                .target_x = move.target_x,
+                .target_y = move.target_y});
+        if (placed.status != FurnitureWarehousePlacementStatus::Placed) {
+            std::ostringstream rejection;
+            rejection << "native warehouse placement rejected "
+                      << SafeTechnicalName(move.item_id)
+                      << " key=" << move.stable_key
+                      << " target="
+                      << SafeTechnicalName(move.target_room_id)
+                      << " (" << move.target_x << ',' << move.target_y << ')'
+                      << " status="
+                      << FurnitureWarehousePlacementStatusName(
+                             placed.status)
+                      << " signature="
+                      << (placed.signatures_valid ? 1 : 0)
+                      << " created="
+                      << (placed.warehouse_piece_created ? 1 : 0)
+                      << " placement="
+                      << (placed.placement_valid ? 1 : 0)
+                      << " committed=" << (placed.committed ? 1 : 0)
+                      << " verified=" << (placed.verified ? 1 : 0)
+                      << " native_rollback="
+                      << (placed.rollback_attempted ? 1 : 0) << '/'
+                      << (placed.rollback_succeeded ? 1 : 0)
+                      << " seh=0x" << std::hex << std::uppercase
+                      << placed.seh_code << " rva=0x"
+                      << placed.exception_rva << std::dec << ": "
+                      << placed.message;
+            fail(rejection.str());
+            return;
+        }
+        ++furniture_execution_moved_;
+        furniture_execution_committed_move_indices_.push_back(
+            furniture_execution_index_);
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurniturePlacement",
+            "AC3913",
+            "Auto Place warehouse furniture=" +
+                SafeTechnicalName(move.item_id) + " key=" +
+                std::to_string(move.stable_key) + " target=" +
+                SafeTechnicalName(move.target_room_id) + " (" +
+                std::to_string(move.target_x) + "," +
+                std::to_string(move.target_y) + ") status=" +
+                FurnitureWarehousePlacementStatusName(placed.status));
+        ++furniture_execution_index_;
+        if (furniture_execution_index_ == plan.moves.size()) {
+            finish();
+        }
+        return;
+    }
     const auto location = furniture_placement_gateway_->Locate(locator);
     if (location.status != FurniturePlacementLookupStatus::Found) {
         fail("the planned furniture instance is no longer available: " +

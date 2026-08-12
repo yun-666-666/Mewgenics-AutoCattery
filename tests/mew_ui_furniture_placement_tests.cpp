@@ -153,10 +153,26 @@ void RunMewUiFurniturePlacementTests() {
         .warehouse_stable_key = 2U});
     AC_CHECK(replacement.status ==
         ui::FurnitureWarehouseReplacementStatus::Unsupported);
+    const auto warehouse_placement = gateway.PlaceFromWarehouse({
+        .warehouse_item = "strong-chair",
+        .warehouse_stable_key = 2U,
+        .target_room = "Attic",
+        .target_x = 1,
+        .target_y = -9});
+    AC_CHECK(warehouse_placement.status ==
+        ui::FurnitureWarehousePlacementStatus::Unsupported);
+    const auto warehouse_store = gateway.StorePlacedFurniture({
+        "strong-chair", 2U});
+    AC_CHECK(warehouse_store.status ==
+        ui::FurnitureWarehousePlacementStatus::Unsupported);
     AC_CHECK(std::string_view{
         ui::FurnitureWarehouseReplacementStatusName(
-            ui::FurnitureWarehouseReplacementStatus::Replaced)} ==
+        ui::FurnitureWarehouseReplacementStatus::Replaced)} ==
         "replaced");
+    AC_CHECK(std::string_view{
+        ui::FurnitureWarehousePlacementStatusName(
+            ui::FurnitureWarehousePlacementStatus::Placed)} ==
+        "placed");
 }
 
 }  // namespace autocattery::tests

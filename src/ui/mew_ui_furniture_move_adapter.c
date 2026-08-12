@@ -371,6 +371,22 @@ static LONG AcCaptureReplacementException(
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+static LONG AcCaptureWarehousePlacementException(
+    EXCEPTION_POINTERS* exception,
+    HMODULE executable,
+    AcMewNativeWarehousePlacementResult* result) {
+    if (exception && exception->ExceptionRecord && result) {
+        const uintptr_t address =
+            (uintptr_t)exception->ExceptionRecord->ExceptionAddress;
+        const uintptr_t base = (uintptr_t)executable;
+        result->seh_code = exception->ExceptionRecord->ExceptionCode;
+        result->exception_rva = address >= base
+            ? address - base
+            : 0U;
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 int AcMewComponentDeleteQueued(void* component) {
     void* context;
     if (!component || !AcReadableRange(
@@ -1348,6 +1364,142 @@ static int AcSceneMatchesOriginalPlacement(
             before->room,
             before->saved_x,
             before->saved_y);
+}
+
+AcMewNativeWarehousePlacementResult AcMewPlaceWarehouseFurniture(
+    void* house_scene_manager,
+    uint64_t warehouse_stable_key,
+    const char* expected_warehouse_item,
+    const AcMewFurnitureGridSnapshot* target_grid,
+    int32_t target_x,
+    int32_t target_y) {
+    AcMewNativeWarehousePlacementResult result;
+    AcMewFurnitureGridSnapshot verified_grid;
+    AcMewFurniturePieceSnapshot placed_snapshot;
+    HMODULE executable;
+    void* context;
+    void* placed_piece;
+    AcFurnitureValidateFn validate_piece;
+    AcFurnitureCommitFn commit_piece;
+    AcFurnitureCreatePieceFn create_piece;
+    AcFurnitureStorePieceFn store_piece;
+    int placed;
+    memset(&result, 0, sizeof(result));
+    memset(&verified_grid, 0, sizeof(verified_grid));
+    memset(&placed_snapshot, 0, sizeof(placed_snapshot));
+    result.warehouse_stable_key = warehouse_stable_key;
+    result.target_x = target_x;
+    result.target_y = target_y;
+    executable = GetModuleHandleW(NULL);
+    result.signature_valid =
+        (uint8_t)AcNativeSignaturesMatch(executable);
+    result.target_grid_valid = (uint8_t)(
+        target_grid && target_grid->grid &&
+        AcMewReadFurnitureGridSnapshot(
+            target_grid->grid, &verified_grid) &&
+        strcmp(verified_grid.room, target_grid->room) == 0);
+    if (!result.signature_valid || !result.target_grid_valid ||
+        !house_scene_manager || warehouse_stable_key == 0U ||
+        !expected_warehouse_item || expected_warehouse_item[0] == '\0' ||
+        AcSceneContainsFurnitureKey(
+            house_scene_manager, warehouse_stable_key)) {
+        return result;
+    }
+    context = MewUI_GetContextFromScene(house_scene_manager);
+    if (!context) {
+        return result;
+    }
+    validate_piece = (AcFurnitureValidateFn)(
+        (uint8_t*)executable + AC_FURNITURE_VALIDATE_RVA);
+    commit_piece = (AcFurnitureCommitFn)(
+        (uint8_t*)executable + AC_FURNITURE_COMMIT_RVA);
+    create_piece = (AcFurnitureCreatePieceFn)(
+        (uint8_t*)executable + AC_FURNITURE_CREATE_PIECE_RVA);
+    store_piece = (AcFurnitureStorePieceFn)(
+        (uint8_t*)executable + AC_FURNITURE_STORE_PIECE_RVA);
+    placed_piece = NULL;
+    placed = 0;
+    __try {
+        placed = AcPlaceStoredFurniture(
+            house_scene_manager,
+            context,
+            warehouse_stable_key,
+            expected_warehouse_item,
+            NULL,
+            &verified_grid,
+            target_x,
+            target_y,
+            1.0,
+            1.0,
+            create_piece,
+            validate_piece,
+            commit_piece,
+            store_piece,
+            &placed_piece,
+            &placed_snapshot,
+            &result.warehouse_piece_created,
+            &result.placement_valid,
+            &result.committed);
+        result.verified = (uint8_t)placed;
+    }
+    __except (AcCaptureWarehousePlacementException(
+        GetExceptionInformation(), executable, &result)) {
+        placed = 0;
+    }
+    if (!result.verified && result.warehouse_piece_created &&
+        !placed_piece) {
+        result.rollback_attempted = 1U;
+        result.rollback_succeeded = (uint8_t)
+            !AcSceneContainsFurnitureKey(
+                house_scene_manager, warehouse_stable_key);
+    }
+    if (!result.verified && placed_piece) {
+        result.rollback_attempted = 1U;
+        __try {
+            result.rollback_succeeded = (uint8_t)
+                AcStoreFurnitureSnapshot(&placed_snapshot, store_piece);
+        }
+        __except (AcCaptureWarehousePlacementException(
+            GetExceptionInformation(), executable, &result)) {
+            result.rollback_succeeded = 0U;
+        }
+    }
+    return result;
+}
+
+AcMewNativeWarehousePlacementResult AcMewStorePlacedFurniture(
+    void* house_scene_manager,
+    void* placed_piece) {
+    AcMewNativeWarehousePlacementResult result;
+    AcMewFurniturePieceSnapshot before;
+    HMODULE executable;
+    AcFurnitureStorePieceFn store_piece;
+    memset(&result, 0, sizeof(result));
+    memset(&before, 0, sizeof(before));
+    executable = GetModuleHandleW(NULL);
+    result.signature_valid =
+        (uint8_t)AcNativeSignaturesMatch(executable);
+    if (!result.signature_valid || !house_scene_manager ||
+        !AcMewReadFurniturePieceSnapshot(placed_piece, &before) ||
+        before.grid == NULL || before.room[0] == '\0') {
+        return result;
+    }
+    result.warehouse_stable_key = before.stable_key;
+    result.target_x = before.saved_x;
+    result.target_y = before.saved_y;
+    store_piece = (AcFurnitureStorePieceFn)(
+        (uint8_t*)executable + AC_FURNITURE_STORE_PIECE_RVA);
+    result.rollback_attempted = 1U;
+    __try {
+        result.rollback_succeeded = (uint8_t)
+            AcStoreFurnitureSnapshot(&before, store_piece);
+        result.verified = result.rollback_succeeded;
+    }
+    __except (AcCaptureWarehousePlacementException(
+        GetExceptionInformation(), executable, &result)) {
+        result.rollback_succeeded = 0U;
+    }
+    return result;
 }
 
 typedef struct AcMewFurnitureTransactionDependent {

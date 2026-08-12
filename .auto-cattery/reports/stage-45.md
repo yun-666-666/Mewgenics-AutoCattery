@@ -1,7 +1,7 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-12
-版本：v0.5.38
+版本：v0.5.42
 
 ## 结果
 
@@ -46,6 +46,13 @@
   才把仍处于 detached 状态的旧底座正式收入家具栏。失败回滚先解除已重新提交的支撑
   件、移除新底座，再用原 component 恢复旧底座和支撑链，从根源上避免同 tick 同
   stable key 的延迟删除冲突。
+- v0.5.38 玩家随后确认 26 项属性替换全部完成，但当前存档仍有 131 件家具在仓库，
+  五个房间存在明显空位；两次分析均输出 `rooms=0, moves=0,
+  evacuation_blocked=1`，界面误报“无需安全移动”。v0.5.39 修复两层问题：布局器不再
+  跳过空 room_id 的仓库记录；目标房现有合法布局作为 required seed 保持原位，只把
+  有界确定性仓库候选填入剩余空间。执行器识别空来源房间，按 stable key 创建家具、
+  原生校验并提交，成功记录 `AC3913`；单项失败立即收回，批次失败逆序回收已放置
+  仓库件。布局受阻的 UI 也不再显示“无需移动”。
 
 ## 当前 build 证据
 
@@ -142,10 +149,16 @@
 - v0.5.38 Release `AutoCattery` 与单元测试目标编译成功，Release 单元测试成功；仅将
   新 Release DLL 复制到 `Mewgenics\mods\AutoCattery.dll` 供玩家实测。按用户要求，
   功能实机确认前不执行安装校验、SHA-256 比较或包验证。
+- v0.5.39 聚焦 Debug 编译与单元测试通过。当前玩家存档只读几何 probe 从
+  `rooms=0, moves=0, evacuation_blocked=1` 变为
+  `rooms=1, moves=2, target=Floor1_Large, evacuation_blocked=0`；规划前 Support
+  144/144 合法，规划后新增两件仓库家具后 Support 146/146 合法。
+- v0.5.39 `tools\build.ps1 -Configuration Debug`：全量构建成功；Debug CTest
+  4/4 通过；Debug DLL exports 与 x64 检查通过。
+- v0.5.39 `tools\build.ps1 -Configuration Release`：全量构建成功；Release CTest
+  4/4 通过；Release DLL exports 与 x64 检查通过。
 - `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
   -Configuration Release`：DLL-only 部署成功。
-- `tools\verify_install.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics`：
-  通过；14 个职业重投配置均保持用户设置 20。
 - v0.5.35 build、`dist\Release\AutoCattery.dll` 与实际安装的
   `Mewgenics\mods\AutoCattery.dll` SHA-256 一致：
   `31C8BF38CBCC2A4ED8FDBDE3EA8744BFC8AEDE197FBFF140E1A4E1E07ADB0546`。
@@ -163,19 +176,46 @@
 
 ## 玩家验证状态
 
-v0.5.38 已编译并部署测试 DLL，等待玩家实机复测。完全退出游戏后重新通过 Mewtator
-启动，进入同一
-测试存档和家具模式，点击一次“开始分析”，再点击一次“自动放置”。第一项成功日志
-`AC3912` 应包含 `support=5/5->5`，表示五件依赖家具全部解除占用并以原 component
-原位重新提交；批次成功最终出现 `AC3904`。若失败，`AC3907` 必须显示完整回滚。成功后保存、
-完全退出并重进，确认新底座和上层链仍在房间、旧底座已回家具栏。
+## v0.5.42 玩家反馈修正与当前验证
+
+- 最新 v0.5.41 日志确认分析会依次返回 `Attic moves=0`、
+  `Floor1_Large moves=0`，重新进入家具模式后会话锁清空并重复该循环。根因是完整但
+  零移动的候选被当作成功目标提前返回。
+- 原求解器在仓库非空时跳过其他房间已摆家具，导致 `Floor1_Small` 的四尊无负面
+  `+5` 雕像完全没有进入阁楼候选。当前 day 339 存档确认 stable key 145、265、
+  283、321 分别为 `special_appealidol`、`special_stimulationidol`、
+  `special_evolutionidol`、`special_comfortidol`。
+- v0.5.42 允许目标房现有家具参与重排，允许未锁定房间家具进入候选，已锁定房间
+  仍不可拆；阁楼按核心最低值、核心总和、Appeal、填充数排序，核心负值家具排除。
+- 玩家手动优化并在 2026-08-12 20:04 保存后，最新 day 339 快照为 229 件家具：
+  已摆放 144、仓库 85、阁楼 52；当前 Support 为 177/177 全数合法。旧截图和旧
+  185/185 只属于上一快照，不再作为固定坐标或固定总数。
+- 局部求解覆盖完整 37x11 阁楼，而不是旧截图中的某个红框方向。第一批只读计划为
+  2 步：key 144 `small_trash_can2` 在阁楼从 `(22,-11)` 移到 `(12,-9)`，再把
+  `Floor1_Small` 的 key 265 `special_stimulationidol` 调入阁楼 `(13,-9)`。
+- 真正根因是目标候选按 24 件截断后，未入选家具错误地从来源房执行占用快照消失，
+  导致四尊雕像被假报 `evacuation_blocked`。现所有未入选家具继续作为原房间静态
+  占用参与逐步执行与 Support 判断，并新增候选截断来源房回归。
+- 最终只读验收：`target=Attic`、`moves=2`、`evacuation_blocked=0`、
+  `installation_blocked=0`，规划前后均为 177/177、`unsupported=0`。模拟第二批不会
+  重复第一批，会继续移动阁楼 key 316 并调入 key 283 Evolution +5 雕像。
+- Debug 与 Release 完整构建均成功，两种配置 CTest 均 4/4 通过；Release DLL-only
+  部署和安装校验通过。build、dist 与安装 DLL SHA-256 一致：
+  `23DD099AB0B201F9ED5CA2263FB96C496B01308604A9BFD632960C1190DAA389`。
+- 自动验收已通过，玩家实机执行、保存、退出重进持久化验证待完成。
+
+玩家完全退出游戏后重新通过 Mewtator 启动，进入同一测试存档和家具模式，点击一次
+“开始分析”。面板应显示非零阁楼移动；点击“自动放置”后应先重排阁楼现有家具，
+再把 Stimulation +5 雕像调入。批次成功最终出现 `AC3904`；若失败，`AC3907` 必须
+显示完整回滚。再次分析应继续下一批并尝试 Evolution +5 雕像，不重复第一批或返回
+`moves=0`。成功后保存、完全退出并重进，确认布局和跨房雕像持久化。
 
 ## 风险与未做范围
 
 - 当前原生 RVA、type/vtable 和对象布局只适用于已 gate 的当前
   `Mewgenics.exe`；签名不匹配时安全拒绝。
 - 自动化测试无法代替真实游戏的仓库数量、画面、保存和重进持久化验证。
-- 未实现跨不同 item 的全局仓库分配、旋转、Anchor、墙面/天花板布局或跨会话撤销。
+- 未实现按房间用途/属性的全局仓库分配、旋转、Anchor、墙面/天花板布局或跨会话撤销。
 - 未自动移动猫、休息、结束一天、出征、组队或淘汰；第五房是否解锁仍不在本阶段
   范围，但当前 build 的第五房运行时身份一致性已在本次修复。
 
