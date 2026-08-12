@@ -1,7 +1,26 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
-日期：2026-08-12
-版本：v0.5.42
+日期：2026-08-13
+版本：v0.5.48
+
+## v0.5.48 连续布局振荡阻断
+
+- 玩家截图与 2026-08-13 02:33:36–02:33:52 日志一致：
+  `wallmounted_cloud key=90` 在 `Floor1_Small` 的 `(-10,-8)` 与 `(-10,-9)`
+  之间反复移动。每次 `AC3903` 都是成功提交，排除原生拒绝或视觉动画误判。
+- 相邻分析结果在 `moves=29` 与 `moves=1` 间交替。v0.5.47 每轮只执行刷新后计划的
+  第一项，导致整房方案的第一步与下一轮局部压紧形成严格二态反转。
+- 连续状态机现在保留上一笔真实提交的普通布局移动；如果新计划第一项对同一 item、
+  stable key、房间和坐标执行完全反向移动，则记录 `AC3924`，将该目标房加入当前
+  House scene 的暂缓房间并继续重新规划其他房间。修复不硬编码云朵名称。
+- 属性替换、仓库新放置、玩家新一轮手动启动、AlreadyPlaced 或任何非反向移动都会
+  清空该记录，避免跨事务或跨手动运行误判。
+- Release DLL 与统一测试已通过；v0.5.48 DLL/UI data MOD 已部署。安装校验确认 DLL
+  为 x64、data MOD 版本为 0.5.48、14 个职业继续使用玩家设置的 20 次升级重投；构建
+  与安装 DLL 的 SHA-256 均为
+  `AF352327036146AD9B6F52F7A77F5F3E51162A288491ACFBD13FA6B1766FB61C`。
+- 玩家实机复测待完成：同一存档再次自动放置时，云朵不得继续上下往返；若规划再次
+  产生直接反向步骤，日志应出现一次 `AC3924`，随后继续其他房间或结束安全 fixpoint。
 
 ## v0.5.46 当前场景 stable-key quarantine 与连续执行
 
@@ -149,6 +168,18 @@
 - 部署与安装校验：`tools/deploy.ps1`、`tools/verify_install.ps1`。
 
 ## 构建与测试
+
+- v0.5.48 `build-stage45-release` 增量 Release 编译成功；统一
+  `auto_cattery_tests.exe` 通过，CTest 4/4 通过。
+- 版本升级后执行 `tools\build.ps1 -Configuration Release`。工具观察窗口在全量编译
+  期间超时，但保留的原进程继续完成：主 `cmake`/`cl` 退出，新 DLL 于 02:52:36
+  生成，新统一测试程序于 02:56:23 生成；残留 MSBuild 均为 CPU 增量 0 的
+  `/nodeReuse:true` 空闲节点。未启动重复构建。
+- 直接运行上述既有 Release 测试产物成功；`ctest --test-dir build -C Release
+  --output-on-failure` 为 4/4 通过，包含 DLL 加载、恢复 CLI 与 save-lab CLI smoke。
+- `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 成功；`tools\verify_install.ps1` 成功。部署保留玩家 20 次
+  重投设置，data MOD 为 v0.5.48，构建/安装 DLL 哈希一致。
 
 - `tools\build.ps1 -Configuration Debug`：成功；Debug CTest 4/4 通过；Debug DLL
   exports 与 x64 检查通过。

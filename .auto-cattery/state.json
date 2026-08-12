@@ -261,11 +261,11 @@
       "game_validation_status": "public_107_percent_save_replaced_former_8cat_slot_with_single_backup_integrity_and_hash_verified;debug_and_release_4_of_4_ctest_passed;release_deployed_hash_ED747FD65C939137382136BB57839A62BDEFC0798A2A0E3381D3B4ADCE6C53D1;player_F7_reports_20260811_183525_and_183547_accepted;scene_furniture_complete_111_to_112_key474_and_112_to_113_key467;current_save_integrity_ok;automatic_warehouse_take_place_not_implemented"
     },
     "45": {
-      "status": "v0_5_47_continuous_run_speed_and_recoverable_native_rejection_release_deployed_player_validation_pending",
+      "status": "v0_5_48_continuous_layout_oscillation_guard_release_deployed_player_validation_pending",
       "commit": null,
       "capability": "CurrentBuildWarehouseReplacementCrossRoomFurnitureCandidatesRelayoutAndWholeHouseSupportGate",
-      "game_validation_status": "v0.5.46_player_run_completed_23_attribute_upgrades_and_multiple_layout_moves_without_seh_or_retired_key_reuse;logs_showed_duplicate_full_analysis_before_each_continuous_transaction;final_stop_was_set_wooden_toilet_key160_cross_room_native_rejection_with_seh0_and_rollback1_of1;v0.5.47_reuses_fresh_continuous_preview_executes_one_layout_move_per_replan_and_defers_safely_rejected_target_room;focused_release_test_passed;release_dll_built_and_deployed;player_retest_pending"
+      "game_validation_status": "v0.5.47_player_log_proved_wallmounted_cloud_key90_alternated_between_minus10_minus8_and_minus10_minus9_with_successful_native_commits;root_cause_was_first_step_of_29_move_whole_room_plan_reversed_by_next_single_local_compaction_plan;v0.5.48_detects_exact_immediate_reverse_layout_move_defers_target_room_and_continues;release_build_and_ctest_4_of_4_passed;release_dll_and_data_mod_deployed;install_x64_reroll20_and_sha256_match_verified_AF352327036146AD9B6F52F7A77F5F3E51162A288491ACFBD13FA6B1766FB61C;player_retest_pending"
     }
   },
-  "updated_at": "2026-08-13T02:15:00+08:00"
+  "updated_at": "2026-08-13T03:04:00+08:00"
 }

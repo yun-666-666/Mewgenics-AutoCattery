@@ -49,6 +49,10 @@ struct FurnitureLayoutPlan {
 [[nodiscard]] bool IsWarehouseLayoutMove(
     const FurnitureLayoutMove& move) noexcept;
 
+[[nodiscard]] bool IsImmediateReverseLayoutMove(
+    const FurnitureLayoutMove& previous,
+    const FurnitureLayoutMove& next) noexcept;
+
 struct FurnitureReplacementPlacement {
     snapshot::RoomId room_id;
     std::int32_t x{};

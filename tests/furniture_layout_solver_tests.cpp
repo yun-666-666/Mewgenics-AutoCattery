@@ -227,6 +227,19 @@ std::map<std::uint64_t, PlacementState> FinalPlacementStates(
 }  // namespace
 
 void RunFurnitureLayoutSolverTests() {
+    const furniture_planning::FurnitureLayoutMove move_down{
+        90U, "wallmounted_cloud", "Floor1_Small", "Floor1_Small",
+        -10, -8, -10, -9};
+    const furniture_planning::FurnitureLayoutMove move_up{
+        90U, "wallmounted_cloud", "Floor1_Small", "Floor1_Small",
+        -10, -9, -10, -8};
+    AC_CHECK(furniture_planning::IsImmediateReverseLayoutMove(
+        move_down, move_up));
+    auto different_key = move_up;
+    different_key.stable_key = 91U;
+    AC_CHECK(!furniture_planning::IsImmediateReverseLayoutMove(
+        move_down, different_key));
+
     snapshot::detail::HouseGeometryCatalog geometry;
     geometry.rooms.push_back({
         .definition_id = "R1",

@@ -3751,6 +3751,19 @@ bool IsWarehouseLayoutMove(const FurnitureLayoutMove& move) noexcept {
     return move.from_room_id.empty();
 }
 
+bool IsImmediateReverseLayoutMove(
+    const FurnitureLayoutMove& previous,
+    const FurnitureLayoutMove& next) noexcept {
+    return previous.stable_key == next.stable_key &&
+        previous.item_id == next.item_id &&
+        previous.from_room_id == next.target_room_id &&
+        previous.target_room_id == next.from_room_id &&
+        previous.from_x == next.target_x &&
+        previous.from_y == next.target_y &&
+        previous.target_x == next.from_x &&
+        previous.target_y == next.from_y;
+}
+
 std::optional<std::vector<FurnitureSupportDependent>>
 FindFurnitureSupportDependentsTopDown(
     const FurniturePlacement& provider,

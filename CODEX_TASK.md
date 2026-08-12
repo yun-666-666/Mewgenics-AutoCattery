@@ -1,5 +1,16 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.48 continuous-layout oscillation guard
+
+- 最新 v0.5.47 实机日志确认 `wallmounted_cloud key=90` 在 `Floor1_Small` 的
+  `(-10,-8)` 与 `(-10,-9)` 之间持续上下往返。原生移动每次均成功；根因是连续流程
+  只执行 29 步整房方案的第一步，下一轮局部压紧又立即生成同一 stable key 的完全
+  反向移动。
+- 连续执行现在记录上一笔真实提交的普通布局移动。新分析若第一项是同一 item/key、
+  同一房间和坐标的完全反向移动，则记录 `AC3924`，暂缓该目标房并继续其他房间；
+  仓库放置、属性替换、手动新启动或非反向移动都会清空该记录。
+- 修复不得按 `wallmounted_cloud` 名称硬编码，也不得影响玩家新一轮手动分析/放置。
+
 ## v0.5.47 continuous-run speed and recoverable native rejection
 
 - v0.5.46 实机日志证明每项自动事务前出现两次完整快照/分析：自动 re-analyze 已生成

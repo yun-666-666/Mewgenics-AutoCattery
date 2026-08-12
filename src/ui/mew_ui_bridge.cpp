@@ -247,6 +247,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
+    furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
     last_scene_summary_.clear();
@@ -580,6 +581,7 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
+    furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
     last_scene_summary_.clear();
@@ -1437,6 +1439,44 @@ void MewUiBridge::StartFurnitureAutoPlacement(
         }
     }
 
+    const bool continuing_auto_run = furniture_auto_run_active_;
+    if (!continuing_auto_run) {
+        furniture_auto_run_last_layout_move_.reset();
+    } else if (furniture_analysis_preview_->attribute_upgrades.empty() &&
+               !furniture_analysis_preview_->layout_plan.moves.empty() &&
+               furniture_auto_run_last_layout_move_ &&
+               furniture_planning::IsImmediateReverseLayoutMove(
+                   *furniture_auto_run_last_layout_move_,
+                   furniture_analysis_preview_->layout_plan.moves.front())) {
+        const auto blocked_room =
+            furniture_analysis_preview_->layout_plan.target_room_id;
+        if (!blocked_room.empty() &&
+            std::ranges::find(
+                furniture_locked_room_ids_, blocked_room) ==
+                furniture_locked_room_ids_.end()) {
+            furniture_locked_room_ids_.push_back(blocked_room);
+        }
+        ++furniture_auto_run_blocked_rooms_;
+        const auto repeated =
+            furniture_analysis_preview_->layout_plan.moves.front();
+        Logger::Instance().Write(
+            LogLevel::Warn,
+            "FurniturePlacement",
+            "AC3924",
+            "Continuous Auto Place deferred a room after detecting an immediate reverse layout move: room=" +
+                SafeTechnicalName(blocked_room) + " item=" +
+                SafeTechnicalName(repeated.item_id) + " key=" +
+                std::to_string(repeated.stable_key) + " from=(" +
+                std::to_string(repeated.from_x) + "," +
+                std::to_string(repeated.from_y) + ") target=(" +
+                std::to_string(repeated.target_x) + "," +
+                std::to_string(repeated.target_y) + ").");
+        furniture_auto_run_last_layout_move_.reset();
+        ClearFurnitureLayoutPreview();
+        StartFurnitureAnalysis(generation);
+        return;
+    }
+
     furniture_execution_active_ = true;
     furniture_auto_run_active_ = true;
     furniture_auto_run_preview_fresh_ = false;
@@ -1792,6 +1832,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 " gain=" +
                 CompactAttributeGain(upgrade.gain) + ".");
         ++furniture_execution_upgraded_;
+        furniture_auto_run_last_layout_move_.reset();
         furniture_execution_committed_upgrade_indices_.push_back(
             furniture_execution_upgrade_index_);
         ++furniture_execution_upgrade_index_;
@@ -1855,6 +1896,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             return;
         }
         ++furniture_execution_moved_;
+        furniture_auto_run_last_layout_move_.reset();
         furniture_execution_committed_move_indices_.push_back(
             furniture_execution_index_);
         Logger::Instance().Write(
@@ -1978,8 +2020,16 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         }
         if (status == FurniturePlacementMoveStatus::Moved) {
             ++furniture_execution_moved_;
+            furniture_auto_run_last_layout_move_ = move;
+            furniture_auto_run_last_layout_move_->from_room_id = location.room;
+            furniture_auto_run_last_layout_move_->from_x = location.saved_x;
+            furniture_auto_run_last_layout_move_->from_y = location.saved_y;
+            furniture_auto_run_last_layout_move_->target_x = committed_x;
+            furniture_auto_run_last_layout_move_->target_y = committed_y;
             furniture_execution_committed_move_indices_.push_back(
                 furniture_execution_index_);
+        } else {
+            furniture_auto_run_last_layout_move_.reset();
         }
     }
 

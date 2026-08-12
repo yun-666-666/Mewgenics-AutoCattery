@@ -144,6 +144,8 @@ private:
     std::size_t furniture_auto_run_upgraded_{};
     std::size_t furniture_auto_run_moved_{};
     std::size_t furniture_auto_run_blocked_rooms_{};
+    std::optional<furniture_planning::FurnitureLayoutMove>
+        furniture_auto_run_last_layout_move_;
     std::uint64_t furniture_faulted_generation_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
