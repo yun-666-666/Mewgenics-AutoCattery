@@ -139,6 +139,9 @@ double AcMewFurnitureWorldAxis(
 
 int AcMewComponentDeleteQueued(void* component);
 
+int AcMewFurnitureDetachedSnapshotMatches(
+    const AcMewFurniturePieceSnapshot* snapshot);
+
 void AcMewFurnitureWorldPosition(
     double grid_world_x,
     double grid_world_y,

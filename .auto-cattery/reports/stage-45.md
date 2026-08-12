@@ -1,7 +1,7 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-12
-版本：v0.5.37
+版本：v0.5.38
 
 ## 结果
 
@@ -34,6 +34,18 @@
   集合，下一项 key 68 才报依赖解析失败。v0.5.37 在候选贪心选择时同时验证当前虚拟
   Support 链和完整合法目标；不可执行配对不占用 placed/warehouse，继续选择次优的
   可执行配对。
+- v0.5.37 玩家实测分析成功并生成 26 项属性替换；第一项无支撑替换
+  `key=207 -> 97` 成功。第二项 `key=13 -> 160` 已收回 5/5 支撑件并提交新底座，但
+  第一件支撑家具同 tick 重建时在 `Mewgenics.exe+0x5959A` 触发
+  `0xC0000005`，日志为 `support=5/5->0`，回滚随后失败并使 House UI 卡死。异常 RVA
+  是游戏字符串比较读取空对象；结合完整收回路径会排队延迟删除 component，根因是旧
+  支撑 component 尚未清理时又以相同 stable key 创建新 component。
+- v0.5.38 支撑链和旧底座不再提前走家具栏删除/重建：最上层到最下层只调用原生
+  grid remove，保留原 component、entry、stable key 和坐标；新底座提交后，最下层到
+  最上层对原支撑 component 恢复 transform、执行原生合法性校验并提交，全部成功后
+  才把仍处于 detached 状态的旧底座正式收入家具栏。失败回滚先解除已重新提交的支撑
+  件、移除新底座，再用原 component 恢复旧底座和支撑链，从根源上避免同 tick 同
+  stable key 的延迟删除冲突。
 
 ## 当前 build 证据
 
@@ -122,6 +134,14 @@
 - v0.5.37 `tools\build.ps1 -Configuration Debug`：成功；Debug CTest 4/4 通过。
 - v0.5.37 `tools\build.ps1 -Configuration Release`：成功；Release CTest 4/4
   通过；Release DLL exports 与 x64 检查通过。
+- v0.5.38 聚焦 detached-component 回归通过：解除占用后必须保留 stable key、item、
+  原坐标和 entry，entry room 必须为空且 component 不得进入删除队列；仍绑定房间或
+  已排队删除都会被拒绝。
+- v0.5.38 Debug 完整构建成功，CTest 4/4 通过。最终事务收紧后重新编译并运行 Debug
+  单元测试成功。
+- v0.5.38 Release `AutoCattery` 与单元测试目标编译成功，Release 单元测试成功；仅将
+  新 Release DLL 复制到 `Mewgenics\mods\AutoCattery.dll` 供玩家实测。按用户要求，
+  功能实机确认前不执行安装校验、SHA-256 比较或包验证。
 - `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
   -Configuration Release`：DLL-only 部署成功。
 - `tools\verify_install.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics`：
@@ -143,10 +163,11 @@
 
 ## 玩家验证状态
 
-v0.5.37 已部署，等待玩家实机执行。完全退出游戏后重新通过 Mewtator 启动，进入同一
+v0.5.38 已编译并部署测试 DLL，等待玩家实机复测。完全退出游戏后重新通过 Mewtator
+启动，进入同一
 测试存档和家具模式，点击一次“开始分析”，再点击一次“自动放置”。第一项成功日志
-`AC3912` 应包含 `support=5/5->5`，表示五件依赖家具全部真实收回家具栏并全部原位
-重建；批次成功最终出现 `AC3904`。若失败，`AC3907` 必须显示完整回滚。成功后保存、
+`AC3912` 应包含 `support=5/5->5`，表示五件依赖家具全部解除占用并以原 component
+原位重新提交；批次成功最终出现 `AC3904`。若失败，`AC3907` 必须显示完整回滚。成功后保存、
 完全退出并重进，确认新底座和上层链仍在房间、旧底座已回家具栏。
 
 ## 风险与未做范围

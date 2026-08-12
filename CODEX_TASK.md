@@ -67,6 +67,15 @@ key 会生成新的 `FurniturePiece` 后，把属性升级接入现有“自动�
   贪心选择每个候选时同时验证当前虚拟状态的 Support 链和完整合法目标；不可执行候选
   不占用 placed/warehouse，继续尝试次优可执行配对。当前存档完整分析必须成功并让
   自动放置可点击。
+- v0.5.37 玩家实测第一项无支撑替换成功；第二项
+  `special_foodbox key=13 -> set_wooden_toilet key=160` 收回 5/5 支撑件并提交新底座后，
+  同 tick 第一件支撑家具重建在 `Mewgenics.exe+0x5959A` 触发空指针，日志为
+  `support=5/5->0`、`seh=0xC0000005`，随后回滚失败并卡死。根因是支撑件走完整家具栏
+  收回，旧 component 尚在延迟删除队列时又用相同 stable key 创建新 component。
+  v0.5.38 必须让支撑链和旧底座先只解除 grid 占用并保留原 component；新底座提交后
+  按最下层到最上层校验并重新提交原支撑 component，全部成功后才把旧底座正式收入
+  家具栏。失败回滚复用原底座和支撑 component，不得在同一 tick 为它们创建同 key
+  component。
 
 ## Player validation gate
 

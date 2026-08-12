@@ -1113,6 +1113,111 @@ static int AcStoreFurnitureSnapshot(
             NULL;
 }
 
+int AcMewFurnitureDetachedSnapshotMatches(
+    const AcMewFurniturePieceSnapshot* before) {
+    void* entry;
+    char item[AC_MEW_FURNITURE_TEXT_CAPACITY];
+    char room[AC_MEW_FURNITURE_TEXT_CAPACITY];
+    if (!before || !before->piece || !before->entry ||
+        AcMewComponentDeleteQueued(before->piece) ||
+        !AcReadableRange(
+            before->piece, AC_FURNITURE_ENTRY_OFFSET + sizeof(void*)) ||
+        !AcReadableRange(before->entry, 0x58U)) {
+        return 0;
+    }
+    __try {
+        entry = *(void**)((uint8_t*)before->piece +
+            AC_FURNITURE_ENTRY_OFFSET);
+        return *(void**)((uint8_t*)before->piece +
+                   AC_FURNITURE_GRID_OFFSET) == NULL &&
+            entry == before->entry &&
+            *(uint64_t*)entry == before->stable_key &&
+            *(int32_t*)((uint8_t*)entry + AC_ENTRY_SAVED_X_OFFSET) ==
+                before->saved_x &&
+            *(int32_t*)((uint8_t*)entry + AC_ENTRY_SAVED_Y_OFFSET) ==
+                before->saved_y &&
+            AcCopyNarrowString(
+                (const MewNarrowString*)((uint8_t*)entry +
+                    AC_ENTRY_ITEM_OFFSET),
+                item,
+                sizeof(item)) &&
+            strcmp(item, before->item) == 0 &&
+            AcCopyNarrowString(
+                (const MewNarrowString*)((uint8_t*)entry +
+                    AC_ENTRY_ROOM_OFFSET),
+                room,
+                sizeof(room)) &&
+            room[0] == '\0';
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
+static int AcDetachFurnitureSnapshot(
+    const AcMewFurniturePieceSnapshot* before,
+    AcFurnitureRemoveFn remove_piece) {
+    if (!before || !before->piece || !remove_piece) {
+        return 0;
+    }
+    remove_piece(before->piece);
+    return AcMewFurnitureDetachedSnapshotMatches(before);
+}
+
+static int AcEnsureDetachedFurnitureSnapshot(
+    const AcMewFurniturePieceSnapshot* before,
+    AcFurnitureRemoveFn remove_piece) {
+    void* current_grid;
+    if (!before || !before->piece || !remove_piece ||
+        !AcReadableRange(
+            before->piece, AC_FURNITURE_GRID_OFFSET + sizeof(void*))) {
+        return 0;
+    }
+    __try {
+        current_grid = *(void**)((uint8_t*)before->piece +
+            AC_FURNITURE_GRID_OFFSET);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+    return current_grid
+        ? AcDetachFurnitureSnapshot(before, remove_piece)
+        : AcMewFurnitureDetachedSnapshotMatches(before);
+}
+
+static int AcRecommitFurnitureSnapshot(
+    const AcMewFurniturePieceSnapshot* before,
+    const AcMewFurnitureGridSnapshot* target_grid,
+    AcFurnitureValidateFn validate_piece,
+    AcFurnitureCommitFn commit_piece) {
+    if (!before || !before->piece || !before->transform || !target_grid ||
+        !target_grid->grid || !validate_piece || !commit_piece ||
+        !AcMewFurnitureDetachedSnapshotMatches(before)) {
+        return 0;
+    }
+    *(double*)((uint8_t*)before->transform + AC_TRANSFORM_X_OFFSET) =
+        before->world_x;
+    *(double*)((uint8_t*)before->transform + AC_TRANSFORM_Y_OFFSET) =
+        before->world_y;
+    *(double*)((uint8_t*)before->transform + AC_TRANSFORM_Z_OFFSET) =
+        before->world_z;
+    *(double*)((uint8_t*)before->transform + AC_TRANSFORM_SCALE_X_OFFSET) =
+        before->scale_x;
+    *(double*)((uint8_t*)before->transform + AC_TRANSFORM_SCALE_Y_OFFSET) =
+        before->scale_y;
+    if (!validate_piece(before->piece, target_grid->grid, 0U)) {
+        return 0;
+    }
+    commit_piece(before->piece, target_grid->grid);
+    return AcPlacementMatches(
+        before->piece,
+        before->entry,
+        target_grid->grid,
+        target_grid->room,
+        before->saved_x,
+        before->saved_y);
+}
+
 static int AcPlaceStoredFurniture(
     void* house_scene_manager,
     void* context,
@@ -1248,8 +1353,6 @@ static int AcSceneMatchesOriginalPlacement(
 typedef struct AcMewFurnitureTransactionDependent {
     AcMewFurnitureSupportDependentRequest request;
     AcMewFurniturePieceSnapshot before;
-    void* restored_piece;
-    AcMewFurniturePieceSnapshot restored_snapshot;
 } AcMewFurnitureTransactionDependent;
 
 AcMewNativeFurnitureReplacementResult
@@ -1274,10 +1377,12 @@ AcMewReplaceFurnitureWithWarehousePiece(
     AcFurnitureValidateFn validate_piece;
     AcFurnitureCommitFn commit_piece;
     AcFurnitureCreatePieceFn create_piece;
+    AcFurnitureRemoveFn remove_piece;
     AcFurnitureStorePieceFn store_piece;
     size_t index;
     size_t stored_count;
     size_t restored_count;
+    int old_detached;
     int old_stored;
     int new_placed;
     int transaction_ok;
@@ -1331,6 +1436,8 @@ AcMewReplaceFurnitureWithWarehousePiece(
         (uint8_t*)executable + AC_FURNITURE_COMMIT_RVA);
     create_piece = (AcFurnitureCreatePieceFn)(
         (uint8_t*)executable + AC_FURNITURE_CREATE_PIECE_RVA);
+    remove_piece = (AcFurnitureRemoveFn)(
+        (uint8_t*)executable + AC_FURNITURE_REMOVE_RVA);
     store_piece = (AcFurnitureStorePieceFn)(
         (uint8_t*)executable + AC_FURNITURE_STORE_PIECE_RVA);
     dependents = support_dependent_count == 0U
@@ -1380,13 +1487,14 @@ AcMewReplaceFurnitureWithWarehousePiece(
     created_piece = NULL;
     stored_count = 0U;
     restored_count = 0U;
+    old_detached = 0;
     old_stored = 0;
     new_placed = 0;
     transaction_ok = 1;
     __try {
         for (index = 0U; index < support_dependent_count; ++index) {
-            if (!AcStoreFurnitureSnapshot(
-                    &dependents[index].before, store_piece)) {
+            if (!AcDetachFurnitureSnapshot(
+                    &dependents[index].before, remove_piece)) {
                 transaction_ok = 0;
                 break;
             }
@@ -1394,11 +1502,10 @@ AcMewReplaceFurnitureWithWarehousePiece(
             result.support_dependents_stored = (uint32_t)stored_count;
         }
         if (transaction_ok) {
-            old_stored = AcStoreFurnitureSnapshot(
-                &placed_before, store_piece);
-            result.old_piece_removed = (uint8_t)old_stored;
-            result.old_piece_deleted = (uint8_t)old_stored;
-            transaction_ok = old_stored;
+            old_detached = AcDetachFurnitureSnapshot(
+                &placed_before, remove_piece);
+            result.old_piece_removed = (uint8_t)old_detached;
+            transaction_ok = old_detached;
         }
         if (transaction_ok) {
             new_placed = AcPlaceStoredFurniture(
@@ -1429,29 +1536,11 @@ AcMewReplaceFurnitureWithWarehousePiece(
                  --index) {
                 AcMewFurnitureTransactionDependent* dependent =
                     &dependents[index - 1U];
-                uint8_t created_valid;
-                uint8_t placement_valid;
-                uint8_t committed;
-                if (!AcPlaceStoredFurniture(
-                        house_scene_manager,
-                        context,
-                        dependent->before.stable_key,
-                        dependent->before.item,
-                        dependent->before.entry,
+                if (!AcRecommitFurnitureSnapshot(
+                        &dependent->before,
                         &verified_grid,
-                        dependent->before.saved_x,
-                        dependent->before.saved_y,
-                        dependent->before.scale_x,
-                        dependent->before.scale_y,
-                        create_piece,
                         validate_piece,
-                        commit_piece,
-                        store_piece,
-                        &dependent->restored_piece,
-                        &dependent->restored_snapshot,
-                        &created_valid,
-                        &placement_valid,
-                        &committed)) {
+                        commit_piece)) {
                     transaction_ok = 0;
                     break;
                 }
@@ -1459,6 +1548,12 @@ AcMewReplaceFurnitureWithWarehousePiece(
                 result.support_dependents_restored =
                     (uint32_t)restored_count;
             }
+        }
+        if (transaction_ok) {
+            old_stored = AcStoreFurnitureSnapshot(
+                &placed_before, store_piece);
+            result.old_piece_deleted = (uint8_t)old_stored;
+            transaction_ok = old_stored;
         }
         if (transaction_ok) {
             result.verified = 1U;
@@ -1472,20 +1567,15 @@ AcMewReplaceFurnitureWithWarehousePiece(
         free(dependents);
         return result;
     }
-    if (stored_count != 0U || old_stored || new_placed ||
+    if (stored_count != 0U || old_detached || old_stored || new_placed ||
         restored_count != 0U || result.seh_code != 0U) {
         int rollback_ok = 1;
         result.rollback_attempted = 1U;
         __try {
-            if (restored_count != 0U) {
-                const size_t first_restored =
-                    support_dependent_count - restored_count;
-                for (index = first_restored;
-                     index < support_dependent_count;
-                     ++index) {
-                    if (!AcStoreFurnitureSnapshot(
-                            &dependents[index].restored_snapshot,
-                            store_piece)) {
+            if (stored_count != 0U) {
+                for (index = 0U; index < stored_count; ++index) {
+                    if (!AcEnsureDetachedFurnitureSnapshot(
+                            &dependents[index].before, remove_piece)) {
                         rollback_ok = 0;
                         break;
                     }
@@ -1496,61 +1586,23 @@ AcMewReplaceFurnitureWithWarehousePiece(
                 rollback_ok = 0;
             }
             if (rollback_ok && old_stored) {
-                void* restored_old;
-                AcMewFurniturePieceSnapshot restored_snapshot;
-                uint8_t created_valid;
-                uint8_t placement_valid;
-                uint8_t committed;
-                rollback_ok = AcPlaceStoredFurniture(
-                    house_scene_manager,
-                    context,
-                    placed_before.stable_key,
-                    placed_before.item,
-                    placed_before.entry,
+                rollback_ok = 0;
+            } else if (rollback_ok && old_detached) {
+                rollback_ok = AcRecommitFurnitureSnapshot(
+                    &placed_before,
                     &verified_grid,
-                    placed_before.saved_x,
-                    placed_before.saved_y,
-                    placed_before.scale_x,
-                    placed_before.scale_y,
-                    create_piece,
                     validate_piece,
-                    commit_piece,
-                    store_piece,
-                    &restored_old,
-                    &restored_snapshot,
-                    &created_valid,
-                    &placement_valid,
-                    &committed);
+                    commit_piece);
             }
             if (rollback_ok) {
                 for (index = stored_count; index > 0U; --index) {
                     AcMewFurnitureTransactionDependent* dependent =
                         &dependents[index - 1U];
-                    void* restored_piece;
-                    AcMewFurniturePieceSnapshot restored_snapshot;
-                    uint8_t created_valid;
-                    uint8_t placement_valid;
-                    uint8_t committed;
-                    if (!AcPlaceStoredFurniture(
-                            house_scene_manager,
-                            context,
-                            dependent->before.stable_key,
-                            dependent->before.item,
-                            dependent->before.entry,
+                    if (!AcRecommitFurnitureSnapshot(
+                            &dependent->before,
                             &verified_grid,
-                            dependent->before.saved_x,
-                            dependent->before.saved_y,
-                            dependent->before.scale_x,
-                            dependent->before.scale_y,
-                            create_piece,
                             validate_piece,
-                            commit_piece,
-                            store_piece,
-                            &restored_piece,
-                            &restored_snapshot,
-                            &created_valid,
-                            &placement_valid,
-                            &committed)) {
+                            commit_piece)) {
                         rollback_ok = 0;
                         break;
                     }
