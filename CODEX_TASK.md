@@ -59,6 +59,14 @@ key 会生成新的 `FurniturePiece` 后，把属性升级接入现有“自动�
   -> 旧底座收回家具栏 -> 新底座从 stable key 创建并提交 -> 最下层到最上层依赖件
   按 stable key 原位创建”的真实游戏流程执行；失败时按相反顺序恢复原底座和已收回
   依赖链。不得跨房间或在房间地面寻找临时落点。
+- v0.5.36 玩家点击“开始分析”后两次出现 `AC3205 attribute upgrade support chain
+  could not be resolved`，因此没有生成 `AC3901`，自动放置保持禁用。当前存档复现确认
+  key 13 的初始依赖链可解析；根因是属性候选先按收益占用 placed/warehouse，再在后续
+  阶段求几何目标。`key=13 -> set_90s_stove key=99` 没有完整合法落点，却以旧坐标
+  `(-10,-11)` 写入虚拟家具集合，导致下一项 key 68 的依赖解析失败。v0.5.37 必须在
+  贪心选择每个候选时同时验证当前虚拟状态的 Support 链和完整合法目标；不可执行候选
+  不占用 placed/warehouse，继续尝试次优可执行配对。当前存档完整分析必须成功并让
+  自动放置可点击。
 
 ## Player validation gate
 

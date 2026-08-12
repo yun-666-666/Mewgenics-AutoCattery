@@ -316,6 +316,7 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         });
     std::unordered_set<std::uint64_t> used_placed;
     std::unordered_set<std::uint64_t> used_warehouse;
+    auto planning_furniture = source.furniture;
     for (const auto& pair : upgrade_pairs) {
         const auto placed_key =
             static_cast<std::uint64_t>(pair.placed->instance_id);
@@ -325,6 +326,41 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             used_warehouse.contains(warehouse_key)) {
             continue;
         }
+        const auto placed = std::ranges::find_if(
+            planning_furniture,
+            [placed_key](const auto& item) {
+                return item.instance_id ==
+                    static_cast<std::int64_t>(placed_key);
+            });
+        const auto warehouse = std::ranges::find_if(
+            planning_furniture,
+            [warehouse_key](const auto& item) {
+                return item.instance_id ==
+                    static_cast<std::int64_t>(warehouse_key);
+            });
+        if (placed == planning_furniture.end() ||
+            warehouse == planning_furniture.end()) {
+            return {{}, ErrorCode::SnapshotInvalid,
+                    "attribute upgrade identity disappeared before planning"};
+        }
+        const auto support_dependents =
+            furniture_planning::FindFurnitureSupportDependentsTopDown(
+                *placed,
+                planning_furniture,
+                source.geometry,
+                source.furniture_info,
+                source.runtime_room_grids);
+        const auto replacement =
+            furniture_planning::FindNearestFurnitureReplacementPlacement(
+                *placed,
+                *warehouse,
+                planning_furniture,
+                source.geometry,
+                source.furniture_info,
+                source.runtime_room_grids);
+        if (!support_dependents || !replacement) {
+            continue;
+        }
         used_placed.insert(placed_key);
         used_warehouse.insert(warehouse_key);
         result.attribute_upgrades.push_back({
@@ -332,13 +368,21 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             .warehouse_stable_key = warehouse_key,
             .placed_item_id = pair.placed->item_id,
             .warehouse_item_id = pair.warehouse->item_id,
-            .target_room_id = pair.placed->room_id,
+            .target_room_id = replacement->room_id,
             .original_x = pair.placed->position_x,
             .original_y = pair.placed->position_y,
-            .target_x = pair.placed->position_x,
-            .target_y = pair.placed->position_y,
+            .target_x = replacement->x,
+            .target_y = replacement->y,
+            .support_dependents_top_down = *support_dependents,
             .gain = pair.gain});
         Add(result.attribute_upgrade_gain, pair.gain);
+        warehouse->room_id = replacement->room_id;
+        warehouse->position_x = replacement->x;
+        warehouse->position_y = replacement->y;
+        warehouse->position_z = placed->position_z;
+        warehouse->scale_x = placed->scale_x;
+        warehouse->scale_y = placed->scale_y;
+        placed->room_id.clear();
     }
 
     result.identified_room_count = identified.size();
@@ -360,60 +404,6 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 "furniture analysis found no current House rooms"};
     }
     result.binding_digest = BuildBindingDigest(source, result.rooms);
-    auto planning_furniture = source.furniture;
-    for (auto& upgrade : result.attribute_upgrades) {
-        const auto placed = std::ranges::find_if(
-            planning_furniture,
-            [&upgrade](const auto& item) {
-                return item.instance_id ==
-                    static_cast<std::int64_t>(
-                        upgrade.placed_stable_key);
-            });
-        const auto warehouse = std::ranges::find_if(
-            planning_furniture,
-            [&upgrade](const auto& item) {
-                return item.instance_id ==
-                    static_cast<std::int64_t>(
-                        upgrade.warehouse_stable_key);
-            });
-        if (placed == planning_furniture.end() ||
-            warehouse == planning_furniture.end()) {
-            return {{}, ErrorCode::SnapshotInvalid,
-                    "attribute upgrade identity disappeared before planning"};
-        }
-        const auto support_dependents =
-            furniture_planning::FindFurnitureSupportDependentsTopDown(
-                *placed,
-                planning_furniture,
-                source.geometry,
-                source.furniture_info,
-                source.runtime_room_grids);
-        if (!support_dependents) {
-            return {{}, ErrorCode::SnapshotInvalid,
-                    "attribute upgrade support chain could not be resolved"};
-        }
-        upgrade.support_dependents_top_down = *support_dependents;
-        const auto replacement =
-            furniture_planning::FindNearestFurnitureReplacementPlacement(
-                *placed,
-                *warehouse,
-                planning_furniture,
-                source.geometry,
-                source.furniture_info,
-                source.runtime_room_grids);
-        if (replacement) {
-            upgrade.target_room_id = replacement->room_id;
-            upgrade.target_x = replacement->x;
-            upgrade.target_y = replacement->y;
-        }
-        warehouse->room_id = upgrade.target_room_id;
-        warehouse->position_x = upgrade.target_x;
-        warehouse->position_y = upgrade.target_y;
-        warehouse->position_z = placed->position_z;
-        warehouse->scale_x = placed->scale_x;
-        warehouse->scale_y = placed->scale_y;
-        placed->room_id.clear();
-    }
     result.layout_plan = furniture_planning::FurnitureLayoutSolver{}.Plan(
         planning_furniture,
         source.geometry,

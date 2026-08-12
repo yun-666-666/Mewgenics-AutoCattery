@@ -39,6 +39,15 @@ snapshot::detail::FurniturePlacement Furniture(
         .scale_y = 1};
 }
 
+snapshot::detail::FurnitureInfoRecord SingleCellInfo(std::string item_id) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item_id);
+    info.placement_grid.supported = true;
+    info.placement_grid.tiles[0] =
+        snapshot::detail::FurniturePlacementTile::Hitbox;
+    return info;
+}
+
 }  // namespace
 
 void RunFurnitureAnalysisServiceTests() {
@@ -140,10 +149,8 @@ void RunFurnitureAnalysisServiceTests() {
     for (const auto& item : {
              "weak-one", "weak-two", "strong-one", "strong-two",
              "tradeoff"}) {
-        snapshot::detail::FurnitureInfoRecord info;
-        info.item_id = item;
-        info.placement_grid.supported = true;
-        upgrades.value.furniture_info.records.push_back(std::move(info));
+        upgrades.value.furniture_info.records.push_back(
+            SingleCellInfo(item));
     }
     upgrades.value.runtime_room_grids = {
         {"RoomA", 8, 2,
@@ -183,6 +190,44 @@ void RunFurnitureAnalysisServiceTests() {
         [](const auto& upgrade) {
             return upgrade.warehouse_item_id == "tradeoff";
         }));
+
+    FakeFurnitureAnalysisSource executable_upgrade;
+    executable_upgrade.value.house.source_save_name = "executable-upgrade.sav";
+    executable_upgrade.value.available_room_count = 1;
+    executable_upgrade.value.house.rooms = {{.id = "RoomA"}};
+    executable_upgrade.value.furniture = {
+        Furniture(1, "weak", "RoomA"),
+        Furniture(2, "too-wide", ""),
+        Furniture(3, "fits", "")};
+    executable_upgrade.value.furniture[0].position_x = 0;
+    executable_upgrade.value.furniture_effects = {
+        {"weak", snapshot::RoomAttributes{.comfort = 1}},
+        {"too-wide", snapshot::RoomAttributes{.comfort = 10}},
+        {"fits", snapshot::RoomAttributes{.comfort = 5}}};
+    executable_upgrade.value.furniture_info.records = {
+        SingleCellInfo("weak"),
+        SingleCellInfo("too-wide"),
+        SingleCellInfo("fits")};
+    executable_upgrade.value.furniture_info.records[1]
+        .placement_grid.tiles[1] =
+            snapshot::detail::FurniturePlacementTile::Hitbox;
+    executable_upgrade.value.runtime_room_grids = {
+        {"RoomA", 1, 1, {0U}, {1U}}};
+    furniture_analysis::FurnitureAnalysisService executable_service(
+        executable_upgrade);
+    const auto executable_result = executable_service.Analyze(94);
+    AC_CHECK(static_cast<bool>(executable_result));
+    AC_CHECK(executable_result.value.attribute_upgrades.size() == 1);
+    if (executable_result.value.attribute_upgrades.size() == 1) {
+        AC_CHECK(
+            executable_result.value.attribute_upgrades[0].warehouse_stable_key ==
+            3);
+        AC_CHECK(
+            executable_result.value.attribute_upgrades[0].warehouse_item_id ==
+            "fits");
+        AC_CHECK(executable_result.value.attribute_upgrades[0].target_x == 0);
+        AC_CHECK(executable_result.value.attribute_upgrades[0].target_y == 0);
+    }
 }
 
 }  // namespace autocattery::tests

@@ -1,7 +1,7 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-12
-版本：v0.5.36
+版本：v0.5.37
 
 ## 结果
 
@@ -27,6 +27,13 @@
   最下层逐件调用游戏原生家具栏收回路径，再收回旧底座；随后从仓库 stable key 创建
   新底座，并按最下层到最上层将依赖件原位创建。执行过程不寻找房间地面或跨房间
   临时落点；失败时先清理已重建链和新底座，再恢复旧底座及已收回依赖链。
+- v0.5.36 玩家实测两次“开始分析”均以 `AC3205 attribute upgrade support chain
+  could not be resolved` 结束，因此没有 `AC3901`，自动放置按界面状态保持禁用。当前
+  存档直接复现定位到：key 13 的初始依赖链可以正确解析，但最高收益配对
+  `key=13 -> set_90s_stove key=99` 没有完整合法几何落点；旧实现仍把旧坐标写入虚拟
+  集合，下一项 key 68 才报依赖解析失败。v0.5.37 在候选贪心选择时同时验证当前虚拟
+  Support 链和完整合法目标；不可执行配对不占用 placed/warehouse，继续选择次优的
+  可执行配对。
 
 ## 当前 build 证据
 
@@ -109,6 +116,12 @@
   Support 三层链回归确认收回顺序为最上层到最下层。
 - v0.5.36 `tools\build.ps1 -Configuration Release`：成功；Release CTest 4/4
   通过；Release DLL exports 与 x64 检查通过。
+- v0.5.37 当前 day 339 存档完整分析复现：从 `AC3205` 等价失败变为成功，生成 26 项
+  有完整合法目标的属性替换；自动放置可用条件成立。新增回归确认最高收益家具宽于
+  房间、无法放置时会选用次优可执行家具。
+- v0.5.37 `tools\build.ps1 -Configuration Debug`：成功；Debug CTest 4/4 通过。
+- v0.5.37 `tools\build.ps1 -Configuration Release`：成功；Release CTest 4/4
+  通过；Release DLL exports 与 x64 检查通过。
 - `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
   -Configuration Release`：DLL-only 部署成功。
 - `tools\verify_install.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics`：
@@ -119,6 +132,10 @@
 - v0.5.36 build、`dist\Release\AutoCattery.dll` 与实际安装的
   `Mewgenics\mods\AutoCattery.dll` SHA-256 一致：
   `6E7DF91D05C41ACBF2100EF9BA4E4A93C22525C7535C065AB49422BB06229E61`。
+- v0.5.37 DLL-only 部署与 `tools\verify_install.ps1` 通过；14 个职业重投保持 20。
+  build、`dist\Release\AutoCattery.dll` 与实际安装的
+  `Mewgenics\mods\AutoCattery.dll` SHA-256 一致：
+  `4D449C17DCA34C36C65B92D1319C189309163CF754206BF2B7E3AF7F22F709F4`。
 - 玩家首次启动暴露 BOM GON 错误后，已在同一 Windows PowerShell 5 后台环境重新
   执行修正后的部署与 `verify_install`：成功；AutoCattery 和
   SkillsPassivesFirstData 的四份职业 GON、`modlist.txt` 均确认 `BOM=False`，四份 GON
@@ -126,7 +143,7 @@
 
 ## 玩家验证状态
 
-v0.5.36 已部署，等待玩家实机执行。完全退出游戏后重新通过 Mewtator 启动，进入同一
+v0.5.37 已部署，等待玩家实机执行。完全退出游戏后重新通过 Mewtator 启动，进入同一
 测试存档和家具模式，点击一次“开始分析”，再点击一次“自动放置”。第一项成功日志
 `AC3912` 应包含 `support=5/5->5`，表示五件依赖家具全部真实收回家具栏并全部原位
 重建；批次成功最终出现 `AC3904`。若失败，`AC3907` 必须显示完整回滚。成功后保存、
