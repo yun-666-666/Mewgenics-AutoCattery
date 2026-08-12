@@ -471,6 +471,14 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         warehouse->scale_x = placed->scale_x;
         warehouse->scale_y = placed->scale_y;
         placed->room_id.clear();
+
+        // The game defers destruction of the replaced FurniturePiece.  A
+        // second replacement in the same sealed execution batch can need a
+        // stable key whose old component is still pending deletion, and a
+        // later failure cannot safely recreate earlier keys during rollback.
+        // Seal exactly one native replacement per analysis.  The next player
+        // analysis observes the settled scene and selects the next upgrade.
+        break;
     }
 
     // A replaced scene piece is queued for deferred component deletion by
@@ -505,13 +513,18 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 "furniture analysis found no current House rooms"};
     }
     result.binding_digest = BuildBindingDigest(source, result.rooms);
-    result.layout_plan = furniture_planning::FurnitureLayoutSolver{}.Plan(
-        planning_furniture,
-        source.geometry,
-        source.furniture_info,
-        source.runtime_room_grids,
-        locked_room_ids,
-        source.furniture_effects);
+    // Never mix a native warehouse replacement with layout moves.  A
+    // successful replacement finishes this batch; layout planning resumes on
+    // the next analysis after the game's deferred component deletion settles.
+    if (result.attribute_upgrades.empty()) {
+        result.layout_plan = furniture_planning::FurnitureLayoutSolver{}.Plan(
+            planning_furniture,
+            source.geometry,
+            source.furniture_info,
+            source.runtime_room_grids,
+            locked_room_ids,
+            source.furniture_effects);
+    }
     return {std::move(result)};
 }
 

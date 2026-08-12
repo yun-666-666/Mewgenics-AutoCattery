@@ -166,25 +166,24 @@ void RunFurnitureAnalysisServiceTests() {
     furniture_analysis::FurnitureAnalysisService upgrade_service(upgrades);
     const auto upgrade_result = upgrade_service.Analyze(93);
     AC_CHECK(static_cast<bool>(upgrade_result));
-    AC_CHECK(upgrade_result.value.attribute_upgrades.size() == 2);
+    AC_CHECK(upgrade_result.value.attribute_upgrades.size() == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].warehouse_stable_key == 3);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].placed_stable_key == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].original_x == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].original_y == 0);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].target_x == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].target_y == 0);
-    AC_CHECK(upgrade_result.value.attribute_upgrades[1].warehouse_stable_key == 4);
-    AC_CHECK(upgrade_result.value.attribute_upgrades[1].placed_stable_key == 2);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.comfort == 6);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.stimulation == 6);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.health == 6);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.mutation == 6);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.appeal == 6);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.comfort == 4);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.stimulation == 4);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.health == 4);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.mutation == 4);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.appeal == 4);
     AC_CHECK(upgrade_result.value.runtime_scene_piece_count == 3);
     AC_CHECK(upgrade_result.value.runtime_placed_piece_count == 2);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_count == 1);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_match_count == 1);
-    AC_CHECK(upgrade_result.value.layout_plan.warehouse_furniture_count == 1);
+    AC_CHECK(upgrade_result.value.layout_plan.moves.empty());
+    AC_CHECK(upgrade_result.value.layout_plan.planned_room_count == 0);
     AC_CHECK(std::ranges::none_of(
         upgrade_result.value.layout_plan.moves,
         [&upgrade_result](const auto& move) {
