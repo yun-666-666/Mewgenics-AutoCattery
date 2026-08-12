@@ -198,6 +198,14 @@ void RunFurnitureAnalysisServiceTests() {
         [](const auto& upgrade) {
             return upgrade.warehouse_item_id == "tradeoff";
         }));
+    const auto quarantined_upgrade = upgrade_service.Analyze(93, {}, {3U});
+    AC_CHECK(static_cast<bool>(quarantined_upgrade));
+    AC_CHECK(quarantined_upgrade.value.attribute_upgrades.size() == 1);
+    if (quarantined_upgrade.value.attribute_upgrades.size() == 1) {
+        AC_CHECK(
+            quarantined_upgrade.value.attribute_upgrades[0]
+                .warehouse_stable_key == 4U);
+    }
 
     FakeFurnitureAnalysisSource executable_upgrade;
     executable_upgrade.value.house.source_save_name = "executable-upgrade.sav";

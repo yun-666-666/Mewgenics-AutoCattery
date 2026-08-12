@@ -3,6 +3,24 @@
 日期：2026-08-12
 版本：v0.5.42
 
+## v0.5.46 当前场景 stable-key quarantine 与连续执行
+
+- 新增当前 House scene generation 级别的 stable-key quarantine。属性替换成功后，
+  被退回仓库的旧 key 立即加入；仓库创建失败后安全回收的新 key 也加入。分析器会从
+  属性升级候选和仓库布局来源中排除这些 key，`FurniturePlacementGateway` 在调用
+  原生 create 前再次拒绝，形成双重门。
+- 当前阶段不把 delete-queued、普通枚举消失或固定等待时间误当 final deletion ACK；
+  quarantine 只在进入新的 House scene generation 时清空。
+- “自动放置”现在是一次点击持续运行：每个密封原生事务完成后刷新运行时快照、自动
+  重新分析并继续其他未隔离的安全候选；零移动但可锁定的房间会自动进入下一房间，
+  直到当前场景没有安全动作。
+- 删除跨已提交属性替换的全局逆向重建。后续失败只回滚当前布局移动；先前成功的属性
+  事务保持提交，避免用正在延迟删除的旧 key 做危险回滚。原生 SEH 会封锁当前场景的
+  后续写入，要求退出并重新进入 House。
+- 聚焦 Release `auto_cattery_tests.exe` 通过；Release `AutoCattery.dll` 编译成功并
+  部署到当前游戏安装。按玩家要求未运行哈希、安装验证或额外打包。玩家实机验证待
+  完成。
+
 ## 结果
 
 - “开始分析”产生属性升级候选后，“自动放置”不再只执行布局移动；只存在属性升级

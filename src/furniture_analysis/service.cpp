@@ -215,7 +215,8 @@ FurnitureAnalysisService::FurnitureAnalysisService(
 
 Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     std::uint64_t scene_generation,
-    const std::vector<snapshot::RoomId>& locked_room_ids) {
+    const std::vector<snapshot::RoomId>& locked_room_ids,
+    const std::vector<std::uint64_t>& blocked_warehouse_keys) {
     if (scene_generation == 0U) {
         return {{}, ErrorCode::SceneUnavailable,
                 "furniture analysis requires a House generation"};
@@ -315,8 +316,14 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     std::vector<UpgradePair> upgrade_pairs;
     const std::unordered_set<snapshot::RoomId> locked_rooms(
         locked_room_ids.begin(), locked_room_ids.end());
+    const std::unordered_set<std::uint64_t> blocked_warehouse(
+        blocked_warehouse_keys.begin(), blocked_warehouse_keys.end());
     for (const auto& warehouse : source.furniture) {
         if (!warehouse.room_id.empty() || warehouse.instance_id <= 0) {
+            continue;
+        }
+        if (blocked_warehouse.contains(
+                static_cast<std::uint64_t>(warehouse.instance_id))) {
             continue;
         }
         const auto improved =
@@ -489,9 +496,12 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     // planning until the player's next analysis captures the settled scene.
     std::erase_if(
         planning_furniture,
-        [&used_placed](const auto& item) {
-            return item.instance_id > 0 && used_placed.contains(
-                static_cast<std::uint64_t>(item.instance_id));
+        [&used_placed, &blocked_warehouse](const auto& item) {
+            if (item.instance_id <= 0) {
+                return false;
+            }
+            const auto key = static_cast<std::uint64_t>(item.instance_id);
+            return used_placed.contains(key) || blocked_warehouse.contains(key);
         });
 
     result.identified_room_count = identified.size();

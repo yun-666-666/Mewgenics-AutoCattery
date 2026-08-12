@@ -63,6 +63,7 @@ private:
         const UiContextSnapshot& context);
 #endif
     void ClearFurnitureLayoutPreview();
+    void StartFurnitureAnalysis(std::uint64_t generation);
     void StartFurnitureAutoPlacement(std::uint64_t generation);
     void PollFurnitureAutoPlacement(
         const UiContextSnapshot& context);
@@ -136,6 +137,12 @@ private:
     std::vector<std::size_t> furniture_execution_committed_move_indices_;
     std::uint64_t furniture_layout_session_generation_{};
     std::vector<snapshot::RoomId> furniture_locked_room_ids_;
+    std::uint64_t furniture_retirement_generation_{};
+    std::vector<std::uint64_t> furniture_retired_keys_;
+    bool furniture_auto_run_active_{};
+    std::size_t furniture_auto_run_upgraded_{};
+    std::size_t furniture_auto_run_moved_{};
+    std::uint64_t furniture_faulted_generation_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
     std::unique_ptr<RuntimeHouseMoveGateway> runtime_move_gateway_;

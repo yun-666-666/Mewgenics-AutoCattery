@@ -1,5 +1,7 @@
 #include "furniture_placement_gateway.hpp"
 
+#include <algorithm>
+
 #include "auto_cattery/save_safety/game_build_gate.hpp"
 #include "mew_ui_furniture_move_adapter.h"
 
@@ -74,6 +76,8 @@ const char* FurnitureWarehouseReplacementStatusName(
     switch (status) {
         case FurnitureWarehouseReplacementStatus::Replaced:
             return "replaced";
+        case FurnitureWarehouseReplacementStatus::RetirementPending:
+            return "retirement_pending";
         case FurnitureWarehouseReplacementStatus::Unsupported:
             return "unsupported";
         case FurnitureWarehouseReplacementStatus::NotFound:
@@ -97,6 +101,8 @@ const char* FurnitureWarehousePlacementStatusName(
             return "placed";
         case FurnitureWarehousePlacementStatus::Stored:
             return "stored";
+        case FurnitureWarehousePlacementStatus::RetirementPending:
+            return "retirement_pending";
         case FurnitureWarehousePlacementStatus::Unsupported:
             return "unsupported";
         case FurnitureWarehousePlacementStatus::NotFound:
@@ -124,6 +130,20 @@ bool FurniturePlacementGateway::Initialize(
 void FurniturePlacementGateway::SetHouseScene(
     void* house_scene_manager) noexcept {
     house_scene_manager_ = house_scene_manager;
+}
+
+void FurniturePlacementGateway::SetBlockedWarehouseKeys(
+    const std::vector<std::uint64_t>& stable_keys) {
+    blocked_warehouse_keys_.clear();
+    blocked_warehouse_keys_.insert(stable_keys.begin(), stable_keys.end());
+}
+
+std::vector<std::uint64_t>
+FurniturePlacementGateway::BlockedWarehouseKeys() const {
+    std::vector<std::uint64_t> keys(
+        blocked_warehouse_keys_.begin(), blocked_warehouse_keys_.end());
+    std::ranges::sort(keys);
+    return keys;
 }
 
 FurniturePlacementLocation FurniturePlacementGateway::Locate(
@@ -268,6 +288,13 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
     FurnitureWarehouseReplacementResult result;
     result.warehouse_item = request.warehouse_item;
     result.warehouse_stable_key = request.warehouse_stable_key;
+    if (blocked_warehouse_keys_.contains(request.warehouse_stable_key)) {
+        result.status =
+            FurnitureWarehouseReplacementStatus::RetirementPending;
+        result.message =
+            "the warehouse stable key is quarantined until the House scene changes";
+        return result;
+    }
     result.placed = Locate(request.placed);
     if (result.placed.status != FurniturePlacementLookupStatus::Found) {
         result.status = result.placed.status ==
@@ -363,6 +390,7 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
     result.seh_code = replaced.seh_code;
     result.exception_rva = replaced.exception_rva;
     if (result.verified) {
+        blocked_warehouse_keys_.insert(result.placed.stable_key);
         result.status = FurnitureWarehouseReplacementStatus::Replaced;
         result.message =
             "the warehouse furniture replaced the placed instance through the native scene path";
@@ -371,11 +399,13 @@ FurniturePlacementGateway::ReplaceWithWarehouse(
         result.message =
             "warehouse replacement failed and the original furniture placement could not be verified";
     } else if (result.rollback_succeeded && !result.placement_valid) {
+        blocked_warehouse_keys_.insert(request.warehouse_stable_key);
         result.status =
             FurnitureWarehouseReplacementStatus::RejectedRestored;
         result.message =
             "the warehouse furniture was rejected and the original furniture was restored";
     } else if (result.rollback_succeeded) {
+        blocked_warehouse_keys_.insert(request.warehouse_stable_key);
         result.status = FurnitureWarehouseReplacementStatus::FailedRestored;
         result.message =
             "warehouse replacement failed and the original furniture was restored";
@@ -396,6 +426,12 @@ FurniturePlacementGateway::PlaceFromWarehouse(
     result.target_room = request.target_room;
     result.target_x = request.target_x;
     result.target_y = request.target_y;
+    if (blocked_warehouse_keys_.contains(request.warehouse_stable_key)) {
+        result.status = FurnitureWarehousePlacementStatus::RetirementPending;
+        result.message =
+            "the warehouse stable key is quarantined until the House scene changes";
+        return result;
+    }
     if (!build_supported_ || !house_scene_manager_ ||
         request.warehouse_item.empty() ||
         request.warehouse_stable_key == 0U ||
@@ -442,11 +478,13 @@ FurniturePlacementGateway::PlaceFromWarehouse(
         result.message =
             "warehouse placement failed and the created piece could not be stored safely";
     } else if (result.rollback_succeeded && !result.placement_valid) {
+        blocked_warehouse_keys_.insert(request.warehouse_stable_key);
         result.status =
             FurnitureWarehousePlacementStatus::RejectedRestored;
         result.message =
             "the target coordinate was rejected and the created piece was returned to storage";
     } else if (result.rollback_succeeded) {
+        blocked_warehouse_keys_.insert(request.warehouse_stable_key);
         result.status = FurnitureWarehousePlacementStatus::FailedRestored;
         result.message =
             "warehouse placement failed and the created piece was returned to storage";
@@ -496,6 +534,7 @@ FurniturePlacementGateway::StorePlacedFurniture(
     result.seh_code = stored.seh_code;
     result.exception_rva = stored.exception_rva;
     if (result.verified) {
+        blocked_warehouse_keys_.insert(location.stable_key);
         result.status = FurnitureWarehousePlacementStatus::Stored;
         result.message = "the placed furniture was returned to storage";
     } else {

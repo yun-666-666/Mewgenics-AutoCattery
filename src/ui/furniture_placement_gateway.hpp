@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace autocattery::ui {
@@ -73,6 +74,7 @@ struct FurniturePlacementMoveResult {
 
 enum class FurnitureWarehouseReplacementStatus {
     Replaced,
+    RetirementPending,
     Unsupported,
     NotFound,
     Ambiguous,
@@ -84,6 +86,7 @@ enum class FurnitureWarehouseReplacementStatus {
 enum class FurnitureWarehousePlacementStatus {
     Placed,
     Stored,
+    RetirementPending,
     Unsupported,
     NotFound,
     Ambiguous,
@@ -171,6 +174,9 @@ public:
     [[nodiscard]] bool Initialize(
         const std::filesystem::path& game_executable);
     void SetHouseScene(void* house_scene_manager) noexcept;
+    void SetBlockedWarehouseKeys(
+        const std::vector<std::uint64_t>& stable_keys);
+    [[nodiscard]] std::vector<std::uint64_t> BlockedWarehouseKeys() const;
 
     [[nodiscard]] FurniturePlacementLocation Locate(
         const FurniturePlacementLocator& locator) const;
@@ -188,6 +194,7 @@ public:
 private:
     bool build_supported_{};
     void* house_scene_manager_{};
+    mutable std::unordered_set<std::uint64_t> blocked_warehouse_keys_;
 };
 
 }  // namespace autocattery::ui

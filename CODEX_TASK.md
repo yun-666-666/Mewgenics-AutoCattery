@@ -1,5 +1,18 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.46 current-scene stable-key quarantine
+
+- 属性替换成功退回仓库的旧 stable key，以及原生拒绝后被回收的新 stable key，在
+  当前 House scene generation 内进入 quarantine；分析器和原生 gateway 都不得再用
+  它们调用仓库 create。离开并重新进入新的 House scene 后才清空。
+- 玩家点击一次“自动放置”后，MOD 在每项已提交事务后自动刷新运行时快照、重新分析
+  并继续其他未隔离的安全属性升级或布局移动，直到当前场景安全 fixpoint。
+- 后续失败不再逆向重建先前已经提交、且旧 key 正在延迟删除的属性替换；只回滚当前
+  密封计划中已提交的布局移动。任何原生 SEH 会让当前 House scene 停止后续写入。
+- 本版不猜测同场景真正 create-safe ACK；quarantine 的释放边界保守固定为新 House
+  scene。玩家实测重点是 key=36 类快速复用不再进入 create、一次点击可自动继续且不
+  闪退。
+
 ## Current objective
 
 在 Stage 43 已能分析仓库家具五属性升级、Stage 44 已由玩家真实取放证明仓库 stable
