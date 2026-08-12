@@ -243,8 +243,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_retirement_generation_ = 0;
     furniture_retired_keys_.clear();
     furniture_auto_run_active_ = false;
+    furniture_auto_run_preview_fresh_ = false;
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
+    furniture_auto_run_blocked_rooms_ = 0;
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
     last_scene_summary_.clear();
@@ -574,8 +576,10 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_retirement_generation_ = 0;
     furniture_retired_keys_.clear();
     furniture_auto_run_active_ = false;
+    furniture_auto_run_preview_fresh_ = false;
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
+    furniture_auto_run_blocked_rooms_ = 0;
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
     last_scene_summary_.clear();
@@ -898,6 +902,8 @@ void MewUiBridge::OnTick() {
                             CompactAttributeGain(upgrade.gain) + ".");
                 }
                 furniture_analysis_preview_ = std::move(completed);
+                furniture_auto_run_preview_fresh_ =
+                    furniture_auto_run_active_;
                 if (house_button_controller_) {
                     house_button_controller_->SetFurnitureActionAvailable(
                         executable);
@@ -925,6 +931,9 @@ void MewUiBridge::OnTick() {
                                 std::to_string(furniture_auto_run_moved_) +
                                 ", quarantined_keys=" +
                                 std::to_string(furniture_retired_keys_.size()) +
+                                ", blocked_rooms=" +
+                                std::to_string(
+                                    furniture_auto_run_blocked_rooms_) +
                                 ".");
                     }
                 }
@@ -1365,13 +1374,13 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
         return;
     }
     const auto locked_room_ids = furniture_locked_room_ids_;
-    const auto retired_keys = furniture_retired_keys_;
+    const auto blocked_keys = furniture_retired_keys_;
     furniture_analysis_task_generation_ = generation;
     furniture_analysis_task_ = std::async(
         std::launch::async,
-        [this, generation, locked_room_ids, retired_keys] {
+        [this, generation, locked_room_ids, blocked_keys] {
             return furniture_analysis_service_->Analyze(
-                generation, locked_room_ids, retired_keys);
+                generation, locked_room_ids, blocked_keys);
         });
 }
 
@@ -1405,28 +1414,36 @@ void MewUiBridge::StartFurnitureAutoPlacement(
         return;
     }
 
-    RefreshRuntimeSnapshotContext();
-    const auto refreshed = furniture_analysis_service_->Analyze(
-        generation, furniture_locked_room_ids_, furniture_retired_keys_);
-    if (!refreshed ||
-        refreshed.value.binding_digest !=
-            furniture_analysis_preview_->binding_digest) {
-        ClearFurnitureLayoutPreview();
-        if (house_button_controller_) {
-            house_button_controller_->SetState(
-                OrganizeButtonState::Failed,
-                "the furniture layout changed after analysis");
+    if (!furniture_auto_run_preview_fresh_) {
+        RefreshRuntimeSnapshotContext();
+        const auto blocked_keys = furniture_retired_keys_;
+        const auto refreshed = furniture_analysis_service_->Analyze(
+            generation, furniture_locked_room_ids_, blocked_keys);
+        if (!refreshed ||
+            refreshed.value.binding_digest !=
+                furniture_analysis_preview_->binding_digest) {
+            ClearFurnitureLayoutPreview();
+            if (house_button_controller_) {
+                house_button_controller_->SetState(
+                    OrganizeButtonState::Failed,
+                    "the furniture layout changed after analysis");
+            }
+            Logger::Instance().Write(
+                LogLevel::Warn,
+                "FurniturePlacement",
+                "AC3906",
+                "Auto Place rejected because the sealed whole-house furniture snapshot changed after analysis.");
+            return;
         }
-        Logger::Instance().Write(
-            LogLevel::Warn,
-            "FurniturePlacement",
-            "AC3906",
-            "Auto Place rejected because the sealed whole-house furniture snapshot changed after analysis.");
-        return;
     }
 
     furniture_execution_active_ = true;
     furniture_auto_run_active_ = true;
+    furniture_auto_run_preview_fresh_ = false;
+    if (furniture_analysis_preview_->attribute_upgrades.empty() &&
+        furniture_analysis_preview_->layout_plan.moves.size() > 1U) {
+        furniture_analysis_preview_->layout_plan.moves.resize(1U);
+    }
     furniture_execution_generation_ = generation;
     furniture_execution_upgrade_index_ = 0;
     furniture_execution_index_ = 0;
@@ -1904,6 +1921,38 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             status != FurniturePlacementMoveStatus::AlreadyPlaced) {
             if (moved.seh_code != 0U) {
                 furniture_faulted_generation_ = context.scene_generation;
+            }
+            const bool safely_rejected =
+                furniture_auto_run_active_ && moved.seh_code == 0U &&
+                moved.rollback_attempted && moved.rollback_succeeded &&
+                (status == FurniturePlacementMoveStatus::RejectedRestored ||
+                 status == FurniturePlacementMoveStatus::FailedRestored);
+            if (safely_rejected) {
+                const auto blocked_room =
+                    furniture_analysis_preview_->layout_plan.target_room_id;
+                if (!blocked_room.empty() &&
+                    std::ranges::find(
+                        furniture_locked_room_ids_, blocked_room) ==
+                        furniture_locked_room_ids_.end()) {
+                    furniture_locked_room_ids_.push_back(blocked_room);
+                }
+                ++furniture_auto_run_blocked_rooms_;
+                Logger::Instance().Write(
+                    LogLevel::Warn,
+                    "FurniturePlacement",
+                    "AC3923",
+                    "Continuous Auto Place deferred the native-rejected room and will re-plan: room=" +
+                        SafeTechnicalName(blocked_room) +
+                        " item=" +
+                        SafeTechnicalName(move.item_id) +
+                        " key=" + std::to_string(move.stable_key) +
+                        " room=" + SafeTechnicalName(move.from_room_id) +
+                        "->" + SafeTechnicalName(move.target_room_id) +
+                        " status=" + FurniturePlacementMoveStatusName(status) +
+                        ".");
+                ClearFurnitureLayoutPreview();
+                StartFurnitureAnalysis(context.scene_generation);
+                return;
             }
             std::ostringstream rejection;
             rejection << "native placement rejected " << move.item_id

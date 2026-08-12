@@ -1,5 +1,15 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.47 continuous-run speed and recoverable native rejection
+
+- v0.5.46 实机日志证明每项自动事务前出现两次完整快照/分析：自动 re-analyze 已生成
+  新 preview，`StartFurnitureAutoPlacement` 又同步重复一次。自动续跑现在直接使用刚
+  完成的 fresh preview；玩家首次手动启动仍保留 binding 防陈旧检查。
+- 连续布局计划每轮只执行第一项，再刷新并重新规划，避免后续计划在运行时变化后继续
+  使用旧序列。
+- 原生移动若无 SEH 且已安全恢复，连续流程不再整体失败；将该目标房标为本次 House
+  scene 暂缓并继续其他未锁定房间。SEH、恢复失败、场景变化仍立即停止。
+
 ## v0.5.46 current-scene stable-key quarantine
 
 - 属性替换成功退回仓库的旧 stable key，以及原生拒绝后被回收的新 stable key，在

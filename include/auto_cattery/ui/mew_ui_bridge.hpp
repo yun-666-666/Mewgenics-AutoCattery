@@ -140,8 +140,10 @@ private:
     std::uint64_t furniture_retirement_generation_{};
     std::vector<std::uint64_t> furniture_retired_keys_;
     bool furniture_auto_run_active_{};
+    bool furniture_auto_run_preview_fresh_{};
     std::size_t furniture_auto_run_upgraded_{};
     std::size_t furniture_auto_run_moved_{};
+    std::size_t furniture_auto_run_blocked_rooms_{};
     std::uint64_t furniture_faulted_generation_{};
     std::unique_ptr<MewUiHouseButtonView> house_button_view_;
     std::unique_ptr<workflow::OrganizeWorkflowFacade> organize_workflow_;
