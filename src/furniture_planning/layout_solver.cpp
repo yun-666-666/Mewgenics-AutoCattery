@@ -39,6 +39,14 @@ constexpr std::size_t kAnchorChainVisitLimit = 100000;
 // shown in a previous screenshot.
 constexpr std::size_t kLocalRelocationCandidateLimit = 512;
 constexpr std::size_t kLocalIncomingCandidateLimit = 512;
+constexpr double kBreedingComfortTargetPerResident = 2.0;
+constexpr double kBreedingStimulationTargetPerResident = 2.0;
+constexpr double kKittenHealthTargetPerResident = 2.0;
+constexpr double kKittenComfortTargetPerResident = 2.0;
+constexpr double kRecoveryHealthTargetPerResident = 2.0;
+constexpr double kRecoveryComfortTargetPerResident = 2.0;
+constexpr double kCombatDiscomfortTargetPerResident = 2.0;
+constexpr double kMutationTargetPerResident = 2.0;
 
 struct OffsetCell {
     std::int32_t x{};
@@ -192,6 +200,48 @@ auto PurposeRank(
                 effective_comfort,
                 0.0};
     }
+}
+
+bool PurposeNeedsMoreFurniture(
+    const room_planning::RoomPurposeAssignment* purpose,
+    const snapshot::RoomAttributes& attributes) {
+    if (!purpose) {
+        return true;
+    }
+    const auto residents = std::max<std::size_t>(
+        1U, purpose->expected_resident_count);
+    const auto crowding = residents > 4U ? residents - 4U : 0U;
+    const auto effective_comfort =
+        attributes.comfort - static_cast<double>(crowding);
+    switch (purpose->role) {
+        case room_planning::RoomRole::Breeding:
+            return effective_comfort <
+                    kBreedingComfortTargetPerResident * residents ||
+                attributes.stimulation <
+                    kBreedingStimulationTargetPerResident * residents;
+        case room_planning::RoomRole::CombatStaging:
+            return attributes.health < 0.0 || effective_comfort >
+                -kCombatDiscomfortTargetPerResident * residents;
+        case room_planning::RoomRole::Kitten:
+            return attributes.health <
+                    kKittenHealthTargetPerResident * residents ||
+                effective_comfort <
+                    kKittenComfortTargetPerResident * residents;
+        case room_planning::RoomRole::Recovery:
+            return attributes.health <
+                    kRecoveryHealthTargetPerResident * residents ||
+                effective_comfort <
+                    kRecoveryComfortTargetPerResident * residents;
+        case room_planning::RoomRole::MutationLab:
+            return attributes.health < 0.0 || effective_comfort <= -10.0 ||
+                attributes.mutation < kMutationTargetPerResident * residents;
+        case room_planning::RoomRole::General:
+        case room_planning::RoomRole::Unknown:
+        case room_planning::RoomRole::Special:
+        case room_planning::RoomRole::Unavailable:
+            return true;
+    }
+    return true;
 }
 
 int PurposePriority(
@@ -2880,6 +2930,10 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
     std::vector<Candidate> candidates;
     const auto current_purpose_rank = PurposeRank(
         room_purpose, current_attributes);
+    if (room_purpose &&
+        !PurposeNeedsMoreFurniture(room_purpose, current_attributes)) {
+        return std::nullopt;
+    }
     for (const auto& incoming : full_warehouse_items) {
         auto attributes = current_attributes;
         const auto effect = furniture_effects.find(
@@ -3589,6 +3643,8 @@ FurnitureLayoutPlan PlanWholeHouse(
             target_room_id, furniture, furniture_effects);
         const auto* room_purpose = FindPurpose(
             room_purposes, target_room_id);
+        const bool purpose_needs_more_furniture =
+            PurposeNeedsMoreFurniture(room_purpose, current_attributes);
         const bool balanced_attic = room_purpose == nullptr &&
             target_room_id == "Attic" && !furniture_effects.empty();
         std::vector<LayoutItem> target_items;
@@ -3618,6 +3674,13 @@ FurnitureLayoutPlan PlanWholeHouse(
                 target_items.push_back(std::move(item));
             } else {
                 if (room_purpose) {
+                    if (!purpose_needs_more_furniture) {
+                        if (!item.placement->room_id.empty()) {
+                            target_static_base.push_back(std::move(item));
+                        }
+                        ++target_omitted_incoming_count;
+                        continue;
+                    }
                     auto improved_attributes = current_attributes;
                     const auto effect = furniture_effects.find(
                         item.placement->item_id);

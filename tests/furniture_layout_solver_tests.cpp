@@ -608,7 +608,7 @@ void RunFurnitureLayoutSolverTests() {
         breeding_attic_purpose{{
             .room_id = "Attic",
             .role = room_planning::RoomRole::Breeding,
-            .expected_resident_count = 2,
+            .expected_resident_count = 4,
             .breeding_stats_stable = false}};
     const auto purpose_attic_plan = solver.Plan(
         balanced_attic_furniture,
@@ -1052,6 +1052,51 @@ void RunFurnitureLayoutSolverTests() {
         [](const auto& move) {
             return furniture_planning::IsWarehouseLayoutMove(move);
         }));
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        satisfied_breeding_fill{
+            Placement(831, "large", "Floor1_Small", -6, -9),
+            Placement(832, "neutral", "Floor1_Small", -5, -9),
+            Placement(833, "small", "", 0, 0)};
+    const snapshot::detail::FurnitureCatalog satisfied_breeding_effects{
+        {"large", snapshot::RoomAttributes{
+            .comfort = 4, .stimulation = 4}},
+        {"neutral", snapshot::RoomAttributes{}},
+        {"small", snapshot::RoomAttributes{
+            .comfort = 1, .stimulation = 1}}};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        satisfied_breeding_purpose{{
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 2}};
+    const auto satisfied_breeding_batch = solver.Plan(
+        satisfied_breeding_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic"},
+        satisfied_breeding_effects,
+        satisfied_breeding_purpose);
+    AC_CHECK(std::ranges::none_of(
+        satisfied_breeding_batch.moves,
+        [](const auto& move) {
+            return furniture_planning::IsWarehouseLayoutMove(move);
+        }));
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        empty_breeding_fill{
+            Placement(841, "small", "", 0, 0)};
+    const auto empty_breeding_batch = solver.Plan(
+        empty_breeding_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic"},
+        satisfied_breeding_effects,
+        satisfied_breeding_purpose);
+    AC_CHECK(empty_breeding_batch.moves.size() == 1U);
+    AC_CHECK(furniture_planning::IsWarehouseLayoutMove(
+        empty_breeding_batch.moves.front()));
 
     std::vector<snapshot::detail::FurniturePlacement>
         warehouse_priority_furniture{

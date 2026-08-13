@@ -1,5 +1,18 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.53 state-bound room locks and purpose furnishing targets
+
+- A completed-room lock now stores the room's exact live furniture identities,
+  coordinates, and orientation. Player manual placement, removal, movement, or
+  emptying invalidates only the changed room lock before the next analysis.
+- Furniture-mode close/reopen still preserves unchanged completed rooms and
+  retired-key quarantine inside the current House scene.
+- Purpose-aware warehouse filling stops after a dynamic resident-scaled target
+  is met instead of treating every marginal attribute increase as a reason to
+  keep filling the room. Empty and under-target rooms remain fillable.
+- Release unit tests and the Release DLL build must pass before DLL/data-only
+  deployment. Do not launch or control the game.
+
 ## v0.5.52 purpose focus and exact reverse-move tabu
 
 - A room with a `RoomPurposeAssignment` now fully uses purpose-aware layout

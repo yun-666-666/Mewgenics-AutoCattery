@@ -2,10 +2,96 @@
 
 #include <algorithm>
 #include <limits>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace autocattery::ui {
+
+RuntimeFurnitureRoomSignature BuildRuntimeFurnitureRoomSignature(
+    const RuntimeFurnitureState& runtime,
+    const snapshot::RoomId& room_id) {
+    RuntimeFurnitureRoomSignature signature{.room_id = room_id};
+    for (const auto& placement : runtime.placements) {
+        if (placement.room_id == room_id) {
+            signature.placements.push_back(placement);
+        }
+    }
+    std::ranges::sort(
+        signature.placements,
+        [](const auto& left, const auto& right) {
+            return std::tie(
+                       left.stable_key,
+                       left.item_id,
+                       left.position_x,
+                       left.position_y,
+                       left.scale_x,
+                       left.scale_y) <
+                std::tie(
+                       right.stable_key,
+                       right.item_id,
+                       right.position_x,
+                       right.position_y,
+                       right.scale_x,
+                       right.scale_y);
+        });
+    return signature;
+}
+
+void ReconcileLockedFurnitureRooms(
+    std::vector<snapshot::RoomId>& locked_room_ids,
+    std::vector<RuntimeFurnitureRoomSignature>& locked_room_signatures,
+    const RuntimeFurnitureState& runtime,
+    std::vector<snapshot::RoomId>* invalidated_room_ids) {
+    std::vector<snapshot::RoomId> retained_ids;
+    std::vector<RuntimeFurnitureRoomSignature> retained_signatures;
+    retained_ids.reserve(locked_room_ids.size());
+    retained_signatures.reserve(locked_room_ids.size());
+    for (const auto& room_id : locked_room_ids) {
+        const auto expected = std::ranges::find(
+            locked_room_signatures,
+            room_id,
+            &RuntimeFurnitureRoomSignature::room_id);
+        const auto current = BuildRuntimeFurnitureRoomSignature(
+            runtime, room_id);
+        if (expected == locked_room_signatures.end() ||
+            *expected != current) {
+            if (invalidated_room_ids) {
+                invalidated_room_ids->push_back(room_id);
+            }
+            continue;
+        }
+        retained_ids.push_back(room_id);
+        retained_signatures.push_back(std::move(current));
+    }
+    locked_room_ids = std::move(retained_ids);
+    locked_room_signatures = std::move(retained_signatures);
+}
+
+void LockFurnitureRoom(
+    std::vector<snapshot::RoomId>& locked_room_ids,
+    std::vector<RuntimeFurnitureRoomSignature>& locked_room_signatures,
+    const RuntimeFurnitureState& runtime,
+    const snapshot::RoomId& room_id) {
+    if (room_id.empty()) {
+        return;
+    }
+    const auto signature = BuildRuntimeFurnitureRoomSignature(
+        runtime, room_id);
+    const auto existing = std::ranges::find(locked_room_ids, room_id);
+    if (existing == locked_room_ids.end()) {
+        locked_room_ids.push_back(room_id);
+    }
+    const auto saved = std::ranges::find(
+        locked_room_signatures,
+        room_id,
+        &RuntimeFurnitureRoomSignature::room_id);
+    if (saved == locked_room_signatures.end()) {
+        locked_room_signatures.push_back(signature);
+    } else {
+        *saved = signature;
+    }
+}
 
 Result<void> OverlayRuntimeHouseState(
     snapshot::HouseSnapshot& snapshot,

@@ -243,6 +243,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_execution_moved_ = 0;
     furniture_execution_committed_upgrade_indices_.clear();
     furniture_execution_committed_move_indices_.clear();
+    furniture_layout_session_generation_ = 0;
+    furniture_locked_room_ids_.clear();
+    furniture_locked_room_signatures_.clear();
     furniture_retirement_generation_ = 0;
     furniture_retired_keys_.clear();
     furniture_auto_run_active_ = false;
@@ -583,6 +586,7 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_execution_committed_move_indices_.clear();
     furniture_layout_session_generation_ = 0;
     furniture_locked_room_ids_.clear();
+    furniture_locked_room_signatures_.clear();
     furniture_retirement_generation_ = 0;
     furniture_retired_keys_.clear();
     furniture_auto_run_active_ = false;
@@ -736,13 +740,15 @@ void MewUiBridge::OnTick() {
                 const bool exhausted_any_room =
                     !plan.exhausted_room_ids.empty();
                 if (!executable) {
+                    auto runtime_furniture = CaptureRuntimeFurnitureState(
+                        current_house_scene_manager_);
                     for (const auto& exhausted_room_id :
                          plan.exhausted_room_ids) {
-                        if (std::ranges::find(
+                        if (runtime_furniture) {
+                            LockFurnitureRoom(
                                 furniture_locked_room_ids_,
-                                exhausted_room_id) ==
-                            furniture_locked_room_ids_.end()) {
-                            furniture_locked_room_ids_.push_back(
+                                furniture_locked_room_signatures_,
+                                runtime_furniture.value,
                                 exhausted_room_id);
                         }
                     }
@@ -1340,6 +1346,27 @@ void MewUiBridge::RefreshRuntimeSnapshotContext() {
                 runtime_furniture.message);
         return;
     }
+    std::vector<snapshot::RoomId> invalidated_room_ids;
+    ReconcileLockedFurnitureRooms(
+        furniture_locked_room_ids_,
+        furniture_locked_room_signatures_,
+        runtime_furniture.value,
+        &invalidated_room_ids);
+    if (!invalidated_room_ids.empty()) {
+        for (const auto& room_id : invalidated_room_ids) {
+            if (furniture_focus_room_id_ == room_id) {
+                furniture_focus_room_id_.reset();
+            }
+        }
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurnitureAnalysis",
+            "AC3927",
+            "Invalidated stale completed-room locks after live furniture changed: rooms=" +
+                std::to_string(invalidated_room_ids.size()) +
+                ", remaining=" +
+                std::to_string(furniture_locked_room_ids_.size()) + ".");
+    }
     const auto runtime_furniture_count =
         runtime_furniture.value.placements.size();
     const auto runtime_scene_piece_count =
@@ -1420,6 +1447,7 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
     if (furniture_layout_session_generation_ != generation) {
         furniture_layout_session_generation_ = generation;
         furniture_locked_room_ids_.clear();
+        furniture_locked_room_signatures_.clear();
         furniture_room_purposes_.clear();
         furniture_layout_move_tabu_.clear();
         furniture_focus_room_id_.reset();
@@ -1655,7 +1683,15 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             if (std::ranges::find(
                     furniture_locked_room_ids_, exhausted_room_id) ==
                 furniture_locked_room_ids_.end()) {
-                furniture_locked_room_ids_.push_back(exhausted_room_id);
+                auto runtime_furniture = CaptureRuntimeFurnitureState(
+                    current_house_scene_manager_);
+                if (runtime_furniture) {
+                    LockFurnitureRoom(
+                        furniture_locked_room_ids_,
+                        furniture_locked_room_signatures_,
+                        runtime_furniture.value,
+                        exhausted_room_id);
+                }
             }
             if (furniture_focus_room_id_ == exhausted_room_id) {
                 furniture_focus_room_id_.reset();
@@ -2105,7 +2141,15 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                     std::ranges::find(
                         furniture_locked_room_ids_, blocked_room) ==
                         furniture_locked_room_ids_.end()) {
-                    furniture_locked_room_ids_.push_back(blocked_room);
+                    auto runtime_furniture = CaptureRuntimeFurnitureState(
+                        current_house_scene_manager_);
+                    if (runtime_furniture) {
+                        LockFurnitureRoom(
+                            furniture_locked_room_ids_,
+                            furniture_locked_room_signatures_,
+                            runtime_furniture.value,
+                            blocked_room);
+                    }
                 }
                 ++furniture_auto_run_blocked_rooms_;
                 Logger::Instance().Write(

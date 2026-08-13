@@ -1,7 +1,62 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
-日期：2026-08-13
-版本：v0.5.52
+日期：2026-08-14
+版本：v0.5.53
+
+## v0.5.53 实时布局绑定完成锁与用途满足停止
+
+- 玩家截图与最新 MOD 日志共同确认两个独立问题。v0.5.50 在
+  `2026-08-13 15:43:54` 的一次点击中以 `AC3922` 累计执行
+  `upgrades=1, layout_moves=151`，与五个房间被大量低收益小家具、墙饰和杂物塞满的
+  画面一致。玩家随后手动搬空五房后，v0.5.52 在 `20:59` 明确记录
+  `AC14315 furniture=0, scene pieces=0`、`AC3201 furniture=190`，但 `AC3901` 仍为
+  `rooms=0, moves=0, persistent_locked_rooms=5, no_space=190`。因此“分析后无法放置”的
+  直接根因不是 190 件仓库家具没有合法位置，而是上一轮五个完成房间锁在玩家手动
+  清空后仍然存活，求解器跳过全部房间并把仓库家具错误计入 `no_space`。
+- 完成房间锁现在绑定该房间的实时家具签名。签名确定性记录每件家具的 stable key、
+  item id、坐标和横纵方向；每次成功刷新实时家具上下文后重新比对。玩家手动添加、
+  移除、搬动、翻转或清空家具时，只解除发生变化的房间锁并清理该房 focus，其他未变
+  房间仍可在同一 House scene 内跨家具界面关闭/重开保持完成状态。新 House scene、
+  初始化和关闭 MOD 时同时清空锁 ID 与签名。锁因实时布局变化失效时记录独立日志
+  `AC3927`；既有 `AC3926` 仍只表示一次点击达到事务上限，避免诊断编号混淆。
+- 用途房的仓库填充新增按预计入住人数缩放的停止目标，不编码本存档的 13 只猫、
+  190 件家具或五房数据：Breeding 的有效 Comfort 与 Stimulation 各达到
+  `2 × 预计入住数`；Kitten/Recovery 的 Health 与有效 Comfort 各达到
+  `2 × 预计入住数`；MutationLab 保持 Health 非负、有效 Comfort 高于 `-10`，并将
+  Mutation 提升到 `2 × 预计入住数`；CombatStaging 保持 Health 非负，并将有效
+  Comfort 降到 `-2 × 预计入住数`。General/Unknown 保留既有通用策略。
+- 用途目标达到后，不再向该房加入仓库或跨房 incoming 家具，避免仅因 `Comfort +1`、
+  `Appeal +1` 等边际字典序改善继续填满房间；目标房现有家具的合法压紧/重排仍可
+  执行，独立的低质量家具属性替换也未被关闭。空房和未达标房间仍会从仓库产生布局
+  移动，因此本修复不会把“防过度填充”退化成“空房不放家具”。
+- 自动化回归覆盖：实时布局未变化时两房锁保持；只移动 RoomA 时只解除 RoomA；清空
+  RoomB 后解除 RoomB；一个房间变化不会清掉其他房锁；已满足动态目标的 Breeding
+  房不再生成 warehouse move；空 Breeding 房仍生成一个 warehouse move。为保留旧
+  “未满足目标时选择用途更优家具”的测试语义，其独立场景预计入住数由 2 调整为 4，
+  使当前 `Comfort=5` 确实低于该场景的动态目标 8。
+- 最终聚焦验证命令
+  `cmake --build build --config Release --target auto_cattery_tests AutoCattery --parallel`
+  成功生成 `build\Release\auto_cattery_tests.exe` 与
+  `build\out\Release\AutoCattery.dll`；测试程序随后运行退出码 `0`。最终 DLL 大小
+  `1950208` 字节，生成时间 `2026-08-13 22:16:06`。本轮只运行与当前修改相称的
+  Release 目标和统一测试程序，没有将编译/单元测试当成游戏内效果证明。
+- 已将 v0.5.53 DLL 与 `assets\description.json` 同步到 `dist\Release`，并执行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 完成 DLL/data-only 部署。安装端 `description.json` 为
+  `0.5.53`，玩家现有升级重投 `20` 保持不变，AutoCattery 仍位于 Mewtator
+  `modlist.txt` 末尾。按当前边界未运行哈希比对或 `verify_install.ps1`，未启动、进入
+  或控制游戏。
+- 本轮实际修改：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `include/auto_cattery/ui/mew_ui_bridge.hpp`、
+  `src/furniture_planning/layout_solver.cpp`、`src/ui/mew_ui_bridge.cpp`、
+  `src/ui/runtime_house_state.hpp`、`src/ui/runtime_snapshot_overlay.cpp`、
+  `tests/furniture_layout_solver_tests.cpp`、`tests/runtime_house_state_tests.cpp`，以及本报告
+  和 `.auto-cattery/state.json`。
+- 玩家实机验证仍待完成：完全重启游戏并保持当前五房搬空状态后，第一次分析不应再
+  出现 `persistent_locked_rooms=5, rooms=0, moves=0, no_space=190`，而应显示非零布局
+  移动并允许自动放置；用途房达到目标后应停止继续塞入低收益家具。完成一个房间后
+  手动移动或清空其中家具，再分析应出现 `AC3927`，且只有该房重新参与规划。仍需玩家
+  确认无悬空、消失、黑件、重复 stable key、卡死、闪退或原生非零 SEH。
 
 ## v0.5.52 用途焦点与精确反向移动禁忌
 
@@ -468,6 +523,8 @@
 - 当前原生 RVA、type/vtable 和对象布局只适用于已 gate 的当前
   `Mewgenics.exe`；签名不匹配时安全拒绝。
 - 自动化测试无法代替真实游戏的仓库数量、画面、保存和重进持久化验证。
+- v0.5.53 的用途满足系数是基于预计入住人数的通用、有界启发式，不是从当前单一存档
+  反推的固定值；实际画面密度和各用途收益仍以本轮玩家实机复测为验收门。
 - v0.5.52 只实现报告中已有代码/日志闭环支持的 P0：purpose precedence、用途/焦点
   调度、exact reverse tabu 与诊断日志。未实现报告的二步 look-ahead、purpose 完成后
   neutral fill、搜索 disposition 全量拆分、coherent micro-batch、繁育阈值校准、

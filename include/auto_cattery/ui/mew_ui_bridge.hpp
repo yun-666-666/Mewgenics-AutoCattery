@@ -27,6 +27,7 @@ class FurnitureAnalysisService;
 
 namespace autocattery::ui {
 
+struct RuntimeFurnitureRoomSignature;
 class HouseButtonController;
 class HouseMoveProbeController;
 class FurniturePlacementGateway;
@@ -137,6 +138,8 @@ private:
     std::vector<std::size_t> furniture_execution_committed_move_indices_;
     std::uint64_t furniture_layout_session_generation_{};
     std::vector<snapshot::RoomId> furniture_locked_room_ids_;
+    std::vector<RuntimeFurnitureRoomSignature>
+        furniture_locked_room_signatures_;
     std::uint64_t furniture_retirement_generation_{};
     std::vector<std::uint64_t> furniture_retired_keys_;
     bool furniture_auto_run_active_{};

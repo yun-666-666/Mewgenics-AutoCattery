@@ -38,6 +38,8 @@ struct RuntimeFurniturePlacementState {
     std::int32_t position_y{};
     std::int32_t scale_x{};
     std::int32_t scale_y{};
+
+    bool operator==(const RuntimeFurniturePlacementState&) const = default;
 };
 
 struct RuntimeFurnitureRoomGridState {
@@ -59,6 +61,29 @@ struct RuntimeFurnitureState {
     std::vector<RuntimeWarehouseFurniturePieceState> warehouse_pieces;
     std::vector<RuntimeFurnitureRoomGridState> room_grids;
 };
+
+struct RuntimeFurnitureRoomSignature {
+    snapshot::RoomId room_id;
+    std::vector<RuntimeFurniturePlacementState> placements;
+
+    bool operator==(const RuntimeFurnitureRoomSignature&) const = default;
+};
+
+[[nodiscard]] RuntimeFurnitureRoomSignature BuildRuntimeFurnitureRoomSignature(
+    const RuntimeFurnitureState& runtime,
+    const snapshot::RoomId& room_id);
+
+void ReconcileLockedFurnitureRooms(
+    std::vector<snapshot::RoomId>& locked_room_ids,
+    std::vector<RuntimeFurnitureRoomSignature>& locked_room_signatures,
+    const RuntimeFurnitureState& runtime,
+    std::vector<snapshot::RoomId>* invalidated_room_ids = nullptr);
+
+void LockFurnitureRoom(
+    std::vector<snapshot::RoomId>& locked_room_ids,
+    std::vector<RuntimeFurnitureRoomSignature>& locked_room_signatures,
+    const RuntimeFurnitureState& runtime,
+    const snapshot::RoomId& room_id);
 
 [[nodiscard]] Result<std::unordered_map<snapshot::RoomId, RuntimePointer>>
 ResolveRuntimeRoomPointers(

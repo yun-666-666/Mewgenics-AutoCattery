@@ -256,6 +256,36 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(replaced[1].room_id == "RoomA");
     AC_CHECK(replaced[1].position_x == 1);
     AC_CHECK(replaced[1].position_y == -9);
+
+    ui::RuntimeFurnitureState lock_runtime{
+        .placements = {
+            RuntimeFurniture(40, "chair", "RoomA", 1, -9),
+            RuntimeFurniture(41, "lamp", "RoomB", 2, -9)}};
+    std::vector<snapshot::RoomId> locked_rooms{"RoomA", "RoomB"};
+    std::vector<ui::RuntimeFurnitureRoomSignature> lock_signatures;
+    ui::LockFurnitureRoom(
+        locked_rooms, lock_signatures, lock_runtime, "RoomA");
+    ui::LockFurnitureRoom(
+        locked_rooms, lock_signatures, lock_runtime, "RoomB");
+    AC_CHECK(lock_signatures.size() == 2U);
+    std::vector<snapshot::RoomId> invalidated;
+    ui::ReconcileLockedFurnitureRooms(
+        locked_rooms, lock_signatures, lock_runtime, &invalidated);
+    AC_CHECK(invalidated.empty());
+    AC_CHECK(locked_rooms.size() == 2U);
+
+    lock_runtime.placements[0].position_x = 3;
+    ui::ReconcileLockedFurnitureRooms(
+        locked_rooms, lock_signatures, lock_runtime, &invalidated);
+    AC_CHECK(invalidated == std::vector<snapshot::RoomId>{"RoomA"});
+    AC_CHECK(locked_rooms == std::vector<snapshot::RoomId>{"RoomB"});
+
+    lock_runtime.placements.clear();
+    invalidated.clear();
+    ui::ReconcileLockedFurnitureRooms(
+        locked_rooms, lock_signatures, lock_runtime, &invalidated);
+    AC_CHECK(invalidated == std::vector<snapshot::RoomId>{"RoomB"});
+    AC_CHECK(locked_rooms.empty());
 }
 
 }  // namespace autocattery::tests
