@@ -298,7 +298,10 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const std::vector<std::uint64_t>& blocked_warehouse_keys,
     bool allow_attribute_upgrades,
-    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes) {
+    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const std::vector<furniture_planning::FurnitureLayoutMove>&
+        forbidden_layout_moves,
+    const snapshot::RoomId& preferred_focus_room_id) {
     if (scene_generation == 0U) {
         return {{}, ErrorCode::SceneUnavailable,
                 "furniture analysis requires a House generation"};
@@ -649,7 +652,9 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             source.runtime_room_grids,
             locked_room_ids,
             source.furniture_effects,
-            room_purposes);
+            room_purposes,
+            forbidden_layout_moves,
+            preferred_focus_room_id);
     }
     return {std::move(result)};
 }

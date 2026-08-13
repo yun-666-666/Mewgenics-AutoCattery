@@ -1,7 +1,44 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-13
-版本：v0.5.51
+版本：v0.5.52
+
+## v0.5.52 用途焦点与精确反向移动禁忌
+
+- 评估玩家提供的 `AutoCattery_v0551_家具放置深度研究与优化报告_2026-08-13
+  (1).md` 后，源码复核确认三项 P0 根因成立：有用途的 Attic 仍被旧平衡阁楼策略
+  覆盖；房间排序只看面积；`AC3924` 把一项立即反向移动升级为整房完成锁。
+- `layout_solver.cpp` 现在只在用途不可用时启用 legacy balanced-Attic；有用途的
+  Attic 与其他房间统一按 `PurposeRank` 选择仓库件、跨房候选和最终 pack。房间顺序
+  改为当前焦点优先，其后为 Breeding、Kitten/Recovery、CombatStaging、
+  MutationLab、General，再以面积/Attic/room id 稳定排序。
+- 连续执行提交布局移动后保留该目标房为 focus。若刷新规划产生严格反向，UI 不再把
+  房间写入 `furniture_locked_room_ids_`；只把该 exact move 加入当前 House scene 的
+  tabu 集。求解器在仓库 best-fit、局部压紧和 broad pack 三条路径过滤该 move，并
+  继续尝试同房的其他家具或坐标；只有真正 exhausted 才进入完成锁。
+- `AC3901` 新增 `tabu_filtered_moves`、`focus_room`、
+  `persistent_locked_rooms`；`AC3924` 记录 exact tabu 数；`AC3922` 同时报告本次点击
+  blocked 数、持久锁、tabu 与 focus，避免再次把 `blocked_rooms=0` 误读为没有跳房。
+- 本轮不采纳报告中的二步 look-ahead、neutral fill、搜索 disposition 全面重构和
+  繁育公式阈值校准；这些属于 P1/P2，缺少本轮玩家实机安全门，不与 P0 状态机修复
+  混在同一版。原生拒绝后的整房暂缓仍保留，因为该分支受 native rollback/SEH 证据
+  约束，不能等同于纯规划振荡。
+- 自动化回归新增：有 purpose 的 Attic 必须走 Breeding comparator；Breeding 房优先
+  于面积更大的 General Attic；focus 可保持较低默认优先级房；exact tabu 会过滤原
+  move 并在同房选择替代坐标，且不会把房间写为 exhausted。
+- `build-stage45-release\Release\auto_cattery_tests.exe` 于 2026-08-13 20:47
+  聚焦运行退出码 `0`；随后 `AutoCattery` Release 目标成功生成 v0.5.52 DLL。
+  原聚焦构建超过 120 秒时保留原始 MSBuild 继续运行，并由当前任务的 8 分钟监控确认
+  进程结束后复用既有产物，没有启动重复构建；监控随后已停用。
+- 已将 v0.5.52 DLL 与 `description.json` 同步到 `dist\Release`，并运行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 完成 DLL/data 部署。玩家现有升级重投 `20` 保持不变，
+  AutoCattery 仍位于 Mewtator modlist 末尾。按玩家既有要求未运行哈希比对和
+  `verify_install.ps1`，未启动或控制游戏。
+- 玩家实机验证待完成：搬空/近空阁楼不应再只放一件后跳房；若日志出现
+  `AC3924 ... tabu_moves=`，下一次 `AC3901` 应保持相同 `focus_room` 并提出不同家具
+  或不同坐标，而不是增加 `persistent_locked_rooms`。仍需确认连续放置无悬空、黑件、
+  stable-key 重复、退出家具模式闪退或原生 SEH。
 
 ## v0.5.51 用途改善筛选与原生事务限流
 
@@ -431,7 +468,10 @@
 - 当前原生 RVA、type/vtable 和对象布局只适用于已 gate 的当前
   `Mewgenics.exe`；签名不匹配时安全拒绝。
 - 自动化测试无法代替真实游戏的仓库数量、画面、保存和重进持久化验证。
-- 未实现按房间用途/属性的全局仓库分配、旋转、Anchor、墙面/天花板布局或跨会话撤销。
+- v0.5.52 只实现报告中已有代码/日志闭环支持的 P0：purpose precedence、用途/焦点
+  调度、exact reverse tabu 与诊断日志。未实现报告的二步 look-ahead、purpose 完成后
+  neutral fill、搜索 disposition 全量拆分、coherent micro-batch、繁育阈值校准、
+  旋转、Anchor、墙面/天花板布局或跨会话撤销。
 - 未自动移动猫、休息、结束一天、出征、组队或淘汰；第五房是否解锁仍不在本阶段
   范围，但当前 build 的第五房运行时身份一致性已在本次修复。
 

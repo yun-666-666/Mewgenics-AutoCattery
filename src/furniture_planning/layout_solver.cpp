@@ -194,6 +194,36 @@ auto PurposeRank(
     }
 }
 
+int PurposePriority(
+    const room_planning::RoomPurposeAssignment* purpose) noexcept {
+    if (!purpose) {
+        return 6;
+    }
+    switch (purpose->role) {
+        case room_planning::RoomRole::Breeding:
+            return 0;
+        case room_planning::RoomRole::Kitten:
+        case room_planning::RoomRole::Recovery:
+            return 1;
+        case room_planning::RoomRole::CombatStaging:
+            return 2;
+        case room_planning::RoomRole::MutationLab:
+            return 3;
+        case room_planning::RoomRole::General:
+            return 4;
+        default:
+            return 5;
+    }
+}
+
+bool IsForbiddenFirstMove(
+    const std::vector<FurnitureLayoutMove>& moves,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves) {
+    return !moves.empty() &&
+        std::ranges::find(forbidden_moves, moves.front()) !=
+            forbidden_moves.end();
+}
+
 bool CoreNonNegative(const snapshot::RoomAttributes& attributes) {
     return attributes.comfort >= 0.0 &&
         attributes.stimulation >= 0.0 &&
@@ -2791,7 +2821,9 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
     const snapshot::RoomAttributes& current_attributes,
     const FurnitureCatalog& furniture_effects,
     const room_planning::RoomPurposeAssignment* room_purpose,
-    std::size_t base_kept_count) {
+    std::size_t base_kept_count,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves,
+    std::size_t& tabu_filtered_move_count) {
     (void)unsafe_rooms;
     const auto target = rooms.find(target_room_id);
     if (target == rooms.end() ||
@@ -2895,6 +2927,10 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
                 0,
                 origin.first,
                 origin.second}};
+            if (IsForbiddenFirstMove(moves, forbidden_moves)) {
+                ++tabu_filtered_move_count;
+                continue;
+            }
             if (!CurrentWholeHousePreservesSupport(
                     rooms, furniture, info_by_item) ||
                 !WholeHouseMovesPreserveSupport(
@@ -2931,7 +2967,9 @@ std::optional<LocalRoomImprovement> FindLocalRoomImprovement(
     const snapshot::RoomAttributes& current_attributes,
     const FurnitureCatalog& furniture_effects,
     std::size_t base_kept_count,
-    bool allow_preferred_incoming) {
+    bool allow_preferred_incoming,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves,
+    std::size_t& tabu_filtered_move_count) {
     const auto target = rooms.find(target_room_id);
     if (target == rooms.end() ||
         !CurrentWholeHousePreservesSupport(
@@ -3059,6 +3097,10 @@ std::optional<LocalRoomImprovement> FindLocalRoomImprovement(
             return;
         }
         if (execution != ExecutionPlanResult::Success || moves.empty()) {
+            return;
+        }
+        if (IsForbiddenFirstMove(moves, forbidden_moves)) {
+            ++tabu_filtered_move_count;
             return;
         }
         if (!WholeHouseMovesPreserveSupport(
@@ -3324,7 +3366,9 @@ FurnitureLayoutPlan PlanWholeHouse(
     const std::vector<FurnitureRoomGrid>& runtime_room_grids,
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const FurnitureCatalog& furniture_effects,
-    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes);
+    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves,
+    const snapshot::RoomId& preferred_focus_room_id);
 
 FurnitureLayoutPlan PlanWholeHouse(
     const std::vector<FurniturePlacement>& furniture,
@@ -3333,7 +3377,9 @@ FurnitureLayoutPlan PlanWholeHouse(
     const std::vector<FurnitureRoomGrid>& runtime_room_grids,
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const FurnitureCatalog& furniture_effects,
-    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes) {
+    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves,
+    const snapshot::RoomId& preferred_focus_room_id) {
     FurnitureLayoutPlan plan;
     std::set<snapshot::RoomId> locked_rooms(
         locked_room_ids.begin(), locked_room_ids.end());
@@ -3496,7 +3542,22 @@ FurnitureLayoutPlan PlanWholeHouse(
     }
     std::ranges::sort(
         target_rooms,
-        [&rooms](const auto& left, const auto& right) {
+        [&rooms, &room_purposes,
+         &preferred_focus_room_id](const auto& left, const auto& right) {
+            const bool left_focus = !preferred_focus_room_id.empty() &&
+                left == preferred_focus_room_id;
+            const bool right_focus = !preferred_focus_room_id.empty() &&
+                right == preferred_focus_room_id;
+            if (left_focus != right_focus) {
+                return left_focus;
+            }
+            const auto left_priority = PurposePriority(
+                FindPurpose(room_purposes, left));
+            const auto right_priority = PurposePriority(
+                FindPurpose(room_purposes, right));
+            if (left_priority != right_priority) {
+                return left_priority < right_priority;
+            }
             const auto& left_room = rooms.at(left);
             const auto& right_room = rooms.at(right);
             const auto left_area = left_room.width * left_room.height;
@@ -3521,13 +3582,15 @@ FurnitureLayoutPlan PlanWholeHouse(
         bool room_current_state_blocked{};
         bool room_evacuation_blocked{};
         bool room_installation_blocked{};
+        bool room_tabu_blocked{};
+        const auto tabu_count_before_room = plan.tabu_filtered_move_count;
         const auto& target_room = rooms.at(target_room_id);
-        const bool balanced_attic = target_room_id == "Attic" &&
-            !furniture_effects.empty();
         const auto current_attributes = CurrentRoomAttributes(
             target_room_id, furniture, furniture_effects);
         const auto* room_purpose = FindPurpose(
             room_purposes, target_room_id);
+        const bool balanced_attic = room_purpose == nullptr &&
+            target_room_id == "Attic" && !furniture_effects.empty();
         std::vector<LayoutItem> target_items;
         std::vector<LayoutItem> incoming_items;
         std::vector<LayoutItem> full_warehouse_items;
@@ -3777,7 +3840,9 @@ FurnitureLayoutPlan PlanWholeHouse(
                 current_attributes,
                 furniture_effects,
                 room_purpose,
-                plan.kept_furniture_count);
+                plan.kept_furniture_count,
+                forbidden_moves,
+                plan.tabu_filtered_move_count);
             if (warehouse_fill) {
                 plan.kept_furniture_count = warehouse_fill->kept_count;
                 plan.deferred_furniture_count =
@@ -3789,6 +3854,8 @@ FurnitureLayoutPlan PlanWholeHouse(
                 plan.planned_room_count = 1U;
                 return plan;
             }
+            room_tabu_blocked =
+                plan.tabu_filtered_move_count > tabu_count_before_room;
         }
 
         // Every room is current-layout-first. A bounded one-item relocation
@@ -3807,7 +3874,9 @@ FurnitureLayoutPlan PlanWholeHouse(
                 current_attributes,
                 furniture_effects,
                 plan.kept_furniture_count,
-                balanced_attic);
+                balanced_attic,
+                forbidden_moves,
+                plan.tabu_filtered_move_count);
             if (local) {
                 plan.kept_furniture_count = local->kept_count;
                 plan.deferred_furniture_count =
@@ -3819,6 +3888,8 @@ FurnitureLayoutPlan PlanWholeHouse(
                 plan.planned_room_count = 1U;
                 return plan;
             }
+            room_tabu_blocked = room_tabu_blocked ||
+                plan.tabu_filtered_move_count > tabu_count_before_room;
         }
 
         std::vector<PackState> packed_candidates;
@@ -4035,6 +4106,14 @@ FurnitureLayoutPlan PlanWholeHouse(
                 candidate_plan.moves = std::move(candidate_moves);
                 candidate_plan.target_room_id = target_room_id;
                 candidate_plan.planned_room_count = 1U;
+                if (IsForbiddenFirstMove(
+                        candidate_plan.moves, forbidden_moves)) {
+                    room_tabu_blocked = true;
+                    ++plan.tabu_filtered_move_count;
+                    found_geometric_candidate = true;
+                    plan.kept_furniture_count = base_kept;
+                    continue;
+                }
                 if (!WholeHouseMovesPreserveSupport(
                         rooms,
                         furniture,
@@ -4064,6 +4143,10 @@ FurnitureLayoutPlan PlanWholeHouse(
         }
         if (room_current_state_blocked || room_evacuation_blocked ||
             room_installation_blocked) {
+            continue;
+        }
+        if (room_tabu_blocked) {
+            found_geometric_candidate = true;
             continue;
         }
         plan.exhausted_room_ids.push_back(target_room_id);
@@ -4403,7 +4486,9 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const FurnitureCatalog& furniture_effects,
     const std::vector<room_planning::RoomPurposeAssignment>&
-        room_purposes) const {
+        room_purposes,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves,
+    const snapshot::RoomId& preferred_focus_room_id) const {
     if (!runtime_room_grids.empty()) {
         return PlanWholeHouse(
             furniture,
@@ -4412,7 +4497,9 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
             runtime_room_grids,
             locked_room_ids,
             furniture_effects,
-            room_purposes);
+            room_purposes,
+            forbidden_moves,
+            preferred_focus_room_id);
     }
     FurnitureLayoutPlan plan;
     std::unordered_map<std::string, const FurnitureInfoRecord*> info_by_item;

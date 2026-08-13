@@ -254,6 +254,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_auto_run_next_transaction_ = {};
     furniture_attribute_upgrade_committed_in_mode_ = false;
     furniture_room_purposes_.clear();
+    furniture_layout_move_tabu_.clear();
+    furniture_focus_room_id_.reset();
     furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
@@ -592,6 +594,8 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_auto_run_next_transaction_ = {};
     furniture_attribute_upgrade_committed_in_mode_ = false;
     furniture_room_purposes_.clear();
+    furniture_layout_move_tabu_.clear();
+    furniture_focus_room_id_.reset();
     furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
@@ -866,6 +870,14 @@ void MewUiBridge::OnTick() {
                         ", installation_blocked=" +
                         std::to_string(
                             plan.installation_blocked_room_count) +
+                        ", tabu_filtered_moves=" +
+                        std::to_string(plan.tabu_filtered_move_count) +
+                        ", focus_room=" +
+                        SafeTechnicalName(
+                            furniture_focus_room_id_.value_or(
+                                snapshot::RoomId{})) +
+                        ", persistent_locked_rooms=" +
+                        std::to_string(furniture_locked_room_ids_.size()) +
                         ", unsupported=" +
                         std::to_string(plan.unsupported_furniture_count) +
                         ", no_space=" +
@@ -966,6 +978,16 @@ void MewUiBridge::OnTick() {
                                 ", blocked_rooms=" +
                                 std::to_string(
                                     furniture_auto_run_blocked_rooms_) +
+                                ", persistent_locked_rooms=" +
+                                std::to_string(
+                                    furniture_locked_room_ids_.size()) +
+                                ", tabu_moves=" +
+                                std::to_string(
+                                    furniture_layout_move_tabu_.size()) +
+                                ", focus_room=" +
+                                SafeTechnicalName(
+                                    furniture_focus_room_id_.value_or(
+                                        snapshot::RoomId{})) +
                                 ".");
                     }
                 }
@@ -1399,6 +1421,8 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
         furniture_layout_session_generation_ = generation;
         furniture_locked_room_ids_.clear();
         furniture_room_purposes_.clear();
+        furniture_layout_move_tabu_.clear();
+        furniture_focus_room_id_.reset();
     }
     if (furniture_retirement_generation_ != generation) {
         furniture_retirement_generation_ = generation;
@@ -1437,17 +1461,23 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
         }
     }
     const auto room_purposes = furniture_room_purposes_;
+    const auto forbidden_layout_moves = furniture_layout_move_tabu_;
+    const auto preferred_focus_room_id =
+        furniture_focus_room_id_.value_or(snapshot::RoomId{});
     furniture_analysis_task_generation_ = generation;
     furniture_analysis_task_ = std::async(
         std::launch::async,
         [this, generation, locked_room_ids, blocked_keys,
-         allow_attribute_upgrades, room_purposes] {
+         allow_attribute_upgrades, room_purposes, forbidden_layout_moves,
+         preferred_focus_room_id] {
             return furniture_analysis_service_->Analyze(
                 generation,
                 locked_room_ids,
                 blocked_keys,
                 allow_attribute_upgrades,
-                room_purposes);
+                room_purposes,
+                forbidden_layout_moves,
+                preferred_focus_room_id);
         });
 }
 
@@ -1484,12 +1514,17 @@ void MewUiBridge::StartFurnitureAutoPlacement(
     if (!furniture_auto_run_preview_fresh_) {
         RefreshRuntimeSnapshotContext();
         const auto blocked_keys = furniture_retired_keys_;
+        const auto forbidden_layout_moves = furniture_layout_move_tabu_;
+        const auto preferred_focus_room_id =
+            furniture_focus_room_id_.value_or(snapshot::RoomId{});
         const auto refreshed = furniture_analysis_service_->Analyze(
             generation,
             furniture_locked_room_ids_,
             blocked_keys,
             !furniture_attribute_upgrade_committed_in_mode_,
-            furniture_room_purposes_);
+            furniture_room_purposes_,
+            forbidden_layout_moves,
+            preferred_focus_room_id);
         if (!refreshed ||
             refreshed.value.binding_digest !=
                 furniture_analysis_preview_->binding_digest) {
@@ -1527,27 +1562,27 @@ void MewUiBridge::StartFurnitureAutoPlacement(
                    furniture_analysis_preview_->layout_plan.moves.front())) {
         const auto blocked_room =
             furniture_analysis_preview_->layout_plan.target_room_id;
-        if (!blocked_room.empty() &&
-            std::ranges::find(
-                furniture_locked_room_ids_, blocked_room) ==
-                furniture_locked_room_ids_.end()) {
-            furniture_locked_room_ids_.push_back(blocked_room);
-        }
-        ++furniture_auto_run_blocked_rooms_;
         const auto repeated =
             furniture_analysis_preview_->layout_plan.moves.front();
+        if (std::ranges::find(furniture_layout_move_tabu_, repeated) ==
+            furniture_layout_move_tabu_.end()) {
+            furniture_layout_move_tabu_.push_back(repeated);
+        }
+        furniture_focus_room_id_ = blocked_room;
+        ++furniture_auto_run_blocked_rooms_;
         Logger::Instance().Write(
             LogLevel::Warn,
             "FurniturePlacement",
             "AC3924",
-            "Continuous Auto Place deferred a room after detecting an immediate reverse layout move: room=" +
+            "Continuous Auto Place rejected one exact reverse move and will keep searching the focused room: room=" +
                 SafeTechnicalName(blocked_room) + " item=" +
                 SafeTechnicalName(repeated.item_id) + " key=" +
                 std::to_string(repeated.stable_key) + " from=(" +
                 std::to_string(repeated.from_x) + "," +
                 std::to_string(repeated.from_y) + ") target=(" +
                 std::to_string(repeated.target_x) + "," +
-                std::to_string(repeated.target_y) + ").");
+                std::to_string(repeated.target_y) + ") tabu_moves=" +
+                std::to_string(furniture_layout_move_tabu_.size()) + ".");
         furniture_auto_run_last_layout_move_.reset();
         ClearFurnitureLayoutPreview();
         StartFurnitureAnalysis(generation);
@@ -1621,6 +1656,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                     furniture_locked_room_ids_, exhausted_room_id) ==
                 furniture_locked_room_ids_.end()) {
                 furniture_locked_room_ids_.push_back(exhausted_room_id);
+            }
+            if (furniture_focus_room_id_ == exhausted_room_id) {
+                furniture_focus_room_id_.reset();
             }
         }
         if (house_button_controller_) {
@@ -2112,6 +2150,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         if (status == FurniturePlacementMoveStatus::Moved) {
             ++furniture_execution_moved_;
             furniture_auto_run_last_layout_move_ = move;
+            furniture_focus_room_id_ = move.target_room_id;
             furniture_auto_run_last_layout_move_->from_room_id = location.room;
             furniture_auto_run_last_layout_move_->from_x = location.saved_x;
             furniture_auto_run_last_layout_move_->from_y = location.saved_y;

@@ -604,6 +604,28 @@ void RunFurnitureLayoutSolverTests() {
         negative_attic_plan.moves,
         [](const auto& move) { return move.stable_key == 226U; }));
 
+    const std::vector<room_planning::RoomPurposeAssignment>
+        breeding_attic_purpose{{
+            .room_id = "Attic",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 2,
+            .breeding_stats_stable = false}};
+    const auto purpose_attic_plan = solver.Plan(
+        balanced_attic_furniture,
+        balanced_attic_geometry,
+        balanced_attic_info,
+        {{"Attic", 2, 1, {0U, 0U}, {1U, 0U}}},
+        {},
+        balanced_attic_effects,
+        breeding_attic_purpose);
+    AC_CHECK(purpose_attic_plan.target_room_id == "Attic");
+    AC_CHECK(std::ranges::any_of(
+        purpose_attic_plan.moves,
+        [](const auto& move) { return move.stable_key == 215U; }));
+    AC_CHECK(std::ranges::none_of(
+        purpose_attic_plan.moves,
+        [](const auto& move) { return move.stable_key == 216U; }));
+
     snapshot::detail::HouseGeometryCatalog truncated_source_geometry;
     truncated_source_geometry.rooms = {
         {.definition_id = "TruncatedSource",
@@ -936,6 +958,81 @@ void RunFurnitureLayoutSolverTests() {
         AC_CHECK(purpose_warehouse_batch.moves.front().stable_key == 813U);
         AC_CHECK(furniture_planning::IsWarehouseLayoutMove(
             purpose_warehouse_batch.moves.front()));
+    }
+
+    const std::vector<room_planning::RoomPurposeAssignment>
+        purpose_priority{{
+            .room_id = "Attic",
+            .role = room_planning::RoomRole::General,
+            .expected_resident_count = 1},
+        {
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 2}};
+    const auto purpose_priority_batch = solver.Plan(
+        purpose_warehouse_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {},
+        purpose_effects,
+        purpose_priority);
+    AC_CHECK(purpose_priority_batch.target_room_id == "Floor1_Small");
+
+    const std::vector<snapshot::detail::FurniturePlacement> focus_furniture{
+        Placement(814, "fight-idol", "", 0, 0)};
+    const std::vector<room_planning::RoomPurposeAssignment> focus_purposes{
+        {
+            .room_id = "Attic",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 2},
+        {
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::CombatStaging,
+            .expected_resident_count = 4}};
+    const auto focused_room_batch = solver.Plan(
+        focus_furniture,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {},
+        purpose_effects,
+        focus_purposes,
+        {},
+        "Floor1_Small");
+    AC_CHECK(focused_room_batch.target_room_id == "Floor1_Small");
+    AC_CHECK(focused_room_batch.moves.size() == 1U);
+
+    const auto tabu_baseline = solver.Plan(
+        purpose_warehouse_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic"},
+        purpose_effects,
+        fight_purpose);
+    AC_CHECK(tabu_baseline.moves.size() == 1U);
+    if (tabu_baseline.moves.size() == 1U) {
+        const auto tabu_alternative = solver.Plan(
+            purpose_warehouse_fill,
+            locked_attic_geometry,
+            purpose_info,
+            locked_attic_grids,
+            {"Attic"},
+            purpose_effects,
+            fight_purpose,
+            {tabu_baseline.moves.front()},
+            "Floor1_Small");
+        AC_CHECK(tabu_alternative.target_room_id == "Floor1_Small");
+        AC_CHECK(tabu_alternative.moves.size() == 1U);
+        if (tabu_alternative.moves.size() == 1U) {
+            AC_CHECK(tabu_alternative.moves.front() !=
+                tabu_baseline.moves.front());
+        }
+        AC_CHECK(tabu_alternative.tabu_filtered_move_count > 0U);
+        AC_CHECK(std::ranges::find(
+            tabu_alternative.exhausted_room_ids,
+            "Floor1_Small") == tabu_alternative.exhausted_room_ids.end());
     }
 
     const std::vector<snapshot::detail::FurniturePlacement>

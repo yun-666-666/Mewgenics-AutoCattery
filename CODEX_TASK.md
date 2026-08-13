@@ -1,5 +1,23 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.52 purpose focus and exact reverse-move tabu
+
+- A room with a `RoomPurposeAssignment` now fully uses purpose-aware layout
+  ordering even when it is the Attic; the legacy balanced-Attic strategy is
+  only a fallback when purpose analysis is unavailable.
+- Furniture target rooms are ordered by purpose, with Breeding first, and the
+  room that just committed a layout move remains the preferred focus until it
+  is explicitly exhausted or safely deferred by native rejection.
+- An immediate reverse replan no longer adds the entire target room to the
+  completed-room lock. The exact reverse move enters a current-House-scene
+  tabu set, and the solver keeps searching the same focused room for another
+  furniture item or coordinate.
+- Native-rejection rollback, whole-house Support gates, retired stable-key
+  quarantine, 250 ms settling, and the 32-transaction checkpoint remain
+  unchanged.
+- Release unit tests and the Release DLL build must pass before deployment.
+  Deploy DLL/data only and do not launch or control the game.
+
 ## v0.5.51 purpose filtering and bounded native transactions
 
 - Purpose rooms no longer accept warehouse or cross-room furniture merely

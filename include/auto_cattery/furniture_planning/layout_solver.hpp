@@ -21,6 +21,8 @@ struct FurnitureLayoutMove {
     std::int32_t from_y{};
     std::int32_t target_x{};
     std::int32_t target_y{};
+
+    bool operator==(const FurnitureLayoutMove&) const = default;
 };
 
 struct FurnitureRoomGrid {
@@ -45,6 +47,7 @@ struct FurnitureLayoutPlan {
     std::size_t current_state_blocked_room_count{};
     std::size_t evacuation_blocked_room_count{};
     std::size_t installation_blocked_room_count{};
+    std::size_t tabu_filtered_move_count{};
 };
 
 [[nodiscard]] bool IsWarehouseLayoutMove(
@@ -95,7 +98,9 @@ public:
         const std::vector<snapshot::RoomId>& locked_room_ids = {},
         const snapshot::detail::FurnitureCatalog& furniture_effects = {},
         const std::vector<room_planning::RoomPurposeAssignment>&
-            room_purposes = {}) const;
+            room_purposes = {},
+        const std::vector<FurnitureLayoutMove>& forbidden_moves = {},
+        const snapshot::RoomId& preferred_focus_room_id = {}) const;
 };
 
 }  // namespace autocattery::furniture_planning

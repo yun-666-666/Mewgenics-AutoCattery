@@ -17,7 +17,10 @@ public:
         const std::vector<std::uint64_t>& blocked_warehouse_keys = {},
         bool allow_attribute_upgrades = true,
         const std::vector<room_planning::RoomPurposeAssignment>&
-            room_purposes = {});
+            room_purposes = {},
+        const std::vector<furniture_planning::FurnitureLayoutMove>&
+            forbidden_layout_moves = {},
+        const snapshot::RoomId& preferred_focus_room_id = {});
 
 private:
     IFurnitureAnalysisSource& source_;

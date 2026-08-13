@@ -150,6 +150,9 @@ private:
     bool furniture_attribute_upgrade_committed_in_mode_{};
     std::vector<room_planning::RoomPurposeAssignment>
         furniture_room_purposes_;
+    std::vector<furniture_planning::FurnitureLayoutMove>
+        furniture_layout_move_tabu_;
+    std::optional<snapshot::RoomId> furniture_focus_room_id_;
     std::optional<furniture_planning::FurnitureLayoutMove>
         furniture_auto_run_last_layout_move_;
     std::uint64_t furniture_faulted_generation_{};
