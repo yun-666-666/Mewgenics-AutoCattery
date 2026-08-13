@@ -31,7 +31,9 @@ public:
 
   [[nodiscard]] Result<PreviewBundle> Build(std::uint64_t scene_generation,
                                             WorkflowCapability capability,
-                                            WorkflowStateMachine &state) const;
+                                            WorkflowStateMachine &state,
+                                            bool include_all_purpose_rooms =
+                                                false) const;
 
 private:
   snapshot::IGameReadAdapter &read_adapter_;

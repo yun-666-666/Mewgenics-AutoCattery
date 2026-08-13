@@ -30,8 +30,19 @@ enum class RoomRole {
     Breeding,
     CombatStaging,
     Kitten,
+    MutationLab,
+    Recovery,
     Special,
     Unavailable
+};
+
+struct RoomPurposeAssignment {
+    snapshot::RoomId room_id;
+    RoomRole role{RoomRole::General};
+    std::size_t expected_resident_count{};
+    bool breeding_stats_stable{};
+
+    bool operator==(const RoomPurposeAssignment&) const = default;
 };
 
 struct RoomCapability {
@@ -99,6 +110,7 @@ struct RoomPlan {
     std::vector<PlannedMove> moves;
     std::vector<UnplacedCat> unplaced_cats;
     std::vector<CapacityReliefSuggestion> capacity_relief_suggestions;
+    std::vector<RoomPurposeAssignment> room_purposes;
     std::vector<std::string> limitations;
     std::vector<std::string> warnings;
     std::vector<std::string> validation_errors;

@@ -8,6 +8,7 @@
 
 #include "auto_cattery/error.hpp"
 #include "auto_cattery/furniture_planning/layout_solver.hpp"
+#include "auto_cattery/room_planning/domain.hpp"
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
 #include "auto_cattery/snapshot/detail/furniture_geometry.hpp"
 #include "auto_cattery/snapshot/domain.hpp"
@@ -81,6 +82,7 @@ struct FurnitureAnalysisSnapshot {
     std::size_t runtime_warehouse_piece_match_count{};
     std::vector<FurnitureAttributeUpgrade> attribute_upgrades;
     snapshot::RoomAttributes attribute_upgrade_gain;
+    std::vector<room_planning::RoomPurposeAssignment> room_purposes;
     furniture_planning::FurnitureLayoutPlan layout_plan;
 };
 

@@ -205,6 +205,31 @@ Result<PreviewBundle> OrganizeWorkflowFacade::LatestPreview() const {
     return preview_store_.Read(*latest);
 }
 
+Result<room_planning::RoomPlan>
+OrganizeWorkflowFacade::BuildFurnitureRoomPurposes(
+    std::uint64_t scene_generation) {
+    if (!preview_builder_) {
+        return {
+            {}, ErrorCode::NotInitialized,
+            "Read-only snapshot adapter is unavailable."
+        };
+    }
+    WorkflowStateMachine state;
+    if (!state.BeginPreview()) {
+        return {{}, ErrorCode::WriteConflict,
+                "Furniture room-purpose analysis is already running."};
+    }
+    auto built = preview_builder_->Build(
+        scene_generation,
+        WorkflowCapability::MoveOnly,
+        state,
+        true);
+    if (!built) {
+        return {{}, built.code, built.message};
+    }
+    return {std::move(built.value.room_plan)};
+}
+
 Result<void> OrganizeWorkflowFacade::ApplyConfig(Config config) {
     if (state_.State() != WorkflowState::Idle) {
         return {

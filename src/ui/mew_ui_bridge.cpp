@@ -248,6 +248,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
     furniture_attribute_upgrade_committed_in_mode_ = false;
+    furniture_room_purposes_.clear();
     furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
@@ -583,6 +584,7 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
     furniture_attribute_upgrade_committed_in_mode_ = false;
+    furniture_room_purposes_.clear();
     furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
@@ -1360,6 +1362,7 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
     if (furniture_layout_session_generation_ != generation) {
         furniture_layout_session_generation_ = generation;
         furniture_locked_room_ids_.clear();
+        furniture_room_purposes_.clear();
     }
     if (furniture_retirement_generation_ != generation) {
         furniture_retirement_generation_ = generation;
@@ -1383,16 +1386,32 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
     const auto blocked_keys = furniture_retired_keys_;
     const bool allow_attribute_upgrades =
         !furniture_attribute_upgrade_committed_in_mode_;
+    if (furniture_room_purposes_.empty() && organize_workflow_) {
+        const auto purposes =
+            organize_workflow_->BuildFurnitureRoomPurposes(generation);
+        if (purposes) {
+            furniture_room_purposes_ = purposes.value.room_purposes;
+        } else {
+            Logger::Instance().Write(
+                LogLevel::Warn,
+                "FurnitureAnalysis",
+                "AC3925",
+                "Room-purpose analysis unavailable; furniture scoring will use conservative general-room objectives: " +
+                    purposes.message);
+        }
+    }
+    const auto room_purposes = furniture_room_purposes_;
     furniture_analysis_task_generation_ = generation;
     furniture_analysis_task_ = std::async(
         std::launch::async,
         [this, generation, locked_room_ids, blocked_keys,
-         allow_attribute_upgrades] {
+         allow_attribute_upgrades, room_purposes] {
             return furniture_analysis_service_->Analyze(
                 generation,
                 locked_room_ids,
                 blocked_keys,
-                allow_attribute_upgrades);
+                allow_attribute_upgrades,
+                room_purposes);
         });
 }
 
@@ -1433,7 +1452,8 @@ void MewUiBridge::StartFurnitureAutoPlacement(
             generation,
             furniture_locked_room_ids_,
             blocked_keys,
-            !furniture_attribute_upgrade_committed_in_mode_);
+            !furniture_attribute_upgrade_committed_in_mode_,
+            furniture_room_purposes_);
         if (!refreshed ||
             refreshed.value.binding_digest !=
                 furniture_analysis_preview_->binding_digest) {

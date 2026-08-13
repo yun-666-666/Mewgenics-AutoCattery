@@ -2,6 +2,8 @@
 
 #include "test_support.hpp"
 
+#include <algorithm>
+
 namespace autocattery::tests {
 
 void RunRoomCapabilityAdapterTests() {
@@ -80,6 +82,20 @@ void RunRoomCapabilityAdapterTests() {
     AC_CHECK(
         movable[3].native_capacity_gate ==
         room_planning::CapabilityState::Yes);
+
+    current_build.rooms.push_back({.id = "Floor2_Small"});
+    const auto furniture_purposes =
+        room_planning::BuildCurrentBuildPurposeRoomCapabilities(
+            current_build);
+    AC_CHECK(furniture_purposes.size() == 5);
+    AC_CHECK(std::ranges::all_of(
+        furniture_purposes,
+        [](const auto& capability) {
+            return capability.confirmed_role ==
+                    room_planning::RoomRole::General &&
+                capability.native_capacity_gate ==
+                    room_planning::CapabilityState::Yes;
+        }));
 }
 
 }  // namespace autocattery::tests

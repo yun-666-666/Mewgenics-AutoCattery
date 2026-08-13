@@ -385,6 +385,18 @@ void RunBalancedMoveOnlyPlannerTests() {
         purpose_final.at(decision.cat_id) == "Floor1_Small" ? 1U : 0U;
   }
   AC_CHECK(staged_combat_adults == 3);
+  AC_CHECK(std::ranges::any_of(
+      purpose_plan.value.room_plan.room_purposes,
+      [](const auto& purpose) {
+        return purpose.room_id == "Floor1_Small" &&
+            purpose.role == room_planning::RoomRole::CombatStaging;
+      }));
+  AC_CHECK(std::ranges::any_of(
+      purpose_plan.value.room_plan.room_purposes,
+      [](const auto& purpose) {
+        return purpose.room_id == "Attic" &&
+            purpose.role == room_planning::RoomRole::Breeding;
+      }));
   AC_CHECK(std::ranges::count_if(
       purpose_plan.value.room_plan.moves,
       [](const auto& move) {

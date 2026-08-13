@@ -173,7 +173,8 @@ protection::ProtectionDigest PreviewBuilder::CaptureProtectionDigest(
 
 Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
                                             WorkflowCapability capability,
-                                            WorkflowStateMachine &state) const {
+                                            WorkflowStateMachine &state,
+                                            bool include_all_purpose_rooms) const {
   auto captured = read_adapter_.CaptureHouseSnapshot(scene_generation);
   if (!captured) {
     state.Fail();
@@ -256,8 +257,11 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
 
   const auto capabilities =
       capability == WorkflowCapability::MoveOnly
-          ? room_planning::BuildCurrentBuildMoveRoomCapabilities(
-                captured.value)
+          ? (include_all_purpose_rooms
+                 ? room_planning::BuildCurrentBuildPurposeRoomCapabilities(
+                       captured.value)
+                 : room_planning::BuildCurrentBuildMoveRoomCapabilities(
+                       captured.value))
           : room_planning::BuildConservativeRoomCapabilities(
                 captured.value);
   const room_planning::RoomPlanningInput planning_input{

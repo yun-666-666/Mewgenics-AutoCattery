@@ -1,7 +1,28 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-13
-版本：v0.5.49
+版本：v0.5.50
+
+## v0.5.50 按用途分化房间属性与减少布局空隙
+
+- 新增 Breeding、CombatStaging、Kitten、MutationLab、Recovery 五房用途输出，并在
+  当前 House generation 内把只读用途结果传给家具属性分析与布局器。用途不可用时
+  保守退回原 General 逻辑。
+- 战斗房以健康度非负为硬门，随后优先降低有效舒适度；变异房优先变异度，同时要求
+  健康度非负、有效舒适度高于 -10；繁育房平衡有效舒适度与刺激度，稳定后再比较
+  变异度；育幼与恢复房优先健康度、舒适度。Appeal 不作为普通房用途目标。
+- 仓库直接填空从遇到首个合法落点即返回改为完整仓库 best-fit；阻挡面积按 Hitbox、
+  Solid、PoopLogic 计算，不再把 Support/Surface 元数据误算为占格，并加入自由空间
+  连通块、孤立格、接触边与稳定 tie-break 评分以减少碎片化空隙。
+- `tools/build.ps1 -Configuration Release` 完整通过并生成 v0.5.50
+  `dist\Release`；Release CTest 4/4 通过。新增用途回归覆盖战斗房负舒适度方向、变异
+  房安全高变异方向和第五普通房 capability；原有统一测试全部通过。
+- `tools/deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 已部署 DLL 与 UI data MOD，并保留玩家 20 次升级重投配置。
+  按玩家要求未做 DLL 哈希一致性校验、未运行 `verify_install`，也未启动或控制游戏。
+- 玩家实测待完成：五房应分别呈现繁育、战斗、育幼、变异、恢复方向；战斗房舒适度
+  应下降且健康度不为负，变异房变异度应上升且健康/舒适底线成立；自动放置后退出
+  家具界面仍不得闪退。
 
 ## v0.5.49 家具模式属性替换生命周期门
 

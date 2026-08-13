@@ -331,6 +331,73 @@ void RunFurnitureAnalysisServiceTests() {
         AC_CHECK(upgrade.gain.comfort == -8);
         AC_CHECK(upgrade.gain.stimulation == 8);
     }
+
+    FakeFurnitureAnalysisSource purpose_aware;
+    purpose_aware.value.house.source_save_name = "purpose-aware.sav";
+    purpose_aware.value.available_room_count = 2;
+    purpose_aware.value.house.rooms = {
+        {.id = "FightRoom"}, {.id = "MutationRoom"}};
+    purpose_aware.value.furniture = {
+        Furniture(30, "comfortable-current", "FightRoom"),
+        Furniture(31, "fight-idol", ""),
+        Furniture(32, "mutation-current", "MutationRoom"),
+        Furniture(33, "mutation-safe", ""),
+        Furniture(34, "mutation-unsafe", "")};
+    purpose_aware.value.furniture[0].position_x = 0;
+    purpose_aware.value.furniture[2].position_x = 0;
+    purpose_aware.value.furniture_effects = {
+        {"comfortable-current", snapshot::RoomAttributes{
+            .comfort = 5, .health = 1}},
+        {"fight-idol", snapshot::RoomAttributes{
+            .comfort = -5, .health = 1}},
+        {"mutation-current", snapshot::RoomAttributes{
+            .comfort = 2, .health = 1, .mutation = 1}},
+        {"mutation-safe", snapshot::RoomAttributes{
+            .comfort = 2, .health = 2, .mutation = 8}},
+        {"mutation-unsafe", snapshot::RoomAttributes{
+            .comfort = 2, .health = -10, .mutation = 20}}};
+    for (const auto& item : {
+             "comfortable-current", "fight-idol", "mutation-current",
+             "mutation-safe", "mutation-unsafe"}) {
+        purpose_aware.value.furniture_info.records.push_back(
+            SingleCellInfo(item));
+    }
+    purpose_aware.value.runtime_room_grids = {
+        {"FightRoom", 2, 1, {0U, 0U}, {1U, 0U}},
+        {"MutationRoom", 2, 1, {0U, 0U}, {1U, 0U}}};
+    furniture_analysis::FurnitureAnalysisService purpose_service(
+        purpose_aware);
+    const std::vector<room_planning::RoomPurposeAssignment> purposes{
+        {.room_id = "FightRoom",
+         .role = room_planning::RoomRole::CombatStaging,
+         .expected_resident_count = 4},
+        {.room_id = "MutationRoom",
+         .role = room_planning::RoomRole::MutationLab,
+         .expected_resident_count = 3}};
+    const auto fight_result = purpose_service.Analyze(
+        97, {}, {33U, 34U}, true, purposes);
+    AC_CHECK(static_cast<bool>(fight_result));
+    AC_CHECK(fight_result.value.attribute_upgrades.size() == 1);
+    if (fight_result.value.attribute_upgrades.size() == 1) {
+        AC_CHECK(
+            fight_result.value.attribute_upgrades.front()
+                .warehouse_stable_key == 31U);
+        AC_CHECK(
+            fight_result.value.attribute_upgrades.front().gain.comfort ==
+            -10.0);
+    }
+    const auto mutation_result = purpose_service.Analyze(
+        97, {}, {31U}, true, purposes);
+    AC_CHECK(static_cast<bool>(mutation_result));
+    AC_CHECK(mutation_result.value.attribute_upgrades.size() == 1);
+    if (mutation_result.value.attribute_upgrades.size() == 1) {
+        AC_CHECK(
+            mutation_result.value.attribute_upgrades.front()
+                .warehouse_stable_key == 33U);
+        AC_CHECK(
+            mutation_result.value.attribute_upgrades.front()
+                .target_room_id == "MutationRoom");
+    }
 }
 
 }  // namespace autocattery::tests

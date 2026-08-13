@@ -145,6 +145,8 @@ private:
     std::size_t furniture_auto_run_moved_{};
     std::size_t furniture_auto_run_blocked_rooms_{};
     bool furniture_attribute_upgrade_committed_in_mode_{};
+    std::vector<room_planning::RoomPurposeAssignment>
+        furniture_room_purposes_;
     std::optional<furniture_planning::FurnitureLayoutMove>
         furniture_auto_run_last_layout_move_;
     std::uint64_t furniture_faulted_generation_{};

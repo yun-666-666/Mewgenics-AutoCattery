@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <optional>
+#include <tuple>
+#include <ranges>
 
 namespace autocattery::room_planning::balanced_internal {
 namespace {
@@ -458,6 +460,71 @@ bool BuildBalancedSlots(
             potential,
             plan)) {
         return false;
+    }
+
+    const auto assign_purpose = [&](const snapshot::RoomId& room_id) {
+        RoomRole role = RoomRole::General;
+        if (breeding_target && room_id == *breeding_target) {
+            role = RoomRole::Breeding;
+        } else if (kitten_target && room_id == *kitten_target) {
+            role = RoomRole::Kitten;
+        } else if (development_target && room_id == *development_target) {
+            role = RoomRole::CombatStaging;
+        }
+        plan.room_purposes.push_back({
+            .room_id = room_id,
+            .role = role,
+            .expected_resident_count = occupancy.at(room_id),
+            .breeding_stats_stable = context.breeding_stats_stable});
+    };
+    for (const auto& room_id : context.rooms) {
+        assign_purpose(room_id);
+    }
+    if (context.rooms.size() >= 5U) {
+        auto general_rooms = plan.room_purposes | std::views::filter(
+            [](const auto& purpose) {
+                return purpose.role == RoomRole::General;
+            });
+        auto mutation_target = general_rooms.end();
+        for (auto it = general_rooms.begin(); it != general_rooms.end(); ++it) {
+            const auto& attributes = context.room_snapshots.at(it->room_id)
+                ->attributes;
+            if (mutation_target == general_rooms.end()) {
+                mutation_target = it;
+                continue;
+            }
+            const auto& best_attributes = context.room_snapshots.at(
+                mutation_target->room_id)->attributes;
+            const auto rank = attributes
+                ? std::tuple{
+                      attributes->health >= 0.0 ? 0 : 1,
+                      -attributes->mutation,
+                      -attributes->health,
+                      -attributes->comfort,
+                      it->room_id}
+                : std::tuple{1, 0.0, 0.0, 0.0, it->room_id};
+            const auto best_rank = best_attributes
+                ? std::tuple{
+                      best_attributes->health >= 0.0 ? 0 : 1,
+                      -best_attributes->mutation,
+                      -best_attributes->health,
+                      -best_attributes->comfort,
+                      mutation_target->room_id}
+                : std::tuple{1, 0.0, 0.0, 0.0,
+                             mutation_target->room_id};
+            if (rank < best_rank) {
+                mutation_target = it;
+            }
+        }
+        if (mutation_target != general_rooms.end()) {
+            mutation_target->role = RoomRole::MutationLab;
+        }
+        for (auto& purpose : plan.room_purposes) {
+            if (purpose.role == RoomRole::General) {
+                purpose.role = RoomRole::Recovery;
+                break;
+            }
+        }
     }
 
     slots.reserve(context.movable.size());

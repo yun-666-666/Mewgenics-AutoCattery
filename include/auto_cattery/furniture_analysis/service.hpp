@@ -15,7 +15,9 @@ public:
         std::uint64_t scene_generation,
         const std::vector<snapshot::RoomId>& locked_room_ids = {},
         const std::vector<std::uint64_t>& blocked_warehouse_keys = {},
-        bool allow_attribute_upgrades = true);
+        bool allow_attribute_upgrades = true,
+        const std::vector<room_planning::RoomPurposeAssignment>&
+            room_purposes = {});
 
 private:
     IFurnitureAnalysisSource& source_;

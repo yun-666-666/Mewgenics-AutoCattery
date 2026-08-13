@@ -194,6 +194,16 @@ CanonicalPlanDigest DigestRoomPlan(
         Append(canonical, cull.cat_id);
         Append(canonical, cull.candidate_order);
     }
+    auto purposes = plan.room_purposes;
+    std::ranges::sort(
+        purposes, {}, &room_planning::RoomPurposeAssignment::room_id);
+    for (const auto& purpose : purposes) {
+        Append(canonical, purpose.room_id.size());
+        Append(canonical, purpose.room_id);
+        Append(canonical, static_cast<int>(purpose.role));
+        Append(canonical, purpose.expected_resident_count);
+        Append(canonical, purpose.breeding_stats_stable);
+    }
     return {Hex(Hash(canonical.str()))};
 }
 

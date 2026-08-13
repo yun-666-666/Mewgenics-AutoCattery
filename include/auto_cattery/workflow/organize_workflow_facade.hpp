@@ -37,6 +37,8 @@ public:
     virtual Result<OrganizeOutcome> RequestExecutionOutcome();
     virtual Result<void> RequestExecution();
     [[nodiscard]] Result<PreviewBundle> LatestPreview() const;
+    [[nodiscard]] Result<room_planning::RoomPlan> BuildFurnitureRoomPurposes(
+        std::uint64_t scene_generation);
     [[nodiscard]] Result<void> ApplyConfig(Config config);
     [[nodiscard]] WorkflowState State() const noexcept;
 

@@ -1,5 +1,23 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.50 purpose-aware furniture optimization
+
+- Furniture analysis now consumes the current five-room plan instead of
+  optimizing every ordinary room toward the same high-comfort aggregate.
+- Breeding rooms balance effective Comfort and Stimulation; combat staging
+  deliberately lowers effective Comfort while keeping Health non-negative;
+  mutation rooms prioritize Mutation with non-negative Health and effective
+  Comfort above -10; kitten and recovery rooms prioritize Health and Comfort.
+- Appeal is no longer a purpose objective for ordinary rooms. If purpose
+  analysis is unavailable, the existing conservative general-room ordering is
+  retained.
+- Warehouse filling evaluates the complete warehouse for the best legal
+  placement, counts only blocking geometry, and scores free-space components,
+  isolated cells, contact edges, and deterministic tie breaks to reduce gaps.
+- Release build and tests must pass before DLL/data deployment. Player validates
+  the five role-specific attribute directions and confirms furniture-mode exit
+  remains crash-free. Do not launch or control the game.
+
 ## v0.5.49 furniture-mode replacement lifetime guard
 
 - v0.5.48 player runtime completed 17 attribute replacements and 26 layout

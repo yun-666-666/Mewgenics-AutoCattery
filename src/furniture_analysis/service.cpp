@@ -93,6 +93,75 @@ double TotalGain(const snapshot::RoomAttributes& gain) {
         gain.mutation + gain.appeal;
 }
 
+const room_planning::RoomPurposeAssignment* FindPurpose(
+    const std::vector<room_planning::RoomPurposeAssignment>& purposes,
+    const snapshot::RoomId& room_id) {
+    const auto found = std::ranges::find(
+        purposes, room_id,
+        &room_planning::RoomPurposeAssignment::room_id);
+    return found == purposes.end() ? nullptr : &*found;
+}
+
+auto PurposeRank(
+    room_planning::RoomRole role,
+    const snapshot::RoomAttributes& attributes,
+    std::size_t residents,
+    bool breeding_stats_stable) {
+    const auto crowding = residents > 4U ? residents - 4U : 0U;
+    const auto effective_comfort =
+        attributes.comfort - static_cast<double>(crowding);
+    switch (role) {
+        case room_planning::RoomRole::Breeding: {
+            const auto viable = effective_comfort > -10.0;
+            const auto balanced = std::min(
+                effective_comfort, attributes.stimulation);
+            return std::tuple{
+                viable ? 6 : 0,
+                balanced,
+                effective_comfort,
+                attributes.stimulation,
+                breeding_stats_stable ? attributes.mutation : 0.0,
+                attributes.health};
+        }
+        case room_planning::RoomRole::CombatStaging:
+            // The player explicitly uses the combat room as a controlled
+            // low-comfort fight room. Health is the hard safety floor; once
+            // non-negative, lower comfort is the primary optimization goal.
+            return std::tuple{
+                attributes.health >= 0.0 ? 5 : 0,
+                -effective_comfort,
+                attributes.health,
+                attributes.stimulation,
+                attributes.mutation,
+                0.0};
+        case room_planning::RoomRole::Kitten:
+        case room_planning::RoomRole::Recovery:
+            return std::tuple{
+                attributes.health >= 0.0 && effective_comfort >= 0.0 ? 4 : 0,
+                attributes.health,
+                effective_comfort,
+                attributes.stimulation,
+                attributes.mutation,
+                0.0};
+        case room_planning::RoomRole::MutationLab:
+            return std::tuple{
+                attributes.health >= 0.0 && effective_comfort > -10.0 ? 5 : 0,
+                attributes.mutation,
+                attributes.health,
+                effective_comfort,
+                attributes.stimulation,
+                0.0};
+        default:
+            return std::tuple{
+                3,
+                CoreMinimum(attributes),
+                CoreTotal(attributes),
+                attributes.health,
+                effective_comfort,
+                0.0};
+    }
+}
+
 template<class T>
 void Append(std::ostringstream& output, const T& value) {
     output << value << '|';
@@ -100,7 +169,8 @@ void Append(std::ostringstream& output, const T& value) {
 
 std::string BuildBindingDigest(
     const FurnitureAnalysisSourceSnapshot& source,
-    const std::vector<FurnitureAnalysisRoom>& rooms) {
+    const std::vector<FurnitureAnalysisRoom>& rooms,
+    const std::vector<room_planning::RoomPurposeAssignment>& purposes) {
     std::ostringstream canonical;
     Append(canonical, source.house.scene_generation);
     Append(canonical, source.house.game_day.value_or(-1));
@@ -120,6 +190,16 @@ std::string BuildBindingDigest(
         Append(canonical, room.attributes.health);
         Append(canonical, room.attributes.mutation);
         Append(canonical, room.attributes.appeal);
+    }
+    auto ordered_purposes = purposes;
+    std::ranges::sort(
+        ordered_purposes, {},
+        &room_planning::RoomPurposeAssignment::room_id);
+    for (const auto& purpose : ordered_purposes) {
+        Append(canonical, purpose.room_id);
+        Append(canonical, static_cast<int>(purpose.role));
+        Append(canonical, purpose.expected_resident_count);
+        Append(canonical, purpose.breeding_stats_stable);
     }
     for (const auto& item : source.furniture) {
         Append(canonical, item.instance_id);
@@ -217,7 +297,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     std::uint64_t scene_generation,
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const std::vector<std::uint64_t>& blocked_warehouse_keys,
-    bool allow_attribute_upgrades) {
+    bool allow_attribute_upgrades,
+    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes) {
     if (scene_generation == 0U) {
         return {{}, ErrorCode::SceneUnavailable,
                 "furniture analysis requires a House generation"};
@@ -268,6 +349,7 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     result.runtime_placed_piece_count = source.runtime_placed_piece_count;
     result.runtime_warehouse_piece_count =
         source.runtime_warehouse_pieces.size();
+    result.room_purposes = room_purposes;
     std::unordered_map<
         std::uint64_t,
         const snapshot::detail::FurniturePlacement*> furniture_by_key;
@@ -313,6 +395,9 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         bool balanced_attic{};
         double balanced_minimum{};
         double balanced_total{};
+        decltype(PurposeRank(
+            room_planning::RoomRole::General,
+            snapshot::RoomAttributes{}, 0U, false)) purpose_rank{};
     };
     std::vector<UpgradePair> upgrade_pairs;
     const std::unordered_set<snapshot::RoomId> locked_rooms(
@@ -354,7 +439,10 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 const auto improved_room = current_room == identified.end()
                     ? gain
                     : Added(current_room->second.attributes, gain);
-                const bool balanced_attic = placed.room_id == "Attic";
+                const auto* purpose = FindPurpose(
+                    room_purposes, placed.room_id);
+                const bool balanced_attic = !purpose &&
+                    placed.room_id == "Attic";
                 const auto current_rank = std::tuple{
                     CoreMinimum(current_attributes),
                     CoreTotal(current_attributes),
@@ -366,9 +454,28 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 const bool direct_upgrade = balanced_attic
                     ? CoreDominates(improved->second, current->second)
                     : Dominates(improved->second, current->second);
+                const auto residents = purpose
+                    ? purpose->expected_resident_count
+                    : (current_room == identified.end()
+                        ? 0U : current_room->second.resident_count);
+                const auto role = purpose
+                    ? purpose->role : room_planning::RoomRole::General;
+                const auto current_purpose_rank = PurposeRank(
+                    role,
+                    current_attributes,
+                    residents,
+                    purpose && purpose->breeding_stats_stable);
+                const auto improved_purpose_rank = PurposeRank(
+                    role,
+                    improved_room,
+                    residents,
+                    purpose && purpose->breeding_stats_stable);
                 if (balanced_attic
                         ? !direct_upgrade
-                        : (!direct_upgrade && improved_rank <= current_rank)) {
+                        : (purpose
+                            ? improved_purpose_rank <= current_purpose_rank
+                            : (!direct_upgrade &&
+                               improved_rank <= current_rank))) {
                     continue;
                 }
                 upgrade_pairs.push_back({
@@ -377,7 +484,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                     .gain = gain,
                     .balanced_attic = balanced_attic,
                     .balanced_minimum = CoreMinimum(improved_room),
-                    .balanced_total = CoreTotal(improved_room)});
+                    .balanced_total = CoreTotal(improved_room),
+                    .purpose_rank = improved_purpose_rank});
             }
         }
     }
@@ -399,6 +507,9 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 if (left_core_gain != right_core_gain) {
                     return left_core_gain > right_core_gain;
                 }
+            }
+            if (left.purpose_rank != right.purpose_rank) {
+                return left.purpose_rank > right.purpose_rank;
             }
             const auto left_gain = TotalGain(left.gain);
             const auto right_gain = TotalGain(right.gain);
@@ -525,7 +636,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         return {{}, ErrorCode::RoomDataUnavailable,
                 "furniture analysis found no current House rooms"};
     }
-    result.binding_digest = BuildBindingDigest(source, result.rooms);
+    result.binding_digest = BuildBindingDigest(
+        source, result.rooms, room_purposes);
     // Never mix a native warehouse replacement with layout moves.  A
     // successful replacement finishes this batch; layout planning resumes on
     // the next analysis after the game's deferred component deletion settles.
@@ -536,7 +648,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             source.furniture_info,
             source.runtime_room_grids,
             locked_room_ids,
-            source.furniture_effects);
+            source.furniture_effects,
+            room_purposes);
     }
     return {std::move(result)};
 }
