@@ -25,6 +25,26 @@ struct FurnitureLayoutMove {
     bool operator==(const FurnitureLayoutMove&) const = default;
 };
 
+struct FurnitureLayoutStateEdge {
+    std::string binding_digest;
+    FurnitureLayoutMove first_move;
+
+    bool operator==(const FurnitureLayoutStateEdge&) const = default;
+};
+
+enum class FurnitureLayoutStateEdgeRecordStatus {
+    Recorded,
+    Duplicate,
+    CapacityReached,
+};
+
+[[nodiscard]] FurnitureLayoutStateEdgeRecordStatus
+RecordFurnitureLayoutStateEdge(
+    std::vector<FurnitureLayoutStateEdge>& attempted_edges,
+    const std::string& binding_digest,
+    const FurnitureLayoutMove& first_move,
+    std::size_t capacity = 4096U);
+
 struct FurnitureRoomGrid {
     snapshot::RoomId room_id;
     std::size_t width{};

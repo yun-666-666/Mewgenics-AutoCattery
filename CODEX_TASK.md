@@ -1,5 +1,22 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.54 generic whole-house layout cycle prevention
+
+- Continuous Auto Place records each attempted first layout move together with
+  the exact whole-house furniture binding that produced it. If any sequence of
+  one or many furniture moves returns to that binding and proposes the same
+  outgoing move again, only that exact move becomes tabu and the solver keeps
+  searching the focused room.
+- The cycle detector is independent of furniture identity, coordinates, cycle
+  length, and the number of furniture pieces involved. It covers 2/3/4/5/N-step
+  cycles without locking the entire room or encoding one player's save.
+- Attempted state edges are retained for the current House scene across the
+  32-transaction click checkpoint. The bounded history is cleared only on a
+  new House generation, initialization, or shutdown; reaching its limit pauses
+  safely instead of silently clearing and repeating a cycle.
+- Release unit tests and the Release DLL build must pass before DLL/data-only
+  deployment. Do not launch or control the game.
+
 ## v0.5.53 state-bound room locks and purpose furnishing targets
 
 - A completed-room lock now stores the room's exact live furniture identities,

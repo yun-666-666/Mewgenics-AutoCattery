@@ -1,7 +1,42 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-14
-版本：v0.5.53
+版本：v0.5.54
+
+## v0.5.54 通用整屋布局循环防护
+
+- 玩家最新截图与 MOD 日志确认，`small_deadrat key=58` 在 Attic 内形成
+  `(-8,-11) -> (-7,-11) -> (-1,-10) -> (-8,-11)` 三步闭环，连续占用每次
+  自动执行的第一笔机会，使其余 `deferred=185` 家具没有继续处理。根因是 v0.5.52
+  只比较相邻两次动作是否为严格 `A -> B -> A`，无法识别三步或更长循环；本修复不
+  编码 key 58、三个坐标、当前房间或本存档家具数量。
+- 连续自动放置现在为每次准备执行的第一条布局移动记录
+  `(当前整屋 binding_digest, first FurnitureLayoutMove)`。任何单件或多件家具经过
+  任意 2/3/4/5/N 步后，只要整屋布局回到已见状态且规划器准备再次走同一条出边，
+  `AC3924` 就会拒绝该重复状态边，仅把这一条 exact move 加入现有 tabu，并保持当前
+  focus room 重新分析。求解器因此可选择其他家具或坐标，不会把整房误标为完成。
+- 状态边历史按 House scene generation 保存，初始化、关闭 MOD 或进入新 House scene
+  时清空；达到每次点击 32 笔事务的 checkpoint 时不会清空，因此下一次点击也不会
+  重入已经发现的闭环。历史上限为 4096 条；极端情况下达到上限会以 `AC3928` 安全
+  暂停，而不是静默清空后再次循环。
+- 聚焦单元测试覆盖首次登记、相同 binding 与相同 move 重复、相同 binding 的不同
+  move、不同 binding 的相同 move、五状态循环回到 A、不同 stable key 家具参与，及
+  有界容量。既有 solver tabu 回归继续证明禁用重复 move 后可选择替代动作，且不会把
+  focus room 写入 exhausted。
+- 原始 Release 构建链完成 CMake configure、`auto_cattery_tests` 编译与测试程序执行，
+  随后生成 `AutoCattery.dll`，最终 `__AUTOCATTERY_CHAIN_EXIT=0`。产物为
+  `build\\Release\\auto_cattery_tests.exe` 与
+  `build\\out\\Release\\AutoCattery.dll`；DLL 大小 `1953280` 字节，生成时间
+  `2026-08-14 01:22:48`。未将编译或测试视为游戏内完成证明。
+- 已同步 Release DLL 与 `description.json` 至 `dist\\Release`，并执行
+  `tools\\deploy.ps1 -GameRoot D:\\steam\\steam\\steamapps\\common\\Mewgenics
+  -Configuration Release` 完成 DLL/data-only 部署。安装端版本为 `0.5.54`，保留玩家
+  现有升级重投 `20`；未启动、进入或控制游戏，也未运行 hash 或
+  `verify_install.ps1`。
+- 第一次选择存档后的 `ntdll.dll` 访问冲突仍没有可符号化调用栈，且第二次同流程能够
+  正常进入；现有证据只能把边界定位在 `HouseReady` 后、首个面板/运行时刷新日志前，
+  不能可靠归因于本次已证实的家具规划循环。本版不对 House attach 生命周期作猜测性
+  修改，首次进入是否仍闪退需玩家用 v0.5.54 复测并返回新日志/转储边界。
 
 ## v0.5.53 实时布局绑定完成锁与用途满足停止
 
@@ -523,6 +558,11 @@
 - 当前原生 RVA、type/vtable 和对象布局只适用于已 gate 的当前
   `Mewgenics.exe`；签名不匹配时安全拒绝。
 - 自动化测试无法代替真实游戏的仓库数量、画面、保存和重进持久化验证。
+- v0.5.54 的状态边机制能通用识别有限长度布局闭环，但具体替代动作、原生接受情况和
+  最终画面质量仍需玩家实机确认；`AC3924` 后应继续出现其他 key/坐标或推进其他房间。
+- 首次选择存档后的偶发 `ntdll.dll` 访问冲突尚无可信符号化栈；若 v0.5.54 首次进入
+  仍闪退，应以新日志边界和 dump 增加精确生命周期 probe，而不是把它与循环修复混为
+  同一根因。
 - v0.5.53 的用途满足系数是基于预计入住人数的通用、有界启发式，不是从当前单一存档
   反推的固定值；实际画面密度和各用途收益仍以本轮玩家实机复测为验收门。
 - v0.5.52 只实现报告中已有代码/日志闭环支持的 P0：purpose precedence、用途/焦点

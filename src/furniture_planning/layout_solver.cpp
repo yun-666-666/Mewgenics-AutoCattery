@@ -4230,6 +4230,23 @@ bool IsWarehouseLayoutMove(const FurnitureLayoutMove& move) noexcept {
     return move.from_room_id.empty();
 }
 
+FurnitureLayoutStateEdgeRecordStatus RecordFurnitureLayoutStateEdge(
+    std::vector<FurnitureLayoutStateEdge>& attempted_edges,
+    const std::string& binding_digest,
+    const FurnitureLayoutMove& first_move,
+    std::size_t capacity) {
+    const FurnitureLayoutStateEdge candidate{binding_digest, first_move};
+    if (std::ranges::find(attempted_edges, candidate) !=
+        attempted_edges.end()) {
+        return FurnitureLayoutStateEdgeRecordStatus::Duplicate;
+    }
+    if (attempted_edges.size() >= capacity) {
+        return FurnitureLayoutStateEdgeRecordStatus::CapacityReached;
+    }
+    attempted_edges.push_back(candidate);
+    return FurnitureLayoutStateEdgeRecordStatus::Recorded;
+}
+
 bool IsImmediateReverseLayoutMove(
     const FurnitureLayoutMove& previous,
     const FurnitureLayoutMove& next) noexcept {

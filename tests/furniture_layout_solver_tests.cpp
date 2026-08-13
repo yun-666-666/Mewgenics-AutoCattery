@@ -240,6 +240,62 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(!furniture_planning::IsImmediateReverseLayoutMove(
         move_down, different_key));
 
+    using EdgeStatus =
+        furniture_planning::FurnitureLayoutStateEdgeRecordStatus;
+    std::vector<furniture_planning::FurnitureLayoutStateEdge>
+        attempted_state_edges;
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        attempted_state_edges, "binding-A", move_down) ==
+        EdgeStatus::Recorded);
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        attempted_state_edges, "binding-A", move_down) ==
+        EdgeStatus::Duplicate);
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        attempted_state_edges, "binding-A", move_up) ==
+        EdgeStatus::Recorded);
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        attempted_state_edges, "binding-B", move_down) ==
+        EdgeStatus::Recorded);
+
+    std::vector<furniture_planning::FurnitureLayoutStateEdge>
+        five_state_cycle;
+    const std::vector<std::string> cycle_bindings{
+        "state-A", "state-B", "state-C", "state-D", "state-E"};
+    for (std::size_t index = 0; index < cycle_bindings.size(); ++index) {
+        auto cycle_move = move_down;
+        cycle_move.stable_key = 100U + index;
+        cycle_move.item_id = "cycle-item-" + std::to_string(index);
+        cycle_move.from_x = static_cast<std::int32_t>(index);
+        cycle_move.target_x = static_cast<std::int32_t>(index + 1U);
+        AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+            five_state_cycle, cycle_bindings[index], cycle_move) ==
+            EdgeStatus::Recorded);
+    }
+    auto repeated_cycle_move = move_down;
+    repeated_cycle_move.stable_key = 100U;
+    repeated_cycle_move.item_id = "cycle-item-0";
+    repeated_cycle_move.from_x = 0;
+    repeated_cycle_move.target_x = 1;
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        five_state_cycle, "state-A", repeated_cycle_move) ==
+        EdgeStatus::Duplicate);
+    auto different_furniture_from_state_a = repeated_cycle_move;
+    different_furniture_from_state_a.stable_key = 205U;
+    different_furniture_from_state_a.item_id = "other-furniture";
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        five_state_cycle,
+        "state-A",
+        different_furniture_from_state_a) == EdgeStatus::Recorded);
+
+    std::vector<furniture_planning::FurnitureLayoutStateEdge>
+        bounded_state_edges;
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        bounded_state_edges, "only-state", move_down, 1U) ==
+        EdgeStatus::Recorded);
+    AC_CHECK(furniture_planning::RecordFurnitureLayoutStateEdge(
+        bounded_state_edges, "new-state", move_up, 1U) ==
+        EdgeStatus::CapacityReached);
+
     snapshot::detail::HouseGeometryCatalog geometry;
     geometry.rooms.push_back({
         .definition_id = "R1",
