@@ -904,6 +904,58 @@ void RunFurnitureLayoutSolverTests() {
         warehouse_room_batch.moves.front()));
     AC_CHECK(warehouse_room_batch.exhausted_room_ids.empty());
 
+    auto purpose_info = info;
+    purpose_info.records.push_back(SmallInfo("neutral"));
+    purpose_info.records.push_back(SmallInfo("fight-idol"));
+    const std::vector<snapshot::detail::FurniturePlacement>
+        purpose_warehouse_fill{
+            Placement(811, "large", "Floor1_Small", -6, -9),
+            Placement(812, "neutral", "", 0, 0),
+            Placement(813, "fight-idol", "", 0, 0)};
+    const snapshot::detail::FurnitureCatalog purpose_effects{
+        {"large", snapshot::RoomAttributes{
+            .comfort = 7, .health = 1}},
+        {"neutral", snapshot::RoomAttributes{}},
+        {"fight-idol", snapshot::RoomAttributes{
+            .comfort = -5, .health = 0}}};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        fight_purpose{{
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::CombatStaging,
+            .expected_resident_count = 4}};
+    const auto purpose_warehouse_batch = solver.Plan(
+        purpose_warehouse_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic"},
+        purpose_effects,
+        fight_purpose);
+    AC_CHECK(purpose_warehouse_batch.moves.size() == 1U);
+    if (purpose_warehouse_batch.moves.size() == 1U) {
+        AC_CHECK(purpose_warehouse_batch.moves.front().stable_key == 813U);
+        AC_CHECK(furniture_planning::IsWarehouseLayoutMove(
+            purpose_warehouse_batch.moves.front()));
+    }
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        neutral_only_fill{
+            Placement(821, "large", "Floor1_Small", -6, -9),
+            Placement(822, "neutral", "", 0, 0)};
+    const auto neutral_only_batch = solver.Plan(
+        neutral_only_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic"},
+        purpose_effects,
+        fight_purpose);
+    AC_CHECK(std::ranges::none_of(
+        neutral_only_batch.moves,
+        [](const auto& move) {
+            return furniture_planning::IsWarehouseLayoutMove(move);
+        }));
+
     std::vector<snapshot::detail::FurniturePlacement>
         warehouse_priority_furniture{
             Placement(901, "large", "Floor1_Small", -6, -9),

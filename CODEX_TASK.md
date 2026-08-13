@@ -1,5 +1,23 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.51 purpose filtering and bounded native transactions
+
+- Purpose rooms no longer accept warehouse or cross-room furniture merely
+  because it fits. A candidate must strictly improve the current room-purpose
+  rank; neutral furniture remains in the warehouse.
+- Combat staging therefore prefers furniture that further lowers effective
+  Comfort while preserving the existing non-negative Health gate. Purpose-aware
+  packing compares final purpose attributes before geometric fill quality.
+- Continuous Auto Place waits 250 ms after each committed transaction and
+  pauses after 32 transactions from one click, allowing native furniture
+  objects and deferred deletion work to settle before the player continues.
+- A furniture object newly created from the warehouse is protected from an
+  immediate attribute replacement for the rest of the current furniture-mode
+  opening. Existing in-room layout moves remain available.
+- Release unit tests and the Release DLL build must pass before deployment.
+  Deploy without hash verification at the player's request. Do not launch or
+  control the game.
+
 ## v0.5.50 purpose-aware furniture optimization
 
 - Furniture analysis now consumes the current five-room plan instead of

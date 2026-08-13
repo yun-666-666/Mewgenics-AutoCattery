@@ -144,6 +144,9 @@ private:
     std::size_t furniture_auto_run_upgraded_{};
     std::size_t furniture_auto_run_moved_{};
     std::size_t furniture_auto_run_blocked_rooms_{};
+    std::size_t furniture_auto_run_transaction_count_{};
+    std::chrono::steady_clock::time_point
+        furniture_auto_run_next_transaction_{};
     bool furniture_attribute_upgrade_committed_in_mode_{};
     std::vector<room_planning::RoomPurposeAssignment>
         furniture_room_purposes_;

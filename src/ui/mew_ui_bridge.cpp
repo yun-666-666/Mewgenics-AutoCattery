@@ -53,6 +53,9 @@ constexpr std::size_t kSceneProbeCapacity = 64;
 constexpr std::size_t kMappingRecordCapacity = 128;
 constexpr std::size_t kFurnitureSnapshotCapacity = 512;
 constexpr std::size_t kFurnitureGridSnapshotCapacity = 32;
+constexpr std::size_t kFurnitureTransactionsPerClick = 32;
+constexpr auto kFurnitureTransactionSettleDelay =
+    std::chrono::milliseconds(250);
 constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
@@ -247,6 +250,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
+    furniture_auto_run_transaction_count_ = 0;
+    furniture_auto_run_next_transaction_ = {};
     furniture_attribute_upgrade_committed_in_mode_ = false;
     furniture_room_purposes_.clear();
     furniture_auto_run_last_layout_move_.reset();
@@ -583,6 +588,8 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
+    furniture_auto_run_transaction_count_ = 0;
+    furniture_auto_run_next_transaction_ = {};
     furniture_attribute_upgrade_committed_in_mode_ = false;
     furniture_room_purposes_.clear();
     furniture_auto_run_last_layout_move_.reset();
@@ -915,8 +922,27 @@ void MewUiBridge::OnTick() {
                         executable);
                 }
                 if (furniture_auto_run_active_) {
-                    if (executable) {
-                        StartFurnitureAutoPlacement(generation);
+                    if (furniture_auto_run_transaction_count_ >=
+                        kFurnitureTransactionsPerClick) {
+                        furniture_auto_run_active_ = false;
+                        if (house_button_controller_) {
+                            house_button_controller_->SetState(
+                                OrganizeButtonState::Completed,
+                                "furniture organizer paused at the transaction checkpoint");
+                        }
+                        Logger::Instance().Write(
+                            LogLevel::Info,
+                            "FurniturePlacement",
+                            "AC3926",
+                            "Continuous Auto Place paused after " +
+                                std::to_string(
+                                    furniture_auto_run_transaction_count_) +
+                                " transactions so native furniture objects can settle; analyze and click again to continue.");
+                    } else if (executable) {
+                        if (std::chrono::steady_clock::now() >=
+                            furniture_auto_run_next_transaction_) {
+                            StartFurnitureAutoPlacement(generation);
+                        }
                     } else if (exhausted_any_room) {
                         ClearFurnitureLayoutPreview();
                         StartFurnitureAnalysis(generation);
@@ -1008,6 +1034,16 @@ void MewUiBridge::OnTick() {
     if (furniture_placement_gateway_) {
         furniture_placement_gateway_->SetHouseScene(
             writable_house ? house_scene->manager : nullptr);
+    }
+    if (furniture_auto_run_active_ &&
+        !furniture_execution_active_ &&
+        furniture_analysis_preview_ &&
+        !furniture_analysis_task_.valid() &&
+        furniture_auto_run_transaction_count_ <
+            kFurnitureTransactionsPerClick &&
+        std::chrono::steady_clock::now() >=
+            furniture_auto_run_next_transaction_) {
+        StartFurnitureAutoPlacement(context.scene_generation);
     }
     PollFurnitureAutoPlacement(context);
 #ifdef _DEBUG
@@ -1475,6 +1511,14 @@ void MewUiBridge::StartFurnitureAutoPlacement(
     const bool continuing_auto_run = furniture_auto_run_active_;
     if (!continuing_auto_run) {
         furniture_auto_run_last_layout_move_.reset();
+        furniture_auto_run_upgraded_ = 0;
+        furniture_auto_run_moved_ = 0;
+        furniture_auto_run_blocked_rooms_ = 0;
+        furniture_auto_run_transaction_count_ = 0;
+        furniture_auto_run_next_transaction_ = {};
+    } else if (std::chrono::steady_clock::now() <
+               furniture_auto_run_next_transaction_) {
+        return;
     } else if (furniture_analysis_preview_->attribute_upgrades.empty() &&
                !furniture_analysis_preview_->layout_plan.moves.empty() &&
                furniture_auto_run_last_layout_move_ &&
@@ -1568,6 +1612,10 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         const auto kept = plan.kept_furniture_count;
         furniture_auto_run_upgraded_ += upgrades;
         furniture_auto_run_moved_ += moved;
+        furniture_auto_run_transaction_count_ += upgrades + moved;
+        furniture_auto_run_next_transaction_ =
+            std::chrono::steady_clock::now() +
+            kFurnitureTransactionSettleDelay;
         for (const auto& exhausted_room_id : plan.exhausted_room_ids) {
             if (std::ranges::find(
                     furniture_locked_room_ids_, exhausted_room_id) ==
@@ -1617,8 +1665,16 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         }
         ClearFurnitureLayoutPreview();
         if (furniture_auto_run_active_) {
-            furniture_retired_keys_ =
+            auto blocked =
                 furniture_placement_gateway_->BlockedWarehouseKeys();
+            blocked.insert(
+                blocked.end(),
+                furniture_retired_keys_.begin(),
+                furniture_retired_keys_.end());
+            std::ranges::sort(blocked);
+            const auto unique = std::ranges::unique(blocked);
+            blocked.erase(unique.begin(), unique.end());
+            furniture_retired_keys_ = std::move(blocked);
             Logger::Instance().Write(
                 LogLevel::Info,
                 "FurniturePlacement",
@@ -1931,6 +1987,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         }
         ++furniture_execution_moved_;
         furniture_auto_run_last_layout_move_.reset();
+        furniture_attribute_upgrade_committed_in_mode_ = true;
         furniture_execution_committed_move_indices_.push_back(
             furniture_execution_index_);
         Logger::Instance().Write(
