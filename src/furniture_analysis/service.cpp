@@ -216,7 +216,8 @@ FurnitureAnalysisService::FurnitureAnalysisService(
 Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     std::uint64_t scene_generation,
     const std::vector<snapshot::RoomId>& locked_room_ids,
-    const std::vector<std::uint64_t>& blocked_warehouse_keys) {
+    const std::vector<std::uint64_t>& blocked_warehouse_keys,
+    bool allow_attribute_upgrades) {
     if (scene_generation == 0U) {
         return {{}, ErrorCode::SceneUnavailable,
                 "furniture analysis requires a House generation"};
@@ -318,64 +319,66 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         locked_room_ids.begin(), locked_room_ids.end());
     const std::unordered_set<std::uint64_t> blocked_warehouse(
         blocked_warehouse_keys.begin(), blocked_warehouse_keys.end());
-    for (const auto& warehouse : source.furniture) {
-        if (!warehouse.room_id.empty() || warehouse.instance_id <= 0) {
-            continue;
-        }
-        if (blocked_warehouse.contains(
-                static_cast<std::uint64_t>(warehouse.instance_id))) {
-            continue;
-        }
-        const auto improved =
-            source.furniture_effects.find(warehouse.item_id);
-        if (improved == source.furniture_effects.end()) {
-            continue;
-        }
-        for (const auto& placed : source.furniture) {
-            if (placed.room_id.empty() || placed.instance_id <= 0) {
+    if (allow_attribute_upgrades) {
+        for (const auto& warehouse : source.furniture) {
+            if (!warehouse.room_id.empty() || warehouse.instance_id <= 0) {
                 continue;
             }
-            if (locked_rooms.contains(placed.room_id)) {
+            if (blocked_warehouse.contains(
+                    static_cast<std::uint64_t>(warehouse.instance_id))) {
                 continue;
             }
-            const auto current =
-                source.furniture_effects.find(placed.item_id);
-            if (current == source.furniture_effects.end()) {
+            const auto improved =
+                source.furniture_effects.find(warehouse.item_id);
+            if (improved == source.furniture_effects.end()) {
                 continue;
             }
-            const auto gain = Subtract(
-                improved->second, current->second);
-            const auto current_room = identified.find(placed.room_id);
-            const auto current_attributes = current_room == identified.end()
-                ? snapshot::RoomAttributes{}
-                : current_room->second.attributes;
-            const auto improved_room = current_room == identified.end()
-                ? gain
-                : Added(current_room->second.attributes, gain);
-            const bool balanced_attic = placed.room_id == "Attic";
-            const auto current_rank = std::tuple{
-                CoreMinimum(current_attributes),
-                CoreTotal(current_attributes),
-                current_attributes.appeal};
-            const auto improved_rank = std::tuple{
-                CoreMinimum(improved_room),
-                CoreTotal(improved_room),
-                improved_room.appeal};
-            const bool direct_upgrade = balanced_attic
-                ? CoreDominates(improved->second, current->second)
-                : Dominates(improved->second, current->second);
-            if (balanced_attic
-                    ? !direct_upgrade
-                    : (!direct_upgrade && improved_rank <= current_rank)) {
-                continue;
+            for (const auto& placed : source.furniture) {
+                if (placed.room_id.empty() || placed.instance_id <= 0) {
+                    continue;
+                }
+                if (locked_rooms.contains(placed.room_id)) {
+                    continue;
+                }
+                const auto current =
+                    source.furniture_effects.find(placed.item_id);
+                if (current == source.furniture_effects.end()) {
+                    continue;
+                }
+                const auto gain = Subtract(
+                    improved->second, current->second);
+                const auto current_room = identified.find(placed.room_id);
+                const auto current_attributes = current_room == identified.end()
+                    ? snapshot::RoomAttributes{}
+                    : current_room->second.attributes;
+                const auto improved_room = current_room == identified.end()
+                    ? gain
+                    : Added(current_room->second.attributes, gain);
+                const bool balanced_attic = placed.room_id == "Attic";
+                const auto current_rank = std::tuple{
+                    CoreMinimum(current_attributes),
+                    CoreTotal(current_attributes),
+                    current_attributes.appeal};
+                const auto improved_rank = std::tuple{
+                    CoreMinimum(improved_room),
+                    CoreTotal(improved_room),
+                    improved_room.appeal};
+                const bool direct_upgrade = balanced_attic
+                    ? CoreDominates(improved->second, current->second)
+                    : Dominates(improved->second, current->second);
+                if (balanced_attic
+                        ? !direct_upgrade
+                        : (!direct_upgrade && improved_rank <= current_rank)) {
+                    continue;
+                }
+                upgrade_pairs.push_back({
+                    .placed = &placed,
+                    .warehouse = &warehouse,
+                    .gain = gain,
+                    .balanced_attic = balanced_attic,
+                    .balanced_minimum = CoreMinimum(improved_room),
+                    .balanced_total = CoreTotal(improved_room)});
             }
-            upgrade_pairs.push_back({
-                .placed = &placed,
-                .warehouse = &warehouse,
-                .gain = gain,
-                .balanced_attic = balanced_attic,
-                .balanced_minimum = CoreMinimum(improved_room),
-                .balanced_total = CoreTotal(improved_room)});
         }
     }
     std::ranges::sort(

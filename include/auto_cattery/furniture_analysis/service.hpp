@@ -14,7 +14,8 @@ public:
     [[nodiscard]] Result<FurnitureAnalysisSnapshot> Analyze(
         std::uint64_t scene_generation,
         const std::vector<snapshot::RoomId>& locked_room_ids = {},
-        const std::vector<std::uint64_t>& blocked_warehouse_keys = {});
+        const std::vector<std::uint64_t>& blocked_warehouse_keys = {},
+        bool allow_attribute_upgrades = true);
 
 private:
     IFurnitureAnalysisSource& source_;

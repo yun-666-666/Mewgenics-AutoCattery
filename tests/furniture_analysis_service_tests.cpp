@@ -207,6 +207,12 @@ void RunFurnitureAnalysisServiceTests() {
                 .warehouse_stable_key == 4U);
     }
 
+    const auto layout_only_after_native_replacement =
+        upgrade_service.Analyze(93, {}, {}, false);
+    AC_CHECK(static_cast<bool>(layout_only_after_native_replacement));
+    AC_CHECK(
+        layout_only_after_native_replacement.value.attribute_upgrades.empty());
+
     FakeFurnitureAnalysisSource executable_upgrade;
     executable_upgrade.value.house.source_save_name = "executable-upgrade.sav";
     executable_upgrade.value.available_room_count = 1;

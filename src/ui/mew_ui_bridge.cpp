@@ -247,6 +247,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
+    furniture_attribute_upgrade_committed_in_mode_ = false;
     furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
@@ -581,6 +582,7 @@ void MewUiBridge::Shutdown() noexcept {
     furniture_auto_run_upgraded_ = 0;
     furniture_auto_run_moved_ = 0;
     furniture_auto_run_blocked_rooms_ = 0;
+    furniture_attribute_upgrade_committed_in_mode_ = false;
     furniture_auto_run_last_layout_move_.reset();
     furniture_faulted_generation_ = 0;
     last_tick_time_ = {};
@@ -1235,7 +1237,9 @@ void MewUiBridge::UpdateHouseUiMode(
     }
 
     furniture_mode_ = detected;
-    if (!furniture_mode_) {
+    if (furniture_mode_) {
+        furniture_attribute_upgrade_committed_in_mode_ = false;
+    } else {
         furniture_auto_run_active_ = false;
     }
     ClearFurnitureLayoutPreview();
@@ -1377,12 +1381,18 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
     }
     const auto locked_room_ids = furniture_locked_room_ids_;
     const auto blocked_keys = furniture_retired_keys_;
+    const bool allow_attribute_upgrades =
+        !furniture_attribute_upgrade_committed_in_mode_;
     furniture_analysis_task_generation_ = generation;
     furniture_analysis_task_ = std::async(
         std::launch::async,
-        [this, generation, locked_room_ids, blocked_keys] {
+        [this, generation, locked_room_ids, blocked_keys,
+         allow_attribute_upgrades] {
             return furniture_analysis_service_->Analyze(
-                generation, locked_room_ids, blocked_keys);
+                generation,
+                locked_room_ids,
+                blocked_keys,
+                allow_attribute_upgrades);
         });
 }
 
@@ -1420,7 +1430,10 @@ void MewUiBridge::StartFurnitureAutoPlacement(
         RefreshRuntimeSnapshotContext();
         const auto blocked_keys = furniture_retired_keys_;
         const auto refreshed = furniture_analysis_service_->Analyze(
-            generation, furniture_locked_room_ids_, blocked_keys);
+            generation,
+            furniture_locked_room_ids_,
+            blocked_keys,
+            !furniture_attribute_upgrade_committed_in_mode_);
         if (!refreshed ||
             refreshed.value.binding_digest !=
                 furniture_analysis_preview_->binding_digest) {
@@ -1832,6 +1845,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 " gain=" +
                 CompactAttributeGain(upgrade.gain) + ".");
         ++furniture_execution_upgraded_;
+        furniture_attribute_upgrade_committed_in_mode_ = true;
         furniture_auto_run_last_layout_move_.reset();
         furniture_execution_committed_upgrade_indices_.push_back(
             furniture_execution_upgrade_index_);

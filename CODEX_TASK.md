@@ -1,5 +1,23 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.49 furniture-mode replacement lifetime guard
+
+- v0.5.48 player runtime completed 17 attribute replacements and 26 layout
+  moves, then reached `AC3922`. Exiting furniture mode one minute later crashed
+  with an unhandled `std::bad_alloc` (`0xE06D7363`); the same run also produced
+  an earlier `ntdll` access violation dump.
+- The final replacements formed a native create/delete chain: a piece placed
+  from the warehouse was immediately replaced, then its replacement was
+  immediately replaced again. Every successful replacement queues the old
+  `FurniturePiece` for deferred destruction until the game settles the
+  furniture UI lifecycle.
+- Each furniture-mode opening may now commit at most one attribute replacement.
+  After that replacement, continuous Auto Place keeps layout moves and warehouse
+  filling enabled but suppresses further attribute upgrades until furniture
+  mode is closed and opened again.
+- The guard is generic, is not keyed to a furniture name or stable key, and
+  does not change analysis scoring or ordinary layout legality.
+
 ## v0.5.48 continuous-layout oscillation guard
 
 - 最新 v0.5.47 实机日志确认 `wallmounted_cloud key=90` 在 `Floor1_Small` 的
