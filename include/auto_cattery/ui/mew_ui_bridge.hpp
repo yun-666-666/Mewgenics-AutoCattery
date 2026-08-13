@@ -153,7 +153,7 @@ private:
     bool furniture_attribute_upgrade_committed_in_mode_{};
     std::vector<room_planning::RoomPurposeAssignment>
         furniture_room_purposes_;
-    std::vector<furniture_planning::FurnitureLayoutMove>
+    std::vector<furniture_planning::FurnitureLayoutStateEdge>
         furniture_layout_move_tabu_;
     std::vector<furniture_planning::FurnitureLayoutStateEdge>
         furniture_layout_attempted_state_edges_;

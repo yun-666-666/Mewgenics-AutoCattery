@@ -104,6 +104,43 @@ void RunFurnitureAnalysisServiceTests() {
     AC_CHECK(before_manual_move.value.binding_digest !=
         after_manual_move.value.binding_digest);
 
+    FakeFurnitureAnalysisSource state_scoped_tabu;
+    state_scoped_tabu.value.house.source_save_name = "state-tabu.sav";
+    state_scoped_tabu.value.available_room_count = 1;
+    state_scoped_tabu.value.house.rooms = {{.id = "RoomA"}};
+    state_scoped_tabu.value.furniture = {
+        Furniture(201, "chair", "RoomA")};
+    state_scoped_tabu.value.furniture[0].position_x = 0;
+    state_scoped_tabu.value.furniture_info.records = {
+        SingleCellInfo("chair")};
+    state_scoped_tabu.value.runtime_room_grids = {
+        {"RoomA", 3, 1, {0U, 0U, 0U}, {1U, 0U, 0U}}};
+    furniture_analysis::FurnitureAnalysisService state_tabu_service(
+        state_scoped_tabu);
+    const auto state_tabu_baseline = state_tabu_service.Analyze(97);
+    AC_CHECK(static_cast<bool>(state_tabu_baseline));
+    AC_CHECK(!state_tabu_baseline.value.layout_plan.moves.empty());
+    if (!state_tabu_baseline.value.layout_plan.moves.empty()) {
+        const furniture_planning::FurnitureLayoutStateEdge other_state_edge{
+            "unrelated-binding",
+            state_tabu_baseline.value.layout_plan.moves.front()};
+        const auto unrelated_tabu = state_tabu_service.Analyze(
+            97, {}, {}, false, {}, {other_state_edge});
+        AC_CHECK(static_cast<bool>(unrelated_tabu));
+        AC_CHECK(!unrelated_tabu.value.layout_plan.moves.empty());
+
+        const furniture_planning::FurnitureLayoutStateEdge current_state_edge{
+            state_tabu_baseline.value.binding_digest,
+            state_tabu_baseline.value.layout_plan.moves.front()};
+        const auto matching_tabu = state_tabu_service.Analyze(
+            97, {}, {}, false, {}, {current_state_edge});
+        AC_CHECK(static_cast<bool>(matching_tabu));
+        AC_CHECK(matching_tabu.value.layout_plan.tabu_filtered_move_count > 0U);
+        AC_CHECK(matching_tabu.value.layout_plan.moves.empty() ||
+            matching_tabu.value.layout_plan.moves.front() !=
+                state_tabu_baseline.value.layout_plan.moves.front());
+    }
+
     FakeFurnitureAnalysisSource anonymous;
     anonymous.value.house.source_save_name = "anonymous.sav";
     anonymous.value.house.cats = {{.id = 1}};

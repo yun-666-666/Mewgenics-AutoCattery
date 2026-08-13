@@ -932,6 +932,8 @@ void MewUiBridge::OnTick() {
                             std::to_string(upgrade.target_y) + ") gain=" +
                             CompactAttributeGain(upgrade.gain) + ".");
                 }
+                const auto planned_operations =
+                    completed.attribute_upgrades.size() + plan.moves.size();
                 furniture_analysis_preview_ = std::move(completed);
                 furniture_auto_run_preview_fresh_ =
                     furniture_auto_run_active_;
@@ -940,8 +942,16 @@ void MewUiBridge::OnTick() {
                         executable);
                 }
                 if (furniture_auto_run_active_) {
+                    const auto& preview_plan =
+                        furniture_analysis_preview_->layout_plan;
+                    const bool checkpoint_before_sealed_plan =
+                        furniture_auto_run_transaction_count_ != 0U &&
+                        furniture_auto_run_transaction_count_ +
+                                planned_operations >
+                            kFurnitureTransactionsPerClick;
                     if (furniture_auto_run_transaction_count_ >=
-                        kFurnitureTransactionsPerClick) {
+                            kFurnitureTransactionsPerClick ||
+                        checkpoint_before_sealed_plan) {
                         furniture_auto_run_active_ = false;
                         if (house_button_controller_) {
                             house_button_controller_->SetState(
@@ -952,15 +962,44 @@ void MewUiBridge::OnTick() {
                             LogLevel::Info,
                             "FurniturePlacement",
                             "AC3926",
-                            "Continuous Auto Place paused after " +
+                            "Continuous Auto Place paused before the next sealed plan after " +
                                 std::to_string(
                                     furniture_auto_run_transaction_count_) +
-                                " transactions so native furniture objects can settle; analyze and click again to continue.");
+                                " committed transactions; next_plan_operations=" +
+                                std::to_string(planned_operations) +
+                                ". Analyze and click again to continue without truncating the plan.");
                     } else if (executable) {
                         if (std::chrono::steady_clock::now() >=
                             furniture_auto_run_next_transaction_) {
                             StartFurnitureAutoPlacement(generation);
                         }
+                    } else if (layout_blocked) {
+                        furniture_auto_run_active_ = false;
+                        if (house_button_controller_) {
+                            house_button_controller_->SetState(
+                                OrganizeButtonState::Failed,
+                                "furniture planning is blocked before reaching a safe final layout");
+                        }
+                        Logger::Instance().Write(
+                            LogLevel::Warn,
+                            "FurniturePlacement",
+                            "AC3929",
+                            "Continuous Auto Place stopped because layout planning is blocked, not because a safe fixpoint was reached: current_blocked=" +
+                                std::to_string(
+                                    preview_plan.current_state_blocked_room_count) +
+                                ", evacuation_blocked=" +
+                                std::to_string(
+                                    preview_plan.evacuation_blocked_room_count) +
+                                ", installation_blocked=" +
+                                std::to_string(
+                                    preview_plan.installation_blocked_room_count) +
+                                ", deferred=" +
+                                std::to_string(
+                                    preview_plan.deferred_furniture_count) +
+                                ", state_tabu_edges=" +
+                                std::to_string(
+                                    furniture_layout_move_tabu_.size()) +
+                                ".");
                     } else if (exhausted_any_room) {
                         ClearFurnitureLayoutPreview();
                         StartFurnitureAnalysis(generation);
@@ -1062,6 +1101,16 @@ void MewUiBridge::OnTick() {
     if (furniture_placement_gateway_) {
         furniture_placement_gateway_->SetHouseScene(
             writable_house ? house_scene->manager : nullptr);
+    }
+    if (furniture_auto_run_active_ &&
+        !furniture_execution_active_ &&
+        !furniture_analysis_preview_ &&
+        !furniture_analysis_task_.valid() &&
+        furniture_auto_run_transaction_count_ <
+            kFurnitureTransactionsPerClick &&
+        std::chrono::steady_clock::now() >=
+            furniture_auto_run_next_transaction_) {
+        StartFurnitureAnalysis(context.scene_generation);
     }
     if (furniture_auto_run_active_ &&
         !furniture_execution_active_ &&
@@ -1616,9 +1665,13 @@ void MewUiBridge::StartFurnitureAutoPlacement(
         }
         if (edge_status == furniture_planning::
                 FurnitureLayoutStateEdgeRecordStatus::Duplicate) {
-            if (std::ranges::find(furniture_layout_move_tabu_, repeated) ==
+            const furniture_planning::FurnitureLayoutStateEdge tabu_edge{
+                furniture_analysis_preview_->binding_digest,
+                repeated};
+            if (std::ranges::find(
+                    furniture_layout_move_tabu_, tabu_edge) ==
                 furniture_layout_move_tabu_.end()) {
-                furniture_layout_move_tabu_.push_back(repeated);
+                furniture_layout_move_tabu_.push_back(tabu_edge);
             }
             furniture_focus_room_id_ = blocked_room;
             ++furniture_auto_run_blocked_rooms_;
@@ -1649,10 +1702,6 @@ void MewUiBridge::StartFurnitureAutoPlacement(
     furniture_execution_active_ = true;
     furniture_auto_run_active_ = true;
     furniture_auto_run_preview_fresh_ = false;
-    if (furniture_analysis_preview_->attribute_upgrades.empty() &&
-        furniture_analysis_preview_->layout_plan.moves.size() > 1U) {
-        furniture_analysis_preview_->layout_plan.moves.resize(1U);
-    }
     furniture_execution_generation_ = generation;
     furniture_execution_upgrade_index_ = 0;
     furniture_execution_index_ = 0;
@@ -1691,6 +1740,10 @@ void MewUiBridge::StartFurnitureAutoPlacement(
 void MewUiBridge::PollFurnitureAutoPlacement(
     const UiContextSnapshot& context) {
     if (!furniture_execution_active_) {
+        return;
+    }
+    if (std::chrono::steady_clock::now() <
+        furniture_auto_run_next_transaction_) {
         return;
     }
 
@@ -1784,7 +1837,6 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 "AC3921",
                 "Continuous Auto Place will re-analyze after the committed transaction; quarantined_keys=" +
                     std::to_string(furniture_retired_keys_.size()) + ".");
-            StartFurnitureAnalysis(context.scene_generation);
         }
     };
 
@@ -2028,6 +2080,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         furniture_execution_committed_upgrade_indices_.push_back(
             furniture_execution_upgrade_index_);
         ++furniture_execution_upgrade_index_;
+        furniture_auto_run_next_transaction_ =
+            std::chrono::steady_clock::now() +
+            kFurnitureTransactionSettleDelay;
         if (furniture_execution_upgrade_index_ == upgrades.size() &&
             furniture_analysis_preview_->layout_plan.moves.empty()) {
             finish();
@@ -2103,6 +2158,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 std::to_string(move.target_y) + ") status=" +
                 FurnitureWarehousePlacementStatusName(placed.status));
         ++furniture_execution_index_;
+        furniture_auto_run_next_transaction_ =
+            std::chrono::steady_clock::now() +
+            kFurnitureTransactionSettleDelay;
         if (furniture_execution_index_ == plan.moves.size()) {
             finish();
         }
@@ -2158,6 +2216,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             }
             const bool safely_rejected =
                 furniture_auto_run_active_ && moved.seh_code == 0U &&
+                furniture_execution_committed_move_indices_.empty() &&
                 moved.rollback_attempted && moved.rollback_succeeded &&
                 (status == FurniturePlacementMoveStatus::RejectedRestored ||
                  status == FurniturePlacementMoveStatus::FailedRestored);
@@ -2242,6 +2301,9 @@ void MewUiBridge::PollFurnitureAutoPlacement(
             std::to_string(committed_y) + ") status=" +
             FurniturePlacementMoveStatusName(status));
     ++furniture_execution_index_;
+    furniture_auto_run_next_transaction_ =
+        std::chrono::steady_clock::now() +
+        kFurnitureTransactionSettleDelay;
     if (furniture_execution_index_ != plan.moves.size()) {
         return;
     }

@@ -1139,6 +1139,38 @@ void RunFurnitureLayoutSolverTests() {
             return furniture_planning::IsWarehouseLayoutMove(move);
         }));
 
+    snapshot::detail::HouseGeometryCatalog sparse_purpose_geometry;
+    sparse_purpose_geometry.rooms = {{
+        .definition_id = "SparsePurpose",
+        .room_id = "SparsePurpose",
+        .width = 10,
+        .height = 5}};
+    const std::vector<furniture_planning::FurnitureRoomGrid>
+        sparse_purpose_grids{{"SparsePurpose", 12, 7}};
+    const std::vector<snapshot::detail::FurniturePlacement>
+        sparse_purpose_fill{
+            Placement(834, "large", "SparsePurpose", -6, -9),
+            Placement(835, "neutral", "", 0, 0)};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        sparse_breeding_purpose{{
+            .room_id = "SparsePurpose",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 2}};
+    const auto sparse_purpose_batch = solver.Plan(
+        sparse_purpose_fill,
+        sparse_purpose_geometry,
+        purpose_info,
+        sparse_purpose_grids,
+        {},
+        satisfied_breeding_effects,
+        sparse_breeding_purpose);
+    AC_CHECK(std::ranges::any_of(
+        sparse_purpose_batch.moves,
+        [](const auto& move) {
+            return move.stable_key == 835U &&
+                furniture_planning::IsWarehouseLayoutMove(move);
+        }));
+
     const std::vector<snapshot::detail::FurniturePlacement>
         empty_breeding_fill{
             Placement(841, "small", "", 0, 0)};

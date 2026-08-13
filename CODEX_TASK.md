@@ -1,5 +1,23 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.55 sealed plans, spatial furnishing, and honest termination
+
+- Execute the complete sealed, Support-validated layout plan instead of
+  truncating it to the first move and replanning from a temporary staging
+  coordinate. Each native transaction still waits 250 ms, and any later
+  rejection rolls back the already committed moves in reverse order.
+- Cycle tabu is scoped to the exact whole-house binding that produced the
+  repeated edge. It must not globally forbid the same move in unrelated later
+  layouts or accumulate until all useful candidates are filtered.
+- Purpose targets remain the attribute objective, but an under-furnished room
+  continues accepting purpose-neutral, non-worsening warehouse furniture until
+  known blocking furniture covers a general room-area-relative minimum. This
+  avoids both filling every cell and stopping with mostly empty rooms.
+- Current/evacuation/installation blockers are a failed or paused layout, not a
+  safe fixpoint. The UI and AC3929 log must report the blocker honestly.
+- Release tests and DLL build must pass before DLL/data-only deployment. Do not
+  launch or control the game.
+
 ## v0.5.54 generic whole-house layout cycle prevention
 
 - Continuous Auto Place records each attempted first layout move together with

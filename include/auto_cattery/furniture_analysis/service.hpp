@@ -18,8 +18,8 @@ public:
         bool allow_attribute_upgrades = true,
         const std::vector<room_planning::RoomPurposeAssignment>&
             room_purposes = {},
-        const std::vector<furniture_planning::FurnitureLayoutMove>&
-            forbidden_layout_moves = {},
+        const std::vector<furniture_planning::FurnitureLayoutStateEdge>&
+            forbidden_layout_edges = {},
         const snapshot::RoomId& preferred_focus_room_id = {});
 
 private:

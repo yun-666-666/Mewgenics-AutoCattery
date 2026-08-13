@@ -1,7 +1,68 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-14
-版本：v0.5.54
+版本：v0.5.55
+
+## v0.5.55 完整密封计划、状态域 tabu 与空间陈设底线
+
+- 最新 v0.5.54 实机会话共执行 `142` 笔家具移动，但只涉及 `17` 件家具：
+  `small_food_broccoli key=34` 移动 `41` 次、经过 `14` 个提交坐标；
+  `small_waterbottle key=57` 移动 `34` 次、经过 `12` 个坐标；
+  `small_deadrat key=58` 移动 `20` 次、经过 `11` 个坐标后最终回到 Attic 原位
+  `(-8,-11)`。仓库计数只从 `166` 降到 `165`，最终仍有 `165/190` 件留在仓库，
+  与玩家截图中五房大面积空置、少量家具挤在边角的结果一致。这证明旧版不是正常逐房
+  推进，而是少数家具反复占用执行机会。
+- 日志直接显示规划器多次生成 `11`、`14`、`15`、`16`、`17`、`18` 步的安全方案，
+  但 UI 在没有属性替换时把 `layout_plan.moves` 强行缩成第一步；第一步可能只是为
+  Support 链腾位置的临时 staging。旧流程执行这一临时步后立即从零分析，于是下一轮
+  又把小物件搬回去，玩家也被迫重复点击“分析+放置”。v0.5.55 删除该截断，一次自动
+  放置会按 250 ms 间隔连续执行完整密封方案；后续任一步被原生拒绝时，已提交的本套
+  布局移动按逆序全部回滚，不留下半套 staging 布局。
+- 一次点击的 `32` 笔事务检查点现在只发生在密封方案边界。如果下一套完整方案会跨越
+  检查点，则在开始它之前记录 `AC3926` 并暂停；不会执行一半再要求玩家点击。当前计数
+  为零时允许一套本身超过 32 步的完整方案原子执行。方案结束后也会等待 250 ms，再
+  刷新运行时快照并自动分析，而不是在 `AC3903` 同一毫秒立即重算。因此正常情况下
+  一次点击可完成多笔连续移动并自动进入后续房间，玩家操作次数应显著减少。
+- v0.5.54 的循环 tabu 虽由整屋 binding 触发，却只保存裸 `FurnitureLayoutMove`，
+  造成同一 move 在以后完全不同的整屋状态也被永久过滤。最终日志出现
+  `tabu_filtered_moves=1282`、`tabu_moves=55`，搜索空间被旧状态污染。v0.5.55 将 tabu
+  保存为 `(binding_digest, first_move)`；分析器只向当前完全匹配的 binding 提供禁用
+  move，不同布局不继承旧禁令。回归测试分别证明不同 binding 的相同 move 不受影响，
+  匹配 binding 的重复 move 才会被过滤并选择替代动作或安全返回无动作。
+- 用途属性达到动态目标后，旧版完全停止仓库填充，因此本次最终只摆放约 25 件家具。
+  v0.5.55 增加通用空间陈设底线：按每个房间实时可用格面积计算，当已放家具的
+  Hitbox/Solid/PoopLogic 唯一占格低于 `15%` 时，房间可继续接收用途排名相同、且绝不
+  降低用途排名的仓库家具；达到底线后仍沿用既有用途停止规则。该比例不编码当前五房、
+  190 件仓库或任何具体家具 key，也不会退回到塞满每个格子。新增 `10x5` 定义房间
+  （运行时 `12x7` 网格）的回归证明：繁育属性已满足但空间过空时，中性家具仍会产生
+  warehouse move；既有较小且已达到覆盖的用途房仍不继续添加。
+- 最终 `AC3901 rooms=0 moves=0` 同时报告 `evacuation_blocked=1`、
+  `installation_blocked=1`、`deferred=184`，旧版却记录 `AC3922 safe fixpoint`。
+  v0.5.55 将这种状态明确归类为失败/暂停，记录 `AC3929` 及 current、evacuation、
+  installation、deferred 和 state-tabu 计数；只有确实没有 blocker 时才允许 `AC3922`。
+- Release 验证先构建并运行 `build\Release\auto_cattery_tests.exe`。首次运行只因新增
+  稀疏房测试把定义尺寸 `10x5` 误写为运行时网格 `10x5` 而失败；按现有坐标契约修为
+  `12x7` 后，增量 Release 构建与统一测试程序退出码均为 `0`。随后
+  `cmake --build build --config Release --target AutoCattery --parallel` 成功生成
+  `build\out\Release\AutoCattery.dll`，大小 `1955328` 字节，最终生成时间
+  `2026-08-14 02:20:48`；构建和测试只证明离线行为，实机画面仍以玩家复测为门。
+- 已同步 DLL 与 `description.json` 至 `dist\Release`，并执行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release`。非递归 Mewjector DLL 与 Mewtator data MOD 部署成功，
+  Mewtator data MOD 版本为 `0.5.55`，升级重投值继续为 `20`。未运行哈希或
+  `verify_install.ps1`，未启动、进入或控制游戏。
+- 本轮修改文件：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `include/auto_cattery/furniture_analysis/service.hpp`、
+  `include/auto_cattery/ui/mew_ui_bridge.hpp`、`src/furniture_analysis/service.cpp`、
+  `src/furniture_planning/layout_solver.cpp`、`src/ui/mew_ui_bridge.cpp`、
+  `tests/furniture_analysis_service_tests.cpp`、`tests/furniture_layout_solver_tests.cpp`、
+  本报告及 `.auto-cattery/state.json`。本地提交：见包含本报告的 Stage 45 任务提交；
+  是否 push：否。
+- 玩家验证待完成：一次点击应连续完成日志中同一套多步方案，不再每搬一件重新点击；
+  key 34、57、58 等小物件不应在十几个位置间往返；用途已达标但明显空旷的房间应继续
+  接收不降低用途的家具；达到检查点只能在完整方案边界暂停；真实阻塞必须出现
+  `AC3929`，不得再误报 `AC3922`。首次选择存档偶发闪退仍缺少可信符号化栈，本轮未对
+  House attach 生命周期作猜测性修改，需玩家同时报告 v0.5.55 首次进入结果。
 
 ## v0.5.54 通用整屋布局循环防护
 

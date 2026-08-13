@@ -47,6 +47,7 @@ constexpr double kRecoveryHealthTargetPerResident = 2.0;
 constexpr double kRecoveryComfortTargetPerResident = 2.0;
 constexpr double kCombatDiscomfortTargetPerResident = 2.0;
 constexpr double kMutationTargetPerResident = 2.0;
+constexpr std::size_t kMinimumFurnishingCoveragePercent = 15U;
 
 struct OffsetCell {
     std::int32_t x{};
@@ -476,6 +477,52 @@ bool BodyOccupied(const Occupancy& occupancy, std::size_t index) {
     return occupancy.hitbox_count[index] != 0U ||
         occupancy.solid_count[index] != 0U ||
         occupancy.poop_count[index] != 0U;
+}
+
+bool RoomNeedsMoreSpatialFurnishing(
+    const snapshot::RoomId& room_id,
+    const RoomCollisionGrid& room,
+    const std::vector<LayoutItem>& movable_items,
+    const std::vector<LayoutItem>& fixed_items) {
+    const auto cell_count = room.width * room.height;
+    if (cell_count == 0U) {
+        return false;
+    }
+    std::vector<bool> occupied(cell_count);
+    const auto mark = [&](const LayoutItem& item) {
+        if (item.placement->room_id != room_id) {
+            return;
+        }
+        for (const auto& cell : item.current_cells) {
+            if (!Inside(room, cell.x, cell.y) ||
+                (cell.tile != FurniturePlacementTile::Hitbox &&
+                 cell.tile != FurniturePlacementTile::Solid &&
+                 cell.tile != FurniturePlacementTile::PoopLogic)) {
+                continue;
+            }
+            occupied[CellIndex(room, cell.x, cell.y)] = true;
+        }
+    };
+    for (const auto& item : movable_items) {
+        mark(item);
+    }
+    for (const auto& item : fixed_items) {
+        mark(item);
+    }
+    std::size_t usable_cells{};
+    std::size_t occupied_cells{};
+    for (std::size_t index = 0; index < cell_count; ++index) {
+        const auto x = index % room.width;
+        const auto y = index / room.width;
+        if (RoomBlocksAllFurniture(room.At(x, y))) {
+            continue;
+        }
+        ++usable_cells;
+        occupied_cells += occupied[index] ? 1U : 0U;
+    }
+    return usable_cells != 0U &&
+        occupied_cells * 100U <
+            usable_cells * kMinimumFurnishingCoveragePercent;
 }
 
 bool SupportSatisfied(
@@ -2930,8 +2977,14 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
     std::vector<Candidate> candidates;
     const auto current_purpose_rank = PurposeRank(
         room_purpose, current_attributes);
-    if (room_purpose &&
-        !PurposeNeedsMoreFurniture(room_purpose, current_attributes)) {
+    const bool purpose_needs_more =
+        PurposeNeedsMoreFurniture(room_purpose, current_attributes);
+    const bool spatial_needs_more = RoomNeedsMoreSpatialFurnishing(
+        target_room_id,
+        target->second,
+        target_items,
+        target_static_base);
+    if (room_purpose && !purpose_needs_more && !spatial_needs_more) {
         return std::nullopt;
     }
     for (const auto& incoming : full_warehouse_items) {
@@ -2942,10 +2995,12 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
             AddAttributes(attributes, effect->second);
         }
         const auto purpose_rank = PurposeRank(room_purpose, attributes);
-        if (room_purpose &&
-            (effect == furniture_effects.end() ||
-             purpose_rank <= current_purpose_rank)) {
-            continue;
+        if (room_purpose) {
+            if (purpose_rank < current_purpose_rank ||
+                (!spatial_needs_more &&
+                 purpose_rank <= current_purpose_rank)) {
+                continue;
+            }
         }
         for (const auto& candidate : incoming.candidates) {
             if (!CanPlace(target->second, occupancy, candidate)) {
@@ -3645,6 +3700,14 @@ FurnitureLayoutPlan PlanWholeHouse(
             room_purposes, target_room_id);
         const bool purpose_needs_more_furniture =
             PurposeNeedsMoreFurniture(room_purpose, current_attributes);
+        const bool spatial_needs_more_furniture =
+            RoomNeedsMoreSpatialFurnishing(
+                target_room_id,
+                target_room,
+                eligible_items,
+                fixed_items);
+        const bool room_needs_more_furniture =
+            purpose_needs_more_furniture || spatial_needs_more_furniture;
         const bool balanced_attic = room_purpose == nullptr &&
             target_room_id == "Attic" && !furniture_effects.empty();
         std::vector<LayoutItem> target_items;
@@ -3674,7 +3737,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                 target_items.push_back(std::move(item));
             } else {
                 if (room_purpose) {
-                    if (!purpose_needs_more_furniture) {
+                    if (!room_needs_more_furniture) {
                         if (!item.placement->room_id.empty()) {
                             target_static_base.push_back(std::move(item));
                         }
@@ -3688,10 +3751,13 @@ FurnitureLayoutPlan PlanWholeHouse(
                         AddAttributes(
                             improved_attributes, effect->second);
                     }
-                    if (effect == furniture_effects.end() ||
-                        PurposeRank(room_purpose, improved_attributes) <=
-                            PurposeRank(
-                                room_purpose, current_attributes)) {
+                    const auto improved_rank = PurposeRank(
+                        room_purpose, improved_attributes);
+                    const auto current_rank = PurposeRank(
+                        room_purpose, current_attributes);
+                    if (improved_rank < current_rank ||
+                        (!spatial_needs_more_furniture &&
+                         improved_rank <= current_rank)) {
                         if (!item.placement->room_id.empty()) {
                             target_static_base.push_back(std::move(item));
                         }

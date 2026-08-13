@@ -299,8 +299,8 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     const std::vector<std::uint64_t>& blocked_warehouse_keys,
     bool allow_attribute_upgrades,
     const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
-    const std::vector<furniture_planning::FurnitureLayoutMove>&
-        forbidden_layout_moves,
+    const std::vector<furniture_planning::FurnitureLayoutStateEdge>&
+        forbidden_layout_edges,
     const snapshot::RoomId& preferred_focus_room_id) {
     if (scene_generation == 0U) {
         return {{}, ErrorCode::SceneUnavailable,
@@ -641,6 +641,13 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     }
     result.binding_digest = BuildBindingDigest(
         source, result.rooms, room_purposes);
+    std::vector<furniture_planning::FurnitureLayoutMove>
+        forbidden_layout_moves;
+    for (const auto& edge : forbidden_layout_edges) {
+        if (edge.binding_digest == result.binding_digest) {
+            forbidden_layout_moves.push_back(edge.first_move);
+        }
+    }
     // Never mix a native warehouse replacement with layout moves.  A
     // successful replacement finishes this batch; layout planning resumes on
     // the next analysis after the game's deferred component deletion settles.
