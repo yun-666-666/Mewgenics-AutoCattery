@@ -201,8 +201,8 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         protection_choice_ = ProtectionChoice::None;
         page_ = ManagementPanelPage::Furniture;
         status_ = English()
-            ? "Targets scale by expected cats; combat comfort/stimulation are maximums"
-            : "目标按预计猫数缩放；战斗房舒适和刺激是上限";
+            ? "Targets are whole-room totals; combat comfort/stimulation are maximums"
+            : "目标是整个房间的最终属性；战斗房舒适和刺激是上限";
         break;
     case ManagementPanelControl::Previous:
     case ManagementPanelControl::Next:

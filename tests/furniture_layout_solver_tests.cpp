@@ -1419,6 +1419,58 @@ void RunFurnitureLayoutSolverTests() {
         placement_config);
     AC_CHECK(combat_exact > combat_overdone);
 
+    const auto combat_exact_one_resident =
+        furniture_planning::RankFurniturePurpose(
+            room_planning::RoomRole::CombatStaging,
+            snapshot::RoomAttributes{
+                .comfort = -8,
+                .stimulation = 0,
+                .health = 0,
+                .mutation = 8},
+            1,
+            placement_config);
+    const auto combat_exact_six_residents =
+        furniture_planning::RankFurniturePurpose(
+            room_planning::RoomRole::CombatStaging,
+            snapshot::RoomAttributes{
+                .comfort = -8,
+                .stimulation = 0,
+                .health = 0,
+                .mutation = 8},
+            6,
+            placement_config);
+    AC_CHECK(combat_exact_one_resident == combat_exact_six_residents);
+
+    auto configured_whole_room_target = placement_config;
+    configured_whole_room_target.combat.mutation_per_resident = 12.0;
+    const room_planning::RoomPurposeAssignment one_resident_combat{
+        .room_id = "CombatOne",
+        .role = room_planning::RoomRole::CombatStaging,
+        .expected_resident_count = 1};
+    const room_planning::RoomPurposeAssignment six_resident_combat{
+        .room_id = "CombatSix",
+        .role = room_planning::RoomRole::CombatStaging,
+        .expected_resident_count = 6};
+    const snapshot::RoomAttributes configured_combat_target{
+        .comfort = -8, .stimulation = 0, .health = 0, .mutation = 12};
+    AC_CHECK(!furniture_planning::FurniturePurposeNeedsMore(
+        &one_resident_combat,
+        configured_combat_target,
+        configured_whole_room_target));
+    AC_CHECK(!furniture_planning::FurniturePurposeNeedsMore(
+        &six_resident_combat,
+        configured_combat_target,
+        configured_whole_room_target));
+    AC_CHECK(
+        furniture_planning::RankFurniturePurpose(
+            &one_resident_combat,
+            configured_combat_target,
+            configured_whole_room_target) ==
+        furniture_planning::RankFurniturePurpose(
+            &six_resident_combat,
+            configured_combat_target,
+            configured_whole_room_target));
+
     const auto combat_mutation = furniture_planning::RankFurniturePurpose(
         room_planning::RoomRole::CombatStaging,
         snapshot::RoomAttributes{

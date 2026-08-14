@@ -6,6 +6,9 @@
 namespace autocattery::furniture_planning {
 
 struct FurniturePurposeTargets {
+    // These legacy member names and JSON keys are retained so v0.5.58 user
+    // configs remain readable. Values are whole-room displayed attribute
+    // targets and are never multiplied by the resident count.
     double comfort_per_resident{};
     double stimulation_per_resident{};
     double health_per_resident{};
@@ -14,14 +17,14 @@ struct FurniturePurposeTargets {
 
 struct FurniturePlacementConfig {
     std::uint32_t version{1};
-    FurniturePurposeTargets breeding{2.0, 2.0, 0.0, 0.0};
-    FurniturePurposeTargets kitten_recovery{2.0, 0.0, 2.0, 0.0};
+    FurniturePurposeTargets breeding{4.0, 4.0, 0.0, 0.0};
+    FurniturePurposeTargets kitten_recovery{8.0, 0.0, 8.0, 0.0};
     // Combat comfort and stimulation are upper bounds. Health and mutation
     // remain lower bounds. Defaults create a controlled low-comfort room
     // without rewarding excess stimulation, while also targeting mutation.
-    FurniturePurposeTargets combat{-2.0, 0.0, 0.0, 2.0};
-    FurniturePurposeTargets mutation{-2.0, 0.0, 0.0, 2.0};
-    FurniturePurposeTargets general{1.0, 1.0, 1.0, 1.0};
+    FurniturePurposeTargets combat{-8.0, 0.0, 0.0, 8.0};
+    FurniturePurposeTargets mutation{-6.0, 0.0, 0.0, 8.0};
+    FurniturePurposeTargets general{4.0, 4.0, 4.0, 4.0};
     std::size_t minimum_furnishing_coverage_percent{15};
     bool fill_remaining_capacity{};
 };

@@ -43,22 +43,14 @@ inline const FurniturePurposeTargets& TargetsFor(
 inline std::array<Constraint, 4> Constraints(
     room_planning::RoomRole role,
     const snapshot::RoomAttributes& attributes,
-    std::size_t expected_resident_count,
     const FurniturePlacementConfig& config) noexcept {
-    const auto residents = std::max<std::size_t>(1U, expected_resident_count);
-    const auto crowding = residents > 4U ? residents - 4U : 0U;
-    const auto effective_comfort =
-        attributes.comfort - static_cast<double>(crowding);
     const auto& targets = TargetsFor(role, config);
-    const auto scale = static_cast<double>(residents);
     const bool combat = role == room_planning::RoomRole::CombatStaging;
     return {{
-        {effective_comfort, targets.comfort_per_resident * scale, combat},
-        {attributes.stimulation,
-         targets.stimulation_per_resident * scale,
-         combat},
-        {attributes.health, targets.health_per_resident * scale, false},
-        {attributes.mutation, targets.mutation_per_resident * scale, false},
+        {attributes.comfort, targets.comfort_per_resident, combat},
+        {attributes.stimulation, targets.stimulation_per_resident, combat},
+        {attributes.health, targets.health_per_resident, false},
+        {attributes.mutation, targets.mutation_per_resident, false},
     }};
 }
 
@@ -96,8 +88,11 @@ inline FurniturePurposeRank RankFurniturePurpose(
     const snapshot::RoomAttributes& attributes,
     std::size_t expected_resident_count,
     const FurniturePlacementConfig& config) noexcept {
+    // Kept in this public signature for existing callers. Furniture targets
+    // are whole-room totals, so resident count must not affect the rank.
+    (void)expected_resident_count;
     const auto constraints = purpose_policy_detail::Constraints(
-        role, attributes, expected_resident_count, config);
+        role, attributes, config);
     double satisfied_count{};
     double deficit_sum{};
     double distance_sum{};
@@ -144,7 +139,6 @@ inline bool FurniturePurposeNeedsMore(
     const auto constraints = purpose_policy_detail::Constraints(
         purpose->role,
         attributes,
-        purpose->expected_resident_count,
         config);
     return std::ranges::any_of(
         constraints,

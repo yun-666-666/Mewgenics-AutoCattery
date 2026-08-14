@@ -103,47 +103,47 @@ InGameSettingsModel::FurnitureFields() {
     auto& placement = config_.furniture_placement;
     const bool en = IsEnglish();
 
-    fields[0] = F{L(en, "繁育 舒适最低/猫", "Breeding comfort min/cat"),
+    fields[0] = F{L(en, "繁育 舒适最低值", "Breeding comfort minimum"),
                   &placement.breeding.comfort_per_resident, -10000, 10000, 0.5};
-    fields[1] = F{L(en, "繁育 刺激最低/猫", "Breeding stimulation min/cat"),
+    fields[1] = F{L(en, "繁育 刺激最低值", "Breeding stimulation minimum"),
                   &placement.breeding.stimulation_per_resident, -10000, 10000, 0.5};
-    fields[2] = F{L(en, "繁育 健康最低/猫", "Breeding health min/cat"),
+    fields[2] = F{L(en, "繁育 健康最低值", "Breeding health minimum"),
                   &placement.breeding.health_per_resident, -10000, 10000, 0.5};
-    fields[3] = F{L(en, "繁育 变异最低/猫", "Breeding mutation min/cat"),
+    fields[3] = F{L(en, "繁育 变异最低值", "Breeding mutation minimum"),
                   &placement.breeding.mutation_per_resident, -10000, 10000, 0.5};
-    fields[5] = F{L(en, "幼猫休养 舒适最低/猫", "Kitten/recovery comfort min/cat"),
+    fields[5] = F{L(en, "幼猫休养 舒适最低值", "Kitten/recovery comfort minimum"),
                   &placement.kitten_recovery.comfort_per_resident, -10000, 10000, 0.5};
-    fields[6] = F{L(en, "幼猫休养 刺激最低/猫", "Kitten/recovery stimulation min/cat"),
+    fields[6] = F{L(en, "幼猫休养 刺激最低值", "Kitten/recovery stimulation minimum"),
                   &placement.kitten_recovery.stimulation_per_resident, -10000, 10000, 0.5};
-    fields[7] = F{L(en, "幼猫休养 健康最低/猫", "Kitten/recovery health min/cat"),
+    fields[7] = F{L(en, "幼猫休养 健康最低值", "Kitten/recovery health minimum"),
                   &placement.kitten_recovery.health_per_resident, -10000, 10000, 0.5};
-    fields[8] = F{L(en, "幼猫休养 变异最低/猫", "Kitten/recovery mutation min/cat"),
+    fields[8] = F{L(en, "幼猫休养 变异最低值", "Kitten/recovery mutation minimum"),
                   &placement.kitten_recovery.mutation_per_resident, -10000, 10000, 0.5};
 
-    fields[17] = F{L(en, "战斗 舒适上限/猫", "Combat comfort max/cat"),
+    fields[17] = F{L(en, "战斗 舒适上限", "Combat comfort maximum"),
                    &placement.combat.comfort_per_resident, -10000, 10000, 0.5};
-    fields[18] = F{L(en, "战斗 刺激上限/猫", "Combat stimulation max/cat"),
+    fields[18] = F{L(en, "战斗 刺激上限", "Combat stimulation maximum"),
                    &placement.combat.stimulation_per_resident, -10000, 10000, 0.5};
-    fields[19] = F{L(en, "战斗 健康最低/猫", "Combat health min/cat"),
+    fields[19] = F{L(en, "战斗 健康最低值", "Combat health minimum"),
                    &placement.combat.health_per_resident, -10000, 10000, 0.5};
-    fields[20] = F{L(en, "战斗 变异最低/猫", "Combat mutation min/cat"),
+    fields[20] = F{L(en, "战斗 变异最低值", "Combat mutation minimum"),
                    &placement.combat.mutation_per_resident, -10000, 10000, 0.5};
-    fields[22] = F{L(en, "变异 舒适最低/猫", "Mutation comfort min/cat"),
+    fields[22] = F{L(en, "变异房 舒适最低值", "Mutation room comfort minimum"),
                    &placement.mutation.comfort_per_resident, -10000, 10000, 0.5};
-    fields[23] = F{L(en, "变异 刺激最低/猫", "Mutation stimulation min/cat"),
+    fields[23] = F{L(en, "变异房 刺激最低值", "Mutation room stimulation minimum"),
                    &placement.mutation.stimulation_per_resident, -10000, 10000, 0.5};
-    fields[24] = F{L(en, "变异 健康最低/猫", "Mutation health min/cat"),
+    fields[24] = F{L(en, "变异房 健康最低值", "Mutation room health minimum"),
                    &placement.mutation.health_per_resident, -10000, 10000, 0.5};
-    fields[25] = F{L(en, "变异 变异最低/猫", "Mutation mutation min/cat"),
+    fields[25] = F{L(en, "变异房 变异最低值", "Mutation room mutation minimum"),
                    &placement.mutation.mutation_per_resident, -10000, 10000, 0.5};
 
-    fields[35] = F{L(en, "普通 舒适最低/猫", "General comfort min/cat"),
+    fields[35] = F{L(en, "普通房 舒适最低值", "General room comfort minimum"),
                    &placement.general.comfort_per_resident, -10000, 10000, 0.5};
-    fields[36] = F{L(en, "普通 刺激最低/猫", "General stimulation min/cat"),
+    fields[36] = F{L(en, "普通房 刺激最低值", "General room stimulation minimum"),
                    &placement.general.stimulation_per_resident, -10000, 10000, 0.5};
-    fields[37] = F{L(en, "普通 健康最低/猫", "General health min/cat"),
+    fields[37] = F{L(en, "普通房 健康最低值", "General room health minimum"),
                    &placement.general.health_per_resident, -10000, 10000, 0.5};
-    fields[38] = F{L(en, "普通 变异最低/猫", "General mutation min/cat"),
+    fields[38] = F{L(en, "普通房 变异最低值", "General room mutation minimum"),
                    &placement.general.mutation_per_resident, -10000, 10000, 0.5};
     fields[40] = F{L(en, "最低家具覆盖率 %", "Minimum furnishing coverage %"),
                    &placement.minimum_furnishing_coverage_percent, 0, 100, 1};

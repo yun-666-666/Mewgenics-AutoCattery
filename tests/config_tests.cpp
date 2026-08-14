@@ -64,7 +64,9 @@ void RunConfigTests() {
     AC_CHECK(valid.value.room_planning.default_soft_capacity == 4);
     AC_CHECK(valid.value.room_planning.never_exceed_known_hard_capacity);
     AC_CHECK(valid.value.furniture_placement.combat.stimulation_per_resident == 0.0);
-    AC_CHECK(valid.value.furniture_placement.combat.mutation_per_resident == 2.0);
+    AC_CHECK(valid.value.furniture_placement.combat.comfort_per_resident == -8.0);
+    AC_CHECK(valid.value.furniture_placement.combat.mutation_per_resident == 8.0);
+    AC_CHECK(valid.value.furniture_placement.kitten_recovery.health_per_resident == 8.0);
     AC_CHECK(valid.value.furniture_placement.minimum_furnishing_coverage_percent == 15);
     AC_CHECK(!valid.value.furniture_placement.fill_remaining_capacity);
     AC_CHECK(valid.value.workflow.preview_ttl_seconds == 120);

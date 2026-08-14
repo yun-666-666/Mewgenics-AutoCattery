@@ -1,5 +1,23 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.59 whole-room furniture targets
+
+- Correct the v0.5.58 interpretation rejected by the player: every F10 Auto
+  Placement value is a final whole-room displayed attribute target, never a
+  per-cat value and never multiplied by expected residents.
+- Remove resident-count scaling and the extra crowding Comfort adjustment from
+  furniture purpose ranking. The same room attributes and configuration must
+  rank identically with one or six expected residents.
+- Keep the v0.5.58 `*_per_resident` C++ members and JSON keys only for existing
+  config compatibility. Their v0.5.59 meaning is explicitly a whole-room
+  target; do not show `per cat`, `每猫`, or `/猫` in the F10 UI.
+- Default whole-room targets are Breeding `4/4/0/0`, Kitten/Recovery
+  `8/0/8/0`, Combat `-8/0/0/8`, Mutation `-6/0/0/8`, and General `4/4/4/4`
+  for Comfort/Stimulation/Health/Mutation. Combat Comfort and Stimulation
+  remain maximums; the other listed targets remain minimums.
+- Preserve the existing 48 ordinary settings and level-up reroll index 47.
+  Build, test, and deploy v0.5.59 without launching or controlling the game.
+
 ## v0.5.58 configurable purpose thresholds and bounded attribute excess
 
 - Replace unbounded purpose maximization with resident-scaled targets. Breeding,
