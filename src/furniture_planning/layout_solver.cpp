@@ -14,6 +14,8 @@
 #include <unordered_set>
 #include <utility>
 
+#include "auto_cattery/furniture_planning/purpose_policy.hpp"
+
 namespace autocattery::furniture_planning {
 namespace {
 
@@ -38,15 +40,6 @@ constexpr std::size_t kAnchorChainVisitLimit = 100000;
 // shown in a previous screenshot.
 constexpr std::size_t kLocalRelocationCandidateLimit = 512;
 constexpr std::size_t kLocalIncomingCandidateLimit = 512;
-constexpr double kBreedingComfortTargetPerResident = 2.0;
-constexpr double kBreedingStimulationTargetPerResident = 2.0;
-constexpr double kKittenHealthTargetPerResident = 2.0;
-constexpr double kKittenComfortTargetPerResident = 2.0;
-constexpr double kRecoveryHealthTargetPerResident = 2.0;
-constexpr double kRecoveryComfortTargetPerResident = 2.0;
-constexpr double kCombatDiscomfortTargetPerResident = 2.0;
-constexpr double kMutationTargetPerResident = 2.0;
-constexpr std::size_t kMinimumFurnishingCoveragePercent = 15U;
 
 struct OffsetCell {
     std::int32_t x{};
@@ -146,105 +139,6 @@ const room_planning::RoomPurposeAssignment* FindPurpose(
         purposes, room_id,
         &room_planning::RoomPurposeAssignment::room_id);
     return found == purposes.end() ? nullptr : &*found;
-}
-
-auto PurposeRank(
-    const room_planning::RoomPurposeAssignment* purpose,
-    const snapshot::RoomAttributes& attributes) {
-    const auto residents = purpose ? purpose->expected_resident_count : 0U;
-    const auto crowding = residents > 4U ? residents - 4U : 0U;
-    const auto effective_comfort =
-        attributes.comfort - static_cast<double>(crowding);
-    const auto role = purpose
-        ? purpose->role : room_planning::RoomRole::General;
-    switch (role) {
-        case room_planning::RoomRole::Breeding: {
-            const auto viable = effective_comfort > -10.0;
-            return std::tuple{
-                viable ? 6 : 0,
-                std::min(effective_comfort, attributes.stimulation),
-                effective_comfort,
-                attributes.stimulation,
-                purpose && purpose->breeding_stats_stable
-                    ? attributes.mutation : 0.0,
-                attributes.health};
-        }
-        case room_planning::RoomRole::CombatStaging:
-            return std::tuple{
-                attributes.health >= 0.0 ? 5 : 0,
-                -effective_comfort,
-                attributes.health,
-                attributes.stimulation,
-                attributes.mutation,
-                0.0};
-        case room_planning::RoomRole::Kitten:
-        case room_planning::RoomRole::Recovery:
-            return std::tuple{
-                attributes.health >= 0.0 && effective_comfort >= 0.0 ? 4 : 0,
-                attributes.health,
-                effective_comfort,
-                attributes.stimulation,
-                attributes.mutation,
-                0.0};
-        case room_planning::RoomRole::MutationLab:
-            return std::tuple{
-                attributes.health >= 0.0 && effective_comfort > -10.0 ? 5 : 0,
-                attributes.mutation,
-                attributes.health,
-                effective_comfort,
-                attributes.stimulation,
-                0.0};
-        default:
-            return std::tuple{
-                3,
-                CoreMinimum(attributes),
-                CoreTotal(attributes),
-                attributes.health,
-                effective_comfort,
-                0.0};
-    }
-}
-
-bool PurposeNeedsMoreFurniture(
-    const room_planning::RoomPurposeAssignment* purpose,
-    const snapshot::RoomAttributes& attributes) {
-    if (!purpose) {
-        return true;
-    }
-    const auto residents = std::max<std::size_t>(
-        1U, purpose->expected_resident_count);
-    const auto crowding = residents > 4U ? residents - 4U : 0U;
-    const auto effective_comfort =
-        attributes.comfort - static_cast<double>(crowding);
-    switch (purpose->role) {
-        case room_planning::RoomRole::Breeding:
-            return effective_comfort <
-                    kBreedingComfortTargetPerResident * residents ||
-                attributes.stimulation <
-                    kBreedingStimulationTargetPerResident * residents;
-        case room_planning::RoomRole::CombatStaging:
-            return attributes.health < 0.0 || effective_comfort >
-                -kCombatDiscomfortTargetPerResident * residents;
-        case room_planning::RoomRole::Kitten:
-            return attributes.health <
-                    kKittenHealthTargetPerResident * residents ||
-                effective_comfort <
-                    kKittenComfortTargetPerResident * residents;
-        case room_planning::RoomRole::Recovery:
-            return attributes.health <
-                    kRecoveryHealthTargetPerResident * residents ||
-                effective_comfort <
-                    kRecoveryComfortTargetPerResident * residents;
-        case room_planning::RoomRole::MutationLab:
-            return attributes.health < 0.0 || effective_comfort <= -10.0 ||
-                attributes.mutation < kMutationTargetPerResident * residents;
-        case room_planning::RoomRole::General:
-        case room_planning::RoomRole::Unknown:
-        case room_planning::RoomRole::Special:
-        case room_planning::RoomRole::Unavailable:
-            return true;
-    }
-    return true;
 }
 
 int PurposePriority(
@@ -405,19 +299,50 @@ bool BetterPurposeState(
     const snapshot::RoomAttributes& current_attributes,
     const snapshot::RoomId& target_room_id,
     const FurnitureCatalog& furniture_effects,
-    const room_planning::RoomPurposeAssignment* purpose) {
-    const auto left_rank = PurposeRank(
+    const room_planning::RoomPurposeAssignment* purpose,
+    const FurniturePlacementConfig& placement_config,
+    std::size_t minimum_selected_cell_count) {
+    const auto left_rank = RankFurniturePurpose(
         purpose,
         CandidateRoomAttributes(
             left, items, current_attributes, target_room_id,
-            furniture_effects));
-    const auto right_rank = PurposeRank(
+            furniture_effects),
+        placement_config);
+    const auto right_rank = RankFurniturePurpose(
         purpose,
         CandidateRoomAttributes(
             right, items, current_attributes, target_room_id,
-            furniture_effects));
+            furniture_effects),
+        placement_config);
+    const std::array<double, 4> left_threshold_rank{
+        left_rank[0], left_rank[1], left_rank[2], left_rank[3]};
+    const std::array<double, 4> right_threshold_rank{
+        right_rank[0], right_rank[1], right_rank[2], right_rank[3]};
+    if (left_threshold_rank != right_threshold_rank) {
+        return left_threshold_rank > right_threshold_rank;
+    }
+    const bool left_coverage =
+        left.selected_cell_count >= minimum_selected_cell_count;
+    const bool right_coverage =
+        right.selected_cell_count >= minimum_selected_cell_count;
+    if (left_coverage != right_coverage) {
+        return left_coverage;
+    }
+    if (!left_coverage &&
+        left.selected_cell_count != right.selected_cell_count) {
+        return left.selected_cell_count > right.selected_cell_count;
+    }
     if (left_rank != right_rank) {
         return left_rank > right_rank;
+    }
+    if (!placement_config.fill_remaining_capacity && left_coverage) {
+        if (left.selected_cell_count != right.selected_cell_count) {
+            return left.selected_cell_count < right.selected_cell_count;
+        }
+        if (left.selected_count != right.selected_count) {
+            return left.selected_count < right.selected_count;
+        }
+        return BetterPackState(left, right);
     }
     if (left.selected_count != right.selected_count) {
         return left.selected_count > right.selected_count;
@@ -429,6 +354,11 @@ bool BetterPurposeState(
         return left.selected_cell_count < right.selected_cell_count;
     }
     return BetterPackState(left, right);
+}
+
+std::array<double, 4> PurposeThresholdRank(
+    const FurniturePurposeRank& rank) noexcept {
+    return {rank[0], rank[1], rank[2], rank[3]};
 }
 
 bool CheckedCoordinate(
@@ -494,7 +424,8 @@ bool RoomNeedsMoreSpatialFurnishing(
     const snapshot::RoomId& room_id,
     const RoomCollisionGrid& room,
     const std::vector<LayoutItem>& movable_items,
-    const std::vector<LayoutItem>& fixed_items) {
+    const std::vector<LayoutItem>& fixed_items,
+    std::size_t minimum_coverage_percent) {
     const auto cell_count = room.width * room.height;
     if (cell_count == 0U) {
         return false;
@@ -533,7 +464,19 @@ bool RoomNeedsMoreSpatialFurnishing(
     }
     return usable_cells != 0U &&
         occupied_cells * 100U <
-            usable_cells * kMinimumFurnishingCoveragePercent;
+            usable_cells * minimum_coverage_percent;
+}
+
+std::size_t MinimumSelectedCellCount(
+    const RoomCollisionGrid& room,
+    std::size_t minimum_coverage_percent) {
+    std::size_t usable_cells{};
+    for (std::size_t y = 0; y < room.height; ++y) {
+        for (std::size_t x = 0; x < room.width; ++x) {
+            usable_cells += RoomBlocksAllFurniture(room.At(x, y)) ? 0U : 1U;
+        }
+    }
+    return (usable_cells * minimum_coverage_percent + 99U) / 100U;
 }
 
 bool SupportSatisfied(
@@ -2872,6 +2815,7 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
     const snapshot::RoomAttributes& current_attributes,
     const FurnitureCatalog& furniture_effects,
     const room_planning::RoomPurposeAssignment* room_purpose,
+    const FurniturePlacementConfig& placement_config,
     std::size_t base_kept_count,
     const std::vector<FurnitureLayoutMove>& forbidden_moves,
     std::size_t& tabu_filtered_move_count) {
@@ -2924,21 +2868,25 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
     struct Candidate {
         const LayoutItem* item{};
         const std::vector<MappedCell>* cells{};
-        decltype(PurposeRank(
-            nullptr, snapshot::RoomAttributes{})) purpose_rank{};
+        FurniturePurposeRank purpose_rank{};
         OrdinaryFillScore score;
     };
     std::vector<Candidate> candidates;
-    const auto current_purpose_rank = PurposeRank(
-        room_purpose, current_attributes);
+    const auto current_purpose_rank = RankFurniturePurpose(
+        room_purpose, current_attributes, placement_config);
+    const auto current_threshold_rank =
+        PurposeThresholdRank(current_purpose_rank);
     const bool purpose_needs_more =
-        PurposeNeedsMoreFurniture(room_purpose, current_attributes);
+        FurniturePurposeNeedsMore(
+            room_purpose, current_attributes, placement_config);
     const bool spatial_needs_more = RoomNeedsMoreSpatialFurnishing(
         target_room_id,
         target->second,
         target_items,
-        target_static_base);
-    if (room_purpose && !purpose_needs_more && !spatial_needs_more) {
+        target_static_base,
+        placement_config.minimum_furnishing_coverage_percent);
+    if (room_purpose && !purpose_needs_more && !spatial_needs_more &&
+        !placement_config.fill_remaining_capacity) {
         return std::nullopt;
     }
     for (const auto& incoming : full_warehouse_items) {
@@ -2948,10 +2896,12 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
         if (effect != furniture_effects.end()) {
             AddAttributes(attributes, effect->second);
         }
-        const auto purpose_rank = PurposeRank(room_purpose, attributes);
+        const auto purpose_rank = RankFurniturePurpose(
+            room_purpose, attributes, placement_config);
         if (room_purpose) {
-            if (purpose_rank < current_purpose_rank ||
+            if (PurposeThresholdRank(purpose_rank) < current_threshold_rank ||
                 (!spatial_needs_more &&
+                 !placement_config.fill_remaining_capacity &&
                  purpose_rank <= current_purpose_rank)) {
                 continue;
             }
@@ -3429,6 +3379,7 @@ FurnitureLayoutPlan PlanWholeHouse(
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const FurnitureCatalog& furniture_effects,
     const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const FurniturePlacementConfig& placement_config,
     const std::vector<FurnitureLayoutMove>& forbidden_moves,
     const snapshot::RoomId& preferred_focus_room_id);
 
@@ -3440,6 +3391,7 @@ FurnitureLayoutPlan PlanWholeHouse(
     const std::vector<snapshot::RoomId>& locked_room_ids,
     const FurnitureCatalog& furniture_effects,
     const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const FurniturePlacementConfig& placement_config,
     const std::vector<FurnitureLayoutMove>& forbidden_moves,
     const snapshot::RoomId& preferred_focus_room_id) {
     FurnitureLayoutPlan plan;
@@ -3667,11 +3619,16 @@ FurnitureLayoutPlan PlanWholeHouse(
                         AddAttributes(
                             improved_attributes, effect->second);
                     }
-                    const auto improved_rank = PurposeRank(
-                        room_purpose, improved_attributes);
-                    const auto current_rank = PurposeRank(
-                        room_purpose, current_attributes);
-                    if (improved_rank < current_rank) {
+                    const auto improved_rank = RankFurniturePurpose(
+                        room_purpose,
+                        improved_attributes,
+                        placement_config);
+                    const auto current_rank = RankFurniturePurpose(
+                        room_purpose,
+                        current_attributes,
+                        placement_config);
+                    if (PurposeThresholdRank(improved_rank) <
+                        PurposeThresholdRank(current_rank)) {
                         if (!item.placement->room_id.empty()) {
                             target_static_base.push_back(std::move(item));
                         }
@@ -3710,6 +3667,7 @@ FurnitureLayoutPlan PlanWholeHouse(
             incoming_items,
             [&furniture_effects,
              &current_attributes,
+             &placement_config,
              room_purpose,
              balanced_attic](const auto& left, const auto& right) {
                 if (balanced_attic) {
@@ -3757,10 +3715,14 @@ FurnitureLayoutPlan PlanWholeHouse(
                     if (right_effect != furniture_effects.end()) {
                         AddAttributes(right_attributes, right_effect->second);
                     }
-                    const auto left_rank = PurposeRank(
-                        room_purpose, left_attributes);
-                    const auto right_rank = PurposeRank(
-                        room_purpose, right_attributes);
+                    const auto left_rank = RankFurniturePurpose(
+                        room_purpose,
+                        left_attributes,
+                        placement_config);
+                    const auto right_rank = RankFurniturePurpose(
+                        room_purpose,
+                        right_attributes,
+                        placement_config);
                     if (left_rank != right_rank) {
                         return left_rank > right_rank;
                     }
@@ -3843,6 +3805,8 @@ FurnitureLayoutPlan PlanWholeHouse(
                  &current_attributes,
                  &target_room_id,
                  &furniture_effects,
+                 &placement_config,
+                 &target_room,
                  room_purpose](const auto& left, const auto& right) {
                     return BetterPurposeState(
                         left,
@@ -3851,7 +3815,12 @@ FurnitureLayoutPlan PlanWholeHouse(
                         current_attributes,
                         target_room_id,
                         furniture_effects,
-                        room_purpose);
+                        room_purpose,
+                        placement_config,
+                        MinimumSelectedCellCount(
+                            target_room,
+                            placement_config
+                                .minimum_furnishing_coverage_percent));
                 };
         }
         if (const auto current_required = CurrentRequiredPackState(
@@ -4447,6 +4416,7 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
     const FurnitureCatalog& furniture_effects,
     const std::vector<room_planning::RoomPurposeAssignment>&
         room_purposes,
+    const FurniturePlacementConfig& placement_config,
     const std::vector<FurnitureLayoutMove>& forbidden_moves,
     const snapshot::RoomId& preferred_focus_room_id) const {
     if (!runtime_room_grids.empty()) {
@@ -4458,6 +4428,7 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
             locked_room_ids,
             furniture_effects,
             room_purposes,
+            placement_config,
             forbidden_moves,
             preferred_focus_room_id);
     }

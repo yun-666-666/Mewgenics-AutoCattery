@@ -34,6 +34,14 @@ public:
     [[nodiscard]] std::vector<std::string> GroupTitles() const;
     [[nodiscard]] bool IsEnglish() const noexcept;
     [[nodiscard]] bool RequiresGameRestart(std::size_t index) const noexcept;
+    [[nodiscard]] std::vector<std::string> FurnitureRows();
+    [[nodiscard]] std::vector<std::string> FurnitureGroupTitles() const;
+    [[nodiscard]] std::optional<std::string> DirectFurnitureValue(
+        std::size_t index);
+    [[nodiscard]] Result<void> AdjustFurniture(
+        std::size_t index, int direction);
+    [[nodiscard]] Result<void> SetFurnitureValue(
+        std::size_t index, std::string_view text);
 
 private:
     struct Field {
@@ -49,6 +57,7 @@ private:
     };
 
     [[nodiscard]] std::vector<Page> Pages();
+    [[nodiscard]] std::vector<std::optional<Field>> FurnitureFields();
     [[nodiscard]] std::optional<Field> FlatField(std::size_t index);
     [[nodiscard]] std::string Format(const Field& field) const;
 

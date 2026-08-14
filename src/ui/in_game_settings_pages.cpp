@@ -96,4 +96,60 @@ std::vector<InGameSettingsModel::Page> InGameSettingsModel::Pages() {
     return pages;
 }
 
+std::vector<std::optional<InGameSettingsModel::Field>>
+InGameSettingsModel::FurnitureFields() {
+    using F = Field;
+    std::vector<std::optional<F>> fields(48);
+    auto& placement = config_.furniture_placement;
+    const bool en = IsEnglish();
+
+    fields[0] = F{L(en, "繁育 舒适最低/猫", "Breeding comfort min/cat"),
+                  &placement.breeding.comfort_per_resident, -10000, 10000, 0.5};
+    fields[1] = F{L(en, "繁育 刺激最低/猫", "Breeding stimulation min/cat"),
+                  &placement.breeding.stimulation_per_resident, -10000, 10000, 0.5};
+    fields[2] = F{L(en, "繁育 健康最低/猫", "Breeding health min/cat"),
+                  &placement.breeding.health_per_resident, -10000, 10000, 0.5};
+    fields[3] = F{L(en, "繁育 变异最低/猫", "Breeding mutation min/cat"),
+                  &placement.breeding.mutation_per_resident, -10000, 10000, 0.5};
+    fields[5] = F{L(en, "幼猫休养 舒适最低/猫", "Kitten/recovery comfort min/cat"),
+                  &placement.kitten_recovery.comfort_per_resident, -10000, 10000, 0.5};
+    fields[6] = F{L(en, "幼猫休养 刺激最低/猫", "Kitten/recovery stimulation min/cat"),
+                  &placement.kitten_recovery.stimulation_per_resident, -10000, 10000, 0.5};
+    fields[7] = F{L(en, "幼猫休养 健康最低/猫", "Kitten/recovery health min/cat"),
+                  &placement.kitten_recovery.health_per_resident, -10000, 10000, 0.5};
+    fields[8] = F{L(en, "幼猫休养 变异最低/猫", "Kitten/recovery mutation min/cat"),
+                  &placement.kitten_recovery.mutation_per_resident, -10000, 10000, 0.5};
+
+    fields[17] = F{L(en, "战斗 舒适上限/猫", "Combat comfort max/cat"),
+                   &placement.combat.comfort_per_resident, -10000, 10000, 0.5};
+    fields[18] = F{L(en, "战斗 刺激上限/猫", "Combat stimulation max/cat"),
+                   &placement.combat.stimulation_per_resident, -10000, 10000, 0.5};
+    fields[19] = F{L(en, "战斗 健康最低/猫", "Combat health min/cat"),
+                   &placement.combat.health_per_resident, -10000, 10000, 0.5};
+    fields[20] = F{L(en, "战斗 变异最低/猫", "Combat mutation min/cat"),
+                   &placement.combat.mutation_per_resident, -10000, 10000, 0.5};
+    fields[22] = F{L(en, "变异 舒适最低/猫", "Mutation comfort min/cat"),
+                   &placement.mutation.comfort_per_resident, -10000, 10000, 0.5};
+    fields[23] = F{L(en, "变异 刺激最低/猫", "Mutation stimulation min/cat"),
+                   &placement.mutation.stimulation_per_resident, -10000, 10000, 0.5};
+    fields[24] = F{L(en, "变异 健康最低/猫", "Mutation health min/cat"),
+                   &placement.mutation.health_per_resident, -10000, 10000, 0.5};
+    fields[25] = F{L(en, "变异 变异最低/猫", "Mutation mutation min/cat"),
+                   &placement.mutation.mutation_per_resident, -10000, 10000, 0.5};
+
+    fields[35] = F{L(en, "普通 舒适最低/猫", "General comfort min/cat"),
+                   &placement.general.comfort_per_resident, -10000, 10000, 0.5};
+    fields[36] = F{L(en, "普通 刺激最低/猫", "General stimulation min/cat"),
+                   &placement.general.stimulation_per_resident, -10000, 10000, 0.5};
+    fields[37] = F{L(en, "普通 健康最低/猫", "General health min/cat"),
+                   &placement.general.health_per_resident, -10000, 10000, 0.5};
+    fields[38] = F{L(en, "普通 变异最低/猫", "General mutation min/cat"),
+                   &placement.general.mutation_per_resident, -10000, 10000, 0.5};
+    fields[40] = F{L(en, "最低家具覆盖率 %", "Minimum furnishing coverage %"),
+                   &placement.minimum_furnishing_coverage_percent, 0, 100, 1};
+    fields[41] = F{L(en, "达标后继续填满", "Keep filling after targets"),
+                   &placement.fill_remaining_capacity};
+    return fields;
+}
+
 }  // namespace autocattery::ui

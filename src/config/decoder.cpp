@@ -36,6 +36,19 @@ void DecodeOverrides(
     }
 }
 
+void DecodeFurnitureTargets(
+    const Json& value,
+    furniture_planning::FurniturePurposeTargets& result) {
+    result.comfort_per_resident =
+        value.at("comfort_per_resident").get<double>();
+    result.stimulation_per_resident =
+        value.at("stimulation_per_resident").get<double>();
+    result.health_per_resident =
+        value.at("health_per_resident").get<double>();
+    result.mutation_per_resident =
+        value.at("mutation_per_resident").get<double>();
+}
+
 template<class ScoringConfig>
 void DecodeCommonScoring(const Json& value, ScoringConfig& result) {
     result.version = value.at("version").get<std::uint32_t>();
@@ -178,6 +191,30 @@ Result<Config> DecodeConfig(const Json& value) {
             planning.at("keep_kittens_separate_when_possible").get<bool>();
         result.room_planning.allow_partial_plan =
             planning.at("allow_partial_plan").get<bool>();
+
+        const auto& furniture = value.at("furniture_placement");
+        result.furniture_placement.version =
+            furniture.at("version").get<std::uint32_t>();
+        DecodeFurnitureTargets(
+            furniture.at("breeding"),
+            result.furniture_placement.breeding);
+        DecodeFurnitureTargets(
+            furniture.at("kitten_recovery"),
+            result.furniture_placement.kitten_recovery);
+        DecodeFurnitureTargets(
+            furniture.at("combat"),
+            result.furniture_placement.combat);
+        DecodeFurnitureTargets(
+            furniture.at("mutation"),
+            result.furniture_placement.mutation);
+        DecodeFurnitureTargets(
+            furniture.at("general"),
+            result.furniture_placement.general);
+        result.furniture_placement.minimum_furnishing_coverage_percent =
+            furniture.at("minimum_furnishing_coverage_percent")
+                .get<std::size_t>();
+        result.furniture_placement.fill_remaining_capacity =
+            furniture.at("fill_remaining_capacity").get<bool>();
 
         const auto& marker = value.at("recommendation_marker");
         result.recommendation_marker.version =

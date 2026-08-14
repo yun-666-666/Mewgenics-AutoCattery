@@ -14,9 +14,10 @@
 namespace autocattery::ui {
 namespace {
 
-constexpr std::array<const char*, 8> kFixedNames{
+constexpr std::array<const char*, 9> kFixedNames{
     "panel_tab_settings", "panel_tab_protection", "panel_tab_preview",
-    "panel_close", "panel_prev", "panel_next", "panel_apply", "panel_remove"
+    "panel_tab_furniture", "panel_close", "panel_prev", "panel_next",
+    "panel_apply", "panel_remove"
 };
 
 std::string IndexedName(const char* prefix, std::size_t index) {
@@ -99,44 +100,53 @@ Result<void> MewUiManagementPanelView::Show(
     remove_visible_.store(content.show_remove);
     HoldMewUiMovieClipFrame(background_, 1);
     const bool english = !content.group_titles.empty() &&
-        content.group_titles.front() == "Combat Scoring";
+        (content.group_titles.front() == "Combat Scoring" ||
+         content.group_titles.front() == "Breeding / Kitten & Recovery");
     SetElement(fixed_nodes_[0], english ? "Settings" : "设置",
                content.page == ManagementPanelPage::Settings ? 2 : 1);
     SetElement(fixed_nodes_[1], english ? "Cat Protection" : "猫保护",
                content.page == ManagementPanelPage::Protection ? 2 : 1);
     SetElement(fixed_nodes_[2], english ? "Full Preview" : "完整预览",
                content.page == ManagementPanelPage::Preview ? 2 : 1);
-    SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 1);
-    SetElement(fixed_nodes_[4],
+    SetElement(fixed_nodes_[3], english ? "Auto Placement" : "自动放置",
+               content.page == ManagementPanelPage::Furniture ? 2 : 1);
+    SetElement(fixed_nodes_[4], english ? "Close" : "关闭", 1);
+    SetElement(fixed_nodes_[5],
                content.show_navigation ? (english ? "Previous" : "上一页") : "",
                content.show_navigation ? 1 : 0);
-    SetElement(fixed_nodes_[5],
+    SetElement(fixed_nodes_[6],
                content.show_navigation ? (english ? "Next" : "下一页") : "",
                content.show_navigation ? 1 : 0);
-    SetElement(fixed_nodes_[6],
+    SetElement(fixed_nodes_[7],
                content.show_apply ? (english ? "Apply" : "应用") : "",
                content.show_apply ? 1 : 0);
-    SetElement(fixed_nodes_[7],
+    SetElement(fixed_nodes_[8],
                content.show_remove ? (english ? "Remove" : "移除") : "",
                content.show_remove ? 1 : 0);
 
     for (std::size_t index = 0; index < list_nodes_.size(); ++index) {
         const bool shown = content.page != ManagementPanelPage::Settings &&
+            content.page != ManagementPanelPage::Furniture &&
             index < content.rows.size() && !content.rows[index].empty();
         const int frame = content.selected_row == index ? 2 : 1;
         SetElement(list_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
     }
     for (std::size_t index = 0; index < group_nodes_.size(); ++index) {
-        const bool shown = content.page == ManagementPanelPage::Settings &&
+        const bool shown =
+            (content.page == ManagementPanelPage::Settings ||
+             content.page == ManagementPanelPage::Furniture) &&
             index < content.group_titles.size();
         SetElement(group_nodes_[index],
                    shown ? content.group_titles[index].c_str() : "",
                    shown ? 1 : 0);
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
-        const bool shown = content.page == ManagementPanelPage::Settings &&
-            index < content.rows.size();
+        const bool shown =
+            (content.page == ManagementPanelPage::Settings ||
+             content.page == ManagementPanelPage::Furniture) &&
+            index < content.rows.size() && !content.rows[index].empty();
+        setting_row_visible_[index].store(shown);
         const int frame = content.selected_row == index ? 2 : 1;
         SetElement(setting_nodes_[index],
                    shown ? content.rows[index].c_str() : "", shown ? frame : 0);
@@ -173,6 +183,7 @@ void MewUiManagementPanelView::Hide() noexcept {
     }
     for (std::size_t index = 0; index < setting_nodes_.size(); ++index) {
         SetElement(setting_nodes_[index], "", 0);
+        setting_row_visible_[index].store(false);
     }
     SetElement(title_, "", 0);
     SetElement(status_, "", 0);

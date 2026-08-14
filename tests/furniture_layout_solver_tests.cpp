@@ -1,4 +1,5 @@
 #include "auto_cattery/furniture_planning/layout_solver.hpp"
+#include "auto_cattery/furniture_planning/purpose_policy.hpp"
 
 #include "test_support.hpp"
 
@@ -1116,6 +1117,7 @@ void RunFurnitureLayoutSolverTests() {
         purpose_effects,
         focus_purposes,
         {},
+        {},
         "Floor1_Small");
     AC_CHECK(focused_room_batch.target_room_id == "Floor1_Small");
     AC_CHECK(focused_room_batch.moves.size() == 1U);
@@ -1138,6 +1140,7 @@ void RunFurnitureLayoutSolverTests() {
             {"Attic"},
             purpose_effects,
             fight_purpose,
+            {},
             {tabu_baseline.moves.front()},
             "Floor1_Small");
         AC_CHECK(tabu_alternative.target_room_id == "Floor1_Small");
@@ -1164,8 +1167,26 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         purpose_effects,
         fight_purpose);
-    AC_CHECK(std::ranges::any_of(
+    AC_CHECK(std::ranges::none_of(
         neutral_only_batch.moves,
+        [](const auto& move) {
+            return move.stable_key == 822U &&
+                furniture_planning::IsWarehouseLayoutMove(move);
+        }));
+    auto fill_remaining_config =
+        furniture_planning::FurniturePlacementConfig{};
+    fill_remaining_config.fill_remaining_capacity = true;
+    const auto neutral_fill_enabled = solver.Plan(
+        neutral_only_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic"},
+        purpose_effects,
+        fight_purpose,
+        fill_remaining_config);
+    AC_CHECK(std::ranges::any_of(
+        neutral_fill_enabled.moves,
         [](const auto& move) {
             return move.stable_key == 822U &&
                 furniture_planning::IsWarehouseLayoutMove(move);
@@ -1244,7 +1265,7 @@ void RunFurnitureLayoutSolverTests() {
             return (move.stable_key == 826U ||
                     move.stable_key == 827U) &&
                 furniture_planning::IsWarehouseLayoutMove(move);
-        }) == 2);
+        }) == 1);
 
     const std::vector<snapshot::detail::FurniturePlacement>
         satisfied_breeding_fill{
@@ -1270,7 +1291,7 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         satisfied_breeding_effects,
         satisfied_breeding_purpose);
-    AC_CHECK(std::ranges::any_of(
+    AC_CHECK(std::ranges::none_of(
         satisfied_breeding_batch.moves,
         [](const auto& move) {
             return furniture_planning::IsWarehouseLayoutMove(move);
@@ -1382,6 +1403,50 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(blocked.moves.empty());
     AC_CHECK(blocked.unsupported_furniture_count == 4);
     AC_CHECK(blocked.warehouse_furniture_count == 1);
+
+    const furniture_planning::FurniturePlacementConfig placement_config;
+    const auto combat_exact = furniture_planning::RankFurniturePurpose(
+        room_planning::RoomRole::CombatStaging,
+        snapshot::RoomAttributes{
+            .comfort = -8, .stimulation = 0, .health = 0, .mutation = 8},
+        4,
+        placement_config);
+    const auto combat_overdone = furniture_planning::RankFurniturePurpose(
+        room_planning::RoomRole::CombatStaging,
+        snapshot::RoomAttributes{
+            .comfort = -15, .stimulation = 38, .health = 0, .mutation = 0},
+        4,
+        placement_config);
+    AC_CHECK(combat_exact > combat_overdone);
+
+    const auto combat_mutation = furniture_planning::RankFurniturePurpose(
+        room_planning::RoomRole::CombatStaging,
+        snapshot::RoomAttributes{
+            .comfort = -8, .stimulation = 0, .health = 0, .mutation = 8},
+        4,
+        placement_config);
+    const auto combat_stimulation = furniture_planning::RankFurniturePurpose(
+        room_planning::RoomRole::CombatStaging,
+        snapshot::RoomAttributes{
+            .comfort = -8, .stimulation = 8, .health = 0, .mutation = 0},
+        4,
+        placement_config);
+    AC_CHECK(combat_mutation > combat_stimulation);
+
+    const auto recovery_target = furniture_planning::RankFurniturePurpose(
+        room_planning::RoomRole::Recovery,
+        snapshot::RoomAttributes{
+            .comfort = 8, .stimulation = 0, .health = 8, .mutation = 0},
+        4,
+        placement_config);
+    const auto recovery_health_excess =
+        furniture_planning::RankFurniturePurpose(
+            room_planning::RoomRole::Recovery,
+            snapshot::RoomAttributes{
+                .comfort = 8, .stimulation = 0, .health = 14, .mutation = 0},
+            4,
+            placement_config);
+    AC_CHECK(recovery_target > recovery_health_excess);
 }
 
 }  // namespace autocattery::tests

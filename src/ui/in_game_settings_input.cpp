@@ -96,4 +96,98 @@ Result<void> InGameSettingsModel::SetFlatValue(
     return {};
 }
 
+std::optional<std::string> InGameSettingsModel::DirectFurnitureValue(
+    std::size_t index) {
+    if (!loaded_) return std::nullopt;
+    auto fields = FurnitureFields();
+    if (index >= fields.size() || !fields[index] ||
+        std::holds_alternative<bool*>(fields[index]->value)) {
+        return std::nullopt;
+    }
+    if (const auto* integer =
+            std::get_if<std::size_t*>(&fields[index]->value)) {
+        return std::to_string(**integer);
+    }
+    std::ostringstream output;
+    output << std::fixed << std::setprecision(2)
+           << **std::get_if<double*>(&fields[index]->value);
+    return output.str();
+}
+
+Result<void> InGameSettingsModel::AdjustFurniture(
+    std::size_t index, int direction) {
+    if (!loaded_) {
+        return {ErrorCode::ConfigInvalid, "settings are not loaded"};
+    }
+    auto fields = FurnitureFields();
+    if (index >= fields.size() || !fields[index]) {
+        return {ErrorCode::ConfigInvalid,
+                "furniture setting selection is invalid"};
+    }
+    auto previous = config_;
+    auto& field = *fields[index];
+    if (auto* boolean = std::get_if<bool*>(&field.value)) {
+        **boolean = !**boolean;
+    } else if (auto* integer = std::get_if<std::size_t*>(&field.value)) {
+        const auto signed_value = static_cast<double>(**integer) +
+            (direction < 0 ? -field.step : field.step);
+        **integer = static_cast<std::size_t>(std::clamp(
+            signed_value, field.minimum, field.maximum));
+    } else if (auto* decimal = std::get_if<double*>(&field.value)) {
+        **decimal = std::clamp(
+            **decimal + (direction < 0 ? -field.step : field.step),
+            field.minimum, field.maximum);
+    }
+    const auto saved = editor_.Save(config_);
+    if (!saved) {
+        config_ = std::move(previous);
+        return {saved.code, saved.message};
+    }
+    config_ = saved.value;
+    return {};
+}
+
+Result<void> InGameSettingsModel::SetFurnitureValue(
+    std::size_t index, std::string_view text) {
+    if (!loaded_) {
+        return {ErrorCode::ConfigInvalid, "settings are not loaded"};
+    }
+    auto fields = FurnitureFields();
+    if (index >= fields.size() || !fields[index] ||
+        std::holds_alternative<bool*>(fields[index]->value)) {
+        return {ErrorCode::ConfigInvalid,
+                "this furniture setting does not accept numeric input"};
+    }
+    auto previous = config_;
+    auto& field = *fields[index];
+    if (auto* integer = std::get_if<std::size_t*>(&field.value)) {
+        std::size_t value{};
+        const auto parsed = std::from_chars(
+            text.data(), text.data() + text.size(), value);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            static_cast<double>(value) < field.minimum ||
+            static_cast<double>(value) > field.maximum) {
+            return {ErrorCode::ConfigInvalid, "integer input is invalid"};
+        }
+        **integer = value;
+    } else {
+        double value{};
+        const auto parsed = std::from_chars(
+            text.data(), text.data() + text.size(), value);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            !std::isfinite(value) || value < field.minimum ||
+            value > field.maximum) {
+            return {ErrorCode::ConfigInvalid, "decimal input is invalid"};
+        }
+        **std::get_if<double*>(&field.value) = value;
+    }
+    const auto saved = editor_.Save(config_);
+    if (!saved) {
+        config_ = std::move(previous);
+        return {saved.code, saved.message};
+    }
+    config_ = saved.value;
+    return {};
+}
+
 }  // namespace autocattery::ui

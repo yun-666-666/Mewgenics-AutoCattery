@@ -194,10 +194,21 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         page_ = ManagementPanelPage::Preview;
         LoadPreview();
         break;
+    case ManagementPanelControl::FurnitureTab:
+        view_.CancelNumericInput();
+        editing_setting_.reset();
+        editing_text_.clear();
+        protection_choice_ = ProtectionChoice::None;
+        page_ = ManagementPanelPage::Furniture;
+        status_ = English()
+            ? "Targets scale by expected cats; combat comfort/stimulation are maximums"
+            : "目标按预计猫数缩放；战斗房舒适和刺激是上限";
+        break;
     case ManagementPanelControl::Previous:
     case ManagementPanelControl::Next:
     case ManagementPanelControl::Scroll: {
-        if (page_ == ManagementPanelPage::Settings) break;
+        if (page_ == ManagementPanelPage::Settings ||
+            page_ == ManagementPanelPage::Furniture) break;
         const int step = event.control == ManagementPanelControl::Scroll
             ? event.direction
             : (event.control == ManagementPanelControl::Next ? 1 : -1);
@@ -229,11 +240,15 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
             HandleProtectionRow(event.row, event.direction);
         else if (page_ == ManagementPanelPage::Settings)
             HandleSettingsEvent(event);
+        else if (page_ == ManagementPanelPage::Furniture)
+            HandleFurnitureEvent(event);
         break;
     case ManagementPanelControl::BeginEdit:
     case ManagementPanelControl::EditChanged:
     case ManagementPanelControl::CommitEdit:
         if (page_ == ManagementPanelPage::Settings) HandleSettingsEvent(event);
+        else if (page_ == ManagementPanelPage::Furniture)
+            HandleFurnitureEvent(event);
         break;
     case ManagementPanelControl::Apply:
     case ManagementPanelControl::Remove:
@@ -248,8 +263,12 @@ void InGamePanelController::Render() {
     auto content = page_ == ManagementPanelPage::Protection
         ? ProtectionContent()
         : (page_ == ManagementPanelPage::Preview
-            ? PreviewContent() : SettingsContent());
-    content.group_titles = settings_.GroupTitles();
+            ? PreviewContent()
+            : (page_ == ManagementPanelPage::Furniture
+                ? FurnitureContent() : SettingsContent()));
+    if (content.group_titles.empty()) {
+        content.group_titles = settings_.GroupTitles();
+    }
     const auto shown = view_.Show(content);
     if (!shown) {
         Detach();
@@ -286,6 +305,23 @@ ManagementPanelContent InGamePanelController::SettingsContent() {
     content.title = English() ? "Settings" : "设置";
     content.status = status_;
     content.rows = settings_.AllRows();
+    content.group_titles = settings_.GroupTitles();
+    if (editing_setting_ && *editing_setting_ < content.rows.size()) {
+        content.rows[*editing_setting_] =
+            std::string("<  ") + (English() ? "Input: " : "输入：") +
+            editing_text_ + "  >";
+    }
+    content.selected_row = editing_setting_;
+    return content;
+}
+
+ManagementPanelContent InGamePanelController::FurnitureContent() {
+    ManagementPanelContent content;
+    content.page = ManagementPanelPage::Furniture;
+    content.title = English() ? "Auto Placement" : "自动放置";
+    content.status = status_;
+    content.rows = settings_.FurnitureRows();
+    content.group_titles = settings_.FurnitureGroupTitles();
     if (editing_setting_ && *editing_setting_ < content.rows.size()) {
         content.rows[*editing_setting_] =
             std::string("<  ") + (English() ? "Input: " : "输入：") +

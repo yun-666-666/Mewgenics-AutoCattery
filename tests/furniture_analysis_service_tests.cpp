@@ -125,7 +125,7 @@ void RunFurnitureAnalysisServiceTests() {
             "unrelated-binding",
             state_tabu_baseline.value.layout_plan.moves.front()};
         const auto unrelated_tabu = state_tabu_service.Analyze(
-            97, {}, {}, false, {}, {other_state_edge});
+            97, {}, {}, false, {}, {}, {other_state_edge});
         AC_CHECK(static_cast<bool>(unrelated_tabu));
         AC_CHECK(!unrelated_tabu.value.layout_plan.moves.empty());
 
@@ -133,7 +133,7 @@ void RunFurnitureAnalysisServiceTests() {
             state_tabu_baseline.value.binding_digest,
             state_tabu_baseline.value.layout_plan.moves.front()};
         const auto matching_tabu = state_tabu_service.Analyze(
-            97, {}, {}, false, {}, {current_state_edge});
+            97, {}, {}, false, {}, {}, {current_state_edge});
         AC_CHECK(static_cast<bool>(matching_tabu));
         AC_CHECK(matching_tabu.value.layout_plan.tabu_filtered_move_count > 0U);
         AC_CHECK(matching_tabu.value.layout_plan.moves.empty() ||
@@ -204,17 +204,17 @@ void RunFurnitureAnalysisServiceTests() {
     const auto upgrade_result = upgrade_service.Analyze(93);
     AC_CHECK(static_cast<bool>(upgrade_result));
     AC_CHECK(upgrade_result.value.attribute_upgrades.size() == 1);
-    AC_CHECK(upgrade_result.value.attribute_upgrades[0].warehouse_stable_key == 3);
+    AC_CHECK(upgrade_result.value.attribute_upgrades[0].warehouse_stable_key == 4);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].placed_stable_key == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].original_x == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].original_y == 0);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].target_x == 1);
     AC_CHECK(upgrade_result.value.attribute_upgrades[0].target_y == 0);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.comfort == 4);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.stimulation == 4);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.health == 4);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.mutation == 4);
-    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.appeal == 4);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.comfort == 3);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.stimulation == 3);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.health == 3);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.mutation == 3);
+    AC_CHECK(upgrade_result.value.attribute_upgrade_gain.appeal == 3);
     AC_CHECK(upgrade_result.value.runtime_scene_piece_count == 3);
     AC_CHECK(upgrade_result.value.runtime_placed_piece_count == 2);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_count == 1);
@@ -425,7 +425,7 @@ void RunFurnitureAnalysisServiceTests() {
             -10.0);
     }
     const auto mutation_result = purpose_service.Analyze(
-        97, {}, {31U}, true, purposes, {}, "MutationRoom");
+        97, {}, {31U}, true, purposes, {}, {}, "MutationRoom");
     AC_CHECK(static_cast<bool>(mutation_result));
     AC_CHECK(mutation_result.value.attribute_upgrades.size() == 1);
     if (mutation_result.value.attribute_upgrades.size() == 1) {

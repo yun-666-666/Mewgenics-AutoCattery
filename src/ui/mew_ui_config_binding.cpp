@@ -29,6 +29,7 @@ void MewUiBridge::ApplyRuntimeConfig() {
 
     recommendation_scoring_config_ = config.combat_scoring;
     recommendation_marker_config_ = config.recommendation_marker;
+    furniture_placement_config_ = config.furniture_placement;
     const bool english = config.general.language == "en-US";
     if (house_button_view_) house_button_view_->SetEnglish(english);
     if (recommendation_marker_view_)

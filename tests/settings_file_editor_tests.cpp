@@ -50,6 +50,10 @@ void RunSettingsFileEditorTests() {
     changed.language = "en-US";
     changed.diagnostics.collect_cat_data = true;
     changed.level_up.reroll_count = 7;
+    changed.furniture_placement.combat.stimulation_per_resident = -1.5;
+    changed.furniture_placement.combat.mutation_per_resident = 3.5;
+    changed.furniture_placement.minimum_furnishing_coverage_percent = 25;
+    changed.furniture_placement.fill_remaining_capacity = true;
     const auto saved = editor.Save(changed);
     AC_CHECK(static_cast<bool>(saved));
     AC_CHECK(saved.value.combat_scoring.recommended_count == 11);
@@ -62,6 +66,10 @@ void RunSettingsFileEditorTests() {
     AC_CHECK(saved.value.general.language == "en-US");
     AC_CHECK(saved.value.diagnostics.collect_cat_data);
     AC_CHECK(saved.value.level_up.reroll_count == 7);
+    AC_CHECK(saved.value.furniture_placement.combat.stimulation_per_resident == -1.5);
+    AC_CHECK(saved.value.furniture_placement.combat.mutation_per_resident == 3.5);
+    AC_CHECK(saved.value.furniture_placement.minimum_furnishing_coverage_percent == 25);
+    AC_CHECK(saved.value.furniture_placement.fill_remaining_capacity);
     AC_CHECK(!std::filesystem::exists(temporary));
 
     const auto reloaded = editor.Load();
@@ -76,6 +84,10 @@ void RunSettingsFileEditorTests() {
     AC_CHECK(reloaded.value.general.language == "en-US");
     AC_CHECK(reloaded.value.diagnostics.collect_cat_data);
     AC_CHECK(reloaded.value.level_up.reroll_count == 7);
+    AC_CHECK(reloaded.value.furniture_placement.combat.stimulation_per_resident == -1.5);
+    AC_CHECK(reloaded.value.furniture_placement.combat.mutation_per_resident == 3.5);
+    AC_CHECK(reloaded.value.furniture_placement.minimum_furnishing_coverage_percent == 25);
+    AC_CHECK(reloaded.value.furniture_placement.fill_remaining_capacity);
 
     const auto stored = nlohmann::json::parse(ReadText(user));
     AC_CHECK(stored.at("custom_note") == "preserve");
@@ -83,6 +95,14 @@ void RunSettingsFileEditorTests() {
     AC_CHECK(stored.at("combat_scoring").at("stat_weights")
         .at("strength") == 2.75);
     AC_CHECK(stored.at("level_up").at("reroll_count") == 7);
+    AC_CHECK(stored.at("furniture_placement").at("combat")
+        .at("stimulation_per_resident") == -1.5);
+    AC_CHECK(stored.at("furniture_placement").at("combat")
+        .at("mutation_per_resident") == 3.5);
+    AC_CHECK(stored.at("furniture_placement")
+        .at("minimum_furnishing_coverage_percent") == 25);
+    AC_CHECK(stored.at("furniture_placement")
+        .at("fill_remaining_capacity") == true);
 
     const auto before_invalid = ReadText(user);
     changed.combat_scoring.recommended_count = 0;

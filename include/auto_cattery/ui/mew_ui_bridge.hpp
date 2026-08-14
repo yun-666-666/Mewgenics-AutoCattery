@@ -118,6 +118,8 @@ private:
         mapping_snapshot_next_attempt_{};
     scoring::CombatScoringConfig recommendation_scoring_config_;
     RecommendationMarkerConfig recommendation_marker_config_;
+    furniture_planning::FurniturePlacementConfig
+        furniture_placement_config_;
     std::vector<void*> recommendation_detail_targets_;
     std::unique_ptr<RuntimeConfigService> config_runtime_;
     std::future<Result<std::vector<snapshot::HouseSnapshot>>>

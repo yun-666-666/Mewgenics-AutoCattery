@@ -15,6 +15,7 @@
     "classification",
     "protection",
     "room_planning",
+    "furniture_placement",
     "recommendation_marker",
     "diagnostics",
     "level_up"
@@ -228,6 +229,34 @@
       },
       "additionalProperties": false
     },
+    "furniture_placement": {
+      "type": "object",
+      "required": [
+        "version",
+        "breeding",
+        "kitten_recovery",
+        "combat",
+        "mutation",
+        "general",
+        "minimum_furnishing_coverage_percent",
+        "fill_remaining_capacity"
+      ],
+      "properties": {
+        "version": {"const": 1},
+        "breeding": {"$ref": "#/$defs/furniture_targets"},
+        "kitten_recovery": {"$ref": "#/$defs/furniture_targets"},
+        "combat": {"$ref": "#/$defs/furniture_targets"},
+        "mutation": {"$ref": "#/$defs/furniture_targets"},
+        "general": {"$ref": "#/$defs/furniture_targets"},
+        "minimum_furnishing_coverage_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fill_remaining_capacity": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
     "recommendation_marker": {
       "type": "object",
       "required": [
@@ -279,6 +308,22 @@
     }
   },
   "$defs": {
+    "furniture_targets": {
+      "type": "object",
+      "required": [
+        "comfort_per_resident",
+        "stimulation_per_resident",
+        "health_per_resident",
+        "mutation_per_resident"
+      ],
+      "properties": {
+        "comfort_per_resident": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "stimulation_per_resident": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "health_per_resident": {"type": "number", "minimum": -10000, "maximum": 10000},
+        "mutation_per_resident": {"type": "number", "minimum": -10000, "maximum": 10000}
+      },
+      "additionalProperties": false
+    },
     "stat_weights": {
       "type": "object",
       "required": [

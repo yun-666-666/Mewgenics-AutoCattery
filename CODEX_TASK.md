@@ -1,5 +1,25 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.58 configurable purpose thresholds and bounded attribute excess
+
+- Replace unbounded purpose maximization with resident-scaled targets. Breeding,
+  kitten/recovery, mutation, and general room values are minimums; combat
+  Comfort and Stimulation are maximums while combat Health and Mutation are
+  minimums.
+- Default combat targets per expected resident are Comfort <= -2,
+  Stimulation <= 0, Health >= 0, and Mutation >= 2. Reaching the target must
+  outrank pushing Comfort farther negative or adding excess Stimulation.
+- Once purpose thresholds and the configurable minimum spatial coverage are
+  satisfied, prefer the closest target result and fewer compact furniture
+  pieces. Continue filling only when the player enables that setting, and
+  never sacrifice a purpose threshold to do so.
+- Add an F10 `自动放置` / `Auto Placement` tab in the player-indicated top-row
+  space. It edits per-resident targets, minimum coverage, and the optional
+  continue-filling switch through the existing hot-reloaded user config.
+- Preserve the existing 48 ordinary settings and the level-up reroll index.
+  Release tests and the Release DLL build must pass before DLL/data-only
+  deployment. Do not launch or control the game.
+
 ## v0.5.57 purpose-first capacity-efficient room furnishing
 
 - Preserve the player-accepted v0.5.56 room progression exactly; this

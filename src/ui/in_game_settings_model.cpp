@@ -139,6 +139,24 @@ std::vector<std::string> InGameSettingsModel::GroupTitles() const {
               "战斗评分与推荐", "繁育评分与分类", "房间、安全与 MOD"};
 }
 
+std::vector<std::string> InGameSettingsModel::FurnitureRows() {
+    std::vector<std::string> rows(48);
+    auto fields = FurnitureFields();
+    for (std::size_t index = 0; index < fields.size(); ++index) {
+        if (fields[index]) rows[index] = Format(*fields[index]);
+    }
+    return rows;
+}
+
+std::vector<std::string> InGameSettingsModel::FurnitureGroupTitles() const {
+    return IsEnglish()
+        ? std::vector<std::string>{
+              "Breeding / Kitten & Recovery", "Combat / Mutation",
+              "General / Space"}
+        : std::vector<std::string>{
+              "繁育房 / 幼猫休养房", "战斗房 / 变异房", "普通房 / 空间"};
+}
+
 bool InGameSettingsModel::IsEnglish() const noexcept {
     return config_.general.language == "en-US";
 }

@@ -9,6 +9,7 @@
 
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
 #include "auto_cattery/snapshot/detail/furniture_geometry.hpp"
+#include "auto_cattery/furniture_planning/config.hpp"
 #include "auto_cattery/room_planning/domain.hpp"
 
 namespace autocattery::furniture_planning {
@@ -123,6 +124,7 @@ public:
         const snapshot::detail::FurnitureCatalog& furniture_effects = {},
         const std::vector<room_planning::RoomPurposeAssignment>&
             room_purposes = {},
+        const FurniturePlacementConfig& placement_config = {},
         const std::vector<FurnitureLayoutMove>& forbidden_moves = {},
         const snapshot::RoomId& preferred_focus_room_id = {}) const;
 };

@@ -63,6 +63,10 @@ void RunConfigTests() {
     AC_CHECK(valid.value.room_planning.version == 1);
     AC_CHECK(valid.value.room_planning.default_soft_capacity == 4);
     AC_CHECK(valid.value.room_planning.never_exceed_known_hard_capacity);
+    AC_CHECK(valid.value.furniture_placement.combat.stimulation_per_resident == 0.0);
+    AC_CHECK(valid.value.furniture_placement.combat.mutation_per_resident == 2.0);
+    AC_CHECK(valid.value.furniture_placement.minimum_furnishing_coverage_percent == 15);
+    AC_CHECK(!valid.value.furniture_placement.fill_remaining_capacity);
     AC_CHECK(valid.value.workflow.preview_ttl_seconds == 120);
     AC_CHECK(valid.value.level_up.reroll_count == 3);
 
@@ -159,6 +163,13 @@ void RunConfigTests() {
     const auto unsafe_partial = LoadConfig(defaults, user);
     AC_CHECK(!static_cast<bool>(unsafe_partial));
     AC_CHECK(unsafe_partial.code == ErrorCode::ConfigInvalid);
+
+    Write(
+        user,
+        R"({"furniture_placement":{"minimum_furnishing_coverage_percent":101}})");
+    const auto invalid_furniture_coverage = LoadConfig(defaults, user);
+    AC_CHECK(!static_cast<bool>(invalid_furniture_coverage));
+    AC_CHECK(invalid_furniture_coverage.code == ErrorCode::ConfigInvalid);
 
     Write(user, R"({"workflow":{"preview_ttl_seconds":9}})");
     const auto invalid_ttl = LoadConfig(defaults, user);

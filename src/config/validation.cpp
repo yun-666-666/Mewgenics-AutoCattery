@@ -324,6 +324,40 @@ Result<void> ValidateProtectionAndPlanning(const Json& value) {
     return {};
 }
 
+Result<void> ValidateFurniturePlacement(const Json& value) {
+    const auto& furniture = value.at("furniture_placement");
+    auto result = ValidateModuleVersion(
+        furniture, "furniture_placement");
+    if (!result) {
+        return result;
+    }
+    for (const char* group : {
+             "breeding", "kitten_recovery", "combat", "mutation",
+             "general"}) {
+        const auto& targets = furniture.at(group);
+        for (const char* key : {
+                 "comfort_per_resident",
+                 "stimulation_per_resident",
+                 "health_per_resident",
+                 "mutation_per_resident"}) {
+            if (!ReasonableFinite(targets.at(key).get<double>())) {
+                return {
+                    ErrorCode::ConfigInvalid,
+                    std::string("furniture_placement.") + group + "." +
+                        key + " must be finite and between -10000 and 10000"};
+            }
+        }
+    }
+    if (furniture.at("minimum_furnishing_coverage_percent")
+            .get<std::size_t>() > 100U) {
+        return {
+            ErrorCode::ConfigInvalid,
+            "furniture_placement.minimum_furnishing_coverage_percent must be between 0 and 100"};
+    }
+    (void)furniture.at("fill_remaining_capacity").get<bool>();
+    return {};
+}
+
 Result<void> ValidateMarkerAndDiagnostics(const Json& value) {
     const auto& marker = value.at("recommendation_marker");
     auto result = ValidateModuleVersion(marker, "recommendation_marker");
@@ -412,6 +446,10 @@ Result<void> ValidateConfigJson(const Json& value) {
             return result;
         }
         result = ValidateProtectionAndPlanning(value);
+        if (!result) {
+            return result;
+        }
+        result = ValidateFurniturePlacement(value);
         if (!result) {
             return result;
         }

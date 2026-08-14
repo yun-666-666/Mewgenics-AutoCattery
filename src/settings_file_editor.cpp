@@ -62,6 +62,18 @@ void SetStatWeights(
     }
 }
 
+void SetFurnitureTargets(
+    Json& layer,
+    const char* group,
+    const furniture_planning::FurniturePurposeTargets& targets) {
+    auto& value = layer["furniture_placement"][group];
+    value["comfort_per_resident"] = targets.comfort_per_resident;
+    value["stimulation_per_resident"] =
+        targets.stimulation_per_resident;
+    value["health_per_resident"] = targets.health_per_resident;
+    value["mutation_per_resident"] = targets.mutation_per_resident;
+}
+
 Json EditableLayer(const Json& existing, const Config& config) {
     Json layer = existing;
     layer["general"]["language"] = config.general.language;
@@ -129,6 +141,22 @@ Json EditableLayer(const Json& existing, const Config& config) {
         config.room_planning.avoid_inbreeding_pairs;
     planning["keep_kittens_separate_when_possible"] =
         config.room_planning.keep_kittens_separate_when_possible;
+    SetFurnitureTargets(
+        layer, "breeding", config.furniture_placement.breeding);
+    SetFurnitureTargets(
+        layer,
+        "kitten_recovery",
+        config.furniture_placement.kitten_recovery);
+    SetFurnitureTargets(
+        layer, "combat", config.furniture_placement.combat);
+    SetFurnitureTargets(
+        layer, "mutation", config.furniture_placement.mutation);
+    SetFurnitureTargets(
+        layer, "general", config.furniture_placement.general);
+    layer["furniture_placement"]["minimum_furnishing_coverage_percent"] =
+        config.furniture_placement.minimum_furnishing_coverage_percent;
+    layer["furniture_placement"]["fill_remaining_capacity"] =
+        config.furniture_placement.fill_remaining_capacity;
     layer["execution_safety"]["read_only_mode"] =
         config.execution_safety.read_only_mode;
     layer["execution_safety"]["create_backup_before_apply"] =

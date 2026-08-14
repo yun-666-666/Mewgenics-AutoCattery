@@ -12,17 +12,19 @@ namespace autocattery::ui {
 namespace {
 
 struct Rect { double left; double top; double right; double bottom; };
-constexpr std::array<Rect, 8> kButtons{{
+constexpr std::array<Rect, 9> kButtons{{
     {165, 82, 355, 120}, {365, 82, 555, 120},
-    {565, 82, 755, 120}, {990, 82, 1120, 124},
+    {565, 82, 755, 120}, {765, 82, 955, 120},
+    {990, 82, 1120, 124},
     {165, 540, 345, 585},
     {355, 540, 535, 585}, {755, 540, 935, 585},
     {945, 540, 1125, 585}
 }};
-constexpr std::array<ManagementPanelControl, 8> kButtonControls{
+constexpr std::array<ManagementPanelControl, 9> kButtonControls{
     ManagementPanelControl::SettingsTab,
     ManagementPanelControl::ProtectionTab,
     ManagementPanelControl::PreviewTab,
+    ManagementPanelControl::FurnitureTab,
     ManagementPanelControl::Close,
     ManagementPanelControl::Previous,
     ManagementPanelControl::Next,
@@ -78,7 +80,9 @@ LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
                 }
             } else if (message->message == WM_MOUSEWHEEL &&
                        g_panel_view->page_.load() !=
-                           static_cast<int>(ManagementPanelPage::Settings)) {
+                           static_cast<int>(ManagementPanelPage::Settings) &&
+                       g_panel_view->page_.load() !=
+                           static_cast<int>(ManagementPanelPage::Furniture)) {
                 const int delta = GET_WHEEL_DELTA_WPARAM(message->wParam);
                 g_panel_view->pending_control_.store(
                     static_cast<int>(ManagementPanelControl::Scroll));
@@ -130,15 +134,17 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
     const auto page = static_cast<ManagementPanelPage>(page_.load());
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
         if (!Contains(kButtons[index], x, y)) continue;
-        if (page == ManagementPanelPage::Settings && index >= 4)
+        if ((page == ManagementPanelPage::Settings ||
+             page == ManagementPanelPage::Furniture) && index >= 5)
             continue;
-        if ((index == 4 || index == 5) && !navigation_visible_.load())
+        if ((index == 5 || index == 6) && !navigation_visible_.load())
             return std::nullopt;
-        if (index == 6 && !apply_visible_.load()) return std::nullopt;
-        if (index == 7 && !remove_visible_.load()) return std::nullopt;
+        if (index == 7 && !apply_visible_.load()) return std::nullopt;
+        if (index == 8 && !remove_visible_.load()) return std::nullopt;
         return HitResult{kButtonControls[index], 0, 0};
     }
-    if (page != ManagementPanelPage::Settings) {
+    if (page != ManagementPanelPage::Settings &&
+        page != ManagementPanelPage::Furniture) {
         const Rect save{160, 145, 1090, 181};
         if (Contains(save, x, y)) {
             const int direction = x < 470 ? -1 : (x > 780 ? 1 : 0);
@@ -160,6 +166,9 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
         return std::nullopt;
     }
     const auto setting = HitTestSettingsRow(x, y);
+    if (setting && !setting_row_visible_[setting->row].load()) {
+        return std::nullopt;
+    }
     if (setting) return HitResult{
         setting->begin_edit ? ManagementPanelControl::BeginEdit
                             : ManagementPanelControl::Row,

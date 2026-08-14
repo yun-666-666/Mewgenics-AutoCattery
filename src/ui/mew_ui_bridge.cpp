@@ -393,6 +393,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     recommendation_marker_view_->SetEnglish(english);
     recommendation_scoring_config_ = config.combat_scoring;
     recommendation_marker_config_ = config.recommendation_marker;
+    furniture_placement_config_ = config.furniture_placement;
     runtime_move_gateway_ =
         std::make_unique<RuntimeHouseMoveGateway>();
     const bool runtime_move_available =
@@ -1511,6 +1512,7 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
         }
     }
     const auto room_purposes = furniture_room_purposes_;
+    const auto placement_config = furniture_placement_config_;
     const auto forbidden_layout_moves = furniture_layout_move_tabu_;
     const auto preferred_focus_room_id =
         furniture_focus_room_id_.value_or(snapshot::RoomId{});
@@ -1518,14 +1520,15 @@ void MewUiBridge::StartFurnitureAnalysis(std::uint64_t generation) {
     furniture_analysis_task_ = std::async(
         std::launch::async,
         [this, generation, locked_room_ids, blocked_keys,
-         allow_attribute_upgrades, room_purposes, forbidden_layout_moves,
-         preferred_focus_room_id] {
+         allow_attribute_upgrades, room_purposes, placement_config,
+         forbidden_layout_moves, preferred_focus_room_id] {
             return furniture_analysis_service_->Analyze(
                 generation,
                 locked_room_ids,
                 blocked_keys,
                 allow_attribute_upgrades,
                 room_purposes,
+                placement_config,
                 forbidden_layout_moves,
                 preferred_focus_room_id);
         });
@@ -1573,6 +1576,7 @@ void MewUiBridge::StartFurnitureAutoPlacement(
             blocked_keys,
             !furniture_attribute_upgrade_committed_in_mode_,
             furniture_room_purposes_,
+            furniture_placement_config_,
             forbidden_layout_moves,
             preferred_focus_room_id);
         if (!refreshed ||

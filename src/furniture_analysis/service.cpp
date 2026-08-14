@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "auto_cattery/furniture_planning/purpose_policy.hpp"
 #include "auto_cattery/workflow/digests.hpp"
 
 namespace autocattery::furniture_analysis {
@@ -100,66 +101,6 @@ const room_planning::RoomPurposeAssignment* FindPurpose(
         purposes, room_id,
         &room_planning::RoomPurposeAssignment::room_id);
     return found == purposes.end() ? nullptr : &*found;
-}
-
-auto PurposeRank(
-    room_planning::RoomRole role,
-    const snapshot::RoomAttributes& attributes,
-    std::size_t residents,
-    bool breeding_stats_stable) {
-    const auto crowding = residents > 4U ? residents - 4U : 0U;
-    const auto effective_comfort =
-        attributes.comfort - static_cast<double>(crowding);
-    switch (role) {
-        case room_planning::RoomRole::Breeding: {
-            const auto viable = effective_comfort > -10.0;
-            const auto balanced = std::min(
-                effective_comfort, attributes.stimulation);
-            return std::tuple{
-                viable ? 6 : 0,
-                balanced,
-                effective_comfort,
-                attributes.stimulation,
-                breeding_stats_stable ? attributes.mutation : 0.0,
-                attributes.health};
-        }
-        case room_planning::RoomRole::CombatStaging:
-            // The player explicitly uses the combat room as a controlled
-            // low-comfort fight room. Health is the hard safety floor; once
-            // non-negative, lower comfort is the primary optimization goal.
-            return std::tuple{
-                attributes.health >= 0.0 ? 5 : 0,
-                -effective_comfort,
-                attributes.health,
-                attributes.stimulation,
-                attributes.mutation,
-                0.0};
-        case room_planning::RoomRole::Kitten:
-        case room_planning::RoomRole::Recovery:
-            return std::tuple{
-                attributes.health >= 0.0 && effective_comfort >= 0.0 ? 4 : 0,
-                attributes.health,
-                effective_comfort,
-                attributes.stimulation,
-                attributes.mutation,
-                0.0};
-        case room_planning::RoomRole::MutationLab:
-            return std::tuple{
-                attributes.health >= 0.0 && effective_comfort > -10.0 ? 5 : 0,
-                attributes.mutation,
-                attributes.health,
-                effective_comfort,
-                attributes.stimulation,
-                0.0};
-        default:
-            return std::tuple{
-                3,
-                CoreMinimum(attributes),
-                CoreTotal(attributes),
-                attributes.health,
-                effective_comfort,
-                0.0};
-    }
 }
 
 template<class T>
@@ -299,6 +240,7 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     const std::vector<std::uint64_t>& blocked_warehouse_keys,
     bool allow_attribute_upgrades,
     const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const furniture_planning::FurniturePlacementConfig& placement_config,
     const std::vector<furniture_planning::FurnitureLayoutStateEdge>&
         forbidden_layout_edges,
     const snapshot::RoomId& preferred_focus_room_id) {
@@ -398,9 +340,7 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         bool balanced_attic{};
         double balanced_minimum{};
         double balanced_total{};
-        decltype(PurposeRank(
-            room_planning::RoomRole::General,
-            snapshot::RoomAttributes{}, 0U, false)) purpose_rank{};
+        furniture_planning::FurniturePurposeRank purpose_rank{};
     };
     std::vector<UpgradePair> upgrade_pairs;
     const std::unordered_set<snapshot::RoomId> locked_rooms(
@@ -484,22 +424,24 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
                 const bool direct_upgrade = balanced_attic
                     ? CoreDominates(improved->second, current->second)
                     : Dominates(improved->second, current->second);
-                const auto residents = purpose
-                    ? purpose->expected_resident_count
-                    : (current_room == identified.end()
-                        ? 0U : current_room->second.resident_count);
-                const auto role = purpose
-                    ? purpose->role : room_planning::RoomRole::General;
-                const auto current_purpose_rank = PurposeRank(
-                    role,
+                const auto current_purpose_rank =
+                    furniture_planning::RankFurniturePurpose(
+                    purpose ? purpose->role
+                            : room_planning::RoomRole::General,
                     current_attributes,
-                    residents,
-                    purpose && purpose->breeding_stats_stable);
-                const auto improved_purpose_rank = PurposeRank(
-                    role,
+                    purpose ? purpose->expected_resident_count
+                            : (current_room == identified.end()
+                                ? 0U : current_room->second.resident_count),
+                    placement_config);
+                const auto improved_purpose_rank =
+                    furniture_planning::RankFurniturePurpose(
+                    purpose ? purpose->role
+                            : room_planning::RoomRole::General,
                     improved_room,
-                    residents,
-                    purpose && purpose->breeding_stats_stable);
+                    purpose ? purpose->expected_resident_count
+                            : (current_room == identified.end()
+                                ? 0U : current_room->second.resident_count),
+                    placement_config);
                 if (balanced_attic
                         ? !direct_upgrade
                         : (purpose
@@ -687,6 +629,7 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             locked_room_ids,
             source.furniture_effects,
             room_purposes,
+            placement_config,
             forbidden_layout_moves,
             active_room_id);
     } else {

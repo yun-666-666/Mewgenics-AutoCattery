@@ -124,6 +124,41 @@ Json SafeDefaultsJson() {
             {"keep_kittens_separate_when_possible", true},
             {"allow_partial_plan", true}
         }},
+        {"furniture_placement", {
+            {"version", 1},
+            {"breeding", {
+                {"comfort_per_resident", 2.0},
+                {"stimulation_per_resident", 2.0},
+                {"health_per_resident", 0.0},
+                {"mutation_per_resident", 0.0}
+            }},
+            {"kitten_recovery", {
+                {"comfort_per_resident", 2.0},
+                {"stimulation_per_resident", 0.0},
+                {"health_per_resident", 2.0},
+                {"mutation_per_resident", 0.0}
+            }},
+            {"combat", {
+                {"comfort_per_resident", -2.0},
+                {"stimulation_per_resident", 0.0},
+                {"health_per_resident", 0.0},
+                {"mutation_per_resident", 2.0}
+            }},
+            {"mutation", {
+                {"comfort_per_resident", -2.0},
+                {"stimulation_per_resident", 0.0},
+                {"health_per_resident", 0.0},
+                {"mutation_per_resident", 2.0}
+            }},
+            {"general", {
+                {"comfort_per_resident", 1.0},
+                {"stimulation_per_resident", 1.0},
+                {"health_per_resident", 1.0},
+                {"mutation_per_resident", 1.0}
+            }},
+            {"minimum_furnishing_coverage_percent", 15},
+            {"fill_remaining_capacity", false}
+        }},
         {"recommendation_marker", {
             {"version", 1},
             {"recommended_count", 8},

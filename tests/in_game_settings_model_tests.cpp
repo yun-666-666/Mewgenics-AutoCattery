@@ -66,6 +66,9 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(model.Rows(0).size() == 8);
     AC_CHECK(model.Rows(7).size() == 5);
     AC_CHECK(model.AllRows().size() == 48);
+    AC_CHECK(model.FurnitureRows().size() == 48);
+    AC_CHECK(model.FurnitureRows()[4].empty());
+    AC_CHECK(model.FurnitureRows()[17].find("-2.00") != std::string::npos);
     AC_CHECK(model.DirectValue(0).has_value());
     AC_CHECK(!model.DirectValue(3).has_value());
     AC_CHECK(model.PageTitle(0).find("1/8") != std::string::npos);
@@ -101,6 +104,14 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(static_cast<bool>(model.SetFlatValue(1, "12.50")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(0, "wrong")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(3, "1")));
+    AC_CHECK(model.DirectFurnitureValue(17).has_value());
+    AC_CHECK(!model.DirectFurnitureValue(41).has_value());
+    AC_CHECK(static_cast<bool>(model.SetFurnitureValue(17, "-3.50")));
+    AC_CHECK(static_cast<bool>(model.SetFurnitureValue(20, "3.00")));
+    AC_CHECK(static_cast<bool>(model.SetFurnitureValue(40, "25")));
+    AC_CHECK(static_cast<bool>(model.AdjustFurniture(41, 0)));
+    AC_CHECK(!static_cast<bool>(model.SetFurnitureValue(40, "101")));
+    AC_CHECK(!static_cast<bool>(model.AdjustFurniture(4, 1)));
     const auto direct = reader.Load();
     AC_CHECK(static_cast<bool>(direct));
     AC_CHECK(direct.value.combat_scoring.recommended_count == 23);
@@ -109,6 +120,10 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(direct.value.general.language == "en-US");
     AC_CHECK(direct.value.diagnostics.collect_cat_data);
     AC_CHECK(direct.value.level_up.reroll_count == 9);
+    AC_CHECK(direct.value.furniture_placement.combat.comfort_per_resident == -3.5);
+    AC_CHECK(direct.value.furniture_placement.combat.mutation_per_resident == 3.0);
+    AC_CHECK(direct.value.furniture_placement.minimum_furnishing_coverage_percent == 25);
+    AC_CHECK(direct.value.furniture_placement.fill_remaining_capacity);
     const auto base_rerolls = ReadRerollData(
         data_mod / "data" / "classes" / "classes.gon.merge");
     const auto advanced_rerolls = ReadRerollData(

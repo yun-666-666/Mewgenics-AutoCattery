@@ -8,6 +8,7 @@
 #include "auto_cattery/breeding/domain.hpp"
 #include "auto_cattery/classification/domain.hpp"
 #include "auto_cattery/error.hpp"
+#include "auto_cattery/furniture_planning/config.hpp"
 #include "auto_cattery/room_planning/domain.hpp"
 #include "auto_cattery/scoring/domain.hpp"
 
@@ -96,6 +97,7 @@ struct Config {
     classification::ClassificationConfig classification;
     ProtectionConfig protection;
     room_planning::RoomPlanningConfig room_planning;
+    furniture_planning::FurniturePlacementConfig furniture_placement;
     RecommendationMarkerConfig recommendation_marker;
     DiagnosticsConfig diagnostics;
     LevelUpConfig level_up;

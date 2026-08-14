@@ -41,6 +41,7 @@ private:
     void Close() noexcept;
     void Handle(const ManagementPanelEvent& event);
     void HandleSettingsEvent(const ManagementPanelEvent& event);
+    void HandleFurnitureEvent(const ManagementPanelEvent& event);
     void HandleProtectionRow(std::size_t row, int direction);
     void StartProtectionLoad();
     void PollProtectionLoad();
@@ -50,6 +51,7 @@ private:
     [[nodiscard]] ManagementPanelContent SettingsContent();
     [[nodiscard]] ManagementPanelContent ProtectionContent();
     [[nodiscard]] ManagementPanelContent PreviewContent();
+    [[nodiscard]] ManagementPanelContent FurnitureContent();
     [[nodiscard]] bool English() const noexcept;
 
     MewUiManagementPanelView& view_;
