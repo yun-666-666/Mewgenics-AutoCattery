@@ -70,6 +70,12 @@ struct FurnitureLayoutPlan {
     std::size_t evacuation_blocked_room_count{};
     std::size_t installation_blocked_room_count{};
     std::size_t tabu_filtered_move_count{};
+    std::size_t packing_candidate_count{};
+    std::size_t packing_search_node_count{};
+    std::size_t packing_search_pruned_count{};
+    std::size_t packing_search_milliseconds{};
+    bool bounded_packing_search_used{};
+    bool packing_search_deadline_reached{};
 };
 
 [[nodiscard]] bool IsWarehouseLayoutMove(

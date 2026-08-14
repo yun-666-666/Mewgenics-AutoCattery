@@ -1,5 +1,21 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.60 bounded irregular-packing optimization and committed focus
+
+- Treat the analysis target as preview-only. A room becomes the preferred
+  session focus only after a native furniture move commits successfully.
+  Empty-house cycles ignore any stale focus and restart from the fixed visible
+  room order beginning with the Attic.
+- Replace the large-candidate whole-room Beam Search path with a compact
+  bitset collision model, a purpose-aware BLF seed, and a deterministic
+  time-bounded branch-and-bound search. Small layouts retain the established
+  exhaustive Beam path so existing Support edge cases keep their verified
+  behavior.
+- Preserve current tile geometry, Support audits, sealed binding checks,
+  direct execution ordering, stable-key quarantine, and rollback gates.
+- Record candidate, node, prune, deadline, and elapsed-search diagnostics.
+  Build, test, and deploy v0.5.60 without launching or controlling the game.
+
 ## v0.5.59 whole-room furniture targets
 
 - Correct the v0.5.58 interpretation rejected by the player: every F10 Auto

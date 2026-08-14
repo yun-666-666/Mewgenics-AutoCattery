@@ -878,10 +878,31 @@ void MewUiBridge::OnTick() {
                             plan.installation_blocked_room_count) +
                         ", tabu_filtered_moves=" +
                         std::to_string(plan.tabu_filtered_move_count) +
+                        ", packing=" +
+                        std::string(
+                            plan.bounded_packing_search_used
+                                ? "bounded_bitset"
+                                : "legacy_beam") +
+                        ", packing_candidates=" +
+                        std::to_string(plan.packing_candidate_count) +
+                        ", packing_nodes=" +
+                        std::to_string(plan.packing_search_node_count) +
+                        ", packing_pruned=" +
+                        std::to_string(plan.packing_search_pruned_count) +
+                        ", packing_ms=" +
+                        std::to_string(plan.packing_search_milliseconds) +
+                        ", packing_deadline=" +
+                        std::to_string(
+                            plan.packing_search_deadline_reached ? 1 : 0) +
                         ", focus_room=" +
                         SafeTechnicalName(
                             furniture_focus_room_id_.value_or(
                                 snapshot::RoomId{})) +
+                        ", focus_source=" +
+                        std::string(
+                            furniture_focus_room_id_.has_value()
+                                ? "committed_move"
+                                : "none") +
                         ", persistent_locked_rooms=" +
                         std::to_string(furniture_locked_room_ids_.size()) +
                         ", unsupported=" +
@@ -932,9 +953,10 @@ void MewUiBridge::OnTick() {
                             std::to_string(upgrade.target_y) + ") gain=" +
                             CompactAttributeGain(upgrade.gain) + ".");
                 }
-                if (!plan.target_room_id.empty()) {
-                    furniture_focus_room_id_ = plan.target_room_id;
-                }
+                // The analysis target is preview-only.  A session focus is
+                // established only after the first native move commits; this
+                // prevents an AC3906-rejected or abandoned preview from
+                // reordering the next whole-house cycle.
                 furniture_analysis_preview_ = std::move(completed);
                 furniture_auto_run_preview_fresh_ =
                     furniture_auto_run_active_;

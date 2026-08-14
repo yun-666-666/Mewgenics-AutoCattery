@@ -792,6 +792,97 @@
   `8` 后不应继续堆到 `14`；战斗房不应继续压到舒适 `-15` 或堆到刺激 `38`，并应优先
   达到变异整体目标。保存、退出并重新读取后设置和布局仍需玩家确认。
 
+## v0.5.60 限时不规则排样优化与已提交焦点
+
+### 实际证据与根因
+
+- 读取并核对 `docs/furniture-irregular-packing-solver-redesign.md`、当前源码和最新
+  `Mods\AutoCattery\logs\auto_cattery.log`。最新 v0.5.59 日志确认：17:12:34 分析得到
+  `target=Floor1_Large` 后，17:13:19 因 `AC3906` 密封 binding 变化而没有执行；下一轮
+  空屋分析仍带着 `focus_room=Floor1_Large`，17:18:02 再次错误选择左下大房。完全重启
+  后 21:49:39 的空屋分析恢复为 `target=Attic, focus_room=`。
+- 当前代码与日志一致：`MewUiBridge` 原先在分析完成、尚未提交任何原生移动时就把
+  `plan.target_room_id` 写入会话 focus；`FurnitureAnalysisService` 和
+  `PlanWholeHouse` 随后都会让这个 focus 排在固定房间顺序之前。
+- 当前大房搜索仍使用最多 6 种顺序、多类 seed、每层 256 个 `PackState` 和每状态
+  16 个分支；每个 `PackState` 都复制三组动态占用数组。该结构解释了最新日志中的
+  约 63 秒空屋分析和点击自动放置后的约 116 秒同步重算。
+
+### 实现
+
+- 分析目标现在只存在于 preview。只有 `FurniturePlacementGateway` 返回真实
+  `Moved` 后才写入 `furniture_focus_room_id_`。`AC3906`、取消或关闭未提交 preview
+  不会污染下一轮；即使收到旧 focus，只要当前所有布局房都为空，分析服务和整屋
+  求解器都会无条件按 `Attic -> Floor2_Large -> Floor1_Large -> Floor1_Small ->
+  Floor2_Small` 固定顺序重新开始，缺失房间继续跳过。
+- 对当前 build 可覆盖的最多 512 个房间格建立固定 8 个 `uint64_t` 的紧凑 mask，分别
+  表示 body、Solid、PoopLogic 和 Support。大候选集不再复制动态 `Occupancy`；普通
+  Hitbox/Solid/PoopLogic 冲突收敛为固定长度按位检查。
+- 大候选集门槛为家具不少于 96 件或合法原点不少于 16384 个。先从当前合法必选布局
+  生成 Support-ready、贴地/贴墙/接触边优先的确定性 BLF seed，再执行 MRV 必选家具、
+  可选家具永久保留 skip 分支的限时 Branch-and-Bound。已有合格 seed 使用 350 ms
+  改进预算；没有合格 seed 使用 1200 ms。每件可选家具最多展开 12 个优先原点，必选
+  家具最多 32 个，并强制保留其当前原点作为候选。
+- 剪枝使用用途四项门槛的乐观剩余属性上界和最低覆盖率上界。返回值只保留最多 16 个
+  确定性排序的 best-so-far；超时是正常终止，不会返回正在递归中的半成品状态。
+- 小候选布局继续使用原 Beam/Anchor seed 路径，避免在没有实机证据前扩大 Support
+  边缘语义变更面。无论走哪条搜索路径，候选仍必须通过
+  `SelectedPackingIsExecutable`、直接执行序列、整屋 `WholeHouseMovesPreserveSupport`、
+  密封 binding、stable-key 生命周期和原生执行/回滚门。
+- `AC3901` 新增 `packing`、候选数、搜索节点、剪枝数、搜索毫秒、是否到期以及
+  `focus_source=none|committed_move`，方便下一次实机日志直接区分候选生成、限时搜索
+  和焦点来源。
+
+### 修改文件
+
+- `CMakeLists.txt`
+- `CODEX_TASK.md`
+- `assets/description.json`
+- `include/auto_cattery/furniture_planning/layout_solver.hpp`
+- `src/furniture_analysis/service.cpp`
+- `src/furniture_planning/layout_solver.cpp`
+- `src/ui/mew_ui_bridge.cpp`
+- `tests/furniture_layout_solver_tests.cpp`
+- `.auto-cattery/state.json`
+- `.auto-cattery/reports/stage-45.md`
+
+### 自动化验证
+
+- 新增空屋焦点回归：即使传入旧 `Floor1_Large` focus，一件仓库家具和两个空房仍必须
+  先返回 `target=Attic` 且产生非零移动。
+- 新增 37x11 大房、100 件带 Support 家具、约 37000 个合法原点的回归；确认启用
+  bounded bitset 搜索、产生非零阁楼计划、内部搜索耗时不超过 2000 ms、总调用不超过
+  5 秒。相同输入连续运行两次，完整 `FurnitureLayoutMove` 序列完全一致。
+- `tools\build.ps1 -Configuration Debug`：成功；Debug DLL 构建、CTest 4/4、DLL
+  exports 与 x64 检查全部通过，初次 CTest 总耗时 7.34 秒；加入最终确定性断言后
+  重新构建 Debug 测试并运行 CTest 4/4，通过，总耗时 7.73 秒。
+- `tools\build.ps1 -Configuration Release`：成功；Release DLL 生成于
+  `2026-08-14 23:21:11 +08:00`，大小 1993728 字节；初次 Release CTest 4/4 通过，
+  总耗时 2.35 秒，DLL exports 与 x64 检查通过。
+- 加入最终确定性断言后重新编译并直接运行 Release `auto_cattery_tests.exe` 成功；随后
+  重新执行 Release `RUN_TESTS`，CTest 4/4 通过，总耗时 2.73 秒。
+- `git diff --check` 无空白错误；未计算或比较 hash。
+
+### 部署与实机状态
+
+- 本轮没有启动、点击或控制游戏，也没有修改活动存档。
+- 准备部署时检测到玩家的 `Mewgenics.exe` PID 22968 自 21:48:43 起仍在运行。为避免
+  替换正在加载的 DLL，也遵守“不自动控制游戏”边界，本轮未终止进程、未执行
+  `tools\deploy.ps1`。可部署产物已位于 `dist\Release\AutoCattery.dll`；安装位置仍是
+  上一版 v0.5.59（Mewtator description 仍显示 `0.5.59`），需在游戏完全退出后再部署
+  v0.5.60。
+- 自动化只能证明算法边界、确定性、Support/执行门和构建有效，不能证明当前真实存档
+  已从 25–116 秒降到目标时间，也不能证明最终画面质量。玩家实机验收仍需确认空屋
+  第一目标为阁楼、`AC3901 packing=bounded_bitset` 的毫秒数、实际房间整体属性、布局
+  空洞、保存重进持久化和无崩溃。
+
+### 未纳入本增量
+
+- 文档中的候选支配图、完整候选间 conflict-edge 预计算、1-remove/2-remove 局部重插
+  和外部 CP-SAT 基准没有在本增量实现。当前先替换日志已经证明最昂贵的大候选组合
+  路径；这些后续优化应以 v0.5.60 新增统计和玩家画面为证据再决定，不削弱当前硬门。
+- 本地提交与本报告属于同一任务提交，最终 hash 见交付回复；是否 push：否。
+
 ## 风险与未做范围
 
 - 当前原生 RVA、type/vtable 和对象布局只适用于已 gate 的当前

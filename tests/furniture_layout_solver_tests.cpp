@@ -4,6 +4,7 @@
 #include "test_support.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <map>
 #include <set>
@@ -358,6 +359,36 @@ void RunFurnitureLayoutSolverTests() {
         Placement(50, "small", "", 0, 0)};
 
     const furniture_planning::FurnitureLayoutSolver solver;
+
+    snapshot::detail::HouseGeometryCatalog empty_focus_geometry;
+    empty_focus_geometry.rooms = {
+        {.definition_id = "EmptyAttic",
+         .room_id = "Attic", .width = 2, .height = 1},
+        {.definition_id = "EmptyLowerLeft",
+         .room_id = "Floor1_Large", .width = 2, .height = 1}};
+    snapshot::detail::FurnitureInfoCatalog empty_focus_info;
+    empty_focus_info.records.push_back(PosterInfo("empty-focus-item"));
+    const std::vector<snapshot::detail::FurniturePlacement>
+        empty_focus_furniture{
+            Placement(9, "empty-focus-item", "", 0, 0)};
+    const std::vector<furniture_planning::FurnitureRoomGrid>
+        empty_focus_grids{
+            {"Attic", 2, 1, {0U, 0U}, {0U, 0U}},
+            {"Floor1_Large", 2, 1, {0U, 0U}, {0U, 0U}}};
+    const auto empty_focus_plan = solver.Plan(
+        empty_focus_furniture,
+        empty_focus_geometry,
+        empty_focus_info,
+        empty_focus_grids,
+        {},
+        {},
+        {},
+        {},
+        {},
+        "Floor1_Large");
+    AC_CHECK(empty_focus_plan.target_room_id == "Attic");
+    AC_CHECK(!empty_focus_plan.moves.empty());
+
     const auto first = solver.Plan(first_layout, geometry, info);
     const auto second = solver.Plan(second_layout, geometry, info);
     AC_CHECK(first.planned_room_count == 1);
@@ -1364,6 +1395,79 @@ void RunFurnitureLayoutSolverTests() {
         [](const auto& move) {
             return furniture_planning::IsWarehouseLayoutMove(move);
         }));
+
+    snapshot::detail::HouseGeometryCatalog bounded_geometry;
+    bounded_geometry.rooms = {{
+        .definition_id = "BoundedAttic",
+        .room_id = "Attic",
+        .width = 37,
+        .height = 11}};
+    snapshot::detail::FurnitureInfoCatalog bounded_info;
+    bounded_info.records.push_back(SmallInfo("bounded-item"));
+    std::vector<snapshot::detail::FurniturePlacement> bounded_furniture;
+    for (std::int64_t key = 1000; key < 1100; ++key) {
+        bounded_furniture.push_back(
+            Placement(key, "bounded-item", "", 0, 0));
+    }
+    const snapshot::detail::FurnitureCatalog bounded_effects{
+        {"bounded-item", snapshot::RoomAttributes{
+            .comfort = 1,
+            .stimulation = 1,
+            .health = 1,
+            .mutation = 1}}};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        bounded_purpose{{
+            .room_id = "Attic",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 4}};
+    auto bounded_config = furniture_planning::FurniturePlacementConfig{};
+    bounded_config.minimum_furnishing_coverage_percent = 5U;
+    std::vector<std::uint8_t> bounded_room_cells(37U * 11U);
+    std::fill_n(
+        bounded_room_cells.begin(),
+        std::size_t{37},
+        std::uint8_t{2});
+    const std::vector<furniture_planning::FurnitureRoomGrid> bounded_grids{{
+        "Attic",
+        37,
+        11,
+        bounded_room_cells,
+        bounded_room_cells}};
+    const auto bounded_started = std::chrono::steady_clock::now();
+    const auto bounded_batch = solver.Plan(
+        bounded_furniture,
+        bounded_geometry,
+        bounded_info,
+        bounded_grids,
+        {},
+        bounded_effects,
+        bounded_purpose,
+        bounded_config);
+    const auto bounded_elapsed = std::chrono::steady_clock::now() -
+        bounded_started;
+    AC_CHECK(bounded_batch.bounded_packing_search_used);
+    AC_CHECK(bounded_batch.packing_candidate_count >= 37000U);
+    AC_CHECK(bounded_batch.packing_search_node_count != 0U);
+    AC_CHECK(bounded_batch.packing_search_milliseconds <= 2000U);
+    AC_CHECK(bounded_batch.target_room_id == "Attic");
+    AC_CHECK(!bounded_batch.moves.empty());
+    AC_CHECK(bounded_elapsed < std::chrono::seconds(5));
+    const auto bounded_repeat = solver.Plan(
+        bounded_furniture,
+        bounded_geometry,
+        bounded_info,
+        bounded_grids,
+        {},
+        bounded_effects,
+        bounded_purpose,
+        bounded_config);
+    AC_CHECK(bounded_repeat.moves.size() == bounded_batch.moves.size());
+    for (std::size_t index = 0;
+         index < bounded_batch.moves.size() &&
+         index < bounded_repeat.moves.size();
+         ++index) {
+        AC_CHECK(bounded_repeat.moves[index] == bounded_batch.moves[index]);
+    }
 
     const std::vector<snapshot::detail::FurniturePlacement>
         blocked_room_furniture{

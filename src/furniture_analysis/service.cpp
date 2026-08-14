@@ -348,7 +348,14 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
     const std::unordered_set<std::uint64_t> blocked_warehouse(
         blocked_warehouse_keys.begin(), blocked_warehouse_keys.end());
     snapshot::RoomId active_room_id;
-    if (!preferred_focus_room_id.empty() &&
+    const bool all_layout_rooms_empty = std::ranges::none_of(
+        source.furniture,
+        [&identified](const auto& placement) {
+            return !placement.room_id.empty() &&
+                identified.contains(placement.room_id);
+        });
+    if (!all_layout_rooms_empty &&
+        !preferred_focus_room_id.empty() &&
         identified.contains(preferred_focus_room_id) &&
         !locked_rooms.contains(preferred_focus_room_id)) {
         active_room_id = preferred_focus_room_id;

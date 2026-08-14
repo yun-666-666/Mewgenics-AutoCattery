@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <iterator>
@@ -40,6 +42,16 @@ constexpr std::size_t kAnchorChainVisitLimit = 100000;
 // shown in a previous screenshot.
 constexpr std::size_t kLocalRelocationCandidateLimit = 512;
 constexpr std::size_t kLocalIncomingCandidateLimit = 512;
+constexpr std::size_t kCompactPackingCellLimit = 512;
+constexpr std::size_t kCompactPackingWordCount =
+    (kCompactPackingCellLimit + 63U) / 64U;
+constexpr std::size_t kBoundedPackingItemThreshold = 96;
+constexpr std::size_t kBoundedPackingCandidateThreshold = 16384;
+constexpr std::size_t kBoundedPackingOptionalBranchLimit = 12;
+constexpr std::size_t kBoundedPackingRequiredBranchLimit = 32;
+constexpr std::size_t kBoundedPackingResultLimit = 16;
+constexpr auto kBoundedPackingBudget = std::chrono::milliseconds(1200);
+constexpr auto kSatisfiedPackingBudget = std::chrono::milliseconds(350);
 
 struct OffsetCell {
     std::int32_t x{};
@@ -1545,6 +1557,725 @@ std::optional<PackState> CurrentRequiredPackState(
         }
     }
     return state;
+}
+
+struct CompactCellMask {
+    std::array<std::uint64_t, kCompactPackingWordCount> words{};
+
+    void Set(std::size_t index) noexcept {
+        words[index / 64U] |= std::uint64_t{1} << (index % 64U);
+    }
+
+    [[nodiscard]] bool Test(std::size_t index) const noexcept {
+        return (words[index / 64U] &
+                (std::uint64_t{1} << (index % 64U))) != 0U;
+    }
+
+    void Merge(const CompactCellMask& other) noexcept {
+        for (std::size_t index = 0; index < words.size(); ++index) {
+            words[index] |= other.words[index];
+        }
+    }
+
+    [[nodiscard]] bool Intersects(
+        const CompactCellMask& other) const noexcept {
+        for (std::size_t index = 0; index < words.size(); ++index) {
+            if ((words[index] & other.words[index]) != 0U) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    [[nodiscard]] bool ContainsAll(
+        const CompactCellMask& required) const noexcept {
+        for (std::size_t index = 0; index < words.size(); ++index) {
+            if ((words[index] & required.words[index]) !=
+                required.words[index]) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+struct CompactPackingOccupancy {
+    CompactCellMask body;
+    CompactCellMask solid;
+    CompactCellMask poop;
+};
+
+struct CompactPlacementCandidate {
+    std::size_t candidate_index{};
+    CompactCellMask hitbox_or_solid;
+    CompactCellMask solid;
+    CompactCellMask poop;
+    CompactCellMask support;
+    std::size_t room_support_count{};
+    std::size_t floor_contact_count{};
+    std::size_t wall_contact_count{};
+    std::size_t static_contact_count{};
+    std::int32_t origin_x{};
+    std::int32_t origin_y{};
+    bool support_ready_from_base{};
+};
+
+struct CompactPackingItem {
+    std::vector<CompactPlacementCandidate> candidates;
+    std::optional<std::size_t> current_candidate_index;
+    snapshot::RoomAttributes incoming_effect;
+    bool required{};
+    bool incoming{};
+};
+
+struct BoundedPackingResult {
+    std::vector<PackState> states;
+    std::size_t placement_candidate_count{};
+    std::size_t nodes_visited{};
+    std::size_t nodes_pruned{};
+    std::size_t elapsed_milliseconds{};
+    bool deadline_reached{};
+};
+
+CompactPackingOccupancy CompactOccupancyFrom(
+    const Occupancy& occupancy) {
+    CompactPackingOccupancy result;
+    const auto count = std::min({
+        occupancy.hitbox_count.size(),
+        occupancy.solid_count.size(),
+        occupancy.poop_count.size(),
+        kCompactPackingCellLimit});
+    for (std::size_t index = 0; index < count; ++index) {
+        if (occupancy.hitbox_count[index] != 0U ||
+            occupancy.solid_count[index] != 0U ||
+            occupancy.poop_count[index] != 0U) {
+            result.body.Set(index);
+        }
+        if (occupancy.solid_count[index] != 0U) {
+            result.solid.Set(index);
+        }
+        if (occupancy.poop_count[index] != 0U) {
+            result.poop.Set(index);
+        }
+    }
+    return result;
+}
+
+std::optional<PackState> FixedPackState(
+    const RoomCollisionGrid& room,
+    const std::vector<LayoutItem>& items,
+    const std::vector<LayoutItem>& fixed_items) {
+    PackState state;
+    state.occupancy.hitbox_count.assign(room.width * room.height, 0U);
+    state.occupancy.solid_count.assign(room.width * room.height, 0U);
+    state.occupancy.poop_count.assign(room.width * room.height, 0U);
+    state.candidate_by_item.resize(items.size());
+    for (const auto& item : fixed_items) {
+        if (!std::ranges::all_of(
+                item.current_cells,
+                [&room](const auto& cell) {
+                    return Inside(room, cell.x, cell.y);
+                })) {
+            return std::nullopt;
+        }
+        Place(
+            room,
+            item.placement->instance_id,
+            item.current_cells,
+            state.occupancy);
+        ExpandBounds(state, item.current_cells);
+    }
+    return state;
+}
+
+CompactCellMask RoomBoundarySupportMask(
+    const RoomCollisionGrid& room) {
+    CompactCellMask result;
+    for (std::size_t y = 0; y < room.height; ++y) {
+        for (std::size_t x = 0; x < room.width; ++x) {
+            if (RoomProvidesBoundarySupport(
+                    room,
+                    static_cast<std::int32_t>(x),
+                    static_cast<std::int32_t>(y))) {
+                result.Set(y * room.width + x);
+            }
+        }
+    }
+    return result;
+}
+
+CompactPlacementCandidate BuildCompactCandidate(
+    const RoomCollisionGrid& room,
+    const LayoutItem& item,
+    std::size_t candidate_index,
+    const CompactPackingOccupancy& fixed_occupancy,
+    const CompactCellMask& boundary_support) {
+    CompactPlacementCandidate result;
+    result.candidate_index = candidate_index;
+    const auto& cells = item.candidates[candidate_index];
+    result.origin_x = cells.front().x - item.offsets.front().x;
+    result.origin_y = cells.front().y - item.offsets.front().y;
+    for (const auto& cell : cells) {
+        const auto index = CellIndex(room, cell.x, cell.y);
+        const bool blocking =
+            cell.tile == FurniturePlacementTile::Hitbox ||
+            cell.tile == FurniturePlacementTile::Solid ||
+            cell.tile == FurniturePlacementTile::PoopLogic;
+        if (cell.tile == FurniturePlacementTile::Hitbox ||
+            cell.tile == FurniturePlacementTile::Solid) {
+            result.hitbox_or_solid.Set(index);
+        }
+        if (cell.tile == FurniturePlacementTile::Solid) {
+            result.solid.Set(index);
+        } else if (cell.tile == FurniturePlacementTile::PoopLogic) {
+            result.poop.Set(index);
+        } else if (cell.tile == FurniturePlacementTile::Support) {
+            result.support.Set(index);
+            result.room_support_count +=
+                RoomProvidesFloorSupport(room, cell.x, cell.y) ? 1U : 0U;
+        }
+        if (!blocking) {
+            continue;
+        }
+        result.floor_contact_count += cell.y == 0 ? 1U : 0U;
+        result.wall_contact_count +=
+            cell.x == 0 ||
+                static_cast<std::size_t>(cell.x + 1) == room.width
+            ? 1U
+            : 0U;
+        constexpr std::array<std::pair<std::int32_t, std::int32_t>, 4>
+            neighbors{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}};
+        for (const auto [dx, dy] : neighbors) {
+            const auto adjacent_x = cell.x + dx;
+            const auto adjacent_y = cell.y + dy;
+            if (!Inside(room, adjacent_x, adjacent_y)) {
+                ++result.static_contact_count;
+                continue;
+            }
+            const auto adjacent_index = CellIndex(
+                room, adjacent_x, adjacent_y);
+            if (RoomBlocksAllFurniture(room.At(
+                    static_cast<std::size_t>(adjacent_x),
+                    static_cast<std::size_t>(adjacent_y))) ||
+                fixed_occupancy.body.Test(adjacent_index)) {
+                ++result.static_contact_count;
+            }
+        }
+    }
+    auto provided_support = boundary_support;
+    provided_support.Merge(fixed_occupancy.solid);
+    result.support_ready_from_base =
+        provided_support.ContainsAll(result.support);
+    return result;
+}
+
+bool BetterCompactCandidate(
+    const CompactPlacementCandidate& left,
+    const CompactPlacementCandidate& right) {
+    if (left.support_ready_from_base != right.support_ready_from_base) {
+        return left.support_ready_from_base;
+    }
+    if (left.floor_contact_count != right.floor_contact_count) {
+        return left.floor_contact_count > right.floor_contact_count;
+    }
+    if (left.wall_contact_count != right.wall_contact_count) {
+        return left.wall_contact_count > right.wall_contact_count;
+    }
+    if (left.static_contact_count != right.static_contact_count) {
+        return left.static_contact_count > right.static_contact_count;
+    }
+    return std::tuple{
+               left.origin_y,
+               left.origin_x,
+               left.candidate_index} <
+        std::tuple{
+               right.origin_y,
+               right.origin_x,
+               right.candidate_index};
+}
+
+bool CompactCanPlace(
+    const CompactPackingOccupancy& occupancy,
+    const CompactPlacementCandidate& candidate,
+    const CompactCellMask& boundary_support,
+    bool require_support) {
+    if (candidate.hitbox_or_solid.Intersects(occupancy.body) ||
+        candidate.poop.Intersects(occupancy.solid) ||
+        candidate.poop.Intersects(occupancy.poop)) {
+        return false;
+    }
+    if (!require_support) {
+        return true;
+    }
+    auto provided_support = boundary_support;
+    provided_support.Merge(occupancy.solid);
+    return provided_support.ContainsAll(candidate.support);
+}
+
+void ApplyCompactCandidate(
+    CompactPackingOccupancy& occupancy,
+    const CompactPlacementCandidate& candidate) {
+    occupancy.body.Merge(candidate.hitbox_or_solid);
+    occupancy.body.Merge(candidate.poop);
+    occupancy.solid.Merge(candidate.solid);
+    occupancy.poop.Merge(candidate.poop);
+}
+
+bool ShouldUseBoundedPackingSearch(
+    const RoomCollisionGrid& room,
+    const std::vector<LayoutItem>& items,
+    std::size_t placement_candidate_count) {
+    const auto cell_count = room.width * room.height;
+    return cell_count != 0U &&
+        cell_count <= kCompactPackingCellLimit &&
+        (items.size() >= kBoundedPackingItemThreshold ||
+         placement_candidate_count >= kBoundedPackingCandidateThreshold);
+}
+
+snapshot::RoomAttributes HelpfulRemainingEffect(
+    const snapshot::RoomAttributes& effect,
+    const room_planning::RoomPurposeAssignment* purpose) {
+    snapshot::RoomAttributes result;
+    if (!purpose) {
+        return result;
+    }
+    const bool combat =
+        purpose->role == room_planning::RoomRole::CombatStaging;
+    result.comfort = combat
+        ? std::min(0.0, effect.comfort)
+        : std::max(0.0, effect.comfort);
+    result.stimulation = combat
+        ? std::min(0.0, effect.stimulation)
+        : std::max(0.0, effect.stimulation);
+    result.health = std::max(0.0, effect.health);
+    result.mutation = std::max(0.0, effect.mutation);
+    return result;
+}
+
+bool PackingPurposeAndCoverageSatisfied(
+    const PackState& state,
+    const snapshot::RoomAttributes& current_attributes,
+    const snapshot::RoomAttributes& added_attributes,
+    const room_planning::RoomPurposeAssignment* purpose,
+    const FurniturePlacementConfig& placement_config,
+    std::size_t minimum_selected_cell_count) {
+    if (!purpose ||
+        state.selected_cell_count < minimum_selected_cell_count) {
+        return false;
+    }
+    auto attributes = current_attributes;
+    AddAttributes(attributes, added_attributes);
+    return !FurniturePurposeNeedsMore(
+        purpose, attributes, placement_config);
+}
+
+BoundedPackingResult PackSubsetBounded(
+    const RoomCollisionGrid& room,
+    const std::vector<LayoutItem>& items,
+    const std::vector<LayoutItem>& fixed_items,
+    const std::vector<bool>& required,
+    const PackStateComparator& better_state,
+    const snapshot::RoomAttributes& current_attributes,
+    const snapshot::RoomId& target_room_id,
+    const FurnitureCatalog& furniture_effects,
+    const room_planning::RoomPurposeAssignment* purpose,
+    const FurniturePlacementConfig& placement_config,
+    std::size_t minimum_selected_cell_count) {
+    const auto started = std::chrono::steady_clock::now();
+    BoundedPackingResult result;
+    if (required.size() != items.size() ||
+        room.width * room.height > kCompactPackingCellLimit) {
+        return result;
+    }
+    const auto fixed_state = FixedPackState(room, items, fixed_items);
+    if (!fixed_state) {
+        return result;
+    }
+    const auto fixed_occupancy = fixed_state->occupancy;
+    const auto compact_fixed = CompactOccupancyFrom(fixed_occupancy);
+    const auto boundary_support = RoomBoundarySupportMask(room);
+
+    std::vector<CompactPackingItem> compact_items(items.size());
+    for (std::size_t item_index = 0;
+         item_index < items.size();
+         ++item_index) {
+        auto& compact = compact_items[item_index];
+        compact.required = required[item_index];
+        compact.incoming =
+            items[item_index].placement->room_id != target_room_id;
+        if (compact.incoming) {
+            const auto effect = furniture_effects.find(
+                items[item_index].placement->item_id);
+            if (effect != furniture_effects.end()) {
+                compact.incoming_effect = effect->second;
+            }
+        }
+        compact.candidates.reserve(items[item_index].candidates.size());
+        for (std::size_t candidate_index = 0;
+             candidate_index < items[item_index].candidates.size();
+             ++candidate_index) {
+            compact.candidates.push_back(BuildCompactCandidate(
+                room,
+                items[item_index],
+                candidate_index,
+                compact_fixed,
+                boundary_support));
+            if (compact.required &&
+                SameCells(
+                    items[item_index].candidates[candidate_index],
+                    items[item_index].current_cells)) {
+                compact.current_candidate_index = candidate_index;
+            }
+        }
+        result.placement_candidate_count += compact.candidates.size();
+        std::ranges::sort(
+            compact.candidates, BetterCompactCandidate);
+    }
+
+    std::vector<std::size_t> order;
+    order.reserve(items.size());
+    for (std::size_t index = 0; index < items.size(); ++index) {
+        if (required[index]) {
+            order.push_back(index);
+        }
+    }
+    std::ranges::sort(
+        order,
+        [&compact_items, &items](std::size_t left, std::size_t right) {
+            return std::tuple{
+                       compact_items[left].candidates.size(),
+                       items[left].placement->instance_id} <
+                std::tuple{
+                       compact_items[right].candidates.size(),
+                       items[right].placement->instance_id};
+        });
+    for (std::size_t index = 0; index < items.size(); ++index) {
+        if (!required[index]) {
+            order.push_back(index);
+        }
+    }
+
+    std::vector<std::size_t> suffix_cell_capacity(order.size() + 1U);
+    std::vector<snapshot::RoomAttributes> suffix_helpful_effect(
+        order.size() + 1U);
+    for (std::size_t position = order.size(); position != 0U; --position) {
+        const auto item_index = order[position - 1U];
+        suffix_cell_capacity[position - 1U] =
+            suffix_cell_capacity[position] + BlockingCellCount(items[item_index]);
+        suffix_helpful_effect[position - 1U] =
+            suffix_helpful_effect[position];
+        if (compact_items[item_index].incoming) {
+            AddAttributes(
+                suffix_helpful_effect[position - 1U],
+                HelpfulRemainingEffect(
+                    compact_items[item_index].incoming_effect,
+                    purpose));
+        }
+    }
+
+    FurniturePurposeRank best_purpose_rank{};
+    bool best_purpose_rank_available{};
+    bool best_has_coverage{};
+    const auto refresh_best_bound = [&] {
+        if (result.states.empty() || !purpose) {
+            best_purpose_rank_available = false;
+            best_has_coverage = false;
+            return;
+        }
+        best_purpose_rank = RankFurniturePurpose(
+            purpose,
+            CandidateRoomAttributes(
+                result.states.front(),
+                items,
+                current_attributes,
+                target_room_id,
+                furniture_effects),
+            placement_config);
+        best_purpose_rank_available = true;
+        best_has_coverage =
+            result.states.front().selected_cell_count >=
+            minimum_selected_cell_count;
+    };
+    const auto consider = [&](const PackState& state) {
+        if (result.states.size() >= kBoundedPackingResultLimit &&
+            !better_state(state, result.states.back())) {
+            return;
+        }
+        if (std::ranges::any_of(
+                result.states,
+                [&state](const auto& existing) {
+                    return existing.candidate_by_item ==
+                        state.candidate_by_item;
+                })) {
+            return;
+        }
+        if (!SelectedPackingIsExecutable(
+                room, items, fixed_occupancy, state)) {
+            ++result.nodes_pruned;
+            return;
+        }
+        result.states.push_back(state);
+        std::ranges::sort(result.states, better_state);
+        if (result.states.size() > kBoundedPackingResultLimit) {
+            result.states.resize(kBoundedPackingResultLimit);
+        }
+        refresh_best_bound();
+    };
+
+    // BLF seed: preserve the already-valid target-room binding, then add the
+    // first purpose-improving, support-ready candidate in contact-first order.
+    if (auto greedy = CurrentRequiredPackState(
+            room, items, fixed_items, required)) {
+        auto compact_occupancy = CompactOccupancyFrom(greedy->occupancy);
+        snapshot::RoomAttributes added_attributes;
+        for (const auto item_index : order) {
+            if (required[item_index] ||
+                (!placement_config.fill_remaining_capacity &&
+                 PackingPurposeAndCoverageSatisfied(
+                     *greedy,
+                     current_attributes,
+                     added_attributes,
+                     purpose,
+                     placement_config,
+                     minimum_selected_cell_count))) {
+                continue;
+            }
+            std::optional<PackState> best_trial;
+            std::optional<CompactPackingOccupancy> best_occupancy;
+            std::size_t legal_candidates{};
+            for (const auto& candidate :
+                 compact_items[item_index].candidates) {
+                if (!CompactCanPlace(
+                        compact_occupancy,
+                        candidate,
+                        boundary_support,
+                        true)) {
+                    continue;
+                }
+                if (++legal_candidates >
+                    kBoundedPackingRequiredBranchLimit * 2U) {
+                    break;
+                }
+                auto trial = *greedy;
+                trial.candidate_by_item[item_index] =
+                    candidate.candidate_index;
+                ++trial.selected_count;
+                trial.selected_cell_count +=
+                    BlockingCellCount(items[item_index]);
+                trial.room_support_count += candidate.room_support_count;
+                Place(
+                    room,
+                    items[item_index].placement->instance_id,
+                    items[item_index].candidates[candidate.candidate_index],
+                    trial.occupancy);
+                ExpandBounds(
+                    trial,
+                    items[item_index].candidates[candidate.candidate_index]);
+                if (!better_state(trial, *greedy) ||
+                    (best_trial && !better_state(trial, *best_trial))) {
+                    continue;
+                }
+                auto trial_occupancy = compact_occupancy;
+                ApplyCompactCandidate(trial_occupancy, candidate);
+                best_trial = std::move(trial);
+                best_occupancy = std::move(trial_occupancy);
+            }
+            if (!best_trial || !best_occupancy) {
+                continue;
+            }
+            *greedy = std::move(*best_trial);
+            compact_occupancy = std::move(*best_occupancy);
+            if (compact_items[item_index].incoming) {
+                AddAttributes(
+                    added_attributes,
+                    compact_items[item_index].incoming_effect);
+            }
+        }
+        consider(*greedy);
+    }
+
+    const bool seed_is_sufficient =
+        !result.states.empty() && purpose &&
+        !FurniturePurposeNeedsMore(
+            purpose,
+            CandidateRoomAttributes(
+                result.states.front(),
+                items,
+                current_attributes,
+                target_room_id,
+                furniture_effects),
+            placement_config) &&
+        result.states.front().selected_cell_count >=
+            minimum_selected_cell_count;
+    const auto deadline = std::chrono::steady_clock::now() +
+        (seed_is_sufficient
+             ? kSatisfiedPackingBudget
+             : kBoundedPackingBudget);
+    std::size_t required_remaining = static_cast<std::size_t>(
+        std::ranges::count(required, true));
+    auto search_state = *fixed_state;
+
+    const auto search = [&](const auto& self,
+                            std::size_t position,
+                            std::size_t remaining_required,
+                            const CompactPackingOccupancy& occupancy,
+                            PackState& state,
+                            snapshot::RoomAttributes added_attributes) -> void {
+        ++result.nodes_visited;
+        if ((result.nodes_visited & 63U) == 0U &&
+            std::chrono::steady_clock::now() >= deadline) {
+            result.deadline_reached = true;
+            return;
+        }
+        if (result.deadline_reached) {
+            return;
+        }
+        if (remaining_required == 0U) {
+            const bool sufficient = PackingPurposeAndCoverageSatisfied(
+                state,
+                current_attributes,
+                added_attributes,
+                purpose,
+                placement_config,
+                minimum_selected_cell_count);
+            if (sufficient || position == order.size()) {
+                consider(state);
+            }
+            if (sufficient && !placement_config.fill_remaining_capacity) {
+                return;
+            }
+        }
+        if (position == order.size()) {
+            return;
+        }
+        if (purpose && best_purpose_rank_available) {
+            auto optimistic_attributes = current_attributes;
+            AddAttributes(optimistic_attributes, added_attributes);
+            AddAttributes(
+                optimistic_attributes,
+                suffix_helpful_effect[position]);
+            const auto optimistic_rank = RankFurniturePurpose(
+                purpose, optimistic_attributes, placement_config);
+            const auto optimistic_threshold =
+                PurposeThresholdRank(optimistic_rank);
+            const auto best_threshold =
+                PurposeThresholdRank(best_purpose_rank);
+            if (optimistic_threshold < best_threshold ||
+                (optimistic_threshold == best_threshold &&
+                 best_has_coverage &&
+                 state.selected_cell_count +
+                         suffix_cell_capacity[position] <
+                     minimum_selected_cell_count)) {
+                ++result.nodes_pruned;
+                return;
+            }
+        }
+
+        const auto item_index = order[position];
+        const auto& compact_item = compact_items[item_index];
+        const auto branch_limit = compact_item.required
+            ? kBoundedPackingRequiredBranchLimit
+            : kBoundedPackingOptionalBranchLimit;
+        std::size_t branches{};
+        bool current_candidate_branched{};
+        for (const auto& candidate : compact_item.candidates) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                result.deadline_reached = true;
+                break;
+            }
+            if (!CompactCanPlace(
+                    occupancy,
+                    candidate,
+                    boundary_support,
+                    false)) {
+                ++result.nodes_pruned;
+                continue;
+            }
+            const bool is_current_candidate =
+                compact_item.current_candidate_index &&
+                candidate.candidate_index ==
+                    *compact_item.current_candidate_index;
+            if (branches >= branch_limit && !is_current_candidate) {
+                ++result.nodes_pruned;
+                continue;
+            }
+            ++branches;
+            current_candidate_branched = current_candidate_branched ||
+                is_current_candidate;
+            const auto previous_has_bounds = state.has_bounds;
+            const auto previous_min_x = state.min_x;
+            const auto previous_max_x = state.max_x;
+            const auto previous_min_y = state.min_y;
+            const auto previous_max_y = state.max_y;
+            const auto previous_coordinate_sum = state.coordinate_sum;
+            state.candidate_by_item[item_index] =
+                candidate.candidate_index;
+            ++state.selected_count;
+            state.selected_cell_count += BlockingCellCount(items[item_index]);
+            state.room_support_count += candidate.room_support_count;
+            ExpandBounds(
+                state,
+                items[item_index].candidates[candidate.candidate_index]);
+            auto next_occupancy = occupancy;
+            ApplyCompactCandidate(next_occupancy, candidate);
+            auto next_attributes = added_attributes;
+            if (compact_item.incoming) {
+                AddAttributes(
+                    next_attributes,
+                    compact_item.incoming_effect);
+            }
+            self(
+                self,
+                position + 1U,
+                remaining_required -
+                    (compact_item.required ? 1U : 0U),
+                next_occupancy,
+                state,
+                next_attributes);
+            state.candidate_by_item[item_index].reset();
+            --state.selected_count;
+            state.selected_cell_count -= BlockingCellCount(items[item_index]);
+            state.room_support_count -= candidate.room_support_count;
+            state.has_bounds = previous_has_bounds;
+            state.min_x = previous_min_x;
+            state.max_x = previous_max_x;
+            state.min_y = previous_min_y;
+            state.max_y = previous_max_y;
+            state.coordinate_sum = previous_coordinate_sum;
+            if (result.deadline_reached) {
+                break;
+            }
+        }
+        if (compact_item.required) {
+            if (branches == 0U ||
+                (compact_item.current_candidate_index &&
+                 branches >= branch_limit &&
+                 !current_candidate_branched)) {
+                ++result.nodes_pruned;
+            }
+            return;
+        }
+        self(
+            self,
+            position + 1U,
+            remaining_required,
+            occupancy,
+            state,
+            added_attributes);
+    };
+    search(
+        search,
+        0U,
+        required_remaining,
+        compact_fixed,
+        search_state,
+        {});
+    std::ranges::sort(result.states, better_state);
+    result.elapsed_milliseconds = static_cast<std::size_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - started)
+            .count());
+    return result;
 }
 
 std::optional<PackState> CurrentPackState(
@@ -3554,12 +4285,21 @@ FurnitureLayoutPlan PlanWholeHouse(
             target_rooms.push_back(room_id);
         }
     }
+    const bool all_layout_rooms_empty = std::ranges::none_of(
+        furniture,
+        [&rooms](const auto& placement) {
+            return !placement.room_id.empty() &&
+                rooms.contains(placement.room_id);
+        });
     std::ranges::sort(
         target_rooms,
-        [&preferred_focus_room_id](const auto& left, const auto& right) {
-            const bool left_focus = !preferred_focus_room_id.empty() &&
+        [&preferred_focus_room_id,
+         all_layout_rooms_empty](const auto& left, const auto& right) {
+            const bool left_focus = !all_layout_rooms_empty &&
+                !preferred_focus_room_id.empty() &&
                 left == preferred_focus_room_id;
-            const bool right_focus = !preferred_focus_room_id.empty() &&
+            const bool right_focus = !all_layout_rooms_empty &&
+                !preferred_focus_room_id.empty() &&
                 right == preferred_focus_room_id;
             if (left_focus != right_focus) {
                 return left_focus;
@@ -3783,7 +4523,13 @@ FurnitureLayoutPlan PlanWholeHouse(
                 target_items[index].placement->room_id == target_room_id;
         }
         std::vector<PackState> packed_candidates;
-        std::vector<PackState> current_required_seeds;
+        const auto minimum_selected_cell_count = MinimumSelectedCellCount(
+            target_room,
+            placement_config.minimum_furnishing_coverage_percent);
+        std::size_t placement_candidate_count{};
+        for (const auto& item : target_items) {
+            placement_candidate_count += item.candidates.size();
+        }
         PackStateComparator better_packed_state = BetterFilledPackState;
         if (balanced_attic) {
             better_packed_state =
@@ -3803,147 +4549,178 @@ FurnitureLayoutPlan PlanWholeHouse(
             better_packed_state =
                 [&target_items,
                  &current_attributes,
-                 &target_room_id,
-                 &furniture_effects,
-                 &placement_config,
-                 &target_room,
-                 room_purpose](const auto& left, const auto& right) {
+                  &target_room_id,
+                  &furniture_effects,
+                  &placement_config,
+                  minimum_selected_cell_count,
+                  room_purpose](const auto& left, const auto& right) {
                     return BetterPurposeState(
                         left,
                         right,
                         target_items,
-                        current_attributes,
-                        target_room_id,
-                        furniture_effects,
-                        room_purpose,
-                        placement_config,
-                        MinimumSelectedCellCount(
-                            target_room,
-                            placement_config
-                                .minimum_furnishing_coverage_percent));
+                         current_attributes,
+                         target_room_id,
+                         furniture_effects,
+                         room_purpose,
+                         placement_config,
+                         minimum_selected_cell_count);
                 };
         }
-        if (const auto current_required = CurrentRequiredPackState(
+        if (ShouldUseBoundedPackingSearch(
                 target_room,
                 target_items,
-                target_fixed_items,
-                required)) {
-            current_required_seeds.push_back(*current_required);
-        }
-        if (std::ranges::all_of(required, [](bool value) { return value; })) {
-            const auto current = CurrentSelectedPackState(
-                target_room, target_items, target_fixed_items);
-            if (current) {
-                packed_candidates.push_back(*current);
-            }
-        }
-        auto anchor_chain_seeds = BuildAnchorChainSeeds(
-            target_room,
-            target_items,
-            target_fixed_items,
-            required);
-        std::ranges::sort(anchor_chain_seeds, better_packed_state);
-        auto packing_orders = PackingOrders(target_items);
-        if (balanced_attic) {
-            std::vector<std::size_t> balanced_order(target_items.size());
-            for (std::size_t index = 0;
-                 index < balanced_order.size();
-                 ++index) {
-                balanced_order[index] = index;
-            }
-            std::ranges::sort(
-                balanced_order,
-                [&target_items,
-                 &furniture_effects,
-                 &current_attributes,
-                 &target_room_id](std::size_t left, std::size_t right) {
-                    const bool left_required =
-                        target_items[left].placement->room_id ==
-                        target_room_id;
-                    const bool right_required =
-                        target_items[right].placement->room_id ==
-                        target_room_id;
-                    if (left_required != right_required) {
-                        return left_required;
-                    }
-                    if (!left_required) {
-                        auto left_attributes = current_attributes;
-                        auto right_attributes = current_attributes;
-                        const auto left_effect = furniture_effects.find(
-                            target_items[left].placement->item_id);
-                        const auto right_effect = furniture_effects.find(
-                            target_items[right].placement->item_id);
-                        if (left_effect != furniture_effects.end()) {
-                            AddAttributes(
-                                left_attributes, left_effect->second);
-                        }
-                        if (right_effect != furniture_effects.end()) {
-                            AddAttributes(
-                                right_attributes, right_effect->second);
-                        }
-                        const auto left_rank = std::tuple{
-                            CoreMinimum(left_attributes),
-                            CoreTotal(left_attributes),
-                            left_attributes.appeal};
-                        const auto right_rank = std::tuple{
-                            CoreMinimum(right_attributes),
-                            CoreTotal(right_attributes),
-                            right_attributes.appeal};
-                        if (left_rank != right_rank) {
-                            return left_rank > right_rank;
-                        }
-                    }
-                    return target_items[left].placement->instance_id <
-                        target_items[right].placement->instance_id;
-                });
-            if (std::ranges::find(packing_orders, balanced_order) ==
-                packing_orders.end()) {
-                packing_orders.insert(
-                    packing_orders.begin(), std::move(balanced_order));
-            }
-            if (packing_orders.size() > 2U) {
-                packing_orders.resize(2U);
-            }
-        }
-        for (const auto& order : packing_orders) {
-            auto packed = PackSubsetInOrder(
+                placement_candidate_count)) {
+            auto bounded = PackSubsetBounded(
                 target_room,
                 target_items,
                 target_fixed_items,
                 required,
-                order,
-                better_packed_state);
-            packed_candidates.insert(
-                packed_candidates.end(),
-                std::make_move_iterator(packed.begin()),
-                std::make_move_iterator(packed.end()));
-            if (!current_required_seeds.empty()) {
-                auto filled_current = PackSubsetInOrder(
+                better_packed_state,
+                current_attributes,
+                target_room_id,
+                furniture_effects,
+                room_purpose,
+                placement_config,
+                minimum_selected_cell_count);
+            plan.bounded_packing_search_used = true;
+            plan.packing_candidate_count +=
+                bounded.placement_candidate_count;
+            plan.packing_search_node_count += bounded.nodes_visited;
+            plan.packing_search_pruned_count += bounded.nodes_pruned;
+            plan.packing_search_milliseconds +=
+                bounded.elapsed_milliseconds;
+            plan.packing_search_deadline_reached =
+                plan.packing_search_deadline_reached ||
+                bounded.deadline_reached;
+            packed_candidates = std::move(bounded.states);
+        } else {
+            plan.packing_candidate_count += placement_candidate_count;
+            std::vector<PackState> current_required_seeds;
+            if (const auto current_required = CurrentRequiredPackState(
                     target_room,
                     target_items,
                     target_fixed_items,
-                    required,
-                    order,
-                    better_packed_state,
-                    &current_required_seeds);
-                packed_candidates.insert(
-                    packed_candidates.end(),
-                    std::make_move_iterator(filled_current.begin()),
-                    std::make_move_iterator(filled_current.end()));
+                    required)) {
+                current_required_seeds.push_back(*current_required);
             }
-            if (!anchor_chain_seeds.empty()) {
-                auto anchored = PackSubsetInOrder(
+            if (std::ranges::all_of(
+                    required, [](bool value) { return value; })) {
+                const auto current = CurrentSelectedPackState(
+                    target_room, target_items, target_fixed_items);
+                if (current) {
+                    packed_candidates.push_back(*current);
+                }
+            }
+            auto anchor_chain_seeds = BuildAnchorChainSeeds(
+                target_room,
+                target_items,
+                target_fixed_items,
+                required);
+            std::ranges::sort(anchor_chain_seeds, better_packed_state);
+            auto packing_orders = PackingOrders(target_items);
+            if (balanced_attic) {
+                std::vector<std::size_t> balanced_order(
+                    target_items.size());
+                for (std::size_t index = 0;
+                     index < balanced_order.size();
+                     ++index) {
+                    balanced_order[index] = index;
+                }
+                std::ranges::sort(
+                    balanced_order,
+                    [&target_items,
+                     &furniture_effects,
+                     &current_attributes,
+                     &target_room_id](std::size_t left, std::size_t right) {
+                        const bool left_required =
+                            target_items[left].placement->room_id ==
+                            target_room_id;
+                        const bool right_required =
+                            target_items[right].placement->room_id ==
+                            target_room_id;
+                        if (left_required != right_required) {
+                            return left_required;
+                        }
+                        if (!left_required) {
+                            auto left_attributes = current_attributes;
+                            auto right_attributes = current_attributes;
+                            const auto left_effect = furniture_effects.find(
+                                target_items[left].placement->item_id);
+                            const auto right_effect = furniture_effects.find(
+                                target_items[right].placement->item_id);
+                            if (left_effect != furniture_effects.end()) {
+                                AddAttributes(
+                                    left_attributes, left_effect->second);
+                            }
+                            if (right_effect != furniture_effects.end()) {
+                                AddAttributes(
+                                    right_attributes, right_effect->second);
+                            }
+                            const auto left_rank = std::tuple{
+                                CoreMinimum(left_attributes),
+                                CoreTotal(left_attributes),
+                                left_attributes.appeal};
+                            const auto right_rank = std::tuple{
+                                CoreMinimum(right_attributes),
+                                CoreTotal(right_attributes),
+                                right_attributes.appeal};
+                            if (left_rank != right_rank) {
+                                return left_rank > right_rank;
+                            }
+                        }
+                        return target_items[left].placement->instance_id <
+                            target_items[right].placement->instance_id;
+                    });
+                if (std::ranges::find(packing_orders, balanced_order) ==
+                    packing_orders.end()) {
+                    packing_orders.insert(
+                        packing_orders.begin(),
+                        std::move(balanced_order));
+                }
+                if (packing_orders.size() > 2U) {
+                    packing_orders.resize(2U);
+                }
+            }
+            for (const auto& order : packing_orders) {
+                auto packed = PackSubsetInOrder(
                     target_room,
                     target_items,
                     target_fixed_items,
                     required,
                     order,
-                    better_packed_state,
-                    &anchor_chain_seeds);
+                    better_packed_state);
                 packed_candidates.insert(
                     packed_candidates.end(),
-                    std::make_move_iterator(anchored.begin()),
-                    std::make_move_iterator(anchored.end()));
+                    std::make_move_iterator(packed.begin()),
+                    std::make_move_iterator(packed.end()));
+                if (!current_required_seeds.empty()) {
+                    auto filled_current = PackSubsetInOrder(
+                        target_room,
+                        target_items,
+                        target_fixed_items,
+                        required,
+                        order,
+                        better_packed_state,
+                        &current_required_seeds);
+                    packed_candidates.insert(
+                        packed_candidates.end(),
+                        std::make_move_iterator(filled_current.begin()),
+                        std::make_move_iterator(filled_current.end()));
+                }
+                if (!anchor_chain_seeds.empty()) {
+                    auto anchored = PackSubsetInOrder(
+                        target_room,
+                        target_items,
+                        target_fixed_items,
+                        required,
+                        order,
+                        better_packed_state,
+                        &anchor_chain_seeds);
+                    packed_candidates.insert(
+                        packed_candidates.end(),
+                        std::make_move_iterator(anchored.begin()),
+                        std::make_move_iterator(anchored.end()));
+                }
             }
         }
         std::ranges::sort(packed_candidates, better_packed_state);
