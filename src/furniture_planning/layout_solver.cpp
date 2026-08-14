@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -25,8 +26,8 @@ using snapshot::detail::RoomGeometryDefinition;
 
 constexpr std::size_t kPackingBeamWidth = 16;
 constexpr std::size_t kCandidateBranchesPerState = 4;
-constexpr std::size_t kWholeHousePackingBeamWidth = 128;
-constexpr std::size_t kWholeHouseCandidateBranchesPerState = 12;
+constexpr std::size_t kWholeHousePackingBeamWidth = 256;
+constexpr std::size_t kWholeHouseCandidateBranchesPerState = 16;
 constexpr std::size_t kIncomingCandidatesPerRoom = 192;
 constexpr std::size_t kAnchorChainSeedLimit = 32;
 constexpr std::size_t kAnchorChainVisitLimit = 100000;
@@ -104,6 +105,9 @@ struct PackState {
     std::size_t selected_count{};
     std::size_t selected_cell_count{};
 };
+
+using PackStateComparator =
+    std::function<bool(const PackState&, const PackState&)>;
 
 std::size_t BlockingCellCount(const LayoutItem& item) {
     return item.hitbox_count + item.solid_count + item.poop_count;
@@ -415,7 +419,16 @@ bool BetterPurposeState(
     if (left_rank != right_rank) {
         return left_rank > right_rank;
     }
-    return BetterFilledPackState(left, right);
+    if (left.selected_count != right.selected_count) {
+        return left.selected_count > right.selected_count;
+    }
+    // Once the room-purpose result and furniture count are equal, preserve
+    // floor/wall capacity for later useful pieces instead of rewarding a
+    // single large neutral object merely because it blocks more cells.
+    if (left.selected_cell_count != right.selected_cell_count) {
+        return left.selected_cell_count < right.selected_cell_count;
+    }
+    return BetterPackState(left, right);
 }
 
 bool CheckedCoordinate(
@@ -1250,6 +1263,7 @@ std::vector<PackState> PackSubsetInOrder(
     const std::vector<LayoutItem>& fixed_items,
     const std::vector<bool>& required,
     const std::vector<std::size_t>& order,
+    const PackStateComparator& better_state,
     const std::vector<PackState>* seed_states = nullptr) {
     if (required.size() != items.size()) {
         return {};
@@ -1313,11 +1327,21 @@ std::vector<PackState> PackSubsetInOrder(
                 ExpandBounds(next, candidate);
                 local.push_back(std::move(next));
             }
+            std::ranges::sort(local, better_state);
             if (!required[item_index]) {
+                // Always retain the branch that skips an optional large item.
+                // Without it, many legal origins for that item can consume the
+                // entire per-state branch budget before later compact,
+                // higher-combined-attribute furniture is considered.
+                const auto placement_limit =
+                    kWholeHouseCandidateBranchesPerState - 1U;
+                if (local.size() > placement_limit) {
+                    local.resize(placement_limit);
+                }
                 local.push_back(state);
-            }
-            std::ranges::sort(local, BetterFilledPackState);
-            if (local.size() > kWholeHouseCandidateBranchesPerState) {
+                std::ranges::sort(local, better_state);
+            } else if (local.size() >
+                       kWholeHouseCandidateBranchesPerState) {
                 local.resize(kWholeHouseCandidateBranchesPerState);
             }
             expanded.insert(
@@ -1328,7 +1352,7 @@ std::vector<PackState> PackSubsetInOrder(
         if (expanded.empty()) {
             return {};
         }
-        std::ranges::sort(expanded, BetterFilledPackState);
+        std::ranges::sort(expanded, better_state);
         if (expanded.size() > kWholeHousePackingBeamWidth) {
             expanded.resize(kWholeHousePackingBeamWidth);
         }
@@ -3613,12 +3637,6 @@ FurnitureLayoutPlan PlanWholeHouse(
             target_room_id, furniture, furniture_effects);
         const auto* room_purpose = FindPurpose(
             room_purposes, target_room_id);
-        const bool spatial_needs_more_furniture =
-            RoomNeedsMoreSpatialFurnishing(
-                target_room_id,
-                target_room,
-                eligible_items,
-                fixed_items);
         const bool balanced_attic = room_purpose == nullptr &&
             target_room_id == "Attic" && !furniture_effects.empty();
         std::vector<LayoutItem> target_items;
@@ -3653,9 +3671,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                         room_purpose, improved_attributes);
                     const auto current_rank = PurposeRank(
                         room_purpose, current_attributes);
-                    if (improved_rank < current_rank ||
-                        (!spatial_needs_more_furniture &&
-                         improved_rank <= current_rank)) {
+                    if (improved_rank < current_rank) {
                         if (!item.placement->room_id.empty()) {
                             target_static_base.push_back(std::move(item));
                         }
@@ -3806,6 +3822,38 @@ FurnitureLayoutPlan PlanWholeHouse(
         }
         std::vector<PackState> packed_candidates;
         std::vector<PackState> current_required_seeds;
+        PackStateComparator better_packed_state = BetterFilledPackState;
+        if (balanced_attic) {
+            better_packed_state =
+                [&target_items,
+                 &current_attributes,
+                 &target_room_id,
+                 &furniture_effects](const auto& left, const auto& right) {
+                    return BetterBalancedAtticState(
+                        left,
+                        right,
+                        target_items,
+                        current_attributes,
+                        target_room_id,
+                        furniture_effects);
+                };
+        } else if (room_purpose) {
+            better_packed_state =
+                [&target_items,
+                 &current_attributes,
+                 &target_room_id,
+                 &furniture_effects,
+                 room_purpose](const auto& left, const auto& right) {
+                    return BetterPurposeState(
+                        left,
+                        right,
+                        target_items,
+                        current_attributes,
+                        target_room_id,
+                        furniture_effects,
+                        room_purpose);
+                };
+        }
         if (const auto current_required = CurrentRequiredPackState(
                 target_room,
                 target_items,
@@ -3820,11 +3868,12 @@ FurnitureLayoutPlan PlanWholeHouse(
                 packed_candidates.push_back(*current);
             }
         }
-        const auto anchor_chain_seeds = BuildAnchorChainSeeds(
+        auto anchor_chain_seeds = BuildAnchorChainSeeds(
             target_room,
             target_items,
             target_fixed_items,
             required);
+        std::ranges::sort(anchor_chain_seeds, better_packed_state);
         auto packing_orders = PackingOrders(target_items);
         if (balanced_attic) {
             std::vector<std::size_t> balanced_order(target_items.size());
@@ -3893,7 +3942,8 @@ FurnitureLayoutPlan PlanWholeHouse(
                 target_items,
                 target_fixed_items,
                 required,
-                order);
+                order,
+                better_packed_state);
             packed_candidates.insert(
                 packed_candidates.end(),
                 std::make_move_iterator(packed.begin()),
@@ -3905,6 +3955,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                     target_fixed_items,
                     required,
                     order,
+                    better_packed_state,
                     &current_required_seeds);
                 packed_candidates.insert(
                     packed_candidates.end(),
@@ -3918,6 +3969,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                     target_fixed_items,
                     required,
                     order,
+                    better_packed_state,
                     &anchor_chain_seeds);
                 packed_candidates.insert(
                     packed_candidates.end(),
@@ -3925,41 +3977,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                     std::make_move_iterator(anchored.end()));
             }
         }
-        if (balanced_attic) {
-            std::ranges::sort(
-                packed_candidates,
-                [&target_items,
-                 &current_attributes,
-                 &target_room_id,
-                 &furniture_effects](const auto& left, const auto& right) {
-                    return BetterBalancedAtticState(
-                        left,
-                        right,
-                        target_items,
-                        current_attributes,
-                        target_room_id,
-                        furniture_effects);
-                });
-        } else if (room_purpose) {
-            std::ranges::sort(
-                packed_candidates,
-                [&target_items,
-                 &current_attributes,
-                 &target_room_id,
-                 &furniture_effects,
-                 room_purpose](const auto& left, const auto& right) {
-                    return BetterPurposeState(
-                        left,
-                        right,
-                        target_items,
-                        current_attributes,
-                        target_room_id,
-                        furniture_effects,
-                        room_purpose);
-                });
-        } else {
-            std::ranges::sort(packed_candidates, BetterFilledPackState);
-        }
+        std::ranges::sort(packed_candidates, better_packed_state);
         const auto unique_end = std::ranges::unique(
             packed_candidates, {}, &PackState::candidate_by_item);
         packed_candidates.erase(unique_end.begin(), unique_end.end());

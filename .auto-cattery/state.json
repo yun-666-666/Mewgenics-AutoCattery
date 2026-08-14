@@ -261,11 +261,11 @@
       "game_validation_status": "public_107_percent_save_replaced_former_8cat_slot_with_single_backup_integrity_and_hash_verified;debug_and_release_4_of_4_ctest_passed;release_deployed_hash_ED747FD65C939137382136BB57839A62BDEFC0798A2A0E3381D3B4ADCE6C53D1;player_F7_reports_20260811_183525_and_183547_accepted;scene_furniture_complete_111_to_112_key474_and_112_to_113_key467;current_save_integrity_ok;automatic_warehouse_take_place_not_implemented"
     },
     "45": {
-      "status": "v0_5_56_fixed_room_sequence_final_only_layout_release_deployed_player_validation_pending",
+      "status": "v0_5_57_purpose_first_capacity_efficient_furnishing_release_deployed_player_validation_pending",
       "commit": null,
-      "capability": "FixedVisibleRoomSequenceLockedCandidatePoolFinalOnlyPurposeAwareCompactFurnitureLayouts",
-      "game_validation_status": "v0.5.55_0223_session_7_clicks_147_moves_22_keys_6_AC3926;v0.5.55_1249_session_8_clicks_172_moves_12_keys_7_AC3926_and_attic_repetition;fixed_order_Attic_Floor2Large_Floor1Large_Floor1Small_Floor2Small;completed_room_live_binding_excluded_from_later_candidates;temporary_staging_removed_and_plan_keys_unique;one_successful_layout_locks_exactly_one_room_and_stops_button;release_incremental_build_passed;release_ctest_4_of_4_passed;v0.5.56_release_deployed;player_room_sequence_button_reset_and_save_reload_validation_pending"
+      "capability": "PlayerAcceptedRoomProgressionWithPurposeRankedBeamSearchSkipBranchCapacityEfficientFurnitureSelection",
+      "game_validation_status": "v0.5.56_player_result_157_of_187_placed_30_warehouse_five_rooms_locked_and_first_four_visually_filled;player_accepted_speed_and_requested_room_order_unchanged;attic_and_left_rooms_show_large_low_efficiency_furniture_and_suboptimal_purpose_attributes;purpose_rank_now_applied_during_beam_pruning;optional_item_skip_branch_preserved;equal_rank_equal_count_prefers_fewer_blocking_cells;equal_purpose_rank_warehouse_items_remain_eligible_after_old_15_percent_floor;release_unit_tests_passed;release_ctest_4_of_4_passed;v0.5.57_release_deployed;player_attribute_capacity_layout_and_save_reload_validation_pending"
     }
   },
-  "updated_at": "2026-08-14T13:54:00+08:00"
+  "updated_at": "2026-08-14T14:51:43+08:00"
 }

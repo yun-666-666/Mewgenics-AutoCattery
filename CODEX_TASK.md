@@ -1,5 +1,24 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.57 purpose-first capacity-efficient room furnishing
+
+- Preserve the player-accepted v0.5.56 room progression exactly; this
+  increment changes furniture choice and packing quality only.
+- Purpose-aware room attributes must participate in beam-search pruning, not
+  only in the final candidate sort. Geometry-heavy intermediate states must
+  not discard compact combinations with a better final purpose rank.
+- Optional furniture always retains a skip branch so one large item with many
+  legal origins cannot consume the whole branch budget before later smaller
+  items are evaluated.
+- Once purpose rank and furniture count are equal, prefer fewer blocking cells
+  before compact bounds. Do not reward large neutral furniture merely for
+  occupying more floor or wall capacity.
+- Furniture that preserves the current purpose rank remains eligible even
+  after the old spatial coverage floor is met. Fill remaining legal capacity
+  with compact items without sacrificing the room's purpose attributes.
+- Longer analysis is acceptable. Release tests and the Release DLL build must
+  pass before DLL/data-only deployment. Do not launch or control the game.
+
 ## v0.5.56 fixed room sequence and final-only room layouts
 
 - Each Analyze + Auto Place cycle completes at most one room, then stops with

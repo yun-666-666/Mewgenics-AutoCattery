@@ -1164,11 +1164,87 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         purpose_effects,
         fight_purpose);
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         neutral_only_batch.moves,
         [](const auto& move) {
-            return furniture_planning::IsWarehouseLayoutMove(move);
+            return move.stable_key == 822U &&
+                furniture_planning::IsWarehouseLayoutMove(move);
         }));
+
+    snapshot::detail::HouseGeometryCatalog efficient_purpose_geometry;
+    efficient_purpose_geometry.rooms = {
+        {.definition_id = "LockedAtticEfficient",
+         .room_id = "Attic", .width = 1, .height = 1},
+        {.definition_id = "EfficientPurpose",
+         .room_id = "Floor1_Small", .width = 2, .height = 1}};
+    auto efficient_purpose_info = purpose_info;
+    efficient_purpose_info.records.push_back(
+        WidePosterInfo("wide-neutral"));
+    efficient_purpose_info.records.push_back(
+        PosterInfo("compact-neutral"));
+    const std::vector<snapshot::detail::FurniturePlacement>
+        efficient_purpose_furniture{
+            Placement(823, "wide-neutral", "", 0, 0),
+            Placement(824, "compact-neutral", "", 0, 0)};
+    const auto efficient_purpose_batch = solver.Plan(
+        efficient_purpose_furniture,
+        efficient_purpose_geometry,
+        efficient_purpose_info,
+        {{"Attic", 1, 1, {0U}, {0U}},
+         {"Floor1_Small", 2, 1, {0U, 0U}, {0U, 0U}}},
+        {"Attic"},
+        purpose_effects,
+        fight_purpose);
+    AC_CHECK(efficient_purpose_batch.target_room_id == "Floor1_Small");
+    AC_CHECK(!efficient_purpose_batch.moves.empty());
+    AC_CHECK(std::ranges::any_of(
+        efficient_purpose_batch.moves,
+        [](const auto& move) {
+            return move.stable_key == 824U &&
+                furniture_planning::IsWarehouseLayoutMove(move);
+        }));
+    AC_CHECK(std::ranges::none_of(
+        efficient_purpose_batch.moves,
+        [](const auto& move) {
+            return move.stable_key == 823U;
+        }));
+
+    const std::vector<snapshot::detail::FurniturePlacement>
+        combined_purpose_furniture{
+            Placement(825, "wide-neutral", "", 0, 0),
+            Placement(826, "compact-neutral", "", 0, 0),
+            Placement(827, "compact-neutral", "", 0, 0)};
+    const snapshot::detail::FurnitureCatalog combined_purpose_effects{
+        {"wide-neutral", snapshot::RoomAttributes{
+            .comfort = 8, .stimulation = 8}},
+        {"compact-neutral", snapshot::RoomAttributes{
+            .comfort = 5, .stimulation = 5}}};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        combined_breeding_purpose{{
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::Breeding,
+            .expected_resident_count = 2}};
+    const auto combined_purpose_batch = solver.Plan(
+        combined_purpose_furniture,
+        efficient_purpose_geometry,
+        efficient_purpose_info,
+        {{"Attic", 1, 1, {0U}, {0U}},
+         {"Floor1_Small", 2, 1, {0U, 0U}, {0U, 0U}}},
+        {"Attic"},
+        combined_purpose_effects,
+        combined_breeding_purpose);
+    AC_CHECK(std::ranges::none_of(
+        combined_purpose_batch.moves,
+        [](const auto& move) {
+            return move.stable_key == 825U;
+        }));
+    AC_CHECK(std::ranges::count_if(
+        combined_purpose_batch.moves,
+        [](const auto& move) {
+            return (move.stable_key == 826U ||
+                    move.stable_key == 827U) &&
+                furniture_planning::IsWarehouseLayoutMove(move);
+        }) == 2);
 
     const std::vector<snapshot::detail::FurniturePlacement>
         satisfied_breeding_fill{
