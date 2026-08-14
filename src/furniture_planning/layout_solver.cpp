@@ -27,9 +27,7 @@ constexpr std::size_t kPackingBeamWidth = 16;
 constexpr std::size_t kCandidateBranchesPerState = 4;
 constexpr std::size_t kWholeHousePackingBeamWidth = 128;
 constexpr std::size_t kWholeHouseCandidateBranchesPerState = 12;
-constexpr std::size_t kIncomingCandidatesPerRoom = 24;
-constexpr std::size_t kAttributePriorityIncomingPerRoom = 8;
-constexpr std::size_t kGeneralAttributeIncomingPerRoom = 4;
+constexpr std::size_t kIncomingCandidatesPerRoom = 192;
 constexpr std::size_t kAnchorChainSeedLimit = 32;
 constexpr std::size_t kAnchorChainVisitLimit = 100000;
 // GenerateCandidates emits at most one origin candidate per room cell for the
@@ -1346,6 +1344,10 @@ std::vector<std::vector<std::size_t>> PackingOrders(
     for (std::size_t index = 0; index < items.size(); ++index) {
         base[index] = index;
     }
+    // target_items is already ordered by the room objective. Preserve that
+    // order as the first beam-search pass so attribute quality is not lost to
+    // a geometry-only reorder before compactness is compared.
+    orders.push_back(base);
     const auto add = [&](auto comparator) {
         auto order = base;
         std::ranges::sort(order, comparator);
@@ -2298,7 +2300,6 @@ bool RoomAnchored(
 
 ExecutionPlanResult AppendWholeHouseExecutionMoves(
     const std::map<snapshot::RoomId, RoomCollisionGrid>& rooms,
-    const std::set<snapshot::RoomId>& staging_forbidden_rooms,
     const snapshot::RoomId& target_room_id,
     const std::vector<LayoutItem>& items,
     const std::vector<LayoutItem>& static_items,
@@ -2503,83 +2504,12 @@ ExecutionPlanResult AppendWholeHouseExecutionMoves(
                 progressed = true;
                 break;
             }
-            struct StagingCandidate {
-                snapshot::RoomId room_id;
-                std::vector<MappedCell> cells;
-                std::tuple<bool, std::int64_t, snapshot::RoomId> score;
-            };
-            std::optional<StagingCandidate> staging;
-            for (const auto& [buffer_room_id, buffer_room] : rooms) {
-                if (staging_forbidden_rooms.contains(buffer_room_id)) {
-                    continue;
-                }
-                auto buffer_occupancy = buffer_room_id == from_room
-                    ? source_without
-                    : occupancies.at(buffer_room_id);
-                const auto candidates = GenerateCandidates(
-                    buffer_room, items[index]);
-                for (const auto& candidate : candidates) {
-                    const auto origin = OriginOf(items[index], candidate);
-                    if ((buffer_room_id == target_room_id && origin == final) ||
-                        (buffer_room_id == from_room && origin == from) ||
-                        !RoomAnchored(buffer_room, candidate) ||
-                        (buffer_room_id == target_room_id &&
-                         !CandidateAvoidsFinalTargets(
-                             target_room, index, candidate, final_cells)) ||
-                        !CanPlace(
-                            buffer_room, buffer_occupancy, candidate)) {
-                        continue;
-                    }
-                    std::int64_t coordinate_score{};
-                    for (const auto& cell : candidate) {
-                        coordinate_score +=
-                            static_cast<std::int64_t>(cell.x) + cell.y;
-                    }
-                    StagingCandidate next{
-                        buffer_room_id,
-                        candidate,
-                        {buffer_room_id != target_room_id,
-                         coordinate_score,
-                         buffer_room_id}};
-                    if (!staging || next.score < staging->score) {
-                        staging = std::move(next);
-                    }
-                }
-            }
-            if (!staging) {
-                continue;
-            }
-            const auto& candidate = staging->cells;
-            const auto target = OriginOf(items[index], candidate);
-            moves.push_back({
-                static_cast<std::uint64_t>(
-                    items[index].placement->instance_id),
-                items[index].placement->item_id,
-                from_room,
-                staging->room_id,
-                from.first,
-                from.second,
-                target.first,
-                target.second});
-            occupancies.at(from_room) = std::move(source_without);
-            auto staged_occupancy = staging->room_id == from_room
-                ? occupancies.at(from_room)
-                : occupancies.at(staging->room_id);
-            Place(
-                rooms.at(staging->room_id),
-                items[index].placement->instance_id,
-                candidate,
-                staged_occupancy);
-            occupancies.at(staging->room_id) =
-                std::move(staged_occupancy);
-            current_rooms[index] = staging->room_id;
-            current_cells[index] = candidate;
-            current_origins[index] = target;
-            pending[index] = true;
-            evacuated[index] = true;
-            moved[index] = true;
-            progressed = true;
-            break;
+            // A room plan is accepted only when every already-placed item can
+            // move directly to its final coordinate. Temporary staging made
+            // the same furniture move two or three times and exposed an
+            // intermediate layout that was later undone. Let the caller try
+            // the next final packing candidate instead.
+            continue;
         }
         if (!progressed) {
             return ExecutionPlanResult::EvacuationBlocked;
@@ -3192,7 +3122,6 @@ std::optional<LocalRoomImprovement> FindLocalRoomImprovement(
         }
         const auto execution = AppendWholeHouseExecutionMoves(
             rooms,
-            unsafe_rooms,
             target_room_id,
             items,
             static_items,
@@ -3651,8 +3580,7 @@ FurnitureLayoutPlan PlanWholeHouse(
     }
     std::ranges::sort(
         target_rooms,
-        [&rooms, &room_purposes,
-         &preferred_focus_room_id](const auto& left, const auto& right) {
+        [&preferred_focus_room_id](const auto& left, const auto& right) {
             const bool left_focus = !preferred_focus_room_id.empty() &&
                 left == preferred_focus_room_id;
             const bool right_focus = !preferred_focus_room_id.empty() &&
@@ -3660,22 +3588,10 @@ FurnitureLayoutPlan PlanWholeHouse(
             if (left_focus != right_focus) {
                 return left_focus;
             }
-            const auto left_priority = PurposePriority(
-                FindPurpose(room_purposes, left));
-            const auto right_priority = PurposePriority(
-                FindPurpose(room_purposes, right));
+            const auto left_priority = FurnitureRoomPlacementOrder(left);
+            const auto right_priority = FurnitureRoomPlacementOrder(right);
             if (left_priority != right_priority) {
                 return left_priority < right_priority;
-            }
-            const auto& left_room = rooms.at(left);
-            const auto& right_room = rooms.at(right);
-            const auto left_area = left_room.width * left_room.height;
-            const auto right_area = right_room.width * right_room.height;
-            if (left_area != right_area) {
-                return left_area > right_area;
-            }
-            if ((left == "Attic") != (right == "Attic")) {
-                return left == "Attic";
             }
             return left < right;
         });
@@ -3692,37 +3608,26 @@ FurnitureLayoutPlan PlanWholeHouse(
         bool room_evacuation_blocked{};
         bool room_installation_blocked{};
         bool room_tabu_blocked{};
-        const auto tabu_count_before_room = plan.tabu_filtered_move_count;
         const auto& target_room = rooms.at(target_room_id);
         const auto current_attributes = CurrentRoomAttributes(
             target_room_id, furniture, furniture_effects);
         const auto* room_purpose = FindPurpose(
             room_purposes, target_room_id);
-        const bool purpose_needs_more_furniture =
-            PurposeNeedsMoreFurniture(room_purpose, current_attributes);
         const bool spatial_needs_more_furniture =
             RoomNeedsMoreSpatialFurnishing(
                 target_room_id,
                 target_room,
                 eligible_items,
                 fixed_items);
-        const bool room_needs_more_furniture =
-            purpose_needs_more_furniture || spatial_needs_more_furniture;
         const bool balanced_attic = room_purpose == nullptr &&
             target_room_id == "Attic" && !furniture_effects.empty();
         std::vector<LayoutItem> target_items;
         std::vector<LayoutItem> incoming_items;
-        std::vector<LayoutItem> full_warehouse_items;
         std::vector<LayoutItem> target_static_base = fixed_items;
         std::size_t target_unplaceable_movable_count{};
         std::size_t target_omitted_incoming_count{};
         target_items.reserve(eligible_items.size());
         incoming_items.reserve(eligible_items.size());
-        const bool warehouse_available = std::ranges::any_of(
-            eligible_items,
-            [](const auto& item) {
-                return item.placement->room_id.empty();
-            });
         for (const auto& source_item : eligible_items) {
             if (locked_rooms.contains(source_item.placement->room_id)) {
                 target_static_base.push_back(source_item);
@@ -3737,13 +3642,6 @@ FurnitureLayoutPlan PlanWholeHouse(
                 target_items.push_back(std::move(item));
             } else {
                 if (room_purpose) {
-                    if (!room_needs_more_furniture) {
-                        if (!item.placement->room_id.empty()) {
-                            target_static_base.push_back(std::move(item));
-                        }
-                        ++target_omitted_incoming_count;
-                        continue;
-                    }
                     auto improved_attributes = current_attributes;
                     const auto effect = furniture_effects.find(
                         item.placement->item_id);
@@ -3764,15 +3662,6 @@ FurnitureLayoutPlan PlanWholeHouse(
                         ++target_omitted_incoming_count;
                         continue;
                     }
-                }
-                if (item.placement->room_id.empty()) {
-                    full_warehouse_items.push_back(item);
-                }
-                if (!balanced_attic && warehouse_available &&
-                    !item.placement->room_id.empty()) {
-                    target_static_base.push_back(std::move(item));
-                    ++target_omitted_incoming_count;
-                    continue;
                 }
                 incoming_items.push_back(std::move(item));
             }
@@ -3871,36 +3760,6 @@ FurnitureLayoutPlan PlanWholeHouse(
                            right.candidates.size(),
                      right.placement->instance_id};
             });
-        if (!furniture_effects.empty()) {
-            auto attribute_end = std::stable_partition(
-                incoming_items.begin(),
-                incoming_items.end(),
-                [&furniture_effects](const auto& item) {
-                    const auto effect = furniture_effects.find(
-                        item.placement->item_id);
-                    if (effect == furniture_effects.end()) {
-                        return false;
-                    }
-                    return effect->second.comfort != 0.0 ||
-                        effect->second.stimulation != 0.0 ||
-                        effect->second.health != 0.0 ||
-                        effect->second.mutation != 0.0 ||
-                        effect->second.appeal != 0.0;
-                });
-            const auto attribute_count = static_cast<std::size_t>(
-                std::distance(incoming_items.begin(), attribute_end));
-            const auto attribute_limit = balanced_attic
-                ? kAttributePriorityIncomingPerRoom
-                : kGeneralAttributeIncomingPerRoom;
-            if (attribute_count > attribute_limit) {
-                incoming_items.erase(
-                    incoming_items.begin() +
-                        static_cast<std::ptrdiff_t>(attribute_limit),
-                    attribute_end);
-                target_omitted_incoming_count +=
-                    attribute_count - attribute_limit;
-            }
-        }
         if (incoming_items.size() > kIncomingCandidatesPerRoom) {
             target_omitted_incoming_count +=
                 incoming_items.size() - kIncomingCandidatesPerRoom;
@@ -3945,82 +3804,6 @@ FurnitureLayoutPlan PlanWholeHouse(
             required[index] =
                 target_items[index].placement->room_id == target_room_id;
         }
-        const auto first_incoming = std::ranges::find(
-            required, false);
-        const auto required_count = first_incoming == required.end()
-            ? required.size()
-            : static_cast<std::size_t>(
-                std::distance(required.begin(), first_incoming));
-
-        // Ordinary rooms must keep consuming safe warehouse furniture while
-        // space remains.  A single local relocation is progress, not proof
-        // that the room is finished.
-        if (!balanced_attic) {
-            const auto warehouse_fill = FindLocalWarehouseFill(
-                rooms,
-                unsafe_rooms,
-                target_room_id,
-                furniture,
-                info_by_item,
-                target_items,
-                full_warehouse_items,
-                target_static_base,
-                required_count,
-                current_attributes,
-                furniture_effects,
-                room_purpose,
-                plan.kept_furniture_count,
-                forbidden_moves,
-                plan.tabu_filtered_move_count);
-            if (warehouse_fill) {
-                plan.kept_furniture_count = warehouse_fill->kept_count;
-                plan.deferred_furniture_count =
-                    target_unplaceable_movable_count +
-                    target_omitted_incoming_count +
-                    target_items.size() - warehouse_fill->selected_count;
-                plan.moves = warehouse_fill->moves;
-                plan.target_room_id = target_room_id;
-                plan.planned_room_count = 1U;
-                return plan;
-            }
-            room_tabu_blocked =
-                plan.tabu_filtered_move_count > tabu_count_before_room;
-        }
-
-        // Every room is current-layout-first. A bounded one-item relocation
-        // can safely make progress in rooms whose full repack is blocked by a
-        // support chain. Broad repacking remains a fallback.
-        if (balanced_attic || target_room_id != "Attic") {
-            const auto local = FindLocalRoomImprovement(
-                rooms,
-                unsafe_rooms,
-                target_room_id,
-                furniture,
-                info_by_item,
-                target_items,
-                target_static_base,
-                required_count,
-                current_attributes,
-                furniture_effects,
-                plan.kept_furniture_count,
-                balanced_attic,
-                forbidden_moves,
-                plan.tabu_filtered_move_count);
-            if (local) {
-                plan.kept_furniture_count = local->kept_count;
-                plan.deferred_furniture_count =
-                    target_unplaceable_movable_count +
-                    target_omitted_incoming_count +
-                    target_items.size() - local->selected_count;
-                plan.moves = local->moves;
-                plan.target_room_id = target_room_id;
-                plan.planned_room_count = 1U;
-                return plan;
-            }
-            room_tabu_blocked = room_tabu_blocked ||
-                plan.tabu_filtered_move_count > tabu_count_before_room;
-        }
-
         std::vector<PackState> packed_candidates;
         std::vector<PackState> current_required_seeds;
         if (const auto current_required = CurrentRequiredPackState(
@@ -4214,7 +3997,6 @@ FurnitureLayoutPlan PlanWholeHouse(
             auto kept = base_kept;
             const auto execution = AppendWholeHouseExecutionMoves(
                 rooms,
-                unsafe_rooms,
                 target_room_id,
                 selected_items,
                 static_items,
@@ -4291,6 +4073,20 @@ FurnitureLayoutPlan PlanWholeHouse(
 }
 
 }  // namespace
+
+std::size_t FurnitureRoomPlacementOrder(
+    std::string_view room_id) noexcept {
+    // Player-visible clockwise path through the current generic house:
+    // attic -> upper-left -> lower-left -> lower-right -> upper-right.
+    // Missing rooms are simply skipped, so the same order covers four- and
+    // five-room saves without depending on one save's furniture contents.
+    if (room_id == "Attic") return 0U;
+    if (room_id == "Floor2_Large") return 1U;
+    if (room_id == "Floor1_Large") return 2U;
+    if (room_id == "Floor1_Small") return 3U;
+    if (room_id == "Floor2_Small") return 4U;
+    return 100U;
+}
 
 bool IsWarehouseLayoutMove(const FurnitureLayoutMove& move) noexcept {
     return move.from_room_id.empty();

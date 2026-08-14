@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
@@ -72,6 +73,9 @@ struct FurnitureLayoutPlan {
 
 [[nodiscard]] bool IsWarehouseLayoutMove(
     const FurnitureLayoutMove& move) noexcept;
+
+[[nodiscard]] std::size_t FurnitureRoomPlacementOrder(
+    std::string_view room_id) noexcept;
 
 [[nodiscard]] bool IsImmediateReverseLayoutMove(
     const FurnitureLayoutMove& previous,

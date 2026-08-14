@@ -220,7 +220,8 @@ void RunFurnitureAnalysisServiceTests() {
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_count == 1);
     AC_CHECK(upgrade_result.value.runtime_warehouse_piece_match_count == 1);
     AC_CHECK(upgrade_result.value.layout_plan.moves.empty());
-    AC_CHECK(upgrade_result.value.layout_plan.planned_room_count == 0);
+    AC_CHECK(upgrade_result.value.layout_plan.planned_room_count == 1);
+    AC_CHECK(upgrade_result.value.layout_plan.target_room_id == "RoomA");
     AC_CHECK(std::ranges::none_of(
         upgrade_result.value.layout_plan.moves,
         [&upgrade_result](const auto& move) {
@@ -424,7 +425,7 @@ void RunFurnitureAnalysisServiceTests() {
             -10.0);
     }
     const auto mutation_result = purpose_service.Analyze(
-        97, {}, {31U}, true, purposes);
+        97, {}, {31U}, true, purposes, {}, "MutationRoom");
     AC_CHECK(static_cast<bool>(mutation_result));
     AC_CHECK(mutation_result.value.attribute_upgrades.size() == 1);
     if (mutation_result.value.attribute_upgrades.size() == 1) {

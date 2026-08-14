@@ -1,7 +1,63 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-14
-版本：v0.5.55
+版本：v0.5.56
+
+## v0.5.56 固定逐房顺序与一次最终布局
+
+- 检查了玩家要求的今天两次 v0.5.55 实机会话。凌晨 `02:23` 会话共点击自动放置
+  `7` 次、提交 `147` 笔移动，但只涉及 `22` 个 stable key，并触发 `6` 次
+  `AC3926`；刚才 `12:49` 会话点击 `8` 次、提交 `172` 笔移动，却只涉及 `12` 个
+  stable key，并触发 `7` 次 `AC3926`。后者的规划目标只在 `Floor1_Large` 和
+  `Attic` 间出现，最后连续多批仍只重排 Attic。两次会话都没有到达 `AC3922` 或
+  `AC3929`，与玩家看到房间不推进、按钮停在“正在放置…”一致。
+- 日志中的具体闭环并非偶发原生拒绝：例如刚才同一批 Attic 家具 key 58、153、166、
+  226、238、370、375、413、433、446、453、462 在多套密封方案中反复交换坐标；
+  `AC3904` 每批都成功，随后重新分析又生成另一套重排。根因是求解器仍优先返回单件
+  局部改善/仓库填充，宽规划又允许临时 staging；UI 则用 32 笔检查点中断同一次点击。
+- 房间选择改为固定可见顺序：`Attic -> Floor2_Large -> Floor1_Large ->
+  Floor1_Small -> Floor2_Small`，对应阁楼、阁楼左下、左下角、右下角、阁楼右下。
+  四房或缺房存档只跳过不存在的 ID，不读取或编码本存档家具数量、key 或属性值。
+- 当前目标房的候选范围是仓库加所有尚未锁定房间；完成房间继续使用实时家具签名锁，
+  因此阁楼完成后其家具不会再被第二房拿走，后续房间按相同规则逐层缩小候选池。
+  属性替换也只允许发生在当前固定目标房，保留 v0.5.49 每次家具模式最多一次替换的
+  原生对象生命周期门。
+- 求解器不再把单件仓库填充或单件局部重排当作本房最终答案，而是直接比较宽布局候选。
+  候选上限覆盖当前 188 件规模，先保留按房间用途排好的属性顺序，再以装入数量、占格
+  和包围盒紧凑度决胜。用途已达动态目标时，严格提升用途综合排名的家具仍可进入候选；
+  明显空房继续接受不降低用途排名的家具。
+- 执行计划删除临时 staging 分支。任何已摆家具若不能从当前位置直接移动到最终坐标，
+  该最终候选会在分析阶段被拒绝并尝试下一个候选；已接受计划内同一 stable key 最多
+  出现一次，不再先堆到一处、再拆开、最终回到近似原布局。
+- 一次自动放置在完整布局成功后立即把目标房写入完成锁并停止，等待玩家对下一个房间
+  再次“开始分析 + 自动放置”。删除 32 笔 `AC3926` 检查点，但保留每笔 250 ms、
+  UI tick 串行执行、原生拒绝时逆序回滚以及 state-edge 容量上限。清理预览后再显式把
+  按钮设为“放置已完成”，避免退出路径遗留“正在放置…”。
+- 自动化回归新增/更新：固定五房排序；阁楼可从普通房取家具；阁楼锁定后其 key 不再
+  出现在下一房计划；宽布局含仓库家具；同一计划 stable key 唯一；属性替换绑定当前
+  目标房；用途已满足时仍选择严格提升综合用途属性的仓库家具。
+- Release 增量编译已生成 `build\out\Release\AutoCattery.dll`，大小 `1924608`
+  字节，生成时间 `2026-08-14 13:35:52`。原全构建外层进程在编译后异常退出，遗留的
+  10 个 `MSBuild /nodemode:1 /nodeReuse:true` 进程均已确认父进程消失且不再执行；
+  没有重复启动整套构建，而是从未完成边界执行
+  `cmake --build build --config Release --target RUN_TESTS`。4 项 CTest 全部通过，
+  `0` 项失败，退出码 `0`，`LastTest.log` 更新时间为 `2026-08-14 13:52:51`。
+- 已补齐 `dist\Release` 数据文件，验证 DLL 包含 `AutoCattery_Initialize`、
+  `AutoCattery_Shutdown` 导出且为 x64；随后执行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release`，非递归 Mewjector DLL 与 Mewtator AutoCattery data MOD
+  部署成功，已安装 `description.json` 显示 `0.5.56`。按玩家要求未运行哈希或
+  `verify_install.ps1`，未启动、进入或控制游戏。
+- 本轮修改文件：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `include/auto_cattery/furniture_planning/layout_solver.hpp`、
+  `src/furniture_analysis/service.cpp`、`src/furniture_planning/layout_solver.cpp`、
+  `src/ui/mew_ui_bridge.cpp`、`tests/furniture_analysis_service_tests.cpp`、
+  `tests/furniture_layout_solver_tests.cpp`、本报告及 `.auto-cattery/state.json`。
+  本地提交：见包含本报告的 Stage 45 任务提交；是否 push：否。
+- 玩家复测仍是完成门：五房应按固定顺序五轮完成，四房应四轮完成；每轮只锁定一个
+  房间，后续房间不得取走已锁房家具，按钮必须回到“放置已完成”，并确认同一批
+  stable key 不再在房间内反复搬动。保存、完全退出并重进后的最终布局仍待玩家验证；
+  构建与 CTest 不替代这些游戏内结果。
 
 ## v0.5.55 完整密封计划、状态域 tabu 与空间陈设底线
 

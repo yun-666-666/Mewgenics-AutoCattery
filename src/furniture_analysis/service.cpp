@@ -407,6 +407,29 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
         locked_room_ids.begin(), locked_room_ids.end());
     const std::unordered_set<std::uint64_t> blocked_warehouse(
         blocked_warehouse_keys.begin(), blocked_warehouse_keys.end());
+    snapshot::RoomId active_room_id;
+    if (!preferred_focus_room_id.empty() &&
+        identified.contains(preferred_focus_room_id) &&
+        !locked_rooms.contains(preferred_focus_room_id)) {
+        active_room_id = preferred_focus_room_id;
+    } else {
+        for (const auto& [room_id, room] : identified) {
+            (void)room;
+            if (locked_rooms.contains(room_id)) {
+                continue;
+            }
+            if (active_room_id.empty() ||
+                std::tuple{
+                    furniture_planning::FurnitureRoomPlacementOrder(room_id),
+                    room_id} <
+                std::tuple{
+                    furniture_planning::FurnitureRoomPlacementOrder(
+                        active_room_id),
+                    active_room_id}) {
+                active_room_id = room_id;
+            }
+        }
+    }
     if (allow_attribute_upgrades) {
         for (const auto& warehouse : source.furniture) {
             if (!warehouse.room_id.empty() || warehouse.instance_id <= 0) {
@@ -423,6 +446,10 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             }
             for (const auto& placed : source.furniture) {
                 if (placed.room_id.empty() || placed.instance_id <= 0) {
+                    continue;
+                }
+                if (!active_room_id.empty() &&
+                    placed.room_id != active_room_id) {
                     continue;
                 }
                 if (locked_rooms.contains(placed.room_id)) {
@@ -661,7 +688,10 @@ Result<FurnitureAnalysisSnapshot> FurnitureAnalysisService::Analyze(
             source.furniture_effects,
             room_purposes,
             forbidden_layout_moves,
-            preferred_focus_room_id);
+            active_room_id);
+    } else {
+        result.layout_plan.target_room_id = active_room_id;
+        result.layout_plan.planned_room_count = active_room_id.empty() ? 0U : 1U;
     }
     return {std::move(result)};
 }

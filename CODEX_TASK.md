@@ -1,5 +1,30 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.56 fixed room sequence and final-only room layouts
+
+- Each Analyze + Auto Place cycle completes at most one room, then stops with
+  the button out of its running state. A five-room house therefore advances in
+  five player cycles; a four-room house advances in four.
+- The generic room sequence is the player-visible path Attic, upper-left,
+  lower-left, lower-right, upper-right. In current room IDs this is `Attic`,
+  `Floor2_Large`, `Floor1_Large`, `Floor1_Small`, `Floor2_Small`; missing rooms
+  are skipped.
+- The current target may select from the warehouse and every later unlocked
+  room. After the target is committed, its exact live furniture binding is
+  locked and none of its furniture can be selected by a later room.
+- Planning evaluates the broad room solution directly, preserves purpose-aware
+  attribute ordering before compactness tie breaks, and no longer returns the
+  one-item warehouse/local-improvement paths as the final answer.
+- A plan is executable only when every already-placed furniture item can move
+  directly to its final coordinate. Temporary staging and repeated moves of the
+  same stable key are rejected during planning instead of being shown to the
+  player and then undone.
+- The 32-transaction click checkpoint is removed. Native operations still run
+  one per UI tick with the existing 250 ms settle delay and rollback boundary;
+  long analysis and long single-room execution are acceptable for this stage.
+- Release unit tests and the Release DLL build must pass before DLL/data-only
+  deployment. Do not launch or control the game.
+
 ## v0.5.55 sealed plans, spatial furnishing, and honest termination
 
 - Execute the complete sealed, Support-validated layout plan instead of
