@@ -1,7 +1,62 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-15
-版本：v0.5.61
+版本：v0.5.62
+
+## v0.5.62 高属性选材、超时房间解锁与 F10 目标即时失效
+
+- 玩家 v0.5.61 实机最终保存共 `182` 件家具，房间内 `162` 件、家具栏 `20` 件；
+  五房分别为 Attic `52`、Floor1_Large `23`、Floor1_Small `30`、
+  Floor2_Large `27`、Floor2_Small `30`。相比旧版填充量已有明显提升，但截图仍显示
+  超大低属性柜子、低属性画像占用大量空间，右下房间仍有明显空位；因此 v0.5.61
+  只证明“多放了”，没有达到“最大填满并优先高属性家具”的玩家验收门。
+- 最新资源与运行时诊断确认这不是纯视觉误差：例如
+  `set_elegant_dresser2` 阻挡 `25` 格且 Comfort、Stimulation、Health、Mutation 全为
+  `0`；两类 `wallmounted_picture_*` 各阻挡 `12` 格而只有 `1` 点 Comfort。修复不按
+  家具名称、柜子或画像类别硬过滤，而是统一修正用途收益和占格比较，让大件只有在提供
+  更高房间用途属性、合法支撑链或更多家具总数时才能胜出。
+- 用途排名旧语义会惩罚超过 F10 最低值的正向属性。例如恢复房 Health `14` 会输给
+  Health `8`，属性已经达标后高属性家具反而可能排在“刚好达标”家具之后。现在保留
+  硬约束满足数量与 deficit 优先，再按方向性用途收益排序：普通最低值越高越好；战斗房
+  Comfort、Stimulation 仍是上限且越低越好。最大合法家具件数仍先于软属性决胜，件数
+  与用途都相同时继续优先阻挡格更少的家具。
+- 实机日志中多个房间的首批规划带 `packing_deadline=1`，之后却仍被逐步加入
+  `persistent_locked_rooms`；最终五房全锁后连续分析均为 `rooms=0 moves=0`，因此
+  右下房虽有空位也不会再进入求解。求解器现在记录每个房间自己的 bounded deadline；
+  deadline 房间即使最佳结果恰好是当前布局，也不得写入 `exhausted_room_ids`。无动作且
+  deadline 的结果由 UI 记录为 `AC3929` blocker，不再误报 `AC3922 safe fixpoint`。
+- F10 最低值在本次实机自动放置完成后才被修改，但 `ApplyRuntimeConfig()` 只替换配置，
+  没有清除旧规则下的五个完成锁，因此后续四次分析仍为 `persistent_locked_rooms=5`。
+  现在只要家具摆放配置发生变化，就停止旧自动执行预览并清除完成锁、房间签名、焦点、
+  缓存用途、tabu move 和 attempted state edge；日志记录 `AC3930`，下一次玩家请求分析
+  必须在新 whole-room 目标下重新评估所有房间。其他非家具设置变化不会误清家具会话。
+- 回归测试更新了属性替换与布局选择语义：同样满足零最低值且只能选一件时，选择高属性
+  紧凑家具而不是宽零属性家具；恢复房 Health `14` 必须优于 Health `8`；更强仓库家具
+  不再因超过最低值而输给较弱家具；被 quarantine 的 stable key 仍回退到下一安全候选；
+  bounded live reanalysis 只有未超时时才能标记 exhausted，超时时明确保持未锁定。
+- 修复一次编译期边界：家具配置绑定实现清除房间签名 vector 时需要完整的
+  `RuntimeFurnitureRoomSignature` 定义，已引入现有 `runtime_house_state.hpp`，未改变
+  运行时结构或原生写入路线。最终 Debug `auto_cattery_tests.exe` 退出码 `0`。
+- Release 全构建成功，生成 `build\out\Release\AutoCattery.dll`，大小 `1995264`
+  字节，时间 `2026-08-15 02:20:23`；Release
+  `phase14_unit_tests`、`phase14_dll_load_smoke`、`phase14_restore_cli_smoke`、
+  `phase14_save_lab_cli_smoke` 共 `4/4` 通过，`0` 项失败，总测试时间 `17.15` 秒。
+- 本轮修改文件：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `include/auto_cattery/furniture_planning/config.hpp`、
+  `include/auto_cattery/furniture_planning/purpose_policy.hpp`、
+  `src/furniture_planning/layout_solver.cpp`、`src/ui/mew_ui_bridge.cpp`、
+  `src/ui/mew_ui_config_binding.cpp`、`tests/furniture_analysis_service_tests.cpp`、
+  `tests/furniture_layout_solver_tests.cpp`、本报告及 `.auto-cattery/state.json`。本地提交：
+  见包含本报告的 Stage 45 任务提交；是否 push：否。
+- 部署前确认 `Mewgenics` 未运行；同步 `build\out\Release` DLL 与当前 data/config
+  到 `dist\Release` 后，执行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 成功。安装端 `description.json` 为 `0.5.62`，非递归
+  Mewjector DLL 为 `1995264` 字节，保留玩家现有升级重投值 `20`；未启动或控制游戏，
+  未运行哈希检查。玩家复测应重点确认：高属性小件在相同件数下胜过低效大柜子/画像；
+  F10 修改任一房间目标后日志出现 `AC3930` 且五房重新进入候选；deadline 房间不再增加
+  persistent lock；右下房继续填充，或明确以 `AC3929` 暂停而不是假完成。构建与 CTest
+  不替代真实保存、重进和画面验证。
 
 ## v0.5.61 固定最大填充目标与实时逐批完成判定
 

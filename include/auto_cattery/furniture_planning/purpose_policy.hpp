@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <ranges>
 
@@ -66,6 +65,10 @@ inline double Deficit(const Constraint& constraint) noexcept {
         : std::max(0.0, constraint.target - constraint.value);
 }
 
+inline double DirectionalUtility(const Constraint& constraint) noexcept {
+    return constraint.maximum ? -constraint.value : constraint.value;
+}
+
 inline std::array<std::size_t, 2> SafetyIndices(
     room_planning::RoomRole role) noexcept {
     switch (role) {
@@ -95,12 +98,13 @@ inline FurniturePurposeRank RankFurniturePurpose(
         role, attributes, config);
     double satisfied_count{};
     double deficit_sum{};
-    double distance_sum{};
+    double directional_utility_sum{};
     for (const auto& constraint : constraints) {
         satisfied_count += purpose_policy_detail::Satisfied(constraint)
             ? 1.0 : 0.0;
         deficit_sum += purpose_policy_detail::Deficit(constraint);
-        distance_sum += std::abs(constraint.value - constraint.target);
+        directional_utility_sum +=
+            purpose_policy_detail::DirectionalUtility(constraint);
     }
     const auto safety = purpose_policy_detail::SafetyIndices(role);
     const auto safety_count =
@@ -112,10 +116,10 @@ inline FurniturePurposeRank RankFurniturePurpose(
         satisfied_count,
         -deficit_sum,
         all_satisfied ? 1.0 : 0.0,
-        -distance_sum,
-        -std::abs(constraints[0].value - constraints[0].target),
-        -std::abs(constraints[1].value - constraints[1].target),
-        -std::abs(constraints[3].value - constraints[3].target)};
+        directional_utility_sum,
+        purpose_policy_detail::DirectionalUtility(constraints[0]),
+        purpose_policy_detail::DirectionalUtility(constraints[1]),
+        purpose_policy_detail::DirectionalUtility(constraints[3])};
 }
 
 inline FurniturePurposeRank RankFurniturePurpose(

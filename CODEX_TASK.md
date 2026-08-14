@@ -1,5 +1,27 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.62 purpose quality, live deadline, and config-lock invalidation
+
+- Preserve maximum legal furniture count as the primary fill objective after
+  hard room-purpose constraints, but stop treating positive minimum-attribute
+  excess as a penalty. Among equally full layouts, higher minimum-bound
+  attributes win; combat Comfort and Stimulation remain upper bounds where
+  lower values win.
+- Apply the same direction-aware purpose rank to bounded-search candidate
+  ordering and final comparison. Do not special-case furniture IDs or picture,
+  dresser, or cabinet names; large furniture wins only when its legal support
+  or room-purpose contribution justifies its blocked capacity.
+- A room whose bounded packing search reached its deadline is not exhausted,
+  even when the best provisional result is the current live layout. It must
+  not enter the persistent completed-room lock set, and a deadline-bearing
+  no-move result must be reported as blocked rather than a safe fixpoint.
+- When the F10 furniture placement configuration changes, invalidate the old
+  analysis preview, completed-room locks and signatures, focused room, cached
+  purposes, tabu moves, and attempted state edges. The next player-requested
+  analysis must evaluate every room under the new whole-room targets.
+- Build, test, deploy v0.5.62 DLL/data only, and do not launch or control the
+  game. Player validation remains the completion gate.
+
 ## v0.5.61 maximum safe room filling and genuine completion
 
 - Restore the fixed product goal confirmed by the player: after satisfying

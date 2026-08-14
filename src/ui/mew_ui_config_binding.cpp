@@ -5,6 +5,7 @@
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
 #include "mew_ui_recommendation_marker_view.hpp"
+#include "runtime_house_state.hpp"
 
 namespace autocattery::ui {
 
@@ -27,9 +28,26 @@ void MewUiBridge::ApplyRuntimeConfig() {
         }
     }
 
+    const bool furniture_placement_changed =
+        furniture_placement_config_ != config.furniture_placement;
     recommendation_scoring_config_ = config.combat_scoring;
     recommendation_marker_config_ = config.recommendation_marker;
     furniture_placement_config_ = config.furniture_placement;
+    if (furniture_placement_changed) {
+        furniture_auto_run_active_ = false;
+        ClearFurnitureLayoutPreview();
+        furniture_locked_room_ids_.clear();
+        furniture_locked_room_signatures_.clear();
+        furniture_room_purposes_.clear();
+        furniture_layout_move_tabu_.clear();
+        furniture_layout_attempted_state_edges_.clear();
+        furniture_focus_room_id_.reset();
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurnitureAnalysis",
+            "AC3930",
+            "Furniture placement configuration changed; invalidated the old analysis preview, completed-room locks, focus, purposes, and bounded search history. The next analysis will evaluate all rooms under the new targets.");
+    }
     const bool english = config.general.language == "en-US";
     if (house_button_view_) house_button_view_->SetEnglish(english);
     if (recommendation_marker_view_)

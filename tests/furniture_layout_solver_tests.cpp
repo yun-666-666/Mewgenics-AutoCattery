@@ -1248,6 +1248,17 @@ void RunFurnitureLayoutSolverTests() {
         efficient_purpose_furniture{
             Placement(823, "wide-neutral", "", 0, 0),
             Placement(824, "compact-neutral", "", 0, 0)};
+    const snapshot::detail::FurnitureCatalog efficient_purpose_effects{
+        {"wide-neutral", snapshot::RoomAttributes{}},
+        {"compact-neutral", snapshot::RoomAttributes{
+            .comfort = 8, .stimulation = 8, .health = 8, .mutation = 8}}};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        efficient_general_purpose{{
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::General,
+            .expected_resident_count = 1}};
+    auto zero_minimum_config = furniture_planning::FurniturePlacementConfig{};
+    zero_minimum_config.general = {};
     const auto efficient_purpose_batch = solver.Plan(
         efficient_purpose_furniture,
         efficient_purpose_geometry,
@@ -1255,8 +1266,9 @@ void RunFurnitureLayoutSolverTests() {
         {{"Attic", 1, 1, {0U}, {0U}},
          {"Floor1_Small", 2, 1, {0U, 0U}, {0U, 0U}}},
         {"Attic"},
-        purpose_effects,
-        fight_purpose);
+        efficient_purpose_effects,
+        efficient_general_purpose,
+        zero_minimum_config);
     AC_CHECK(efficient_purpose_batch.target_room_id == "Floor1_Small");
     AC_CHECK(!efficient_purpose_batch.moves.empty());
     AC_CHECK(std::ranges::any_of(
@@ -1517,9 +1529,15 @@ void RunFurnitureLayoutSolverTests() {
         {},
         "Attic");
     AC_CHECK(bounded_live_reanalysis.moves.empty());
-    AC_CHECK(std::ranges::find(
-        bounded_live_reanalysis.exhausted_room_ids,
-        "Attic") != bounded_live_reanalysis.exhausted_room_ids.end());
+    if (bounded_live_reanalysis.packing_search_deadline_reached) {
+        AC_CHECK(std::ranges::find(
+            bounded_live_reanalysis.exhausted_room_ids,
+            "Attic") == bounded_live_reanalysis.exhausted_room_ids.end());
+    } else {
+        AC_CHECK(std::ranges::find(
+            bounded_live_reanalysis.exhausted_room_ids,
+            "Attic") != bounded_live_reanalysis.exhausted_room_ids.end());
+    }
 
     const std::vector<snapshot::detail::FurniturePlacement>
         blocked_room_furniture{
@@ -1654,7 +1672,13 @@ void RunFurnitureLayoutSolverTests() {
                 .comfort = 8, .stimulation = 0, .health = 14, .mutation = 0},
             4,
             placement_config);
-    AC_CHECK(recovery_target > recovery_health_excess);
+    AC_CHECK(recovery_health_excess > recovery_target);
+
+    auto changed_placement_config = placement_config;
+    changed_placement_config.general.health_per_resident += 1.0;
+    AC_CHECK(changed_placement_config != placement_config);
+    AC_CHECK(furniture_planning::FurniturePlacementConfig{} ==
+        furniture_planning::FurniturePlacementConfig{});
 }
 
 }  // namespace autocattery::tests

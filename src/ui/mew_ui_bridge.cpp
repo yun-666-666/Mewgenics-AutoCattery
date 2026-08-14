@@ -736,7 +736,8 @@ void MewUiBridge::OnTick() {
                 const bool layout_blocked =
                     plan.current_state_blocked_room_count != 0U ||
                     plan.evacuation_blocked_room_count != 0U ||
-                    plan.installation_blocked_room_count != 0U;
+                    plan.installation_blocked_room_count != 0U ||
+                    plan.packing_search_deadline_reached;
                 const bool exhausted_any_room =
                     !plan.exhausted_room_ids.empty();
                 if (!executable) {

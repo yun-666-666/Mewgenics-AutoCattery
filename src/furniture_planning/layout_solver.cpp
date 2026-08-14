@@ -4291,6 +4291,7 @@ FurnitureLayoutPlan PlanWholeHouse(
         bool room_installation_blocked{};
         bool room_tabu_blocked{};
         bool room_stable_layout_found{};
+        bool room_packing_deadline_reached{};
         const auto& target_room = rooms.at(target_room_id);
         const auto current_attributes = CurrentRoomAttributes(
             target_room_id, furniture, furniture_effects);
@@ -4559,6 +4560,7 @@ FurnitureLayoutPlan PlanWholeHouse(
             plan.packing_search_deadline_reached =
                 plan.packing_search_deadline_reached ||
                 bounded.deadline_reached;
+            room_packing_deadline_reached = bounded.deadline_reached;
             packed_candidates = std::move(bounded.states);
         } else {
             plan.packing_candidate_count += placement_candidate_count;
@@ -4784,7 +4786,8 @@ FurnitureLayoutPlan PlanWholeHouse(
             room_installation_blocked = room_installation_blocked ||
                 execution == ExecutionPlanResult::InstallationBlocked;
         }
-        if (room_stable_layout_found && !room_tabu_blocked) {
+        if (room_stable_layout_found && !room_tabu_blocked &&
+            !room_packing_deadline_reached) {
             plan.exhausted_room_ids.push_back(target_room_id);
             locked_rooms.insert(target_room_id);
             continue;
@@ -4800,6 +4803,14 @@ FurnitureLayoutPlan PlanWholeHouse(
             continue;
         }
         if (room_tabu_blocked) {
+            found_geometric_candidate = true;
+            continue;
+        }
+        if (room_packing_deadline_reached) {
+            // A bounded search only proves completion when it traverses its
+            // search frontier without hitting the deadline. Preserve the room
+            // for a future live analysis instead of converting a provisional
+            // current-layout result into a persistent completion lock.
             found_geometric_candidate = true;
             continue;
         }

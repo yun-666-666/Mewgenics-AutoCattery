@@ -13,6 +13,8 @@ struct FurniturePurposeTargets {
     double stimulation_per_resident{};
     double health_per_resident{};
     double mutation_per_resident{};
+
+    bool operator==(const FurniturePurposeTargets&) const = default;
 };
 
 struct FurniturePlacementConfig {
@@ -30,6 +32,8 @@ struct FurniturePlacementConfig {
     // always continues filling after the room-purpose constraints are met;
     // the original false value contradicted the organizer's core contract.
     bool fill_remaining_capacity{true};
+
+    bool operator==(const FurniturePlacementConfig&) const = default;
 };
 
 }  // namespace autocattery::furniture_planning
