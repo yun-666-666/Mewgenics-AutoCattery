@@ -157,7 +157,7 @@ Json SafeDefaultsJson() {
                 {"mutation_per_resident", 4.0}
             }},
             {"minimum_furnishing_coverage_percent", 15},
-            {"fill_remaining_capacity", false}
+            {"fill_remaining_capacity", true}
         }},
         {"recommendation_marker", {
             {"version", 1},

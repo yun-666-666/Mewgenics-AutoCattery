@@ -1198,7 +1198,7 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         purpose_effects,
         fight_purpose);
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         neutral_only_batch.moves,
         [](const auto& move) {
             return move.stable_key == 822U &&
@@ -1206,7 +1206,7 @@ void RunFurnitureLayoutSolverTests() {
         }));
     auto fill_remaining_config =
         furniture_planning::FurniturePlacementConfig{};
-    fill_remaining_config.fill_remaining_capacity = true;
+    fill_remaining_config.fill_remaining_capacity = false;
     const auto neutral_fill_enabled = solver.Plan(
         neutral_only_fill,
         locked_attic_geometry,
@@ -1222,6 +1222,16 @@ void RunFurnitureLayoutSolverTests() {
             return move.stable_key == 822U &&
                 furniture_planning::IsWarehouseLayoutMove(move);
         }));
+    const auto all_rooms_locked = solver.Plan(
+        neutral_only_fill,
+        locked_attic_geometry,
+        purpose_info,
+        locked_attic_grids,
+        {"Attic", "Floor1_Small"},
+        purpose_effects,
+        fight_purpose);
+    AC_CHECK(all_rooms_locked.moves.empty());
+    AC_CHECK(all_rooms_locked.no_space_furniture_count == 0U);
 
     snapshot::detail::HouseGeometryCatalog efficient_purpose_geometry;
     efficient_purpose_geometry.rooms = {
@@ -1296,7 +1306,7 @@ void RunFurnitureLayoutSolverTests() {
             return (move.stable_key == 826U ||
                     move.stable_key == 827U) &&
                 furniture_planning::IsWarehouseLayoutMove(move);
-        }) == 1);
+        }) == 2);
 
     const std::vector<snapshot::detail::FurniturePlacement>
         satisfied_breeding_fill{
@@ -1322,10 +1332,11 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         satisfied_breeding_effects,
         satisfied_breeding_purpose);
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         satisfied_breeding_batch.moves,
         [](const auto& move) {
-            return furniture_planning::IsWarehouseLayoutMove(move);
+            return move.stable_key == 833U &&
+                furniture_planning::IsWarehouseLayoutMove(move);
         }));
 
     snapshot::detail::HouseGeometryCatalog sparse_purpose_geometry;
@@ -1448,10 +1459,11 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(bounded_batch.bounded_packing_search_used);
     AC_CHECK(bounded_batch.packing_candidate_count >= 37000U);
     AC_CHECK(bounded_batch.packing_search_node_count != 0U);
-    AC_CHECK(bounded_batch.packing_search_milliseconds <= 2000U);
+    AC_CHECK(bounded_batch.packing_search_milliseconds <= 6000U);
     AC_CHECK(bounded_batch.target_room_id == "Attic");
     AC_CHECK(!bounded_batch.moves.empty());
-    AC_CHECK(bounded_elapsed < std::chrono::seconds(5));
+    AC_CHECK(bounded_batch.moves.size() >= 35U);
+    AC_CHECK(bounded_elapsed < std::chrono::seconds(7));
     const auto bounded_repeat = solver.Plan(
         bounded_furniture,
         bounded_geometry,
@@ -1468,6 +1480,46 @@ void RunFurnitureLayoutSolverTests() {
          ++index) {
         AC_CHECK(bounded_repeat.moves[index] == bounded_batch.moves[index]);
     }
+    auto bounded_after_commit = bounded_furniture;
+    auto bounded_after_commit_grids = bounded_grids;
+    for (const auto& move : bounded_batch.moves) {
+        const auto placed = std::ranges::find(
+            bounded_after_commit,
+            static_cast<std::int64_t>(move.stable_key),
+            &snapshot::detail::FurniturePlacement::instance_id);
+        AC_CHECK(placed != bounded_after_commit.end());
+        if (placed == bounded_after_commit.end()) {
+            continue;
+        }
+        placed->room_id = move.target_room_id;
+        placed->position_x = move.target_x;
+        placed->position_y = move.target_y;
+
+        const auto body_x = move.target_x + 10;
+        const auto body_y = move.target_y + 12;
+        AC_CHECK(body_x >= 0 && body_y >= 0);
+        AC_CHECK(body_x < 37 && body_y < 11);
+        if (body_x >= 0 && body_y >= 0 && body_x < 37 && body_y < 11) {
+            bounded_after_commit_grids.front().live_cells[
+                static_cast<std::size_t>(body_y) * 37U +
+                static_cast<std::size_t>(body_x)] = 1U;
+        }
+    }
+    const auto bounded_live_reanalysis = solver.Plan(
+        bounded_after_commit,
+        bounded_geometry,
+        bounded_info,
+        bounded_after_commit_grids,
+        {},
+        bounded_effects,
+        bounded_purpose,
+        bounded_config,
+        {},
+        "Attic");
+    AC_CHECK(bounded_live_reanalysis.moves.empty());
+    AC_CHECK(std::ranges::find(
+        bounded_live_reanalysis.exhausted_room_ids,
+        "Attic") != bounded_live_reanalysis.exhausted_room_ids.end());
 
     const std::vector<snapshot::detail::FurniturePlacement>
         blocked_room_furniture{

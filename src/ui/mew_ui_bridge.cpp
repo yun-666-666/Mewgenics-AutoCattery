@@ -992,6 +992,11 @@ void MewUiBridge::OnTick() {
                                 ", installation_blocked=" +
                                 std::to_string(
                                     preview_plan.installation_blocked_room_count) +
+                                ", packing_deadline=" +
+                                std::to_string(
+                                    preview_plan.packing_search_deadline_reached
+                                        ? 1
+                                        : 0) +
                                 ", deferred=" +
                                 std::to_string(
                                     preview_plan.deferred_furniture_count) +
@@ -1762,8 +1767,10 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         auto completed_room_ids = plan.exhausted_room_ids;
         if (!plan.target_room_id.empty() && !plan.moves.empty() &&
             moved == plan.moves.size()) {
-            completed_room_ids.push_back(plan.target_room_id);
-            furniture_auto_run_active_ = false;
+            // A committed batch establishes focus; it does not prove the room
+            // is full. Only a fresh solver result in exhausted_room_ids may
+            // create a completed-room lock.
+            furniture_focus_room_id_ = plan.target_room_id;
         }
         std::ranges::sort(completed_room_ids);
         const auto completed_unique = std::ranges::unique(completed_room_ids);
@@ -2152,6 +2159,7 @@ void MewUiBridge::PollFurnitureAutoPlacement(
         }
         ++furniture_execution_moved_;
         furniture_attribute_upgrade_committed_in_mode_ = true;
+        furniture_focus_room_id_ = move.target_room_id;
         furniture_execution_committed_move_indices_.push_back(
             furniture_execution_index_);
         Logger::Instance().Write(

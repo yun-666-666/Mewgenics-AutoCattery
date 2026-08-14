@@ -26,7 +26,10 @@ struct FurniturePlacementConfig {
     FurniturePurposeTargets mutation{-6.0, 0.0, 0.0, 8.0};
     FurniturePurposeTargets general{4.0, 4.0, 4.0, 4.0};
     std::size_t minimum_furnishing_coverage_percent{15};
-    bool fill_remaining_capacity{};
+    // Retained for v0.5.58+ configuration compatibility. Auto placement now
+    // always continues filling after the room-purpose constraints are met;
+    // the original false value contradicted the organizer's core contract.
+    bool fill_remaining_capacity{true};
 };
 
 }  // namespace autocattery::furniture_planning

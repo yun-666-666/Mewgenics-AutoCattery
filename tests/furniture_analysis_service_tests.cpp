@@ -110,11 +110,11 @@ void RunFurnitureAnalysisServiceTests() {
     state_scoped_tabu.value.house.rooms = {{.id = "RoomA"}};
     state_scoped_tabu.value.furniture = {
         Furniture(201, "chair", "RoomA")};
-    state_scoped_tabu.value.furniture[0].position_x = 0;
+    state_scoped_tabu.value.furniture[0].position_x = 2;
     state_scoped_tabu.value.furniture_info.records = {
         SingleCellInfo("chair")};
     state_scoped_tabu.value.runtime_room_grids = {
-        {"RoomA", 3, 1, {0U, 0U, 0U}, {1U, 0U, 0U}}};
+        {"RoomA", 3, 1, {0U, 0U, 0U}, {0U, 0U, 1U}}};
     furniture_analysis::FurnitureAnalysisService state_tabu_service(
         state_scoped_tabu);
     const auto state_tabu_baseline = state_tabu_service.Analyze(97);

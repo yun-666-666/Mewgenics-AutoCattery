@@ -213,8 +213,11 @@ Result<Config> DecodeConfig(const Json& value) {
         result.furniture_placement.minimum_furnishing_coverage_percent =
             furniture.at("minimum_furnishing_coverage_percent")
                 .get<std::size_t>();
-        result.furniture_placement.fill_remaining_capacity =
-            furniture.at("fill_remaining_capacity").get<bool>();
+        // Keep accepting the legacy key, but do not let an older saved false
+        // value turn the organizer back into a sparse "targets are enough"
+        // mode. Maximum safe room filling is the fixed product behavior.
+        (void)furniture.at("fill_remaining_capacity").get<bool>();
+        result.furniture_placement.fill_remaining_capacity = true;
 
         const auto& marker = value.at("recommendation_marker");
         result.recommendation_marker.version =

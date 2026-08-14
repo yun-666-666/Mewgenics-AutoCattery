@@ -50,8 +50,7 @@ constexpr std::size_t kBoundedPackingCandidateThreshold = 16384;
 constexpr std::size_t kBoundedPackingOptionalBranchLimit = 12;
 constexpr std::size_t kBoundedPackingRequiredBranchLimit = 32;
 constexpr std::size_t kBoundedPackingResultLimit = 16;
-constexpr auto kBoundedPackingBudget = std::chrono::milliseconds(1200);
-constexpr auto kSatisfiedPackingBudget = std::chrono::milliseconds(350);
+constexpr auto kBoundedPackingBudget = std::chrono::milliseconds(5000);
 
 struct OffsetCell {
     std::int32_t x{};
@@ -344,20 +343,15 @@ bool BetterPurposeState(
         left.selected_cell_count != right.selected_cell_count) {
         return left.selected_cell_count > right.selected_cell_count;
     }
-    if (left_rank != right_rank) {
-        return left_rank > right_rank;
-    }
-    if (!placement_config.fill_remaining_capacity && left_coverage) {
-        if (left.selected_cell_count != right.selected_cell_count) {
-            return left.selected_cell_count < right.selected_cell_count;
-        }
-        if (left.selected_count != right.selected_count) {
-            return left.selected_count < right.selected_count;
-        }
-        return BetterPackState(left, right);
-    }
+    // Once both layouts meet the same hard purpose constraints, maximize the
+    // number of legal furniture pieces. Purpose quality remains the next
+    // discriminator so equally full rooms still use the best role-specific
+    // furniture instead of arbitrary filler.
     if (left.selected_count != right.selected_count) {
         return left.selected_count > right.selected_count;
+    }
+    if (left_rank != right_rank) {
+        return left_rank > right_rank;
     }
     // Once the room-purpose result and furniture count are equal, preserve
     // floor/wall capacity for later useful pieces instead of rewarding a
@@ -2029,15 +2023,7 @@ BoundedPackingResult PackSubsetBounded(
         auto compact_occupancy = CompactOccupancyFrom(greedy->occupancy);
         snapshot::RoomAttributes added_attributes;
         for (const auto item_index : order) {
-            if (required[item_index] ||
-                (!placement_config.fill_remaining_capacity &&
-                 PackingPurposeAndCoverageSatisfied(
-                     *greedy,
-                     current_attributes,
-                     added_attributes,
-                     purpose,
-                     placement_config,
-                     minimum_selected_cell_count))) {
+            if (required[item_index]) {
                 continue;
             }
             std::optional<PackState> best_trial;
@@ -2094,23 +2080,8 @@ BoundedPackingResult PackSubsetBounded(
         consider(*greedy);
     }
 
-    const bool seed_is_sufficient =
-        !result.states.empty() && purpose &&
-        !FurniturePurposeNeedsMore(
-            purpose,
-            CandidateRoomAttributes(
-                result.states.front(),
-                items,
-                current_attributes,
-                target_room_id,
-                furniture_effects),
-            placement_config) &&
-        result.states.front().selected_cell_count >=
-            minimum_selected_cell_count;
-    const auto deadline = std::chrono::steady_clock::now() +
-        (seed_is_sufficient
-             ? kSatisfiedPackingBudget
-             : kBoundedPackingBudget);
+    const auto deadline =
+        std::chrono::steady_clock::now() + kBoundedPackingBudget;
     std::size_t required_remaining = static_cast<std::size_t>(
         std::ranges::count(required, true));
     auto search_state = *fixed_state;
@@ -2140,9 +2111,6 @@ BoundedPackingResult PackSubsetBounded(
                 minimum_selected_cell_count);
             if (sufficient || position == order.size()) {
                 consider(state);
-            }
-            if (sufficient && !placement_config.fill_remaining_capacity) {
-                return;
             }
         }
         if (position == order.size()) {
@@ -3616,10 +3584,8 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
         target_items,
         target_static_base,
         placement_config.minimum_furnishing_coverage_percent);
-    if (room_purpose && !purpose_needs_more && !spatial_needs_more &&
-        !placement_config.fill_remaining_capacity) {
-        return std::nullopt;
-    }
+    (void)purpose_needs_more;
+    (void)spatial_needs_more;
     for (const auto& incoming : full_warehouse_items) {
         auto attributes = current_attributes;
         const auto effect = furniture_effects.find(
@@ -3630,10 +3596,7 @@ std::optional<LocalRoomImprovement> FindLocalWarehouseFill(
         const auto purpose_rank = RankFurniturePurpose(
             room_purpose, attributes, placement_config);
         if (room_purpose) {
-            if (PurposeThresholdRank(purpose_rank) < current_threshold_rank ||
-                (!spatial_needs_more &&
-                 !placement_config.fill_remaining_capacity &&
-                 purpose_rank <= current_purpose_rank)) {
+            if (PurposeThresholdRank(purpose_rank) < current_threshold_rank) {
                 continue;
             }
         }
@@ -3714,6 +3677,7 @@ std::optional<LocalRoomImprovement> FindLocalRoomImprovement(
     bool allow_preferred_incoming,
     const std::vector<FurnitureLayoutMove>& forbidden_moves,
     std::size_t& tabu_filtered_move_count) {
+    (void)unsafe_rooms;
     const auto target = rooms.find(target_room_id);
     if (target == rooms.end() ||
         !CurrentWholeHousePreservesSupport(
@@ -4316,14 +4280,17 @@ FurnitureLayoutPlan PlanWholeHouse(
     bool evacuation_blocked{};
     bool installation_blocked{};
     bool found_geometric_candidate{};
+    bool evaluated_target_room{};
     for (const auto& target_room_id : target_rooms) {
         if (locked_rooms.contains(target_room_id)) {
             continue;
         }
+        evaluated_target_room = true;
         bool room_current_state_blocked{};
         bool room_evacuation_blocked{};
         bool room_installation_blocked{};
         bool room_tabu_blocked{};
+        bool room_stable_layout_found{};
         const auto& target_room = rooms.at(target_room_id);
         const auto current_attributes = CurrentRoomAttributes(
             target_room_id, furniture, furniture_effects);
@@ -4770,7 +4737,15 @@ FurnitureLayoutPlan PlanWholeHouse(
             if (execution == ExecutionPlanResult::Success) {
                 if (candidate_moves.empty()) {
                     plan.kept_furniture_count = base_kept;
-                    continue;
+                    // Candidates are ordered best-first. Reaching the current
+                    // live layout without producing a move means every better
+                    // candidate found in this analysis was already rejected
+                    // as unsafe or unavailable, while later candidates cannot
+                    // improve the room. Treat this as a completed room instead
+                    // of repeatedly retrying inferior rearrangements after a
+                    // successful fill batch.
+                    room_stable_layout_found = true;
+                    break;
                 }
                 plan.kept_furniture_count = kept;
                 plan.deferred_furniture_count =
@@ -4801,13 +4776,6 @@ FurnitureLayoutPlan PlanWholeHouse(
                 }
                 return candidate_plan;
             }
-            current_state_blocked = current_state_blocked ||
-                execution == ExecutionPlanResult::CurrentStateInvalid ||
-                execution == ExecutionPlanResult::FinalStateInvalid;
-            evacuation_blocked = evacuation_blocked ||
-                execution == ExecutionPlanResult::EvacuationBlocked;
-            installation_blocked = installation_blocked ||
-                execution == ExecutionPlanResult::InstallationBlocked;
             room_current_state_blocked = room_current_state_blocked ||
                 execution == ExecutionPlanResult::CurrentStateInvalid ||
                 execution == ExecutionPlanResult::FinalStateInvalid;
@@ -4816,6 +4784,17 @@ FurnitureLayoutPlan PlanWholeHouse(
             room_installation_blocked = room_installation_blocked ||
                 execution == ExecutionPlanResult::InstallationBlocked;
         }
+        if (room_stable_layout_found && !room_tabu_blocked) {
+            plan.exhausted_room_ids.push_back(target_room_id);
+            locked_rooms.insert(target_room_id);
+            continue;
+        }
+        current_state_blocked = current_state_blocked ||
+            room_current_state_blocked;
+        evacuation_blocked = evacuation_blocked ||
+            room_evacuation_blocked;
+        installation_blocked = installation_blocked ||
+            room_installation_blocked;
         if (room_current_state_blocked || room_evacuation_blocked ||
             room_installation_blocked) {
             continue;
@@ -4830,7 +4809,7 @@ FurnitureLayoutPlan PlanWholeHouse(
     plan.current_state_blocked_room_count = current_state_blocked ? 1U : 0U;
     plan.evacuation_blocked_room_count = evacuation_blocked ? 1U : 0U;
     plan.installation_blocked_room_count = installation_blocked ? 1U : 0U;
-    if (!found_geometric_candidate) {
+    if (!found_geometric_candidate && evaluated_target_room) {
         plan.no_space_furniture_count += eligible_items.size();
     }
     return plan;

@@ -1,7 +1,66 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
-日期：2026-08-14
-版本：v0.5.57
+日期：2026-08-15
+版本：v0.5.61
+
+## v0.5.61 固定最大填充目标与实时逐批完成判定
+
+- 玩家再次确认本功能的固定产品目标是：在满足房间功能硬约束的前提下，最大限度把
+  每个房间塞满，并在同样能装满时尽可能选择更适合该房用途、属性更好的家具。旧版
+  `fill_remaining_capacity=false` 和 `minimum_furnishing_coverage_percent=15` 不得再让
+  求解器达到最低属性或低覆盖率后主动停止。
+- v0.5.60 最新实机日志显示起始 `183` 件家具、已放置 `0` 件，五房只分别放入
+  `11 + 7 + 6 + 11 + 11 = 46` 件。每批成功后 `persistent_locked_rooms` 从 `0`
+  递增到 `5`，最终为 `rooms=0`、`packing_candidates=0`、`no_space=137`。这证明
+  `137` 件剩余家具没有进入任何房间的碰撞求解，而是在五房被提前锁定后被误报为
+  “无空间”；问题不是房间真的只能放十来件。
+- `fill_remaining_capacity` 现在是不可关闭的固定运行语义：代码默认值和默认 JSON
+  均为 `true`；解码器继续兼容旧配置字段，但无论旧 `user_config.json` 写 `false`
+  还是 `true`，运行时都归一为 `true`。F10 保留旧槽位索引以兼容页面模型，但不再
+  显示或允许编辑“达标后继续填满”，避免把核心产品目标重新降级为可选开关。
+- 求解器排序现在先满足房间功能硬门，再最大化合法家具件数；件数相同时选择更符合
+  繁育、恢复、战斗、突变等用途的属性组合；用途与件数都相同时选择占用阻挡空间更少、
+  更紧凑的布局。已删除达到用途阈值或旧覆盖率后停止添加家具的分支，本地仓库填充也
+  只拒绝会破坏用途硬门的家具。大候选有界搜索预算统一为 `5000 ms`，不再因达到旧
+  最低目标而缩短为 `350 ms`。
+- UI 不再把“一批原生移动全部成功”当成“整个房间完成”。成功批次只写入当前房间
+  焦点，刷新实时家具和碰撞网格后继续分析同一房间；只有新分析明确返回
+  `exhausted_room_ids` 才建立完成锁并推进下一房。求解器发现当前实时布局已经是按
+  最优顺序可执行的稳定候选、且没有更好的安全动作时才完成房间，避免满房后无限重算，
+  同时不再恢复“一批成功就锁房”的错误行为。
+- `no_space_furniture_count` 只在至少实际评估过一个未锁房间时累加。所有房间在求解前
+  已锁定时不再把全部仓库家具计为无空间，日志可以区分“确实评估后放不下”和“根本
+  没有检查候选房间”。
+- 回归覆盖包括：旧配置显式写 `false` 仍归一为固定填满；用途属性达标后继续放置仓库
+  家具；同一房可放两个紧凑小件时选择两个而不是一个；所有房间预先锁定时
+  `no_space=0`；`37x11` 房间对 `100` 件支撑家具首批至少放入 `35` 件；模拟提交首批
+  并更新实时网格后，再分析无移动且将 Attic 标为 exhausted；tabu 测试改用确实存在
+  紧凑改善的初始布局，避免依赖无收益的家具搬动。Debug 统一测试程序退出码为 `0`。
+- Release 全构建完成，生成 `build\out\Release\AutoCattery.dll` 和
+  `build\Release\auto_cattery_tests.exe`。Release CTest 的
+  `phase14_unit_tests`、`phase14_dll_load_smoke`、`phase14_restore_cli_smoke`、
+  `phase14_save_lab_cli_smoke` 共 `4/4` 通过，`0` 项失败，总测试时间 `17.19` 秒。
+  同步到 `dist\Release` 的 DLL 为 `1993728` 字节，包含
+  `AutoCattery_Initialize`、`AutoCattery_Shutdown` 导出并确认为 x64。
+- 部署前确认 `Mewgenics` 未运行；随后执行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release`，非递归 Mewjector DLL 与 Mewtator AutoCattery data MOD
+  部署成功。安装端 `description.json` 为 `0.5.61`，默认
+  `fill_remaining_capacity=true`，保留玩家现有升级重投值 `20`；未启动或控制游戏，
+  未运行哈希检查。
+- 本轮修改文件：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `config/default_config.json`、`include/auto_cattery/furniture_planning/config.hpp`、
+  `src/config/decoder.cpp`、`src/config/defaults.cpp`、
+  `src/furniture_planning/layout_solver.cpp`、`src/ui/in_game_settings_pages.cpp`、
+  `src/ui/mew_ui_bridge.cpp`、`tests/config_tests.cpp`、
+  `tests/furniture_analysis_service_tests.cpp`、`tests/furniture_layout_solver_tests.cpp`、
+  `tests/in_game_settings_model_tests.cpp`、本报告及 `.auto-cattery/state.json`。本地提交：
+  见包含本报告的 Stage 45 任务提交；是否 push：否。
+- 玩家实机验证仍是最终门：建议使用可恢复测试槽，从全仓库或当前稀疏状态重新分析并
+  自动放置。预期同一房间会连续执行多批填充，不会只放十来件就锁死；五房最终应明显
+  更充实；相同容量下应优先保留对应房间用途属性更好的家具；末次分析不得再把未检查的
+  剩余家具误报为无空间。请返回完成截图和最新 `auto_cattery.log`；构建与 CTest 不替代
+  真实游戏保存、重进和视觉结果。
 
 ## v0.5.57 用途属性优先与单位空间效率
 

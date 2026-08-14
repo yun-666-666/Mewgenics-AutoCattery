@@ -1,5 +1,27 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.61 maximum safe room filling and genuine completion
+
+- Restore the fixed product goal confirmed by the player: after satisfying
+  the room-purpose hard constraints, maximize the number of legally placed
+  furniture pieces; among equally full layouts prefer the better purpose
+  attributes and then the more capacity-efficient compact arrangement.
+- Treat the legacy `fill_remaining_capacity` JSON key as compatibility-only.
+  Existing `false` values must not re-enable sparse target-only furnishing,
+  and the obsolete F10 toggle is no longer editable.
+- A successfully committed whole-room batch establishes the preferred focus
+  and immediately re-analyzes that live room. It does not create a completed
+  room lock. Only a fresh, non-blocked, non-deadline solver exhaustion result
+  may lock the room and advance to the next visible room.
+- Increase the bounded fill budget. A deadline-bearing plan that contains
+  moves is provisional and must be committed then re-analyzed; it cannot lock
+  the room merely because its moves succeeded. Completion is decided only by
+  the fresh live analysis after that batch finds no further safe improvement.
+- Do not report all remaining furniture as `no_space` when no target room was
+  evaluated because every room was already locked.
+- Build, test, deploy v0.5.61 DLL/data only, and do not launch or control the
+  game. Player validation remains the completion gate.
+
 ## v0.5.60 bounded irregular-packing optimization and committed focus
 
 - Treat the analysis target as preview-only. A room becomes the preferred

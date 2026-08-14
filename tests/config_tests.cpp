@@ -68,9 +68,19 @@ void RunConfigTests() {
     AC_CHECK(valid.value.furniture_placement.combat.mutation_per_resident == 8.0);
     AC_CHECK(valid.value.furniture_placement.kitten_recovery.health_per_resident == 8.0);
     AC_CHECK(valid.value.furniture_placement.minimum_furnishing_coverage_percent == 15);
-    AC_CHECK(!valid.value.furniture_placement.fill_remaining_capacity);
+    AC_CHECK(valid.value.furniture_placement.fill_remaining_capacity);
     AC_CHECK(valid.value.workflow.preview_ttl_seconds == 120);
     AC_CHECK(valid.value.level_up.reroll_count == 3);
+
+    Write(user, R"({
+        "furniture_placement": {
+            "fill_remaining_capacity": false
+        }
+    })");
+    const auto legacy_sparse_setting = LoadConfig(defaults, user);
+    AC_CHECK(static_cast<bool>(legacy_sparse_setting));
+    AC_CHECK(
+        legacy_sparse_setting.value.furniture_placement.fill_remaining_capacity);
 
     Write(user, R"({
         "combat_scoring": {

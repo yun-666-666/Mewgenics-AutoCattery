@@ -117,7 +117,7 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(static_cast<bool>(model.SetFurnitureValue(17, "-3.50")));
     AC_CHECK(static_cast<bool>(model.SetFurnitureValue(20, "12.00")));
     AC_CHECK(static_cast<bool>(model.SetFurnitureValue(40, "25")));
-    AC_CHECK(static_cast<bool>(model.AdjustFurniture(41, 0)));
+    AC_CHECK(!static_cast<bool>(model.AdjustFurniture(41, 0)));
     AC_CHECK(!static_cast<bool>(model.SetFurnitureValue(40, "101")));
     AC_CHECK(!static_cast<bool>(model.AdjustFurniture(4, 1)));
     const auto direct = reader.Load();

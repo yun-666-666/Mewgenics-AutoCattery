@@ -147,8 +147,8 @@ InGameSettingsModel::FurnitureFields() {
                    &placement.general.mutation_per_resident, -10000, 10000, 0.5};
     fields[40] = F{L(en, "最低家具覆盖率 %", "Minimum furnishing coverage %"),
                    &placement.minimum_furnishing_coverage_percent, 0, 100, 1};
-    fields[41] = F{L(en, "达标后继续填满", "Keep filling after targets"),
-                   &placement.fill_remaining_capacity};
+    // Slot 41 intentionally remains reserved for config/index compatibility.
+    // Maximum safe filling is a fixed organizer behavior, not an opt-out.
     return fields;
 }
 
