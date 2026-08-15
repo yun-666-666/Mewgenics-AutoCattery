@@ -261,30 +261,34 @@ void RunRuntimeHouseStateTests() {
         .placements = {
             RuntimeFurniture(40, "chair", "RoomA", 1, -9),
             RuntimeFurniture(41, "lamp", "RoomB", 2, -9)}};
-    std::vector<snapshot::RoomId> locked_rooms{"RoomA", "RoomB"};
+    std::vector<snapshot::RoomId> locked_rooms{"RoomA", "RoomB", "RoomC"};
     std::vector<ui::RuntimeFurnitureRoomSignature> lock_signatures;
     ui::LockFurnitureRoom(
         locked_rooms, lock_signatures, lock_runtime, "RoomA");
     ui::LockFurnitureRoom(
         locked_rooms, lock_signatures, lock_runtime, "RoomB");
-    AC_CHECK(lock_signatures.size() == 2U);
+    ui::LockFurnitureRoom(
+        locked_rooms, lock_signatures, lock_runtime, "RoomC");
+    AC_CHECK(lock_signatures.size() == 3U);
     std::vector<snapshot::RoomId> invalidated;
     ui::ReconcileLockedFurnitureRooms(
         locked_rooms, lock_signatures, lock_runtime, &invalidated);
     AC_CHECK(invalidated.empty());
-    AC_CHECK(locked_rooms.size() == 2U);
+    AC_CHECK(locked_rooms.size() == 3U);
 
     lock_runtime.placements[0].position_x = 3;
     ui::ReconcileLockedFurnitureRooms(
         locked_rooms, lock_signatures, lock_runtime, &invalidated);
     AC_CHECK(invalidated == std::vector<snapshot::RoomId>{"RoomA"});
-    AC_CHECK(locked_rooms == std::vector<snapshot::RoomId>{"RoomB"});
+    AC_CHECK(locked_rooms ==
+        std::vector<snapshot::RoomId>({"RoomB", "RoomC"}));
 
     lock_runtime.placements.clear();
     invalidated.clear();
     ui::ReconcileLockedFurnitureRooms(
         locked_rooms, lock_signatures, lock_runtime, &invalidated);
-    AC_CHECK(invalidated == std::vector<snapshot::RoomId>{"RoomB"});
+    AC_CHECK(invalidated ==
+        std::vector<snapshot::RoomId>({"RoomB", "RoomC"}));
     AC_CHECK(locked_rooms.empty());
 }
 

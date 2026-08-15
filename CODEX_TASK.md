@@ -1,5 +1,26 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.65 empty-house lock reset and maximum visible furnishing
+
+- Treat a live House scene with zero placed furniture as an explicit whole-
+  house reset. Invalidate every persistent completed-room lock, including
+  rooms whose old saved signature was already empty, before the next player-
+  requested analysis.
+- After room-purpose hard constraints, require minimum coverage and then
+  maximize the number of legally placed furniture pieces. Use purpose quality
+  and blocked-cell efficiency only as later ties; never let per-cell utility
+  prefer a visibly sparse room because additional capped or neutral furniture
+  dilutes an average.
+- Keep every furniture piece selected by the packing solver. Remove the final
+  zero-marginal non-Solid pruning pass that silently discarded ordinary
+  furniture after the complete room layout had already been chosen.
+- Preserve the v0.5.64 sealed whole-house stable-key ownership blueprint,
+  fixed room order, direct execution, Support audits, UI-tick serialization,
+  250 ms settle delay, rollback, SEH hard stop, and retirement quarantine.
+- Build, test, deploy v0.5.65 DLL/data only, and do not launch or control the
+  game. Player validation of the cleared 179-piece save remains the completion
+  gate.
+
 ## v0.5.64 sealed whole-house ownership blueprint and spatial yield
 
 - Analyze ordinary movable furniture against a virtual empty house before the

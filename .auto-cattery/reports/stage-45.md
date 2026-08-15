@@ -1,7 +1,87 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-15
-版本：v0.5.64
+版本：v0.5.65
+
+## v0.5.65 空屋完成锁清零与最大可见填充恢复
+
+### 玩家证据与根因
+
+- 玩家第一张截图中的密集布局并不是 v0.5.64 新蓝图重新生成的结果。对应日志显示
+  `15:59:03` 起始为运行时已放置 `100` 件、仓库 `80` 件；v0.5.64 先完成一项属性替换，
+  随后的全屋蓝图以 `installation_blocked=1` 停止，因此原有密集摆放大体被保留。
+- 玩家手动清空后，`16:01:10` 的运行时捕获明确为 `furniture=0, scene pieces=0`，只读
+  源仍有 `179` 件。旧完成锁协调只按每个房间签名比较，日志因此只失效了三个原本有
+  家具的房间：`AC3927 rooms=3, remaining=2`。两个原本已经为空的房间，其“空签名”
+  与清空后的实时状态仍相等，被错误保留为已完成；下一次蓝图实际只规划了三个房间。
+- 同一轮 `AC3901` 为 `rooms=3, moves=26, deferred=153`。26 件随后全部原生放置成功，
+  分别进入 Attic、Floor2_Large 和 Floor1_Large；另两个仍带旧锁的房间完全未求解。
+  完成后五房锁满，后续连续分析均为 `rooms=0, moves=0, deferred=153,
+  persistent_locked_rooms=5`，与第二张截图完全一致。
+- 稀疏的第二个独立根因位于用途布局比较器：v0.5.64 在硬门槛之后先比较“封顶属性
+  收益 / 阻挡格”。空房从零属性开始时，少量高属性小件的比值最高；继续添加已达标
+  或普通家具会稀释平均值，因此更完整的房间反而排在稀疏方案之后。该比较发生在最低
+  覆盖率之前，配置中的 `15%` 覆盖门也无法纠正排序。
+- 蓝图选完后还存在第二轮非 Solid 零边际收益裁剪。它会把求解器已经合法选中的画像、
+  小装饰和普通家具从最终 moves 中静默删除；因此这不是房间真实只能放 26 件，也不是
+  原生放置失败，而是分析阶段主动生成了错误的稀疏最终状态。
+
+### 实现
+
+- `ReconcileLockedFurnitureRooms()` 现在把实时 `placements.empty()` 视为明确的全屋清空
+  边界：一次性失效当前 House scene 的全部完成锁和房间签名，包括之前就为空的房间。
+  下一次玩家分析会重新评估 Attic、Floor2_Large、Floor1_Large、Floor1_Small、
+  Floor2_Small，而不会留下 `remaining=2` 的幽灵锁。
+- 用途布局排序恢复固定产品目标：先比较房间用途硬门槛，再满足最低覆盖率；达到两者后
+  最大化合法家具件数；件数相同才比较完整的方向性用途属性，最后以更少阻挡格和紧凑
+  布局决胜。普通或已封顶家具不再因为降低平均“单位格收益”而被拒绝。
+- 删除全屋蓝图冻结前的零边际非 Solid 后处理。完整 packing 已选中的家具全部保留，
+  不再在 Support/执行密封之前被第二套规则悄悄移除。
+- v0.5.64 的全屋唯一 stable-key 归属、固定房间顺序、最终仓库 Store、一次直达 Move、
+  一次仓库 Place、Support 审计、UI tick 串行、`250 ms` settle、回滚、SEH hard stop 和
+  retirement quarantine 均保持不变。
+
+### 修改文件
+
+- `CMakeLists.txt`
+- `CHANGELOG.md`
+- `CODEX_TASK.md`
+- `assets/description.json`
+- `src/furniture_planning/layout_solver.cpp`
+- `src/ui/runtime_snapshot_overlay.cpp`
+- `tests/furniture_layout_solver_tests.cpp`
+- `tests/runtime_house_state_tests.cpp`
+- `.auto-cattery/state.json`
+- `.auto-cattery/reports/stage-45.md`
+
+### 自动化验证
+
+- 新增完成锁回归：RoomC 在锁定时本来就是空房，RoomA/RoomB 有家具；当实时场景随后
+  变成零 placed furniture 时，三个锁必须一次全部失效。该夹具覆盖了本次日志中
+  “只失效 3 个、残留 2 个空房锁”的精确故障。
+- 更新用途填充回归：用途目标已经满足后，额外低边际一格画像仍必须产生仓库放置；
+  已达标繁育房和稀疏繁育房仍继续接收合法家具；两个紧凑小件继续优于只能放一个的
+  宽大件。五房唯一归属夹具扩为足量 `60` 件，确认五房均获得家具且每个 stable key
+  在完整蓝图动作中只出现一次。
+- 聚焦 Release `build-stage45-release\Release\auto_cattery_tests.exe` 最终退出码 `0`。
+- 完整执行 `tools\build.ps1 -Configuration Release` 成功。CTest 的
+  `phase14_unit_tests`、`phase14_dll_load_smoke`、`phase14_restore_cli_smoke`、
+  `phase14_save_lab_cli_smoke` 共 `4/4` 通过，`0` 项失败，总测试时间 `8.90` 秒；DLL
+  必需导出与 x64 检查通过。最终 `dist\Release\AutoCattery.dll` 为 `2030080` 字节。
+- `git diff --check` 在提交前通过；按玩家偏好未计算或比较 hash。
+
+### 部署与玩家验收
+
+- 部署前、部署后均确认 `Mewgenics` 未运行。执行
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 成功，仅部署 DLL/data MOD；安装 DLL 为 `2030080` 字节，
+  安装 `description.json` 为 `0.5.65`，保留升级重投值 `20`。未启动、进入或控制游戏，
+  未修改活动存档。
+- 玩家真实验收仍 pending：在当前第二张图的稀疏状态下，建议再次手动把三房内的
+  26 件收回家具栏，使五房实时 placed furniture 为零，然后点击一次“开始分析”。预期
+  `AC3927` 后完成锁剩余数为 `0`，`AC3901 rooms=5`，布局移动数显著高于 `26`，且不再
+  把 `153` 件直接视为最终仓库。自动放置完成后五房应全部重新参与并明显更充实。
+- 本地提交：见包含本报告的 Stage 45 任务提交；是否 push：否。
 
 ## v0.5.64 全屋唯一归属蓝图与单位空间收益
 

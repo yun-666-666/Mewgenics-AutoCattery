@@ -733,10 +733,10 @@ void RunFurnitureLayoutSolverTests() {
         balanced_attic_effects,
         breeding_attic_purpose);
     AC_CHECK(purpose_attic_plan.target_room_id == "Attic");
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         purpose_attic_plan.moves,
         [](const auto& move) { return move.stable_key == 215U; }));
-    AC_CHECK(std::ranges::any_of(
+    AC_CHECK(std::ranges::none_of(
         purpose_attic_plan.moves,
         [](const auto& move) { return move.stable_key == 216U; }));
 
@@ -1329,7 +1329,7 @@ void RunFurnitureLayoutSolverTests() {
             return (move.stable_key == 826U ||
                     move.stable_key == 827U) &&
                 furniture_planning::IsWarehouseLayoutMove(move);
-        }) == 1);
+        }) == 2);
 
     const std::vector<snapshot::detail::FurniturePlacement>
         satisfied_breeding_fill{
@@ -1355,7 +1355,7 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         satisfied_breeding_effects,
         satisfied_breeding_purpose);
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         satisfied_breeding_batch.moves,
         [](const auto& move) {
             return move.stable_key == 833U &&
@@ -1387,7 +1387,7 @@ void RunFurnitureLayoutSolverTests() {
         {},
         satisfied_breeding_effects,
         sparse_breeding_purpose);
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         sparse_purpose_batch.moves,
         [](const auto& move) {
             return move.stable_key == 835U &&
@@ -1617,7 +1617,7 @@ void RunFurnitureLayoutSolverTests() {
     snapshot::detail::FurnitureInfoCatalog blueprint_info;
     blueprint_info.records.push_back(PosterInfo("compact-benefit"));
     std::vector<snapshot::detail::FurniturePlacement> blueprint_furniture;
-    for (std::int64_t key = 2000; key < 2030; ++key) {
+    for (std::int64_t key = 2000; key < 2060; ++key) {
         blueprint_furniture.push_back(
             Placement(key, "compact-benefit", "", 0, 0));
     }
@@ -1656,9 +1656,9 @@ void RunFurnitureLayoutSolverTests() {
         AC_CHECK(blueprint_room_counts[room_id] > 0U);
     }
 
-    // Spatial efficiency precedes item count: a 25-cell low-density object and
-    // a one-cell picture whose marginal benefit is already saturated remain
-    // in the warehouse while compact high-yield pieces are selected.
+    // The whole-house blueprint continues furnishing after purpose saturation:
+    // an additional one-cell picture remains eligible instead of being
+    // silently removed by a final zero-marginal-utility pruning pass.
     snapshot::detail::HouseGeometryCatalog density_geometry;
     density_geometry.rooms.push_back({
         .definition_id = "DensityRoom",
@@ -1699,12 +1699,9 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(std::ranges::any_of(
         density_blueprint.moves,
         [](const auto& move) {
-            return move.stable_key == 2100U &&
-                furniture_planning::IsFurnitureStoreMove(move);
+            return move.stable_key == 2105U &&
+                furniture_planning::IsWarehouseLayoutMove(move);
         }));
-    AC_CHECK(std::ranges::none_of(
-        density_blueprint.moves,
-        [](const auto& move) { return move.stable_key == 2105U; }));
     for (const auto key : {2101U, 2102U, 2103U, 2104U}) {
         AC_CHECK(std::ranges::any_of(
             density_blueprint.moves,
@@ -1713,11 +1710,6 @@ void RunFurnitureLayoutSolverTests() {
                     furniture_planning::IsWarehouseLayoutMove(move);
             }));
     }
-    const auto stored_large_count = std::ranges::count_if(
-        density_blueprint.moves,
-        [](const auto& move) { return move.stable_key == 2100U; });
-    AC_CHECK(stored_large_count == 1U);
-
     // Combat directionality remains intact: negative Comfort helps, while an
     // item that would break the Health hard threshold is not selected.
     snapshot::detail::FurnitureInfoCatalog combat_blueprint_info;

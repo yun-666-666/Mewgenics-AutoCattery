@@ -43,6 +43,22 @@ void ReconcileLockedFurnitureRooms(
     std::vector<RuntimeFurnitureRoomSignature>& locked_room_signatures,
     const RuntimeFurnitureState& runtime,
     std::vector<snapshot::RoomId>* invalidated_room_ids) {
+    // Room-by-room signatures cannot distinguish an intentionally cleared
+    // whole house from rooms that were already empty when they were locked.
+    // Once the live scene has no placed furniture, every old completion lock
+    // is stale: retaining an empty-room signature would permanently exclude
+    // that room from the next sealed whole-house blueprint.
+    if (runtime.placements.empty()) {
+        if (invalidated_room_ids) {
+            invalidated_room_ids->insert(
+                invalidated_room_ids->end(),
+                locked_room_ids.begin(),
+                locked_room_ids.end());
+        }
+        locked_room_ids.clear();
+        locked_room_signatures.clear();
+        return;
+    }
     std::vector<snapshot::RoomId> retained_ids;
     std::vector<RuntimeFurnitureRoomSignature> retained_signatures;
     retained_ids.reserve(locked_room_ids.size());

@@ -306,11 +306,6 @@ bool BetterBalancedAtticState(
     return BetterPackState(left, right);
 }
 
-double CappedPurposeDirectionalUtility(
-    const room_planning::RoomPurposeAssignment* purpose,
-    const snapshot::RoomAttributes& attributes,
-    const FurniturePlacementConfig& placement_config);
-
 bool BetterPurposeState(
     const PackState& left,
     const PackState& right,
@@ -340,33 +335,6 @@ bool BetterPurposeState(
     if (left_threshold_rank != right_threshold_rank) {
         return left_threshold_rank > right_threshold_rank;
     }
-    const auto current_utility = CappedPurposeDirectionalUtility(
-        purpose, current_attributes, placement_config);
-    const auto directional_density = [current_utility](
-        double utility,
-        std::size_t selected_cell_count) {
-        const auto gain = utility - current_utility;
-        return gain / static_cast<double>(
-            std::max<std::size_t>(selected_cell_count, 1U));
-    };
-    const auto left_attributes = CandidateRoomAttributes(
-        left, items, current_attributes, target_room_id, furniture_effects);
-    const auto right_attributes = CandidateRoomAttributes(
-        right, items, current_attributes, target_room_id, furniture_effects);
-    const auto left_utility = CappedPurposeDirectionalUtility(
-        purpose, left_attributes, placement_config);
-    const auto right_utility = CappedPurposeDirectionalUtility(
-        purpose, right_attributes, placement_config);
-    const auto left_density = directional_density(
-        left_utility, left.selected_cell_count);
-    const auto right_density = directional_density(
-        right_utility, right.selected_cell_count);
-    if (left_density != right_density) {
-        return left_density > right_density;
-    }
-    if (left_utility != right_utility) {
-        return left_utility > right_utility;
-    }
     const bool left_coverage =
         left.selected_cell_count >= minimum_selected_cell_count;
     const bool right_coverage =
@@ -378,15 +346,21 @@ bool BetterPurposeState(
         left.selected_cell_count != right.selected_cell_count) {
         return left.selected_cell_count > right.selected_cell_count;
     }
-    // Once purpose quality and minimum coverage are equal, preserve scarce
-    // floor/wall/support capacity.  Item count is intentionally the final
-    // discriminator, so a large neutral dresser or low-yield wall picture
-    // cannot beat a compact higher-yield combination merely by adding pieces.
-    if (left.selected_cell_count != right.selected_cell_count) {
-        return left.selected_cell_count < right.selected_cell_count;
-    }
+    // Once hard purpose constraints and minimum coverage are satisfied,
+    // prefer the layout that safely furnishes the room with more pieces.
+    // Comparing per-cell utility before this gate makes every additional
+    // neutral or already-capped item dilute the ratio, so an empty-house solve
+    // incorrectly converges on a handful of small high-yield objects.
     if (left.selected_count != right.selected_count) {
         return left.selected_count > right.selected_count;
+    }
+    if (left_rank != right_rank) {
+        return left_rank > right_rank;
+    }
+    // With equal purpose quality and item count, preserve capacity rather than
+    // choosing a larger neutral object solely because it occupies more cells.
+    if (left.selected_cell_count != right.selected_cell_count) {
+        return left.selected_cell_count < right.selected_cell_count;
     }
     return BetterPackState(left, right);
 }
@@ -394,27 +368,6 @@ bool BetterPurposeState(
 std::array<double, 4> PurposeThresholdRank(
     const FurniturePurposeRank& rank) noexcept {
     return {rank[0], rank[1], rank[2], rank[3]};
-}
-
-double CappedPurposeDirectionalUtility(
-    const room_planning::RoomPurposeAssignment* purpose,
-    const snapshot::RoomAttributes& attributes,
-    const FurniturePlacementConfig& placement_config) {
-    const auto role = purpose
-        ? purpose->role
-        : room_planning::RoomRole::General;
-    const auto constraints = purpose_policy_detail::Constraints(
-        role, attributes, placement_config);
-    double result{};
-    for (const auto& constraint : constraints) {
-        const auto directional =
-            purpose_policy_detail::DirectionalUtility(constraint);
-        const auto target_directional = constraint.maximum
-            ? -constraint.target
-            : constraint.target;
-        result += std::min(directional, target_directional);
-    }
-    return result;
 }
 
 bool CheckedCoordinate(
@@ -5405,120 +5358,6 @@ FurnitureLayoutPlan PlanWholeHouseBlueprint(
                 break;
             }
             auto sealed_moves = batch.moves;
-            if (!furniture_effects.empty()) {
-                auto final_attributes = CurrentRoomAttributes(
-                    target_room_id, virtual_furniture, furniture_effects);
-                std::size_t selected_cell_count{};
-                for (const auto& move : sealed_moves) {
-                    if (move.from_room_id != target_room_id) {
-                        const auto effect = furniture_effects.find(move.item_id);
-                        if (effect != furniture_effects.end()) {
-                            AddAttributes(final_attributes, effect->second);
-                        }
-                    }
-                    const auto info = info_by_item.find(move.item_id);
-                    if (info == info_by_item.end()) {
-                        continue;
-                    }
-                    const auto placement = std::ranges::find_if(
-                        virtual_furniture,
-                        [&move](const auto& item) {
-                            return item.instance_id ==
-                                static_cast<std::int64_t>(move.stable_key);
-                        });
-                    if (placement == virtual_furniture.end()) {
-                        continue;
-                    }
-                    const auto offsets = ActiveOffsets(
-                        *placement, *info->second);
-                    selected_cell_count += static_cast<std::size_t>(
-                        std::ranges::count_if(
-                            offsets,
-                            [](const auto& cell) {
-                                return cell.tile ==
-                                        FurniturePlacementTile::Hitbox ||
-                                    cell.tile ==
-                                        FurniturePlacementTile::Solid ||
-                                    cell.tile ==
-                                        FurniturePlacementTile::PoopLogic;
-                            }));
-                }
-                const auto minimum_selected_cell_count =
-                    MinimumSelectedCellCount(
-                        rooms.at(target_room_id),
-                        placement_config.
-                            minimum_furnishing_coverage_percent);
-                const auto* purpose = FindPurpose(
-                    room_purposes, target_room_id);
-                for (std::size_t index = sealed_moves.size();
-                     index-- > 0U;) {
-                    const auto& move = sealed_moves[index];
-                    if (move.from_room_id == target_room_id) {
-                        continue;
-                    }
-                    const auto info = info_by_item.find(move.item_id);
-                    const auto placement = std::ranges::find_if(
-                        virtual_furniture,
-                        [&move](const auto& item) {
-                            return item.instance_id ==
-                                static_cast<std::int64_t>(move.stable_key);
-                        });
-                    if (info == info_by_item.end() ||
-                        placement == virtual_furniture.end()) {
-                        continue;
-                    }
-                    const auto offsets = ActiveOffsets(
-                        *placement, *info->second);
-                    if (std::ranges::any_of(
-                            offsets,
-                            [](const auto& cell) {
-                                return cell.tile ==
-                                    FurniturePlacementTile::Solid;
-                            })) {
-                        continue;
-                    }
-                    const auto blocking_cells = static_cast<std::size_t>(
-                        std::ranges::count_if(
-                            offsets,
-                            [](const auto& cell) {
-                                return cell.tile ==
-                                        FurniturePlacementTile::Hitbox ||
-                                    cell.tile ==
-                                        FurniturePlacementTile::PoopLogic;
-                            }));
-                    if (selected_cell_count < blocking_cells ||
-                        selected_cell_count - blocking_cells <
-                            minimum_selected_cell_count) {
-                        continue;
-                    }
-                    auto without = final_attributes;
-                    const auto effect = furniture_effects.find(move.item_id);
-                    if (effect != furniture_effects.end()) {
-                        without.comfort -= effect->second.comfort;
-                        without.stimulation -= effect->second.stimulation;
-                        without.health -= effect->second.health;
-                        without.mutation -= effect->second.mutation;
-                        without.appeal -= effect->second.appeal;
-                    }
-                    const auto final_rank = RankFurniturePurpose(
-                        purpose, final_attributes, placement_config);
-                    const auto without_rank = RankFurniturePurpose(
-                        purpose, without, placement_config);
-                    if (PurposeThresholdRank(final_rank) !=
-                            PurposeThresholdRank(without_rank) ||
-                        CappedPurposeDirectionalUtility(
-                            purpose, final_attributes, placement_config) !=
-                            CappedPurposeDirectionalUtility(
-                                purpose, without, placement_config)) {
-                        continue;
-                    }
-                    final_attributes = without;
-                    selected_cell_count -= blocking_cells;
-                    sealed_moves.erase(
-                        sealed_moves.begin() +
-                        static_cast<std::ptrdiff_t>(index));
-                }
-            }
             if (sealed_moves.empty()) {
                 room_finished = true;
                 break;

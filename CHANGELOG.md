@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Clear every completed-room lock when the live furniture scene is empty, so
+  rooms that were already empty before a manual whole-house clear cannot stay
+  permanently excluded from the next sealed blueprint.
+- Restore maximum legal furniture count after purpose and minimum-coverage
+  constraints. Capped attribute gain per blocked cell is no longer allowed to
+  make a handful of small high-yield objects beat a visibly furnished room.
+- Keep the complete packing result instead of deleting ordinary non-Solid
+  furniture whose marginal purpose gain is already capped.
 - Plan one complete room per analysis request instead of solving every unlocked
   room in one global pass. All supported furniture in that room still
   participates; analyzing again advances to the next room that needs work.
