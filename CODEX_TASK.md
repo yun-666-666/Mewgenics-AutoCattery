@@ -1,5 +1,22 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.63 executable bounded-search fallback and room progression
+
+- Preserve the best bounded whole-room layouts, but also retain the greedy
+  layout that keeps every currently placed target-room item at its live
+  coordinate and only adds directly placeable incoming furniture.
+- If higher-ranked bounded candidates require unavailable temporary staging,
+  execute the preserved current-binding fallback instead of reporting
+  `evacuation_blocked`. If that fallback has no move, keep the room immutable
+  for the rest of the current analysis and continue to the next visible room.
+- A deadline-bearing current-binding fallback is not a persistent completed-
+  room lock. It only prevents an unreachable theoretical rearrangement from
+  blocking other rooms in the same player-requested analysis.
+- Preserve fixed room order, Support gates, sealed direct execution, native
+  rollback, stable-key quarantine, purpose targets, and maximum legal fill.
+- Build, test, deploy v0.5.63 DLL/data only, and do not launch or control the
+  game. Player validation remains the completion gate.
+
 ## v0.5.62 purpose quality, live deadline, and config-lock invalidation
 
 - Preserve maximum legal furniture count as the primary fill objective after

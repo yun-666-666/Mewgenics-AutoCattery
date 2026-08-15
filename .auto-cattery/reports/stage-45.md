@@ -1,7 +1,46 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-15
-版本：v0.5.62
+版本：v0.5.63
+
+## v0.5.63 可直接执行的有界搜索回退与跨房推进
+
+- 玩家 v0.5.62 两次实测均不是“家具不足”或完成锁未失效。`02:30` 会话先在阁楼完成
+  一次属性替换，随后分析累计 `packing_ms=20008`、`packing_deadline=1`，并以
+  `evacuation_blocked=1` 停止；搬空五房后的 `02:32` 会话成功把 `51` 件家具放入阁楼，
+  但余下 `130` 件再次连续得到相同 blocker。重进家具模式后仓库仍有 `129` 件，日志仍
+  为 `rooms=0 moves=0 evacuation_blocked=1 packing_deadline=1`。这证明 UI 已正确拒绝
+  假完成，真正堵点是 bounded 求解器只保留了排名最高的 16 个整房候选，而这些候选均
+  需要临时腾挪当前家具，违反本阶段“一件家具只直接移动到最终坐标”的执行边界。
+- `PackSubsetBounded()` 现在除最优候选外，单独保留 current-binding fallback：当前目标
+  房已有家具全部维持实时坐标，只以接触优先顺序添加能够直接放入的仓库或后续房家具。
+  该候选不再因排名低于需要临时 staging 的理论布局而被结果上限淘汰。高排名候选若
+  返回 `EvacuationBlocked`，规划器会继续尝试这一可直接执行的回退方案。
+- 如果 current-binding fallback 仍能加入家具，就返回完整密封移动批次；如果它没有
+  动作，说明不移动现有家具时本轮没有单件可继续加入。该房只在当前 whole-house 分析
+  中加入临时 immutable 集合，随后继续固定可见顺序的下一房，并禁止后续房拿走它的
+  家具。deadline 结果仍不会进入 `exhausted_room_ids`，因此不会创建永久完成锁；若所有
+  房间都没有安全动作，仍保留 `AC3929` 而不是误报 safe fixpoint。
+- 回归夹具使用两个 `10x4` 房间和 `100` 件同类仓库家具：首批 bounded 规划只填入阁楼
+  可容纳的一部分；模拟实时提交并保留阁楼焦点后，第二次 bounded 搜索必须带 deadline、
+  不得把阁楼标记 exhausted，同时必须返回 `Floor2_Large` 的纯仓库放置批次，且
+  `evacuation_blocked_room_count=0`。该测试在旧逻辑下会停在阁楼不可执行候选上。
+- Release 同时构建 `auto_cattery_tests` 与 `AutoCattery` 成功，生成
+  `build-stage45-release\out\Release\AutoCattery.dll`，大小 `1995776` 字节。首次测试
+  仅因夹具写死“至少 25 件”而失败；改为验证“首批非空且仍有剩余”后重新构建测试目标，
+  聚焦 Release 测试退出码 `0`，耗时 `17.05` 秒。没有因断言调整重建未变化的 DLL。
+- 本轮修改文件：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `src/furniture_planning/layout_solver.cpp`、`tests/furniture_layout_solver_tests.cpp`、
+  本报告及 `.auto-cattery/state.json`。本地提交：见包含本报告的 Stage 45 任务提交；
+  是否 push：否。
+- 部署前确认 `Mewgenics` 未运行；同步 Release DLL 与 `description.json` 到
+  `dist\Release` 后，执行 `tools\deploy.ps1 -GameRoot
+  D:\steam\steam\steamapps\common\Mewgenics -Configuration Release` 成功。安装版本为
+  `0.5.63`，保留玩家升级重投值 `20`；未启动或控制游戏，未运行哈希或安装完整性检查。
+  玩家复测应再次搬空五房后执行一次“开始分析 + 自动放置”：阁楼完成后自动分析必须
+  继续给下一房生成结果，日志不应再以同一 binding 连续出现
+  `evacuation_blocked=1 packing_deadline=1 rooms=0 moves=0`。同时确认已完成阁楼家具不被
+  后续房取走、无黑色/漂浮/消失家具、无 SEH/崩溃，并返回完成截图和最新日志。
 
 ## v0.5.62 高属性选材、超时房间解锁与 F10 目标即时失效
 

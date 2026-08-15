@@ -1624,6 +1624,7 @@ struct CompactPackingItem {
 
 struct BoundedPackingResult {
     std::vector<PackState> states;
+    std::optional<PackState> current_binding_fallback;
     std::size_t placement_candidate_count{};
     std::size_t nodes_visited{};
     std::size_t nodes_pruned{};
@@ -2077,6 +2078,7 @@ BoundedPackingResult PackSubsetBounded(
                     compact_items[item_index].incoming_effect);
             }
         }
+        result.current_binding_fallback = *greedy;
         consider(*greedy);
     }
 
@@ -4562,6 +4564,10 @@ FurnitureLayoutPlan PlanWholeHouse(
                 bounded.deadline_reached;
             room_packing_deadline_reached = bounded.deadline_reached;
             packed_candidates = std::move(bounded.states);
+            if (bounded.current_binding_fallback) {
+                packed_candidates.push_back(
+                    std::move(*bounded.current_binding_fallback));
+            }
         } else {
             plan.packing_candidate_count += placement_candidate_count;
             std::vector<PackState> current_required_seeds;
@@ -4786,10 +4792,21 @@ FurnitureLayoutPlan PlanWholeHouse(
             room_installation_blocked = room_installation_blocked ||
                 execution == ExecutionPlanResult::InstallationBlocked;
         }
-        if (room_stable_layout_found && !room_tabu_blocked &&
-            !room_packing_deadline_reached) {
-            plan.exhausted_room_ids.push_back(target_room_id);
+        if (room_stable_layout_found && !room_tabu_blocked) {
             locked_rooms.insert(target_room_id);
+            if (!room_packing_deadline_reached) {
+                plan.exhausted_room_ids.push_back(target_room_id);
+            } else {
+                // The bounded optimizer may time out after finding theoretical
+                // rearrangements that need temporary staging. Its preserved
+                // current-binding fallback still proves whether another item
+                // can be added without disturbing the live room. Keep this
+                // room immutable for the rest of the current whole-house plan
+                // so an unreachable rearrangement cannot block later rooms,
+                // but do not create a persistent completion lock from a
+                // deadline-bearing result.
+                found_geometric_candidate = true;
+            }
             continue;
         }
         current_state_blocked = current_state_blocked ||

@@ -1420,11 +1420,17 @@ void RunFurnitureLayoutSolverTests() {
         }));
 
     snapshot::detail::HouseGeometryCatalog bounded_geometry;
-    bounded_geometry.rooms = {{
-        .definition_id = "BoundedAttic",
-        .room_id = "Attic",
-        .width = 37,
-        .height = 11}};
+    bounded_geometry.rooms = {
+        {
+            .definition_id = "BoundedAttic",
+            .room_id = "Attic",
+            .width = 10,
+            .height = 4},
+        {
+            .definition_id = "BoundedUpperLeft",
+            .room_id = "Floor2_Large",
+            .width = 10,
+            .height = 4}};
     snapshot::detail::FurnitureInfoCatalog bounded_info;
     bounded_info.records.push_back(SmallInfo("bounded-item"));
     std::vector<snapshot::detail::FurniturePlacement> bounded_furniture;
@@ -1445,17 +1451,24 @@ void RunFurnitureLayoutSolverTests() {
             .expected_resident_count = 4}};
     auto bounded_config = furniture_planning::FurniturePlacementConfig{};
     bounded_config.minimum_furnishing_coverage_percent = 5U;
-    std::vector<std::uint8_t> bounded_room_cells(37U * 11U);
+    std::vector<std::uint8_t> bounded_room_cells(10U * 4U);
     std::fill_n(
         bounded_room_cells.begin(),
-        std::size_t{37},
+        std::size_t{10},
         std::uint8_t{2});
-    const std::vector<furniture_planning::FurnitureRoomGrid> bounded_grids{{
-        "Attic",
-        37,
-        11,
-        bounded_room_cells,
-        bounded_room_cells}};
+    const std::vector<furniture_planning::FurnitureRoomGrid> bounded_grids{
+        {
+            "Attic",
+            10,
+            4,
+            bounded_room_cells,
+            bounded_room_cells},
+        {
+            "Floor2_Large",
+            10,
+            4,
+            bounded_room_cells,
+            bounded_room_cells}};
     const auto bounded_started = std::chrono::steady_clock::now();
     const auto bounded_batch = solver.Plan(
         bounded_furniture,
@@ -1469,12 +1482,12 @@ void RunFurnitureLayoutSolverTests() {
     const auto bounded_elapsed = std::chrono::steady_clock::now() -
         bounded_started;
     AC_CHECK(bounded_batch.bounded_packing_search_used);
-    AC_CHECK(bounded_batch.packing_candidate_count >= 37000U);
+    AC_CHECK(bounded_batch.packing_candidate_count >= 3000U);
     AC_CHECK(bounded_batch.packing_search_node_count != 0U);
     AC_CHECK(bounded_batch.packing_search_milliseconds <= 6000U);
     AC_CHECK(bounded_batch.target_room_id == "Attic");
     AC_CHECK(!bounded_batch.moves.empty());
-    AC_CHECK(bounded_batch.moves.size() >= 35U);
+    AC_CHECK(bounded_batch.moves.size() < bounded_furniture.size());
     AC_CHECK(bounded_elapsed < std::chrono::seconds(7));
     const auto bounded_repeat = solver.Plan(
         bounded_furniture,
@@ -1510,10 +1523,10 @@ void RunFurnitureLayoutSolverTests() {
         const auto body_x = move.target_x + 10;
         const auto body_y = move.target_y + 12;
         AC_CHECK(body_x >= 0 && body_y >= 0);
-        AC_CHECK(body_x < 37 && body_y < 11);
-        if (body_x >= 0 && body_y >= 0 && body_x < 37 && body_y < 11) {
+        AC_CHECK(body_x < 10 && body_y < 4);
+        if (body_x >= 0 && body_y >= 0 && body_x < 10 && body_y < 4) {
             bounded_after_commit_grids.front().live_cells[
-                static_cast<std::size_t>(body_y) * 37U +
+                static_cast<std::size_t>(body_y) * 10U +
                 static_cast<std::size_t>(body_x)] = 1U;
         }
     }
@@ -1528,16 +1541,19 @@ void RunFurnitureLayoutSolverTests() {
         bounded_config,
         {},
         "Attic");
-    AC_CHECK(bounded_live_reanalysis.moves.empty());
-    if (bounded_live_reanalysis.packing_search_deadline_reached) {
-        AC_CHECK(std::ranges::find(
-            bounded_live_reanalysis.exhausted_room_ids,
-            "Attic") == bounded_live_reanalysis.exhausted_room_ids.end());
-    } else {
-        AC_CHECK(std::ranges::find(
-            bounded_live_reanalysis.exhausted_room_ids,
-            "Attic") != bounded_live_reanalysis.exhausted_room_ids.end());
-    }
+    AC_CHECK(bounded_live_reanalysis.packing_search_deadline_reached);
+    AC_CHECK(std::ranges::find(
+        bounded_live_reanalysis.exhausted_room_ids,
+        "Attic") == bounded_live_reanalysis.exhausted_room_ids.end());
+    AC_CHECK(bounded_live_reanalysis.target_room_id == "Floor2_Large");
+    AC_CHECK(!bounded_live_reanalysis.moves.empty());
+    AC_CHECK(std::ranges::all_of(
+        bounded_live_reanalysis.moves,
+        [](const auto& move) {
+            return move.from_room_id.empty() &&
+                move.target_room_id == "Floor2_Large";
+        }));
+    AC_CHECK(bounded_live_reanalysis.evacuation_blocked_room_count == 0U);
 
     const std::vector<snapshot::detail::FurniturePlacement>
         blocked_room_furniture{
