@@ -1,5 +1,30 @@
 # CODEX CURRENT TASK - STAGE 45 AUTOMATIC WAREHOUSE ATTRIBUTE REPLACEMENT
 
+## v0.5.64 sealed whole-house ownership blueprint and spatial yield
+
+- Analyze ordinary movable furniture against a virtual empty house before the
+  first native write. Solve rooms in the fixed visible order, freeze every
+  stable key to exactly one final room or the warehouse, and never make a
+  completed room a furniture source for a later room.
+- Convert the frozen blueprint to one direct execution sequence: furniture not
+  selected by any room is stored once; selected furniture already in a room
+  moves directly to its final coordinate; selected warehouse furniture is
+  created only once at its final coordinate. Never store and recreate the same
+  selected stable key in the same House scene.
+- Rank purpose-safe layouts by capped directional attribute gain per blocked
+  cell before coverage, compactness, and final item-count ties. Remove optional
+  non-Solid furniture that does not improve hard purpose thresholds, capped
+  purpose utility, or minimum coverage, so low-yield pictures and large neutral
+  furniture do not consume scarce capacity merely to increase piece count.
+- Keep combat Comfort/Stimulation directionality, Health gates, Support checks,
+  UI-tick serialization, 250 ms settle delay, binding validation, rollback for
+  direct moves, SEH hard stop, and stable-key retirement quarantine.
+- Bound each per-room large packing search to one second so a five-room sealed
+  analysis cannot spend the former five-second search budget independently in
+  every room.
+- Build, test, deploy v0.5.64 DLL/data only, and do not launch or control the
+  game. Player validation remains the completion gate.
+
 ## v0.5.63 executable bounded-search fallback and room progression
 
 - Preserve the best bounded whole-room layouts, but also retain the greedy

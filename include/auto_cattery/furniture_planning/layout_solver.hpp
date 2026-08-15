@@ -74,11 +74,16 @@ struct FurnitureLayoutPlan {
     std::size_t packing_search_node_count{};
     std::size_t packing_search_pruned_count{};
     std::size_t packing_search_milliseconds{};
+    std::size_t warehouse_store_count{};
     bool bounded_packing_search_used{};
     bool packing_search_deadline_reached{};
+    bool whole_house_blueprint{};
 };
 
 [[nodiscard]] bool IsWarehouseLayoutMove(
+    const FurnitureLayoutMove& move) noexcept;
+
+[[nodiscard]] bool IsFurnitureStoreMove(
     const FurnitureLayoutMove& move) noexcept;
 
 [[nodiscard]] std::size_t FurnitureRoomPlacementOrder(

@@ -1795,6 +1795,16 @@ void MewUiBridge::PollFurnitureAutoPlacement(
                 furniture_focus_room_id_.reset();
             }
         }
+        if (plan.whole_house_blueprint &&
+            furniture_execution_upgrade_index_ ==
+                furniture_analysis_preview_->attribute_upgrades.size() &&
+            furniture_execution_index_ == plan.moves.size()) {
+            // A sealed whole-house blueprint already owns every selected
+            // stable key and contains every room phase. Re-analysis here would
+            // discard that ownership and allow later rooms to steal furniture
+            // from rooms that were just completed.
+            furniture_auto_run_active_ = false;
+        }
         Logger::Instance().Write(
             LogLevel::Info,
             "FurniturePlacement",
@@ -2118,6 +2128,60 @@ void MewUiBridge::PollFurnitureAutoPlacement(
     const auto move = plan.moves[furniture_execution_index_];
     const FurniturePlacementLocator locator{
         move.item_id, move.stable_key};
+    if (furniture_planning::IsFurnitureStoreMove(move)) {
+        const auto location = furniture_placement_gateway_->Locate(locator);
+        if (location.status != FurniturePlacementLookupStatus::Found ||
+            location.room != move.from_room_id ||
+            location.saved_x != move.from_x ||
+            location.saved_y != move.from_y) {
+            fail("the furniture selected for final warehouse storage no longer matches the sealed blueprint");
+            return;
+        }
+        const auto stored =
+            furniture_placement_gateway_->StorePlacedFurniture(locator);
+        if (stored.status != FurnitureWarehousePlacementStatus::Stored) {
+            if (stored.seh_code != 0U) {
+                furniture_faulted_generation_ = context.scene_generation;
+            }
+            std::ostringstream rejection;
+            rejection << "native final warehouse storage rejected "
+                      << SafeTechnicalName(move.item_id)
+                      << " key=" << move.stable_key
+                      << " room=" << SafeTechnicalName(move.from_room_id)
+                      << " from=(" << move.from_x << ',' << move.from_y << ')'
+                      << " status="
+                      << FurnitureWarehousePlacementStatusName(stored.status)
+                      << " committed=" << (stored.committed ? 1 : 0)
+                      << " verified=" << (stored.verified ? 1 : 0)
+                      << " seh=0x" << std::hex << std::uppercase
+                      << stored.seh_code << " rva=0x"
+                      << stored.exception_rva << std::dec << ": "
+                      << stored.message;
+            fail(rejection.str());
+            return;
+        }
+        ++furniture_execution_moved_;
+        furniture_attribute_upgrade_committed_in_mode_ = true;
+        furniture_retired_keys_.push_back(move.stable_key);
+        Logger::Instance().Write(
+            LogLevel::Info,
+            "FurniturePlacement",
+            "AC3931",
+            "Auto Place stored final warehouse furniture=" +
+                SafeTechnicalName(move.item_id) + " key=" +
+                std::to_string(move.stable_key) + " source=" +
+                SafeTechnicalName(move.from_room_id) + " (" +
+                std::to_string(move.from_x) + "," +
+                std::to_string(move.from_y) + ").");
+        ++furniture_execution_index_;
+        furniture_auto_run_next_transaction_ =
+            std::chrono::steady_clock::now() +
+            kFurnitureTransactionSettleDelay;
+        if (furniture_execution_index_ == plan.moves.size()) {
+            finish();
+        }
+        return;
+    }
     if (furniture_planning::IsWarehouseLayoutMove(move)) {
         const auto placed =
             furniture_placement_gateway_->PlaceFromWarehouse({

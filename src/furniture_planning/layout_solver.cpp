@@ -50,7 +50,10 @@ constexpr std::size_t kBoundedPackingCandidateThreshold = 16384;
 constexpr std::size_t kBoundedPackingOptionalBranchLimit = 12;
 constexpr std::size_t kBoundedPackingRequiredBranchLimit = 32;
 constexpr std::size_t kBoundedPackingResultLimit = 16;
-constexpr auto kBoundedPackingBudget = std::chrono::milliseconds(5000);
+// The whole-house blueprint may solve up to five rooms in one analysis. Keep
+// each room bounded so the complete sealed plan remains responsive instead of
+// spending the former five-second budget independently in every room.
+constexpr auto kBoundedPackingBudget = std::chrono::milliseconds(1000);
 
 struct OffsetCell {
     std::int32_t x{};
@@ -294,14 +297,19 @@ bool BetterBalancedAtticState(
     if (left_attributes.appeal != right_attributes.appeal) {
         return left_attributes.appeal > right_attributes.appeal;
     }
+    if (left.selected_cell_count != right.selected_cell_count) {
+        return left.selected_cell_count < right.selected_cell_count;
+    }
     if (left.selected_count != right.selected_count) {
         return left.selected_count > right.selected_count;
     }
-    if (left.selected_cell_count != right.selected_cell_count) {
-        return left.selected_cell_count > right.selected_cell_count;
-    }
     return BetterPackState(left, right);
 }
+
+double CappedPurposeDirectionalUtility(
+    const room_planning::RoomPurposeAssignment* purpose,
+    const snapshot::RoomAttributes& attributes,
+    const FurniturePlacementConfig& placement_config);
 
 bool BetterPurposeState(
     const PackState& left,
@@ -332,6 +340,33 @@ bool BetterPurposeState(
     if (left_threshold_rank != right_threshold_rank) {
         return left_threshold_rank > right_threshold_rank;
     }
+    const auto current_utility = CappedPurposeDirectionalUtility(
+        purpose, current_attributes, placement_config);
+    const auto directional_density = [current_utility](
+        double utility,
+        std::size_t selected_cell_count) {
+        const auto gain = utility - current_utility;
+        return gain / static_cast<double>(
+            std::max<std::size_t>(selected_cell_count, 1U));
+    };
+    const auto left_attributes = CandidateRoomAttributes(
+        left, items, current_attributes, target_room_id, furniture_effects);
+    const auto right_attributes = CandidateRoomAttributes(
+        right, items, current_attributes, target_room_id, furniture_effects);
+    const auto left_utility = CappedPurposeDirectionalUtility(
+        purpose, left_attributes, placement_config);
+    const auto right_utility = CappedPurposeDirectionalUtility(
+        purpose, right_attributes, placement_config);
+    const auto left_density = directional_density(
+        left_utility, left.selected_cell_count);
+    const auto right_density = directional_density(
+        right_utility, right.selected_cell_count);
+    if (left_density != right_density) {
+        return left_density > right_density;
+    }
+    if (left_utility != right_utility) {
+        return left_utility > right_utility;
+    }
     const bool left_coverage =
         left.selected_cell_count >= minimum_selected_cell_count;
     const bool right_coverage =
@@ -343,21 +378,15 @@ bool BetterPurposeState(
         left.selected_cell_count != right.selected_cell_count) {
         return left.selected_cell_count > right.selected_cell_count;
     }
-    // Once both layouts meet the same hard purpose constraints, maximize the
-    // number of legal furniture pieces. Purpose quality remains the next
-    // discriminator so equally full rooms still use the best role-specific
-    // furniture instead of arbitrary filler.
-    if (left.selected_count != right.selected_count) {
-        return left.selected_count > right.selected_count;
-    }
-    if (left_rank != right_rank) {
-        return left_rank > right_rank;
-    }
-    // Once the room-purpose result and furniture count are equal, preserve
-    // floor/wall capacity for later useful pieces instead of rewarding a
-    // single large neutral object merely because it blocks more cells.
+    // Once purpose quality and minimum coverage are equal, preserve scarce
+    // floor/wall/support capacity.  Item count is intentionally the final
+    // discriminator, so a large neutral dresser or low-yield wall picture
+    // cannot beat a compact higher-yield combination merely by adding pieces.
     if (left.selected_cell_count != right.selected_cell_count) {
         return left.selected_cell_count < right.selected_cell_count;
+    }
+    if (left.selected_count != right.selected_count) {
+        return left.selected_count > right.selected_count;
     }
     return BetterPackState(left, right);
 }
@@ -365,6 +394,27 @@ bool BetterPurposeState(
 std::array<double, 4> PurposeThresholdRank(
     const FurniturePurposeRank& rank) noexcept {
     return {rank[0], rank[1], rank[2], rank[3]};
+}
+
+double CappedPurposeDirectionalUtility(
+    const room_planning::RoomPurposeAssignment* purpose,
+    const snapshot::RoomAttributes& attributes,
+    const FurniturePlacementConfig& placement_config) {
+    const auto role = purpose
+        ? purpose->role
+        : room_planning::RoomRole::General;
+    const auto constraints = purpose_policy_detail::Constraints(
+        role, attributes, placement_config);
+    double result{};
+    for (const auto& constraint : constraints) {
+        const auto directional =
+            purpose_policy_detail::DirectionalUtility(constraint);
+        const auto target_directional = constraint.maximum
+            ? -constraint.target
+            : constraint.target;
+        result += std::min(directional, target_directional);
+    }
+    return result;
 }
 
 bool CheckedCoordinate(
@@ -4299,6 +4349,8 @@ FurnitureLayoutPlan PlanWholeHouse(
             target_room_id, furniture, furniture_effects);
         const auto* room_purpose = FindPurpose(
             room_purposes, target_room_id);
+        const bool purpose_scoring = room_purpose != nullptr ||
+            !furniture_effects.empty();
         const bool balanced_attic = room_purpose == nullptr &&
             target_room_id == "Attic" && !furniture_effects.empty();
         std::vector<LayoutItem> target_items;
@@ -4321,7 +4373,7 @@ FurnitureLayoutPlan PlanWholeHouse(
             } else if (item.placement->room_id == target_room_id) {
                 target_items.push_back(std::move(item));
             } else {
-                if (room_purpose) {
+                if (purpose_scoring) {
                     auto improved_attributes = current_attributes;
                     const auto effect = furniture_effects.find(
                         item.placement->item_id);
@@ -4376,10 +4428,11 @@ FurnitureLayoutPlan PlanWholeHouse(
         std::ranges::sort(
             incoming_items,
             [&furniture_effects,
-             &current_attributes,
-             &placement_config,
-             room_purpose,
-             balanced_attic](const auto& left, const auto& right) {
+              &current_attributes,
+              &placement_config,
+              room_purpose,
+              purpose_scoring,
+              balanced_attic](const auto& left, const auto& right) {
                 if (balanced_attic) {
                     const auto left_priority = PreferredAtticIdolPriority(
                         left.placement->item_id);
@@ -4412,7 +4465,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                         return left_rank > right_rank;
                     }
                 }
-                if (room_purpose) {
+                if (purpose_scoring) {
                     auto left_attributes = current_attributes;
                     auto right_attributes = current_attributes;
                     const auto left_effect = furniture_effects.find(
@@ -4515,7 +4568,7 @@ FurnitureLayoutPlan PlanWholeHouse(
                         target_room_id,
                         furniture_effects);
                 };
-        } else if (room_purpose) {
+        } else if (purpose_scoring) {
             better_packed_state =
                 [&target_items,
                  &current_attributes,
@@ -4843,6 +4896,776 @@ FurnitureLayoutPlan PlanWholeHouse(
     return plan;
 }
 
+struct BlueprintRuntimeItem {
+    std::size_t source_index{};
+    std::uint64_t stable_key{};
+    std::string item_id;
+    std::vector<OffsetCell> offsets;
+    snapshot::RoomId current_room_id;
+    std::vector<MappedCell> current_cells;
+    std::int32_t current_x{};
+    std::int32_t current_y{};
+    snapshot::RoomId final_room_id;
+    std::vector<MappedCell> final_cells;
+    std::int32_t final_x{};
+    std::int32_t final_y{};
+    bool movable{};
+    bool selected{};
+    bool store{};
+    bool complete{};
+};
+
+bool RemovalPreservesExistingSupports(
+    const RoomCollisionGrid& room,
+    const Occupancy& before,
+    const Occupancy& after,
+    const snapshot::RoomId& room_id,
+    std::uint64_t removed_key,
+    const std::vector<BlueprintRuntimeItem>& items) {
+    for (const auto& item : items) {
+        if (item.stable_key == removed_key ||
+            item.current_room_id != room_id) {
+            continue;
+        }
+        for (const auto& cell : item.current_cells) {
+            if (cell.tile != FurniturePlacementTile::Support) {
+                continue;
+            }
+            const bool was_satisfied = SupportSatisfied(
+                room, before, cell.x, cell.y);
+            const bool remains_satisfied = SupportSatisfied(
+                room, after, cell.x, cell.y);
+            if (was_satisfied && !remains_satisfied) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+ExecutionPlanResult AppendBlueprintExecutionMoves(
+    const std::vector<FurniturePlacement>& original_furniture,
+    const std::vector<FurniturePlacement>& final_furniture,
+    const snapshot::detail::HouseGeometryCatalog& geometry,
+    const snapshot::detail::FurnitureInfoCatalog& furniture_info,
+    const std::vector<FurnitureRoomGrid>& runtime_room_grids,
+    const std::unordered_set<std::uint64_t>& movable_keys,
+    std::vector<FurnitureLayoutMove>& moves,
+    std::size_t& kept_count,
+    std::size_t& warehouse_store_count) {
+    std::map<snapshot::RoomId, RoomCollisionGrid> rooms;
+    for (const auto& runtime : runtime_room_grids) {
+        if (runtime.room_id.empty() || runtime.room_id == "AdventureBox") {
+            continue;
+        }
+        const auto resolved = ResolveRuntimeRoom(geometry, runtime);
+        if (resolved) {
+            rooms.emplace(runtime.room_id, *resolved);
+        }
+    }
+    if (rooms.empty() || original_furniture.size() != final_furniture.size()) {
+        return ExecutionPlanResult::CurrentStateInvalid;
+    }
+
+    std::unordered_map<std::string, const FurnitureInfoRecord*> info_by_item;
+    for (const auto& info : furniture_info.records) {
+        info_by_item.emplace(info.item_id, &info);
+    }
+    std::set<snapshot::RoomId> unsafe_rooms;
+    ApplyRuntimeLiveGridEvidence(
+        rooms,
+        runtime_room_grids,
+        original_furniture,
+        info_by_item,
+        unsafe_rooms);
+    if (!unsafe_rooms.empty()) {
+        return ExecutionPlanResult::CurrentStateInvalid;
+    }
+
+    std::map<snapshot::RoomId, Occupancy> occupancies;
+    for (const auto& [room_id, room] : rooms) {
+        auto& occupancy = occupancies[room_id];
+        occupancy.hitbox_count.assign(room.width * room.height, 0U);
+        occupancy.solid_count.assign(room.width * room.height, 0U);
+        occupancy.poop_count.assign(room.width * room.height, 0U);
+    }
+
+    std::vector<BlueprintRuntimeItem> items;
+    items.reserve(original_furniture.size());
+    for (std::size_t index = 0; index < original_furniture.size(); ++index) {
+        const auto& source = original_furniture[index];
+        if (source.instance_id <= 0) {
+            continue;
+        }
+        const auto info = info_by_item.find(source.item_id);
+        if (info == info_by_item.end()) {
+            continue;
+        }
+        BlueprintRuntimeItem item;
+        item.source_index = index;
+        item.stable_key = static_cast<std::uint64_t>(source.instance_id);
+        item.item_id = source.item_id;
+        item.offsets = ActiveOffsets(source, *info->second);
+        if (item.offsets.empty()) {
+            continue;
+        }
+        item.current_room_id = source.room_id;
+        item.current_x = source.position_x;
+        item.current_y = source.position_y;
+        item.movable = movable_keys.contains(item.stable_key);
+        const auto& final = final_furniture[index];
+        item.final_room_id = item.movable ? final.room_id : source.room_id;
+        item.final_x = item.movable ? final.position_x : source.position_x;
+        item.final_y = item.movable ? final.position_y : source.position_y;
+        item.selected = item.movable && !item.final_room_id.empty();
+        item.store = item.movable && item.final_room_id.empty() &&
+            !item.current_room_id.empty();
+        if (!item.current_room_id.empty()) {
+            const auto room = rooms.find(item.current_room_id);
+            if (room == rooms.end() && !item.movable) {
+                continue;
+            }
+            if (room == rooms.end() ||
+                !MapCells(source, item.offsets, item.current_cells) ||
+                !std::ranges::all_of(
+                    item.current_cells,
+                    [&room](const auto& cell) {
+                        return Inside(room->second, cell.x, cell.y);
+                    })) {
+                return ExecutionPlanResult::CurrentStateInvalid;
+            }
+            Place(
+                room->second,
+                source.instance_id,
+                item.current_cells,
+                occupancies.at(item.current_room_id));
+        }
+        if (item.selected) {
+            const auto room = rooms.find(item.final_room_id);
+            auto target = final;
+            if (room == rooms.end() ||
+                !MapCells(target, item.offsets, item.final_cells) ||
+                !std::ranges::all_of(
+                    item.final_cells,
+                    [&room](const auto& cell) {
+                        return Inside(room->second, cell.x, cell.y);
+                    })) {
+                return ExecutionPlanResult::FinalStateInvalid;
+            }
+        }
+        items.push_back(std::move(item));
+    }
+    std::size_t pending_stores = static_cast<std::size_t>(std::ranges::count_if(
+        items, [](const auto& item) { return item.store; }));
+    const auto drain_safe_stores = [&]() {
+        bool drained_any{};
+        while (pending_stores != 0U) {
+            bool progressed{};
+        for (auto& item : items) {
+            if (!item.store || item.complete || item.current_room_id.empty()) {
+                continue;
+            }
+            const auto room = rooms.find(item.current_room_id);
+            auto source_without = occupancies.at(item.current_room_id);
+            Remove(
+                room->second,
+                static_cast<std::int64_t>(item.stable_key),
+                item.current_cells,
+                source_without);
+            const auto old_room = item.current_room_id;
+            const auto previous = occupancies.at(old_room);
+            if (!RemovalPreservesExistingSupports(
+                    room->second,
+                    previous,
+                    source_without,
+                    old_room,
+                    item.stable_key,
+                    items)) {
+                continue;
+            }
+            item.current_room_id.clear();
+            occupancies.at(old_room) = source_without;
+            moves.push_back({
+                item.stable_key,
+                item.item_id,
+                old_room,
+                {},
+                item.current_x,
+                item.current_y,
+                0,
+                0});
+            item.current_cells.clear();
+            item.complete = true;
+            ++warehouse_store_count;
+            --pending_stores;
+            progressed = true;
+            drained_any = true;
+            break;
+        }
+        if (!progressed) {
+                break;
+            }
+        }
+        return drained_any;
+    };
+    (void)drain_safe_stores();
+
+    std::size_t pending_selected{};
+    for (auto& item : items) {
+        if (!item.selected) {
+            continue;
+        }
+        if (item.current_room_id == item.final_room_id &&
+            item.current_x == item.final_x && item.current_y == item.final_y) {
+            item.complete = true;
+            ++kept_count;
+        } else {
+            ++pending_selected;
+        }
+    }
+    const auto max_iterations = items.size() * items.size() * 8U + 128U;
+    std::size_t iterations{};
+    while (pending_selected != 0U) {
+        if (++iterations > max_iterations) {
+            return ExecutionPlanResult::InstallationBlocked;
+        }
+        bool progressed{};
+        std::vector<std::size_t> order;
+        order.reserve(items.size());
+        for (std::size_t index = 0; index < items.size(); ++index) {
+            if (items[index].selected && !items[index].complete) {
+                order.push_back(index);
+            }
+        }
+        std::ranges::sort(order, [&items](std::size_t left, std::size_t right) {
+            return std::tuple{
+                       FurnitureRoomPlacementOrder(items[left].final_room_id),
+                       items[left].final_room_id,
+                       items[left].stable_key} <
+                std::tuple{
+                       FurnitureRoomPlacementOrder(items[right].final_room_id),
+                       items[right].final_room_id,
+                       items[right].stable_key};
+        });
+        for (const auto index : order) {
+            auto& item = items[index];
+            std::optional<Occupancy> source_without;
+            const auto old_room = item.current_room_id;
+            if (!old_room.empty()) {
+                source_without = occupancies.at(old_room);
+                Remove(
+                    rooms.at(old_room),
+                    static_cast<std::int64_t>(item.stable_key),
+                    item.current_cells,
+                    *source_without);
+                const auto previous = occupancies.at(old_room);
+                if (!RemovalPreservesExistingSupports(
+                        rooms.at(old_room),
+                        previous,
+                        *source_without,
+                        old_room,
+                        item.stable_key,
+                        items)) {
+                    continue;
+                }
+            }
+            auto destination = old_room == item.final_room_id && source_without
+                ? *source_without
+                : occupancies.at(item.final_room_id);
+            if (!CanPlace(
+                    rooms.at(item.final_room_id),
+                    destination,
+                    item.final_cells)) {
+                continue;
+            }
+            if (!old_room.empty()) {
+                occupancies.at(old_room) = *source_without;
+            }
+            Place(
+                rooms.at(item.final_room_id),
+                static_cast<std::int64_t>(item.stable_key),
+                item.final_cells,
+                destination);
+            occupancies.at(item.final_room_id) = std::move(destination);
+            moves.push_back({
+                item.stable_key,
+                item.item_id,
+                old_room,
+                item.final_room_id,
+                item.current_x,
+                item.current_y,
+                item.final_x,
+                item.final_y});
+            item.current_room_id = item.final_room_id;
+            item.current_cells = item.final_cells;
+            item.current_x = item.final_x;
+            item.current_y = item.final_y;
+            item.complete = true;
+            --pending_selected;
+            progressed = true;
+            break;
+        }
+        if (!progressed) {
+            return ExecutionPlanResult::InstallationBlocked;
+        }
+    }
+    (void)drain_safe_stores();
+    if (pending_stores != 0U) {
+        return ExecutionPlanResult::EvacuationBlocked;
+    }
+    return ExecutionPlanResult::Success;
+}
+
+FurnitureLayoutPlan PlanWholeHouseBlueprint(
+    const std::vector<FurniturePlacement>& furniture,
+    const snapshot::detail::HouseGeometryCatalog& geometry,
+    const snapshot::detail::FurnitureInfoCatalog& furniture_info,
+    const std::vector<FurnitureRoomGrid>& runtime_room_grids,
+    const std::vector<snapshot::RoomId>& locked_room_ids,
+    const FurnitureCatalog& furniture_effects,
+    const std::vector<room_planning::RoomPurposeAssignment>& room_purposes,
+    const FurniturePlacementConfig& placement_config,
+    const std::vector<FurnitureLayoutMove>& forbidden_moves) {
+    FurnitureLayoutPlan blueprint;
+    blueprint.whole_house_blueprint = true;
+
+    std::map<snapshot::RoomId, RoomCollisionGrid> rooms;
+    for (const auto& runtime : runtime_room_grids) {
+        if (runtime.room_id.empty() || runtime.room_id == "AdventureBox") {
+            continue;
+        }
+        if (const auto resolved = ResolveRuntimeRoom(geometry, runtime)) {
+            rooms.emplace(runtime.room_id, *resolved);
+        }
+    }
+    if (rooms.empty()) {
+        blueprint.unsupported_furniture_count = furniture.size();
+        return blueprint;
+    }
+    std::unordered_map<std::string, const FurnitureInfoRecord*> info_by_item;
+    for (const auto& info : furniture_info.records) {
+        info_by_item.emplace(info.item_id, &info);
+    }
+    std::set<snapshot::RoomId> unsafe_rooms;
+    ApplyRuntimeLiveGridEvidence(
+        rooms,
+        runtime_room_grids,
+        furniture,
+        info_by_item,
+        unsafe_rooms);
+
+    const std::set<snapshot::RoomId> persistent_locked(
+        locked_room_ids.begin(), locked_room_ids.end());
+    std::unordered_set<std::uint64_t> movable_keys;
+    auto virtual_furniture = furniture;
+    for (std::size_t index = 0; index < virtual_furniture.size(); ++index) {
+        const auto& source = furniture[index];
+        if (source.instance_id <= 0 ||
+            persistent_locked.contains(source.room_id) ||
+            unsafe_rooms.contains(source.room_id)) {
+            continue;
+        }
+        const auto info = info_by_item.find(source.item_id);
+        if (info == info_by_item.end()) {
+            continue;
+        }
+        const auto offsets = ActiveOffsets(source, *info->second);
+        if (offsets.empty() || std::ranges::none_of(
+                offsets,
+                [](const auto& cell) {
+                    return cell.tile == FurniturePlacementTile::Hitbox ||
+                        cell.tile == FurniturePlacementTile::Solid ||
+                        cell.tile == FurniturePlacementTile::PoopLogic;
+                })) {
+            continue;
+        }
+        if (!source.room_id.empty()) {
+            const auto room = rooms.find(source.room_id);
+            std::vector<MappedCell> cells;
+            if (room == rooms.end() || !MapCells(source, offsets, cells) ||
+                !std::ranges::all_of(
+                    cells,
+                    [&room](const auto& cell) {
+                        return Inside(room->second, cell.x, cell.y);
+                    })) {
+                continue;
+            }
+        }
+        movable_keys.insert(static_cast<std::uint64_t>(source.instance_id));
+        virtual_furniture[index].room_id.clear();
+        virtual_furniture[index].position_x = 0;
+        virtual_furniture[index].position_y = 0;
+    }
+
+    auto virtual_grids = runtime_room_grids;
+    for (auto& runtime : virtual_grids) {
+        const auto cell_count = runtime.width * runtime.height;
+        if (runtime.base_cells.size() != cell_count ||
+            runtime.live_cells.size() != cell_count) {
+            continue;
+        }
+        for (const auto& source : furniture) {
+            if (source.room_id != runtime.room_id || source.instance_id <= 0) {
+                continue;
+            }
+            const auto info = info_by_item.find(source.item_id);
+            if (info == info_by_item.end()) {
+                continue;
+            }
+            const auto offsets = ActiveOffsets(source, *info->second);
+            std::vector<MappedCell> cells;
+            if (offsets.empty() || !MapCells(source, offsets, cells)) {
+                continue;
+            }
+            const bool movable = movable_keys.contains(
+                static_cast<std::uint64_t>(source.instance_id));
+            for (const auto& cell : cells) {
+                const auto room = rooms.find(runtime.room_id);
+                const auto writer = CommittedGridValue(cell.tile);
+                if (room == rooms.end() || !writer ||
+                    !Inside(room->second, cell.x, cell.y)) {
+                    continue;
+                }
+                const auto cell_index = CellIndex(
+                    room->second, cell.x, cell.y);
+                runtime.live_cells[cell_index] = movable
+                    ? runtime.base_cells[cell_index]
+                    : *writer;
+            }
+        }
+    }
+
+    std::vector<snapshot::RoomId> target_rooms;
+    for (const auto& [room_id, room] : rooms) {
+        (void)room;
+        if (!unsafe_rooms.contains(room_id) &&
+            !persistent_locked.contains(room_id) &&
+            (FurnitureRoomPlacementOrder(room_id) < 100U ||
+             FindPurpose(room_purposes, room_id) != nullptr)) {
+            target_rooms.push_back(room_id);
+        }
+    }
+    std::ranges::sort(target_rooms, [](const auto& left, const auto& right) {
+        return std::tuple{FurnitureRoomPlacementOrder(left), left} <
+            std::tuple{FurnitureRoomPlacementOrder(right), right};
+    });
+
+    for (const auto& target_room_id : target_rooms) {
+        std::vector<snapshot::RoomId> other_rooms_locked = locked_room_ids;
+        for (const auto& other : target_rooms) {
+            if (other != target_room_id) {
+                other_rooms_locked.push_back(other);
+            }
+        }
+        bool room_finished{};
+        for (std::size_t batch_index = 0; batch_index < 1U; ++batch_index) {
+            auto batch = PlanWholeHouse(
+                virtual_furniture,
+                geometry,
+                furniture_info,
+                virtual_grids,
+                other_rooms_locked,
+                furniture_effects,
+                room_purposes,
+                placement_config,
+                {},
+                target_room_id);
+            blueprint.considered_furniture_count = std::max(
+                blueprint.considered_furniture_count,
+                batch.considered_furniture_count);
+            blueprint.unsupported_furniture_count = std::max(
+                blueprint.unsupported_furniture_count,
+                batch.unsupported_furniture_count);
+            blueprint.bounded_packing_search_used =
+                blueprint.bounded_packing_search_used ||
+                batch.bounded_packing_search_used;
+            blueprint.packing_candidate_count += batch.packing_candidate_count;
+            blueprint.packing_search_node_count +=
+                batch.packing_search_node_count;
+            blueprint.packing_search_pruned_count +=
+                batch.packing_search_pruned_count;
+            blueprint.packing_search_milliseconds +=
+                batch.packing_search_milliseconds;
+            if (batch.moves.empty()) {
+                if (batch.current_state_blocked_room_count != 0U ||
+                    batch.evacuation_blocked_room_count != 0U ||
+                    batch.installation_blocked_room_count != 0U ||
+                    batch.packing_search_deadline_reached) {
+                    blueprint.current_state_blocked_room_count =
+                        batch.current_state_blocked_room_count;
+                    blueprint.evacuation_blocked_room_count =
+                        batch.evacuation_blocked_room_count;
+                    blueprint.installation_blocked_room_count =
+                        batch.installation_blocked_room_count;
+                    blueprint.packing_search_deadline_reached =
+                        batch.packing_search_deadline_reached;
+                    return blueprint;
+                }
+                room_finished = true;
+                break;
+            }
+            auto sealed_moves = batch.moves;
+            if (!furniture_effects.empty()) {
+                auto final_attributes = CurrentRoomAttributes(
+                    target_room_id, virtual_furniture, furniture_effects);
+                std::size_t selected_cell_count{};
+                for (const auto& move : sealed_moves) {
+                    if (move.from_room_id != target_room_id) {
+                        const auto effect = furniture_effects.find(move.item_id);
+                        if (effect != furniture_effects.end()) {
+                            AddAttributes(final_attributes, effect->second);
+                        }
+                    }
+                    const auto info = info_by_item.find(move.item_id);
+                    if (info == info_by_item.end()) {
+                        continue;
+                    }
+                    const auto placement = std::ranges::find_if(
+                        virtual_furniture,
+                        [&move](const auto& item) {
+                            return item.instance_id ==
+                                static_cast<std::int64_t>(move.stable_key);
+                        });
+                    if (placement == virtual_furniture.end()) {
+                        continue;
+                    }
+                    const auto offsets = ActiveOffsets(
+                        *placement, *info->second);
+                    selected_cell_count += static_cast<std::size_t>(
+                        std::ranges::count_if(
+                            offsets,
+                            [](const auto& cell) {
+                                return cell.tile ==
+                                        FurniturePlacementTile::Hitbox ||
+                                    cell.tile ==
+                                        FurniturePlacementTile::Solid ||
+                                    cell.tile ==
+                                        FurniturePlacementTile::PoopLogic;
+                            }));
+                }
+                const auto minimum_selected_cell_count =
+                    MinimumSelectedCellCount(
+                        rooms.at(target_room_id),
+                        placement_config.
+                            minimum_furnishing_coverage_percent);
+                const auto* purpose = FindPurpose(
+                    room_purposes, target_room_id);
+                for (std::size_t index = sealed_moves.size();
+                     index-- > 0U;) {
+                    const auto& move = sealed_moves[index];
+                    if (move.from_room_id == target_room_id) {
+                        continue;
+                    }
+                    const auto info = info_by_item.find(move.item_id);
+                    const auto placement = std::ranges::find_if(
+                        virtual_furniture,
+                        [&move](const auto& item) {
+                            return item.instance_id ==
+                                static_cast<std::int64_t>(move.stable_key);
+                        });
+                    if (info == info_by_item.end() ||
+                        placement == virtual_furniture.end()) {
+                        continue;
+                    }
+                    const auto offsets = ActiveOffsets(
+                        *placement, *info->second);
+                    if (std::ranges::any_of(
+                            offsets,
+                            [](const auto& cell) {
+                                return cell.tile ==
+                                    FurniturePlacementTile::Solid;
+                            })) {
+                        continue;
+                    }
+                    const auto blocking_cells = static_cast<std::size_t>(
+                        std::ranges::count_if(
+                            offsets,
+                            [](const auto& cell) {
+                                return cell.tile ==
+                                        FurniturePlacementTile::Hitbox ||
+                                    cell.tile ==
+                                        FurniturePlacementTile::PoopLogic;
+                            }));
+                    if (selected_cell_count < blocking_cells ||
+                        selected_cell_count - blocking_cells <
+                            minimum_selected_cell_count) {
+                        continue;
+                    }
+                    auto without = final_attributes;
+                    const auto effect = furniture_effects.find(move.item_id);
+                    if (effect != furniture_effects.end()) {
+                        without.comfort -= effect->second.comfort;
+                        without.stimulation -= effect->second.stimulation;
+                        without.health -= effect->second.health;
+                        without.mutation -= effect->second.mutation;
+                        without.appeal -= effect->second.appeal;
+                    }
+                    const auto final_rank = RankFurniturePurpose(
+                        purpose, final_attributes, placement_config);
+                    const auto without_rank = RankFurniturePurpose(
+                        purpose, without, placement_config);
+                    if (PurposeThresholdRank(final_rank) !=
+                            PurposeThresholdRank(without_rank) ||
+                        CappedPurposeDirectionalUtility(
+                            purpose, final_attributes, placement_config) !=
+                            CappedPurposeDirectionalUtility(
+                                purpose, without, placement_config)) {
+                        continue;
+                    }
+                    final_attributes = without;
+                    selected_cell_count -= blocking_cells;
+                    sealed_moves.erase(
+                        sealed_moves.begin() +
+                        static_cast<std::ptrdiff_t>(index));
+                }
+            }
+            if (sealed_moves.empty()) {
+                room_finished = true;
+                break;
+            }
+            bool changed{};
+            for (const auto& move : sealed_moves) {
+                const auto placement = std::ranges::find_if(
+                    virtual_furniture,
+                    [&move](const auto& item) {
+                        return item.instance_id ==
+                            static_cast<std::int64_t>(move.stable_key);
+                    });
+                if (placement == virtual_furniture.end() ||
+                    placement->room_id != move.from_room_id) {
+                    blueprint.current_state_blocked_room_count = 1U;
+                    return blueprint;
+                }
+                const auto info = info_by_item.find(placement->item_id);
+                if (info == info_by_item.end()) {
+                    blueprint.current_state_blocked_room_count = 1U;
+                    return blueprint;
+                }
+                const auto offsets = ActiveOffsets(*placement, *info->second);
+                if (!placement->room_id.empty()) {
+                    const auto source_grid = std::ranges::find_if(
+                        virtual_grids,
+                        [&placement](const auto& grid) {
+                            return grid.room_id == placement->room_id;
+                        });
+                    const auto source_room = rooms.find(placement->room_id);
+                    std::vector<MappedCell> old_cells;
+                    if (source_grid != virtual_grids.end() &&
+                        source_room != rooms.end() &&
+                        source_grid->base_cells.size() ==
+                            source_room->second.width *
+                                source_room->second.height &&
+                        source_grid->live_cells.size() ==
+                            source_grid->base_cells.size() &&
+                        MapCells(*placement, offsets, old_cells)) {
+                        for (const auto& cell : old_cells) {
+                            if (!CommittedGridValue(cell.tile) ||
+                                !Inside(source_room->second, cell.x, cell.y)) {
+                                continue;
+                            }
+                            const auto index = CellIndex(
+                                source_room->second, cell.x, cell.y);
+                            source_grid->live_cells[index] =
+                                source_grid->base_cells[index];
+                        }
+                    }
+                }
+                placement->room_id = move.target_room_id;
+                placement->position_x = move.target_x;
+                placement->position_y = move.target_y;
+                const auto target_grid = std::ranges::find_if(
+                    virtual_grids,
+                    [&placement](const auto& grid) {
+                        return grid.room_id == placement->room_id;
+                    });
+                const auto target_room = rooms.find(placement->room_id);
+                std::vector<MappedCell> new_cells;
+                if (target_grid != virtual_grids.end() &&
+                    target_room != rooms.end() &&
+                    target_grid->base_cells.size() ==
+                        target_room->second.width *
+                            target_room->second.height &&
+                    target_grid->live_cells.size() ==
+                        target_grid->base_cells.size() &&
+                    MapCells(*placement, offsets, new_cells)) {
+                    for (const auto& cell : new_cells) {
+                        const auto writer = CommittedGridValue(cell.tile);
+                        if (!writer ||
+                            !Inside(target_room->second, cell.x, cell.y)) {
+                            continue;
+                        }
+                        target_grid->live_cells[CellIndex(
+                            target_room->second, cell.x, cell.y)] = *writer;
+                    }
+                }
+                changed = true;
+            }
+            if (!changed) {
+                blueprint.current_state_blocked_room_count = 1U;
+                return blueprint;
+            }
+            // One bounded solve already considers the complete per-room
+            // candidate set and emits its final packing. Re-running the same
+            // 250 ms optimizer until a second fixpoint multiplied analysis
+            // time by the number of selected pieces without improving stable
+            // key ownership. Freeze this room now and remove its keys from all
+            // later room candidate pools.
+            room_finished = true;
+            break;
+        }
+        if (!room_finished) {
+            blueprint.packing_search_deadline_reached = true;
+            return blueprint;
+        }
+        blueprint.exhausted_room_ids.push_back(target_room_id);
+        ++blueprint.planned_room_count;
+    }
+
+    const auto execution = AppendBlueprintExecutionMoves(
+        furniture,
+        virtual_furniture,
+        geometry,
+        furniture_info,
+        runtime_room_grids,
+        movable_keys,
+        blueprint.moves,
+        blueprint.kept_furniture_count,
+        blueprint.warehouse_store_count);
+    if (execution != ExecutionPlanResult::Success) {
+        blueprint.moves.clear();
+        blueprint.current_state_blocked_room_count =
+            execution == ExecutionPlanResult::CurrentStateInvalid ||
+            execution == ExecutionPlanResult::FinalStateInvalid;
+        blueprint.evacuation_blocked_room_count =
+            execution == ExecutionPlanResult::EvacuationBlocked;
+        blueprint.installation_blocked_room_count =
+            execution == ExecutionPlanResult::InstallationBlocked;
+        return blueprint;
+    }
+    blueprint.warehouse_furniture_count = static_cast<std::size_t>(
+        std::ranges::count_if(
+            virtual_furniture,
+            [&movable_keys](const auto& item) {
+                return item.instance_id > 0 && item.room_id.empty() &&
+                    movable_keys.contains(
+                        static_cast<std::uint64_t>(item.instance_id));
+            }));
+    blueprint.deferred_furniture_count = blueprint.warehouse_furniture_count;
+    if (!blueprint.moves.empty()) {
+        const auto first_room = std::ranges::find_if(
+            blueprint.moves,
+            [](const auto& move) { return !move.target_room_id.empty(); });
+        if (first_room != blueprint.moves.end()) {
+            blueprint.target_room_id = first_room->target_room_id;
+        }
+    }
+    if (IsForbiddenFirstMove(blueprint.moves, forbidden_moves)) {
+        blueprint.moves.clear();
+        blueprint.tabu_filtered_move_count = 1U;
+    }
+    return blueprint;
+}
+
 }  // namespace
 
 std::size_t FurnitureRoomPlacementOrder(
@@ -4860,7 +5683,11 @@ std::size_t FurnitureRoomPlacementOrder(
 }
 
 bool IsWarehouseLayoutMove(const FurnitureLayoutMove& move) noexcept {
-    return move.from_room_id.empty();
+    return move.from_room_id.empty() && !move.target_room_id.empty();
+}
+
+bool IsFurnitureStoreMove(const FurnitureLayoutMove& move) noexcept {
+    return !move.from_room_id.empty() && move.target_room_id.empty();
 }
 
 FurnitureLayoutStateEdgeRecordStatus RecordFurnitureLayoutStateEdge(
@@ -5201,10 +6028,11 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
     const std::vector<room_planning::RoomPurposeAssignment>&
         room_purposes,
     const FurniturePlacementConfig& placement_config,
-    const std::vector<FurnitureLayoutMove>& forbidden_moves,
-    const snapshot::RoomId& preferred_focus_room_id) const {
+        const std::vector<FurnitureLayoutMove>& forbidden_moves,
+        const snapshot::RoomId& preferred_focus_room_id) const {
+    (void)preferred_focus_room_id;
     if (!runtime_room_grids.empty()) {
-        return PlanWholeHouse(
+        return PlanWholeHouseBlueprint(
             furniture,
             geometry,
             furniture_info,
@@ -5213,8 +6041,7 @@ FurnitureLayoutPlan FurnitureLayoutSolver::Plan(
             furniture_effects,
             room_purposes,
             placement_config,
-            forbidden_moves,
-            preferred_focus_room_id);
+            forbidden_moves);
     }
     FurnitureLayoutPlan plan;
     std::unordered_map<std::string, const FurnitureInfoRecord*> info_by_item;

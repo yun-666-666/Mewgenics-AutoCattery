@@ -1,7 +1,50 @@
 # Stage 45 - 自动仓库属性替换与自动放置
 
 日期：2026-08-15
-版本：v0.5.63
+版本：v0.5.64
+
+## v0.5.64 全屋唯一归属蓝图与单位空间收益
+
+- v0.5.63 玩家实测直接证明旧的逐批重分析仍会破坏房间所有权：stable key `348` 在
+  `Floor1_Large -> Floor1_Small -> Floor1_Large` 间反向搬运，`209`、`302` 又从已经
+  填好的 Attic 被后续房取走；搬空重试只完成 `51 + 32 + 17 = 100` 件，仓库仍有
+  `80` 件时再次得到 `rooms=0 moves=0 evacuation_blocked=1 packing_deadline=1`。根因是
+  每个提交批次后都重新把“仓库 + 所有未锁房间”当共同候选池，没有在第一次写入前
+  冻结全屋 stable key 所有权。
+- 求解器现在先复制当前家具快照，把能够安全建模的普通可移动家具虚拟为仓库，保留
+  不支持、固定和保守对象，再按 Attic、Floor2_Large、Floor1_Large、Floor1_Small、
+  Floor2_Small 顺序生成一次全屋蓝图。一个 stable key 最终只能属于一个房间或仓库；
+  前一房选中的 key 在后续房求解时已经锁定，不能再次进入候选池。
+- 真实执行序列只从冻结蓝图生成一次：最终不用的已放置家具生成独立 Store 动作；最终
+  仍使用且当前已放置的家具只允许一次 Move 直达最终坐标；当前仓库家具只允许一次
+  PlaceFromWarehouse。不会把仍要使用的 stable key 先 Store 再在同一 House scene
+  Create，继续遵守 deferred-delete / RetiringBlocked 崩溃边界。Store 优先安全排空，若
+  某个待移动家具仍依赖其支撑，则先执行能够解除依赖的最终直达动作，再完成剩余 Store。
+- 用途比较由“硬门槛后优先件数”改为：硬门槛、封顶后的方向性属性收益/阻挡格、最低
+  覆盖率、紧凑占格，件数只作最后决胜。普通房最低属性向上收益，战斗房 Comfort 与
+  Stimulation 仍保持越低越好；达到用途目标后不再无限奖励属性溢出。封存房间前还会
+  删除不降低硬门槛、封顶用途收益或最低覆盖率且不提供 Solid 支撑的冗余家具，因此
+  低收益画像和大件零收益家具不再仅靠“多一件”占用空间，也没有按家具名称硬过滤。
+- 大库存的 bounded packing 预算从每房 `5000 ms` 降为 `1000 ms`；全屋每房只执行一次
+  完整候选求解并立即冻结所有权，不再按已选家具数量重复求同一房间 fixpoint。保留现有
+  current-binding fallback、Support、全屋 binding、UI tick 串行、`250 ms` settle、
+  SEH hard stop、direct-move rollback 和 stable-key quarantine。
+- 聚焦 Release 测试新增并通过：五房全屋蓝图每个房间均非空且每个 stable key 只出现
+  一次；最终废弃家具只 Store 一次，selected key 不会 Store 后 Place；`5x5` 的 25 格
+  低密度家具输给紧凑高收益组合；用途目标满足后低收益画像留仓库；战斗房负 Comfort
+  家具仍可入选且破坏 Health 门槛的家具被拒绝。最终
+  `build-stage45-release\Release\auto_cattery_tests.exe` 退出码 `0`。
+- Release `AutoCattery` 目标成功生成
+  `build-stage45-release\out\Release\AutoCattery.dll`。部署前确认 `Mewgenics` 未运行；
+  `tools\deploy.ps1 -GameRoot D:\steam\steam\steamapps\common\Mewgenics
+  -Configuration Release` 成功部署 DLL 与 Mewtator 数据 MOD，保留升级重投值 `20`；
+  未启动或控制游戏，未运行哈希或安装完整性检查。玩家真实五房、保存重进、画面与崩溃
+  验证仍为 pending。
+- 本轮修改文件：`CMakeLists.txt`、`CODEX_TASK.md`、`assets/description.json`、
+  `include/auto_cattery/furniture_planning/layout_solver.hpp`、
+  `src/furniture_planning/layout_solver.cpp`、`src/ui/mew_ui_bridge.cpp`、
+  `tests/furniture_layout_solver_tests.cpp`、本报告及 `.auto-cattery/state.json`。本地提交：
+  见包含本报告的 Stage 45 任务提交；是否 push：否。
 
 ## v0.5.63 可直接执行的有界搜索回退与跨房推进
 

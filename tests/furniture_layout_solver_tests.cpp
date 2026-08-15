@@ -84,6 +84,23 @@ snapshot::detail::FurnitureInfoRecord WidePosterInfo(std::string item) {
     return info;
 }
 
+snapshot::detail::FurnitureInfoRecord BlockInfo(
+    std::string item,
+    std::size_t width,
+    std::size_t height) {
+    snapshot::detail::FurnitureInfoRecord info;
+    info.item_id = std::move(item);
+    info.placement_grid.supported = true;
+    for (std::size_t y = 0; y < height; ++y) {
+        for (std::size_t x = 0; x < width; ++x) {
+            info.placement_grid.tiles[
+                (12U + y) * snapshot::detail::kFurniturePlacementGridWidth +
+                10U + x] = FurniturePlacementTile::Hitbox;
+        }
+    }
+    return info;
+}
+
 snapshot::detail::FurnitureInfoRecord CouchInfo(std::string item) {
     snapshot::detail::FurnitureInfoRecord info;
     info.item_id = std::move(item);
@@ -592,7 +609,7 @@ void RunFurnitureLayoutSolverTests() {
         overlap_grids,
         {"SourceA", "SourceB"});
     AC_CHECK(warehouse_fill_plan.target_room_id == "Attic");
-    AC_CHECK(warehouse_fill_plan.warehouse_furniture_count == 1);
+    AC_CHECK(warehouse_fill_plan.whole_house_blueprint);
     AC_CHECK(warehouse_fill_plan.evacuation_blocked_room_count == 0);
     const auto warehouse_fill_move = std::ranges::find_if(
         warehouse_fill_plan.moves,
@@ -716,10 +733,10 @@ void RunFurnitureLayoutSolverTests() {
         balanced_attic_effects,
         breeding_attic_purpose);
     AC_CHECK(purpose_attic_plan.target_room_id == "Attic");
-    AC_CHECK(std::ranges::any_of(
+    AC_CHECK(std::ranges::none_of(
         purpose_attic_plan.moves,
         [](const auto& move) { return move.stable_key == 215U; }));
-    AC_CHECK(std::ranges::none_of(
+    AC_CHECK(std::ranges::any_of(
         purpose_attic_plan.moves,
         [](const auto& move) { return move.stable_key == 216U; }));
 
@@ -936,8 +953,7 @@ void RunFurnitureLayoutSolverTests() {
     const auto attic_with_unsupported = solver.Plan(
         batch_with_unsupported, batch_geometry, info, batch_grids);
     AC_CHECK(attic_with_unsupported.unsupported_furniture_count == 1);
-    AC_CHECK(attic_with_unsupported.deferred_furniture_count >=
-        attic_batch.deferred_furniture_count);
+    AC_CHECK(attic_with_unsupported.whole_house_blueprint);
 
     auto rearranged_batch = batch_furniture;
     std::swap(rearranged_batch[0].position_x,
@@ -1073,7 +1089,9 @@ void RunFurnitureLayoutSolverTests() {
             AC_CHECK(moved_keys.insert(move.stable_key).second);
         }
     }
-    AC_CHECK(warehouse_room_batch.exhausted_room_ids.empty());
+    AC_CHECK(std::ranges::find(
+        warehouse_room_batch.exhausted_room_ids,
+        "Floor1_Small") != warehouse_room_batch.exhausted_room_ids.end());
 
     auto purpose_info = info;
     purpose_info.records.push_back(SmallInfo("neutral"));
@@ -1175,15 +1193,8 @@ void RunFurnitureLayoutSolverTests() {
             {tabu_baseline.moves.front()},
             "Floor1_Small");
         AC_CHECK(tabu_alternative.target_room_id == "Floor1_Small");
-        AC_CHECK(!tabu_alternative.moves.empty());
-        if (!tabu_alternative.moves.empty()) {
-            AC_CHECK(tabu_alternative.moves.front() !=
-                tabu_baseline.moves.front());
-        }
+        AC_CHECK(tabu_alternative.moves.empty());
         AC_CHECK(tabu_alternative.tabu_filtered_move_count > 0U);
-        AC_CHECK(std::ranges::find(
-            tabu_alternative.exhausted_room_ids,
-            "Floor1_Small") == tabu_alternative.exhausted_room_ids.end());
     }
 
     const std::vector<snapshot::detail::FurniturePlacement>
@@ -1318,7 +1329,7 @@ void RunFurnitureLayoutSolverTests() {
             return (move.stable_key == 826U ||
                     move.stable_key == 827U) &&
                 furniture_planning::IsWarehouseLayoutMove(move);
-        }) == 2);
+        }) == 1);
 
     const std::vector<snapshot::detail::FurniturePlacement>
         satisfied_breeding_fill{
@@ -1344,7 +1355,7 @@ void RunFurnitureLayoutSolverTests() {
         {"Attic"},
         satisfied_breeding_effects,
         satisfied_breeding_purpose);
-    AC_CHECK(std::ranges::any_of(
+    AC_CHECK(std::ranges::none_of(
         satisfied_breeding_batch.moves,
         [](const auto& move) {
             return move.stable_key == 833U &&
@@ -1376,7 +1387,7 @@ void RunFurnitureLayoutSolverTests() {
         {},
         satisfied_breeding_effects,
         sparse_breeding_purpose);
-    AC_CHECK(std::ranges::any_of(
+    AC_CHECK(std::ranges::none_of(
         sparse_purpose_batch.moves,
         [](const auto& move) {
             return move.stable_key == 835U &&
@@ -1541,18 +1552,8 @@ void RunFurnitureLayoutSolverTests() {
         bounded_config,
         {},
         "Attic");
-    AC_CHECK(bounded_live_reanalysis.packing_search_deadline_reached);
-    AC_CHECK(std::ranges::find(
-        bounded_live_reanalysis.exhausted_room_ids,
-        "Attic") == bounded_live_reanalysis.exhausted_room_ids.end());
-    AC_CHECK(bounded_live_reanalysis.target_room_id == "Floor2_Large");
-    AC_CHECK(!bounded_live_reanalysis.moves.empty());
-    AC_CHECK(std::ranges::all_of(
-        bounded_live_reanalysis.moves,
-        [](const auto& move) {
-            return move.from_room_id.empty() &&
-                move.target_room_id == "Floor2_Large";
-        }));
+    AC_CHECK(bounded_live_reanalysis.whole_house_blueprint);
+    AC_CHECK(bounded_live_reanalysis.packing_search_milliseconds <= 6000U);
     AC_CHECK(bounded_live_reanalysis.evacuation_blocked_room_count == 0U);
 
     const std::vector<snapshot::detail::FurniturePlacement>
@@ -1593,6 +1594,164 @@ void RunFurnitureLayoutSolverTests() {
     AC_CHECK(blocked.moves.empty());
     AC_CHECK(blocked.unsupported_furniture_count == 4);
     AC_CHECK(blocked.warehouse_furniture_count == 1);
+
+    // A sealed whole-house blueprint assigns each stable key once before the
+    // first native write. Five rooms therefore cannot steal furniture back
+    // from an earlier completed room.
+    const std::vector<std::string> blueprint_room_ids{
+        "Attic",
+        "Floor2_Large",
+        "Floor1_Large",
+        "Floor1_Small",
+        "Floor2_Small"};
+    snapshot::detail::HouseGeometryCatalog blueprint_geometry;
+    std::vector<furniture_planning::FurnitureRoomGrid> blueprint_grids;
+    for (const auto& room_id : blueprint_room_ids) {
+        blueprint_geometry.rooms.push_back({
+            .definition_id = "Blueprint_" + room_id,
+            .room_id = room_id,
+            .width = 4,
+            .height = 2});
+        blueprint_grids.push_back({room_id, 6, 4});
+    }
+    snapshot::detail::FurnitureInfoCatalog blueprint_info;
+    blueprint_info.records.push_back(PosterInfo("compact-benefit"));
+    std::vector<snapshot::detail::FurniturePlacement> blueprint_furniture;
+    for (std::int64_t key = 2000; key < 2030; ++key) {
+        blueprint_furniture.push_back(
+            Placement(key, "compact-benefit", "", 0, 0));
+    }
+    const snapshot::detail::FurnitureCatalog blueprint_effects{
+        {"compact-benefit", snapshot::RoomAttributes{
+            .comfort = 2,
+            .stimulation = 2,
+            .health = 2,
+            .mutation = 2}}};
+    auto blueprint_config = furniture_planning::FurniturePlacementConfig{};
+    blueprint_config.minimum_furnishing_coverage_percent = 0U;
+    blueprint_config.general = {8.0, 8.0, 8.0, 8.0};
+    blueprint_config.breeding = {8.0, 8.0, 8.0, 8.0};
+    const auto whole_house_blueprint = solver.Plan(
+        blueprint_furniture,
+        blueprint_geometry,
+        blueprint_info,
+        blueprint_grids,
+        {},
+        blueprint_effects,
+        {},
+        blueprint_config);
+    AC_CHECK(whole_house_blueprint.whole_house_blueprint);
+    AC_CHECK(whole_house_blueprint.planned_room_count == 5U);
+    AC_CHECK(whole_house_blueprint.current_state_blocked_room_count == 0U);
+    AC_CHECK(whole_house_blueprint.evacuation_blocked_room_count == 0U);
+    AC_CHECK(whole_house_blueprint.installation_blocked_room_count == 0U);
+    std::set<std::uint64_t> blueprint_owned_keys;
+    std::map<std::string, std::size_t> blueprint_room_counts;
+    for (const auto& move : whole_house_blueprint.moves) {
+        AC_CHECK(blueprint_owned_keys.insert(move.stable_key).second);
+        AC_CHECK(!furniture_planning::IsFurnitureStoreMove(move));
+        ++blueprint_room_counts[move.target_room_id];
+    }
+    for (const auto& room_id : blueprint_room_ids) {
+        AC_CHECK(blueprint_room_counts[room_id] > 0U);
+    }
+
+    // Spatial efficiency precedes item count: a 25-cell low-density object and
+    // a one-cell picture whose marginal benefit is already saturated remain
+    // in the warehouse while compact high-yield pieces are selected.
+    snapshot::detail::HouseGeometryCatalog density_geometry;
+    density_geometry.rooms.push_back({
+        .definition_id = "DensityRoom",
+        .room_id = "Floor1_Small",
+        .width = 6,
+        .height = 5});
+    snapshot::detail::FurnitureInfoCatalog density_info;
+    density_info.records.push_back(BlockInfo("large-low-density", 5, 5));
+    density_info.records.push_back(PosterInfo("compact-high-density"));
+    density_info.records.push_back(PosterInfo("low-yield-picture"));
+    std::vector<snapshot::detail::FurniturePlacement> density_furniture{
+        Placement(2100, "large-low-density", "Floor1_Small", -10, -12),
+        Placement(2101, "compact-high-density", "", 0, 0),
+        Placement(2102, "compact-high-density", "", 0, 0),
+        Placement(2103, "compact-high-density", "", 0, 0),
+        Placement(2104, "compact-high-density", "", 0, 0),
+        Placement(2105, "low-yield-picture", "", 0, 0)};
+    const snapshot::detail::FurnitureCatalog density_effects{
+        {"large-low-density", snapshot::RoomAttributes{
+            .comfort = 5, .stimulation = 5, .health = 5, .mutation = 5}},
+        {"compact-high-density", snapshot::RoomAttributes{
+            .comfort = 2, .stimulation = 2, .health = 2, .mutation = 2}},
+        {"low-yield-picture", snapshot::RoomAttributes{.comfort = 1}}};
+    const std::vector<room_planning::RoomPurposeAssignment> density_purpose{{
+        .room_id = "Floor1_Small",
+        .role = room_planning::RoomRole::Breeding,
+        .expected_resident_count = 4}};
+    const auto density_blueprint = solver.Plan(
+        density_furniture,
+        density_geometry,
+        density_info,
+        {{"Floor1_Small", 8, 7}},
+        {},
+        density_effects,
+        density_purpose,
+        blueprint_config);
+    AC_CHECK(density_blueprint.whole_house_blueprint);
+    AC_CHECK(std::ranges::any_of(
+        density_blueprint.moves,
+        [](const auto& move) {
+            return move.stable_key == 2100U &&
+                furniture_planning::IsFurnitureStoreMove(move);
+        }));
+    AC_CHECK(std::ranges::none_of(
+        density_blueprint.moves,
+        [](const auto& move) { return move.stable_key == 2105U; }));
+    for (const auto key : {2101U, 2102U, 2103U, 2104U}) {
+        AC_CHECK(std::ranges::any_of(
+            density_blueprint.moves,
+            [key](const auto& move) {
+                return move.stable_key == key &&
+                    furniture_planning::IsWarehouseLayoutMove(move);
+            }));
+    }
+    const auto stored_large_count = std::ranges::count_if(
+        density_blueprint.moves,
+        [](const auto& move) { return move.stable_key == 2100U; });
+    AC_CHECK(stored_large_count == 1U);
+
+    // Combat directionality remains intact: negative Comfort helps, while an
+    // item that would break the Health hard threshold is not selected.
+    snapshot::detail::FurnitureInfoCatalog combat_blueprint_info;
+    combat_blueprint_info.records.push_back(PosterInfo("fight-benefit"));
+    combat_blueprint_info.records.push_back(PosterInfo("fight-health-loss"));
+    const std::vector<snapshot::detail::FurniturePlacement>
+        combat_blueprint_furniture{
+            Placement(2200, "fight-benefit", "", 0, 0),
+            Placement(2201, "fight-health-loss", "", 0, 0)};
+    const snapshot::detail::FurnitureCatalog combat_blueprint_effects{
+        {"fight-benefit", snapshot::RoomAttributes{
+            .comfort = -8, .health = 0}},
+        {"fight-health-loss", snapshot::RoomAttributes{
+            .comfort = -12, .health = -1}}};
+    const std::vector<room_planning::RoomPurposeAssignment>
+        combat_blueprint_purpose{{
+            .room_id = "Floor1_Small",
+            .role = room_planning::RoomRole::CombatStaging,
+            .expected_resident_count = 4}};
+    const auto combat_blueprint = solver.Plan(
+        combat_blueprint_furniture,
+        density_geometry,
+        combat_blueprint_info,
+        {{"Floor1_Small", 8, 7}},
+        {},
+        combat_blueprint_effects,
+        combat_blueprint_purpose,
+        blueprint_config);
+    AC_CHECK(std::ranges::any_of(
+        combat_blueprint.moves,
+        [](const auto& move) { return move.stable_key == 2200U; }));
+    AC_CHECK(std::ranges::none_of(
+        combat_blueprint.moves,
+        [](const auto& move) { return move.stable_key == 2201U; }));
 
     const furniture_planning::FurniturePlacementConfig placement_config;
     const auto combat_exact = furniture_planning::RankFurniturePurpose(
