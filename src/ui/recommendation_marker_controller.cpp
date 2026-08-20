@@ -167,6 +167,7 @@ void RecommendationMarkerController::AbandonScene() noexcept {
 void RecommendationMarkerController::SetSuppressed(bool suppressed) {
     if (suppressed_ == suppressed) return;
     suppressed_ = suppressed;
+    view_.SetFurnitureMode(suppressed_ || furniture_mode_);
     if (suppressed_) {
         marker_visible_ = false;
         item_count_ = 0;
@@ -185,7 +186,7 @@ void RecommendationMarkerController::SetFurnitureMode(
     request_pending_ = false;
     ready_after_ = {};
     applied_availability_.reset();
-    view_.SetFurnitureMode(furniture_mode_);
+    view_.SetFurnitureMode(suppressed_ || furniture_mode_);
     if (view_.IsAttached()) {
         view_.ClearSummary();
         SyncAvailability(

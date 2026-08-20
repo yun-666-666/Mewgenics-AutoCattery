@@ -106,6 +106,7 @@ void HouseButtonController::AbandonScene() noexcept {
 void HouseButtonController::SetSuppressed(bool suppressed) {
     if (suppressed_ == suppressed) return;
     suppressed_ = suppressed;
+    view_.SetFurnitureMode(suppressed_ || furniture_mode_);
     if (!view_.IsAttached()) return;
     if (suppressed_) {
         view_.SetState(OrganizeButtonState::Hidden, {});
@@ -117,7 +118,7 @@ void HouseButtonController::SetSuppressed(bool suppressed) {
 void HouseButtonController::SetFurnitureMode(bool furniture_mode) {
     if (furniture_mode_ == furniture_mode) return;
     furniture_mode_ = furniture_mode;
-    view_.SetFurnitureMode(furniture_mode_);
+    view_.SetFurnitureMode(suppressed_ || furniture_mode_);
     if (view_.IsAttached()) {
         SetState(state_, state_detail_);
     }
