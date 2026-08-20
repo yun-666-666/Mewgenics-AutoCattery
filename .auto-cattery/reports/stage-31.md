@@ -39,13 +39,12 @@
 
 是否 push：否
 
-## 2026-08-20 管理面板遗留按钮残影修复
+## 2026-08-20 空预览提示文本修复
 
-- F10 管理面板打开时，两个 House 控制现在与家具摆放模式共用 SWF 空白停止帧；不再只是禁用点击，因此半透明面板下不再透出按钮文字或图像。
-- 关闭 F10 后按当前真实家具模式恢复：普通 House 恢复原按钮，仍处于家具摆放时继续保持隐藏。
-- 修改文件：`src/ui/house_button_controller.cpp`、`src/ui/recommendation_marker_controller.cpp`。
-- 仅执行 Release 直接构建：`cmake --build build --config Release --parallel`，成功生成 `build/out/Release/AutoCattery.dll`。
-- 按玩家要求未运行 CTest、`verify_install.ps1`、哈希或其他额外校验。
-- 新 Release DLL 已复制到 `dist/Release` 并通过 `tools/deploy.ps1 -GameRoot '..' -Configuration Release` 部署；等待玩家在游戏内打开 F10 确认残影消失。
+- 缩短 F10 完整预览页的空预览中文提示，移除按钮名称两侧在当前字体下显示拥挤的中文引号。
+- 新提示为：`暂无预览。关闭 F10 后点击自动整理猫舍即可生成。`
+- 修改文件：`src/ui/in_game_panel_controller.cpp`。
+- 上一笔误改的 House 按钮隐藏逻辑已完整撤回，不包含在本次最终代码中。
+- 按玩家要求仅执行 Release 构建与部署，不运行 CTest、安装校验、哈希或其他额外检查。
 
 是否 push：否
