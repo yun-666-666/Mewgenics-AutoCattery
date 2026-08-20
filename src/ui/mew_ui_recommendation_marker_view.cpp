@@ -16,6 +16,8 @@ namespace {
 constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
+constexpr int kVisibleButtonFrame = 0;
+constexpr int kHiddenButtonFrame = 80;
 constexpr std::array<const char*, 4> kItemNodes{
     "recommend_row_1",
     "recommend_row_2",
@@ -77,7 +79,8 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
     auto* button_node = match.node;
     root_node_ = match.root;
-    if (root_node_ == nullptr || button_node == nullptr) {
+    button_node_ = button_node;
+    if (root_node_ == nullptr || button_node_ == nullptr) {
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
@@ -133,9 +136,9 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         };
     }
     active_ = true;
-    MewUI_SetButtonEnabled(button_, 1);
-    MewUI_SetButtonInteractable(button_, 1);
     ClearSummary();
+    SetFurnitureMode(furniture_mode_);
+    SetAvailable(available_);
     return {};
 }
 
@@ -167,6 +170,7 @@ void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
     active_ = false;
     scene_manager_ = nullptr;
     root_node_ = nullptr;
+    button_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     item_nodes_.fill(nullptr);
@@ -187,6 +191,16 @@ void MewUiRecommendationMarkerView::SetAvailable(bool available) {
     available_ = available;
     if (button_ == nullptr || !CanTouchScene()) {
         availability_applied_ = false;
+        return;
+    }
+    if (furniture_mode_) {
+        MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
+        if (button_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        }
+        ClearSummary();
+        availability_applied_ = true;
         return;
     }
     MewUI_SetButtonInteractable(button_, available ? 1 : 0);
@@ -213,6 +227,27 @@ void MewUiRecommendationMarkerView::SetStatus(
     }
     MewUI_SetButtonLabelText(
         button_, english_ ? "Mark Combat Cats" : "标记推荐战斗猫");
+}
+
+void MewUiRecommendationMarkerView::SetFurnitureMode(
+    bool furniture_mode) {
+    furniture_mode_ = furniture_mode;
+    if (button_ == nullptr || !CanTouchScene()) return;
+    if (furniture_mode_) {
+        ClearSummary();
+        MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
+        if (button_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        }
+        return;
+    }
+    if (button_node_ != nullptr) {
+        MewUI_PlayMovieClipFrame(button_node_, kVisibleButtonFrame);
+    }
+    availability_applied_ = false;
+    SetAvailable(available_);
+    SetStatus(current_status_);
 }
 
 void MewUiRecommendationMarkerView::SetEnglish(bool english) {

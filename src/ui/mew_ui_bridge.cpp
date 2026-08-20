@@ -45,6 +45,7 @@ namespace autocattery::ui {
 namespace {
 
 constexpr std::size_t kSceneProbeCapacity = 64;
+constexpr auto kFurnitureBuildingComponent = "FurnitureBuildingUI";
 constexpr std::size_t kMappingRecordCapacity = 128;
 constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
@@ -114,6 +115,10 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     last_recommendation_attach_error_.clear();
     signatures_ = {};
     debug_probe_enabled_ = false;
+    furniture_mode_ = false;
+    furniture_mode_scene_manager_ = nullptr;
+    furniture_mode_component_count_ = 0;
+    furniture_mode_component_ = nullptr;
     diagnostics_root_ = context.mod_root / L"diagnostics";
     recommendation_sidecar_path_ =
         recommendation::RecommendationSidecarPath(context.mod_root);
@@ -391,6 +396,10 @@ void MewUiBridge::Shutdown() noexcept {
         MewUI_Stop();
     }
     started_ = false;
+    furniture_mode_ = false;
+    furniture_mode_scene_manager_ = nullptr;
+    furniture_mode_component_count_ = 0;
+    furniture_mode_component_ = nullptr;
     last_tick_time_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
@@ -496,6 +505,7 @@ void MewUiBridge::OnTick() {
     (void)scene_context_.Observe(ObserveScenes(scenes));
 
     const auto context = scene_context_.Current();
+    UpdateHouseUiMode(context, scenes);
     if (house_button_controller_) {
         house_button_controller_->Poll();
     }
@@ -655,6 +665,52 @@ void MewUiBridge::OnTick() {
             last_recommendation_attach_error_.clear();
         }
     }
+}
+
+void MewUiBridge::UpdateHouseUiMode(
+    const UiContextSnapshot& context,
+    const std::vector<RuntimeScene>& scenes) {
+    const auto house_scene = std::find_if(
+        scenes.begin(),
+        scenes.end(),
+        [](const RuntimeScene& scene) {
+            return scene.ready && scene.name == "House";
+        });
+
+    bool detected = false;
+    if (context.kind == UiContextKind::House &&
+        house_scene != scenes.end()) {
+        if (furniture_mode_scene_manager_ != house_scene->manager ||
+            furniture_mode_component_count_ != house_scene->component_count) {
+            furniture_mode_scene_manager_ = house_scene->manager;
+            furniture_mode_component_count_ = house_scene->component_count;
+            furniture_mode_component_ = AcMewFindComponentByType(
+                house_scene->manager,
+                kFurnitureBuildingComponent);
+        }
+        detected =
+            AcMewFurnitureBuildingUiIsActive(furniture_mode_component_) != 0;
+    } else {
+        furniture_mode_scene_manager_ = nullptr;
+        furniture_mode_component_count_ = 0;
+        furniture_mode_component_ = nullptr;
+    }
+
+    if (detected == furniture_mode_) return;
+    furniture_mode_ = detected;
+    if (house_button_controller_) {
+        house_button_controller_->SetFurnitureMode(furniture_mode_);
+    }
+    if (recommendation_marker_controller_) {
+        recommendation_marker_controller_->SetFurnitureMode(furniture_mode_);
+    }
+    Logger::Instance().Write(
+        LogLevel::Info,
+        "HouseUiMode",
+        "AC3210",
+        furniture_mode_
+            ? "Furniture placement opened; normal House controls hidden."
+            : "Furniture placement closed; normal House controls restored.");
 }
 
 void MewUiBridge::RefreshRuntimeSnapshotContext() {

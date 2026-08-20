@@ -35,11 +35,13 @@ DEFINE_SHAPE = 2
 DEFINE_SHAPE_3 = 32
 DEFINE_BITS_LOSSLESS_2 = 36
 PLACE_OBJECT_2 = 26
+REMOVE_OBJECT_2 = 28
 SHOW_FRAME = 1
 DO_ACTION = 12
 END = 0
 TARGET_MARKER = b"test_button\x00"
 RECOMMENDATION_MARKER = b"recommend_button\x00"
+SOURCE_BUTTON_FRAME_COUNT = 80
 # Keep the cloned button beside the original button at depth 18.  Higher
 # native House HUD layers must remain in front of both buttons' hanging ropes.
 RECOMMENDATION_DEPTH = 19
@@ -496,6 +498,33 @@ def make_recommendation_row_sprite(
     return bytes(output)
 
 
+def append_hidden_button_frame(body: bytes) -> bytes:
+    """Append one stopped frame with every button display depth removed."""
+    character_id, frame_count = struct.unpack_from("<HH", body, 0)
+    if frame_count != SOURCE_BUTTON_FRAME_COUNT:
+        raise ValueError(
+            f"unexpected source button frame count: {frame_count}")
+
+    depths: set[int] = set()
+    end_tag_start = None
+    for code, tag_start, body_start, _ in read_tags(body, 4, len(body)):
+        if code == PLACE_OBJECT_2:
+            depths.add(struct.unpack_from("<H", body, body_start + 1)[0])
+        elif code == END:
+            end_tag_start = tag_start
+            break
+    if not depths or end_tag_start is None:
+        raise ValueError("source button display list is unavailable")
+
+    output = bytearray(body[:end_tag_start])
+    for depth in sorted(depths):
+        output.extend(encode_tag(REMOVE_OBJECT_2, struct.pack("<H", depth)))
+    output.extend(encode_tag(SHOW_FRAME, b""))
+    output.extend(encode_tag(END, b""))
+    struct.pack_into("<HH", output, 0, character_id, frame_count + 1)
+    return bytes(output)
+
+
 def remove_button_icon(body: bytes) -> tuple[bytes, int]:
     """Remove the shared trash-can artwork while preserving button behavior."""
     sprite_header = body[:4]
@@ -929,6 +958,7 @@ def build(source: Path, destination: Path) -> None:
         ):
             iconless_body, _ = remove_button_icon(body)
             iconless_body, _ = center_button_labels(iconless_body)
+            iconless_body = append_hidden_button_frame(iconless_body)
             output.extend(encode_tag(code, iconless_body))
             output.extend(encode_tag(
                 DEFINE_BITS_LOSSLESS_2,

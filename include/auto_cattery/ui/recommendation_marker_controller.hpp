@@ -31,6 +31,7 @@ public:
     virtual void AbandonScene() noexcept = 0;
     virtual void SetAvailable(bool available) = 0;
     virtual void SetStatus(RecommendationUiStatus status) = 0;
+    virtual void SetFurnitureMode(bool furniture_mode) = 0;
     virtual Result<void> ShowItems(
         const std::vector<std::string>& labels) = 0;
     virtual void ClearSummary() noexcept = 0;
@@ -58,6 +59,7 @@ public:
     void Detach() noexcept;
     void AbandonScene() noexcept;
     void SetSuppressed(bool suppressed);
+    void SetFurnitureMode(bool furniture_mode);
     void HandleClick();
     void CompleteProbe(std::uint64_t scene_generation);
     Result<void> ShowRecommendations(
@@ -81,6 +83,7 @@ private:
     bool next_day_pending_{};
     bool save_selection_active_{};
     bool suppressed_{};
+    bool furniture_mode_{};
     bool marker_visible_{};
     bool request_pending_{};
     std::optional<bool> applied_availability_;

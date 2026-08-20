@@ -27,6 +27,7 @@ public:
     void AbandonScene() noexcept override;
     void SetAvailable(bool available) override;
     void SetStatus(RecommendationUiStatus status) override;
+    void SetFurnitureMode(bool furniture_mode) override;
     Result<void> ShowItems(
         const std::vector<std::string>& labels) override;
     void ClearSummary() noexcept override;
@@ -56,6 +57,7 @@ private:
 
     void* scene_manager_{};
     void* root_node_{};
+    void* button_node_{};
     void* button_{};
     std::uint64_t attached_generation_{};
     std::array<void*, 4> item_nodes_{};
@@ -64,6 +66,7 @@ private:
     bool available_{true};
     bool availability_applied_{};
     bool english_{};
+    bool furniture_mode_{};
     RecommendationUiStatus current_status_{RecommendationUiStatus::Ready};
     HHOOK wheel_hook_{};
     std::atomic<int> pending_press_row_{-1};

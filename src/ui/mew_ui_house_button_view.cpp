@@ -3,6 +3,7 @@
 #include <cstring>
 #include <utility>
 
+#include "mew_ui_movie_clip.hpp"
 #include "mew_ui_safe_node_lookup.hpp"
 
 namespace autocattery::ui {
@@ -10,6 +11,8 @@ namespace {
 
 constexpr auto kButtonNode = "test_button";
 constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
+constexpr int kVisibleButtonFrame = 0;
+constexpr int kHiddenButtonFrame = 80;
 
 }  // namespace
 
@@ -27,13 +30,14 @@ Result<void> MewUiHouseButtonView::Attach(
     }
 
     scene_manager_ = scene;
+    button_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = context.scene_generation;
     active_ = false;
     click_handler_ = std::move(click_handler);
     const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
-    auto* button_node = match.node;
-    if (match.root == nullptr || button_node == nullptr) {
+    button_node_ = match.node;
+    if (match.root == nullptr || button_node_ == nullptr) {
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
@@ -43,7 +47,7 @@ Result<void> MewUiHouseButtonView::Attach(
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
     create_info.root_node = match.root;
-    create_info.button_node = button_node;
+    create_info.button_node = button_node_;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
     create_info.label_text = english_
@@ -74,8 +78,8 @@ Result<void> MewUiHouseButtonView::Attach(
         this);
 
     active_ = true;
-    MewUI_SetButtonEnabled(button_, 1);
-    MewUI_SetButtonInteractable(button_, 1);
+    SetFurnitureMode(furniture_mode_);
+    SetState(current_state_, {});
     return {};
 }
 
@@ -101,6 +105,7 @@ void MewUiHouseButtonView::AbandonScene() noexcept {
 void MewUiHouseButtonView::ResetSceneState() noexcept {
     active_ = false;
     scene_manager_ = nullptr;
+    button_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     click_handler_ = {};
@@ -112,6 +117,14 @@ void MewUiHouseButtonView::SetState(
     (void)detail;
     current_state_ = state;
     if (button_ == nullptr || !CanTouchScene()) {
+        return;
+    }
+    if (furniture_mode_) {
+        MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
+        if (button_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        }
         return;
     }
 
@@ -152,6 +165,23 @@ void MewUiHouseButtonView::ShowPlaceholder() {
     // feedback surface. Avoid scene-wide text-node probes here: the pinned
     // MewUI build handles a missing text node through repeated SEH probes,
     // which caused a visible pause on every Stage 03 click.
+}
+
+void MewUiHouseButtonView::SetFurnitureMode(bool furniture_mode) {
+    furniture_mode_ = furniture_mode;
+    if (button_ == nullptr || !CanTouchScene()) return;
+    if (furniture_mode_) {
+        MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
+        if (button_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        }
+        return;
+    }
+    if (button_node_ != nullptr) {
+        MewUI_PlayMovieClipFrame(button_node_, kVisibleButtonFrame);
+    }
+    SetState(current_state_, {});
 }
 
 void MewUiHouseButtonView::SetEnglish(bool english) {

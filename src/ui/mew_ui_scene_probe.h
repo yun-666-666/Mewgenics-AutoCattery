@@ -20,6 +20,12 @@ size_t AcMewEnumerateScenes(
     AcMewSceneRecord* records,
     size_t record_capacity);
 
+void* AcMewFindComponentByType(
+    void* scene_manager,
+    const char* component_type_name);
+
+int AcMewFurnitureBuildingUiIsActive(void* component);
+
 #ifdef __cplusplus
 }
 #endif
