@@ -35,6 +35,7 @@ private:
 
     void* scene_manager_{};
     void* button_node_{};
+    void* visibility_node_{};
     void* button_{};
     std::uint64_t attached_generation_{};
     bool active_{};

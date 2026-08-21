@@ -2,7 +2,7 @@
 
 更新日期：2026-08-21
 
-状态：基于 `v0.5.15`（`f617e917bec3c2dbe91cf099f192cd828ba89b51`）继续修复家具模式退出后的按钮交互恢复；2026-08-21 最新 Debug/Release 构建及各 4/4 CTest 均通过，Release 已部署；等待玩家实机确认两个按钮恢复点击且不再闪退。
+状态：基于 `v0.5.15`（`f617e917bec3c2dbe91cf099f192cd828ba89b51`）改为独立父级视觉门控；2026-08-21 Debug/Release 构建及各 4/4 CTest 均通过，Release 已部署；等待玩家一次性实机验收 `House -> 家具摆放 -> House` 的隐藏、恢复点击与稳定性。
 
 ## 范围与行为
 
@@ -101,5 +101,23 @@
 - `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
 - 确认 `Mewgenics.exe` 未运行后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release`：成功；保留玩家升级重骰值 20。
 - 未运行哈希、`verify_install.ps1` 或安装完整性检查；未启动或操纵游戏。需要玩家再次确认家具模式木牌消失，并在退出后分别点击两个按钮验证输入恢复。
+
+是否 push：否
+
+
+## 2026-08-21 组件关闭方案再次失败、最新崩溃与独立视觉门控
+
+- 玩家对提交 `465794e` 的最新实机结论：家具摆放期间两个木牌已经不显示，但退出回 House 后两个按钮再次无法点击；随后在游戏仍处于打开状态、重新切回游戏时闪退。该方案被实机否定。
+- 错误原因是重新调用了已经被 `6799efb` 实机结果否定的 `MewUI_SetButtonEnabled(button, 0)`：调整退出时 enabled/interactable 的恢复顺序，无法让被关闭的 Button component 可靠重回游戏输入/update 生命周期。
+- 最新 MOD 日志链路：12:38:45 两个按钮挂载，12:38:46 家具摆放打开，12:38:49 家具摆放关闭；之后没有按钮点击或正常场景退出日志。
+- Windows 最新终止记录为 12:40:48 的 `0xC0000005`，故障位置 `Mewgenics.exe+0x9943c1`，PID 21872。完整 dump `Mewgenics.exe(1).21872.dmp` 的异常线程为 21848，与本轮 MOD UI 线程一致。故障指令读取空对象 `+0x19`；扫描到的连续返回地址位于游戏 UI/显示代码，没有直接 AutoCattery 栈帧，因此记录为组件/显示树状态破坏后的延迟崩溃证据，不写成已证明的直接 MOD 调用栈。
+- 最终实现不再修改家具模式中的 Button enabled/activate，普通禁用状态也只使用已验证的 interaction override；组件只在真实 Detach 时关闭。
+- SWF 将每个原有 Button 节点放入独立三帧父级视觉门控：内部 Button 保持原始 80 帧、实例和输入注册不变；父级帧 1 使用正常 alpha，帧 2 只把父级 alpha 设为 0，不移除或重建内部节点。家具摆放仅停止父级在隐藏帧并禁用交互，返回 House 停在可见帧并按真实状态恢复交互。该父级不受原生 Button 时间轴推进，因此预期不会再被改写为 `Clean Up!`；仍以玩家实机结果作为最终结论。
+- `python -m py_compile tools/build_house_ui_asset.py`：通过。
+- SWF 结构检查：两个父级视觉门控均为 3 帧；内部 `test_button` / `recommend_button` 均保持 80 帧；overlay 不再直接放置 Button 节点：通过。
+- `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
+- `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
+- 部署前同时确认 `Mewgenics.exe` 不存在且已安装 `AutoCattery.dll` 可独占打开；随后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release` 成功，保留玩家重骰值 20。
+- 未运行哈希、`verify_install.ps1`，未启动或操纵游戏。自动化检查不能替代最终玩家验证；本轮只需要一次完整链路测试。
 
 是否 push：否

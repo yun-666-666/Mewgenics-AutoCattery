@@ -11,8 +11,9 @@ namespace {
 
 constexpr auto kButtonNode = "test_button";
 constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
-constexpr int kVisibleButtonFrame = 0;
-constexpr int kHiddenButtonFrame = 80;
+constexpr auto kVisibilityNode = "test_button_visibility";
+constexpr int kVisibleGateFrame = 1;
+constexpr int kHiddenGateFrame = 2;
 
 }  // namespace
 
@@ -31,13 +32,18 @@ Result<void> MewUiHouseButtonView::Attach(
 
     scene_manager_ = scene;
     button_node_ = nullptr;
+    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = context.scene_generation;
     active_ = false;
     click_handler_ = std::move(click_handler);
     const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
     button_node_ = match.node;
-    if (match.root == nullptr || button_node_ == nullptr) {
+    visibility_node_ = match.root == nullptr
+        ? nullptr
+        : MewUI_FindChildByName(match.root, kVisibilityNode);
+    if (match.root == nullptr || button_node_ == nullptr ||
+        visibility_node_ == nullptr) {
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
@@ -106,6 +112,7 @@ void MewUiHouseButtonView::ResetSceneState() noexcept {
     active_ = false;
     scene_manager_ = nullptr;
     button_node_ = nullptr;
+    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     click_handler_ = {};
@@ -120,10 +127,11 @@ void MewUiHouseButtonView::SetState(
         return;
     }
     if (furniture_mode_) {
+        // Match the game-owned House controls: preserve the live input
+        // component and gate only its independent parent artwork.
         MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
-        if (button_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        if (visibility_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
         }
         return;
     }
@@ -156,9 +164,6 @@ void MewUiHouseButtonView::SetState(
         break;
     }
     MewUI_SetButtonLabelText(button_, label);
-    // Match the native component lifecycle: reopen the component/activation
-    // gate before restoring its interaction state.
-    MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
     MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
 }
 
@@ -174,14 +179,13 @@ void MewUiHouseButtonView::SetFurnitureMode(bool furniture_mode) {
     if (button_ == nullptr || !CanTouchScene()) return;
     if (furniture_mode_) {
         MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
-        if (button_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        if (visibility_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
         }
         return;
     }
-    if (button_node_ != nullptr) {
-        HoldMewUiMovieClipFrame(button_node_, kVisibleButtonFrame);
+    if (visibility_node_ != nullptr) {
+        HoldMewUiMovieClipFrame(visibility_node_, kVisibleGateFrame);
     }
     SetState(current_state_, {});
 }

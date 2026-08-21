@@ -16,8 +16,9 @@ namespace {
 constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
-constexpr int kVisibleButtonFrame = 0;
-constexpr int kHiddenButtonFrame = 80;
+constexpr auto kVisibilityNode = "recommend_button_visibility";
+constexpr int kVisibleGateFrame = 1;
+constexpr int kHiddenGateFrame = 2;
 constexpr std::array<const char*, 4> kItemNodes{
     "recommend_row_1",
     "recommend_row_2",
@@ -69,6 +70,9 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     }
 
     scene_manager_ = scene;
+    root_node_ = nullptr;
+    button_node_ = nullptr;
+    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = context.scene_generation;
     item_nodes_.fill(nullptr);
@@ -80,7 +84,11 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     auto* button_node = match.node;
     root_node_ = match.root;
     button_node_ = button_node;
-    if (root_node_ == nullptr || button_node_ == nullptr) {
+    visibility_node_ = root_node_ == nullptr
+        ? nullptr
+        : MewUI_FindChildByName(root_node_, kVisibilityNode);
+    if (root_node_ == nullptr || button_node_ == nullptr ||
+        visibility_node_ == nullptr) {
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
@@ -171,6 +179,7 @@ void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
     scene_manager_ = nullptr;
     root_node_ = nullptr;
     button_node_ = nullptr;
+    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     item_nodes_.fill(nullptr);
@@ -194,17 +203,16 @@ void MewUiRecommendationMarkerView::SetAvailable(bool available) {
         return;
     }
     if (furniture_mode_) {
+        // Match the game-owned House controls: preserve the live input
+        // component and gate only its independent parent artwork.
         MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
-        if (button_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        if (visibility_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
         }
         ClearSummary();
         availability_applied_ = true;
         return;
     }
-    // Reopen the component/activation gate before restoring interaction.
-    MewUI_SetButtonEnabled(button_, available ? 1 : 0);
     MewUI_SetButtonInteractable(button_, available ? 1 : 0);
     if (!available) ClearSummary();
     availability_applied_ = true;
@@ -237,14 +245,13 @@ void MewUiRecommendationMarkerView::SetFurnitureMode(
     if (furniture_mode_) {
         ClearSummary();
         MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
-        if (button_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
+        if (visibility_node_ != nullptr) {
+            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
         }
         return;
     }
-    if (button_node_ != nullptr) {
-        HoldMewUiMovieClipFrame(button_node_, kVisibleButtonFrame);
+    if (visibility_node_ != nullptr) {
+        HoldMewUiMovieClipFrame(visibility_node_, kVisibleGateFrame);
     }
     availability_applied_ = false;
     SetAvailable(available_);
