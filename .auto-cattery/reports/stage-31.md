@@ -90,3 +90,16 @@
 - 未运行哈希、`verify_install.ps1` 或安装完整性检查；未启动或操纵游戏。最终视觉验收仍由玩家确认：家具模式中两个位置应完全为空，退出后两个中文按钮仍可点击。
 
 是否 push：否
+
+## 2026-08-21 第二次 Clean Up 实机失败与组件恢复顺序修复
+
+- 玩家在 12:25 启动的新进程加载了上一笔 Release；日志于 12:25:39 记录家具模式打开、12:26:13 记录关闭，证明不是旧 DLL 或未部署问题。
+- 同轮截图仍显示两个 `Clean Up!`，因此逐 UI tick 重申空白停止帧没有控制实际显示，提交 `69ae640` 的该方案被实机否定并在本次代码中撤回。
+- 改回与原生按钮生命周期一致的组件级隐藏：进入家具模式时先关闭交互，再关闭 Button component enabled/activate gate，使游戏不再绘制和更新两个 MOD 木牌。
+- 修正上一轮组件级方案退出后失去点击的恢复顺序：退出家具模式时先重新打开 component enabled/activate gate，再恢复 interactable 状态；不再在组件仍关闭时先切交互状态。
+- `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
+- `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
+- 确认 `Mewgenics.exe` 未运行后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release`：成功；保留玩家升级重骰值 20。
+- 未运行哈希、`verify_install.ps1` 或安装完整性检查；未启动或操纵游戏。需要玩家再次确认家具模式木牌消失，并在退出后分别点击两个按钮验证输入恢复。
+
+是否 push：否

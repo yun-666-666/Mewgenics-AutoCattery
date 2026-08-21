@@ -120,11 +120,8 @@ void MewUiHouseButtonView::SetState(
         return;
     }
     if (furniture_mode_) {
-        // Keep the component enrolled in the House update/input buckets.
-        // Furniture mode only needs a temporary interaction override plus an
-        // empty visual frame. The observed restore path can leave the artwork
-        // visible without a working mouse path after a component disable.
         MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
         if (button_node_ != nullptr) {
             HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
         }
@@ -159,8 +156,10 @@ void MewUiHouseButtonView::SetState(
         break;
     }
     MewUI_SetButtonLabelText(button_, label);
-    MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
+    // Match the native component lifecycle: reopen the component/activation
+    // gate before restoring its interaction state.
     MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
+    MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
 }
 
 void MewUiHouseButtonView::ShowPlaceholder() {
@@ -175,6 +174,7 @@ void MewUiHouseButtonView::SetFurnitureMode(bool furniture_mode) {
     if (button_ == nullptr || !CanTouchScene()) return;
     if (furniture_mode_) {
         MewUI_SetButtonInteractable(button_, 0);
+        MewUI_SetButtonEnabled(button_, 0);
         if (button_node_ != nullptr) {
             HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
         }
