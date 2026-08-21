@@ -71,8 +71,7 @@ void RecommendationMarkerController::ObserveRuntime(
     }
 
     if (house_ready && view_.IsAttached()) {
-        SyncAvailability(
-            available_this_day_ && !suppressed_ && !furniture_mode_);
+        SyncAvailability(available_this_day_ && !suppressed_);
     }
 
     if (!house_ready) {
@@ -188,8 +187,7 @@ void RecommendationMarkerController::SetFurnitureMode(
     view_.SetFurnitureMode(furniture_mode_);
     if (view_.IsAttached()) {
         view_.ClearSummary();
-        SyncAvailability(
-            available_this_day_ && !suppressed_ && !furniture_mode_);
+        SyncAvailability(available_this_day_ && !suppressed_);
     }
 }
 

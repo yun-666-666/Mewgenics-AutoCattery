@@ -1,8 +1,8 @@
 # Stage 31：家具摆放模式隐藏 House 原有控制
 
-更新日期：2026-08-20
+更新日期：2026-08-21
 
-状态：基于 `v0.5.15`（`f617e917bec3c2dbe91cf099f192cd828ba89b51`）完成最小回退修复；Debug/Release 构建及 4/4 CTest 均通过，Release 已部署；等待玩家实机确认视觉效果。
+状态：基于 `v0.5.15`（`f617e917bec3c2dbe91cf099f192cd828ba89b51`）继续修复家具模式退出后的按钮交互恢复；2026-08-21 最新 Debug/Release 构建及各 4/4 CTest 均通过，Release 已部署；等待玩家实机确认两个按钮恢复点击且不再闪退。
 
 ## 范围与行为
 
@@ -53,12 +53,26 @@
 
 - 玩家操作与本地证据对齐：第一次在家具摆放后退出、两个 House 按钮无法点击，结束一天时于 11:20:28 闪退；第二次重新启动后进入家具摆放，于 11:22:04 闪退。
 - 第一次 WER 为 UI 线程 `0xC000001D` 非法指令，转储栈包含 `AutoCattery.dll`；第二次为 `0xC0000374` 堆损坏。两次主 MOD 日志最后的共同新增路径均为 `AC3210` 家具模式按钮隐藏/恢复。
-- 根因是按钮 MovieClip 从隐藏帧恢复可见帧时调用 `MewUI_PlayMovieClipFrame(..., 0)`，会继续播放整个 81 帧时间线，而不是停在可见帧；按钮子节点因持续时间线播放被反复移除/重建，先表现为按钮恢复后不可点击，随后破坏 House UI 生命周期和堆状态。
+- 第一轮依据时间线行为判断持续播放是崩溃与失去点击的主要触发，并将恢复路径改为停止帧；后续玩家实机证明按钮仍会在家具模式退出后失去点击，因此该判断只覆盖了持续播放风险，不是完整根因。
 - `MewUiHouseButtonView` 与 `MewUiRecommendationMarkerView` 的可见帧恢复均改为 `HoldMewUiMovieClipFrame(..., 0)`，与隐藏帧和管理面板既有 goto-and-stop 语义一致；家具模式仍隐藏两个普通 House 按钮，退出后恢复并停在可见帧。
 - 聚焦源码检查确认两处可见帧路径均不再调用持续播放。
 - `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
 - `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
 - 确认 `Mewgenics.exe` 未运行后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release`：成功；保留玩家重骰值 20，未运行哈希或安装完整性校验。
 - 自动化验证不能代替实机生命周期验证；部署后由玩家执行“进入家具界面 -> 摆放 -> 退出 -> 点击两个按钮 -> 结束一天 -> 再次进入家具界面”的完整路径。
+
+是否 push：否
+
+## 2026-08-21 家具模式退出后按钮仍不可点击的第二轮修复
+
+- 玩家复测确认：直接进入 House 时两个按钮均可点击并正常执行；只有经过“进入家具界面 -> 退出回 House”后，按钮画面恢复但点击事件完全消失。失败会话关闭家具模式后没有 `AC3102`、`AC3104` 或推荐按钮点击日志；重新启动、不进入家具模式时点击日志立即恢复。
+- 进一步检查发现家具模式隐藏路径同时做了两类操作：`MewUI_SetButtonInteractable(button, 0)` 强制阻止点击，以及 `MewUI_SetButtonEnabled(button, 0)` 直接关闭原生 Button 组件的 update/activate 字节。空白帧已经足以隐藏图像，交互 override 已足以阻止点击；额外关闭组件与“图像恢复但输入状态未恢复”的实机现象一致，是本轮最小移除项。
+- 控制器还会在家具模式中向视图传入临时 `Hidden` / `false`，覆盖视图保存的真实整理状态和推荐可用状态；退出时因此出现一次不必要的“恢复画面 -> 仍按临时禁用状态处理 -> 再启用”切换。
+- 修复后，家具模式只保留 `FORCE_DISABLED` 交互 override 和空白停止帧，Button 组件继续留在 House 的 update/input buckets；控制器继续保留真实状态/可用性，由原生视图负责家具模式的临时隐藏。退出时直接按真实状态恢复，不再关闭并重新开启组件。
+- 更新回归断言：家具模式中控制器仍拒绝点击且 `ShouldShow()` 为 false，但传给原生视图的底层整理状态保持 `Ready`、推荐可用性保持 true，避免临时隐藏污染恢复状态。
+- `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
+- `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
+- 确认 `Mewgenics.exe` 未运行后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release`：成功；保留玩家重骰值 20。
+- 未运行哈希、`verify_install.ps1` 或安装完整性检查；未启动或操纵游戏。玩家实机点击和闪退路径仍是最终验收门槛。
 
 是否 push：否

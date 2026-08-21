@@ -145,7 +145,7 @@ void RunRecommendationMarkerControllerTests() {
     controller.SetFurnitureMode(true);
     AC_CHECK(view.furniture_mode);
     AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(!view.available);
+    AC_CHECK(view.available);
     view.Click();
     controller.SetFurnitureMode(false);
     AC_CHECK(!view.furniture_mode);

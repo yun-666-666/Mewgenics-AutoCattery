@@ -164,7 +164,7 @@ void RunHouseButtonControllerTests() {
 
     controller.SetFurnitureMode(true);
     AC_CHECK(view.furniture_mode);
-    AC_CHECK(view.state == ui::OrganizeButtonState::Hidden);
+    AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
     view.Click();
     AC_CHECK(workflow.preview_calls == 0);
     controller.SetFurnitureMode(false);

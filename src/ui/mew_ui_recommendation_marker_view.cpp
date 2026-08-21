@@ -194,8 +194,10 @@ void MewUiRecommendationMarkerView::SetAvailable(bool available) {
         return;
     }
     if (furniture_mode_) {
+        // Preserve the live Button component while its artwork is hidden.
+        // The observed component-disable path can return the later visible
+        // frame without a working mouse path.
         MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
         if (button_node_ != nullptr) {
             HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
         }
@@ -236,7 +238,6 @@ void MewUiRecommendationMarkerView::SetFurnitureMode(
     if (furniture_mode_) {
         ClearSummary();
         MewUI_SetButtonInteractable(button_, 0);
-        MewUI_SetButtonEnabled(button_, 0);
         if (button_node_ != nullptr) {
             HoldMewUiMovieClipFrame(button_node_, kHiddenButtonFrame);
         }
