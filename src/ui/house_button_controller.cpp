@@ -114,22 +114,11 @@ void HouseButtonController::SetSuppressed(bool suppressed) {
     view_.SetState(state_, state_detail_);
 }
 
-void HouseButtonController::SetFurnitureMode(bool furniture_mode) {
-    if (furniture_mode_ == furniture_mode) return;
-    furniture_mode_ = furniture_mode;
-    view_.SetFurnitureMode(furniture_mode_);
-    if (view_.IsAttached()) {
-        SetState(state_, state_detail_);
-    }
-}
-
 void HouseButtonController::SetState(
     OrganizeButtonState state,
     std::string_view detail) {
     state_ = state;
     state_detail_ = detail;
-    // The native view owns the temporary furniture-mode suppression so it
-    // can preserve the underlying state needed when the visible frame returns.
     view_.SetState(
         suppressed_ ? OrganizeButtonState::Hidden : state,
         suppressed_ ? std::string_view{} : std::string_view{state_detail_});
@@ -146,7 +135,6 @@ bool HouseButtonController::IsSuppressed() const noexcept {
 void HouseButtonController::HandleClick() {
     if (!view_.IsAttached() ||
         suppressed_ ||
-        furniture_mode_ ||
         state_ != OrganizeButtonState::Ready) {
         return;
     }

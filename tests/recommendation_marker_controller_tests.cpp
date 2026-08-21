@@ -57,10 +57,6 @@ public:
                 : (marker_visible ? "marked" : "marker-off"));
     }
 
-    void SetFurnitureMode(bool value) override {
-        furniture_mode = value;
-    }
-
     Result<void> ShowItems(
         const std::vector<std::string>& values) override {
         labels = values;
@@ -94,7 +90,6 @@ public:
     }
 
     bool attached{};
-    bool furniture_mode{};
     bool marker_visible{};
     bool probe_required{};
     std::vector<std::string> labels;
@@ -141,16 +136,6 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(controller.IsAttached());
     AC_CHECK(view.attach_calls == 1);
     AC_CHECK(view.set_available_calls == 1);
-
-    controller.SetFurnitureMode(true);
-    AC_CHECK(view.furniture_mode);
-    AC_CHECK(!controller.ShouldShow());
-    AC_CHECK(view.available);
-    view.Click();
-    controller.SetFurnitureMode(false);
-    AC_CHECK(!view.furniture_mode);
-    AC_CHECK(controller.ShouldShow());
-    AC_CHECK(view.available);
 
     controller.SetSuppressed(true);
     AC_CHECK(controller.IsSuppressed());

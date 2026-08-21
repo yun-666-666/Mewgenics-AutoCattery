@@ -40,8 +40,6 @@ DO_ACTION = 12
 END = 0
 TARGET_MARKER = b"test_button\x00"
 RECOMMENDATION_MARKER = b"recommend_button\x00"
-TARGET_VISIBILITY_MARKER = b"test_button_visibility\x00"
-RECOMMENDATION_VISIBILITY_MARKER = b"recommend_button_visibility\x00"
 # Keep the cloned button beside the original button at depth 18.  Higher
 # native House HUD layers must remain in front of both buttons' hanging ropes.
 RECOMMENDATION_DEPTH = 19
@@ -412,61 +410,6 @@ def encode_tag(code: int, body: bytes) -> bytes:
     )
 
 
-def encode_color_transform_alpha(alpha: int) -> bytes:
-    """Encode one multiplicative CXFORMWITHALPHA without additive terms."""
-    if not 0 <= alpha <= 256:
-        raise ValueError("alpha multiplier must be between 0 and 256")
-    values = (256, 256, 256, alpha)
-    bits = signed_bit_count(*values)
-    writer = BitWriter()
-    writer.unsigned(0, 1)
-    writer.unsigned(1, 1)
-    writer.unsigned(bits, 4)
-    for value in values:
-        writer.signed(value, bits)
-    return writer.bytes()
-
-
-def make_button_visibility_gate(
-    character_id: int,
-    button_character_id: int,
-    button_name: bytes,
-) -> bytes:
-    """Keep one live Button child while independently gating parent alpha."""
-    if not button_name.endswith(b"\x00"):
-        raise ValueError("button instance name must be null terminated")
-
-    initial = (
-        bytes((0x26,))
-        + struct.pack("<HH", 1, button_character_id)
-        + encode_matrix(1.0, 1.0, 0, 0)
-        + button_name
-    )
-    visible = (
-        bytes((0x09,))
-        + struct.pack("<H", 1)
-        + encode_color_transform_alpha(256)
-    )
-    hidden = (
-        bytes((0x09,))
-        + struct.pack("<H", 1)
-        + encode_color_transform_alpha(0)
-    )
-
-    output = bytearray(struct.pack("<HH", character_id, 3))
-    output.extend(encode_tag(PLACE_OBJECT_2, initial))
-    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
-    output.extend(encode_tag(SHOW_FRAME, b""))
-    output.extend(encode_tag(PLACE_OBJECT_2, visible))
-    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
-    output.extend(encode_tag(SHOW_FRAME, b""))
-    output.extend(encode_tag(PLACE_OBJECT_2, hidden))
-    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
-    output.extend(encode_tag(SHOW_FRAME, b""))
-    output.extend(encode_tag(END, b""))
-    return bytes(output)
-
-
 def placed_character_id(body: bytes) -> int:
     if len(body) < 5 or not body[0] & 0x02:
         raise ValueError("button placement has no character id")
@@ -665,8 +608,6 @@ def button_background_ids(body: bytes) -> tuple[int, int]:
 
 def filter_overlay_sprite(
     body: bytes,
-    target_visibility_character_id: int,
-    recommendation_visibility_character_id: int,
     recommendation_row_character_id: int,
     recommendation_text_character_id: int,
     panel_background_character_id: int,
@@ -723,31 +664,23 @@ def filter_overlay_sprite(
         ):
             removed += 1
             continue
-        if code == PLACE_OBJECT_2 and TARGET_MARKER in raw_tag:
-            gate_body = with_character_id(
-                body[body_start:tag_end],
-                target_visibility_character_id,
-            ).replace(
-                TARGET_MARKER,
-                TARGET_VISIBILITY_MARKER,
-                1,
-            )
-            gate_body = relocate_matrix(
-                gate_body,
-                *RELOCATED_TRANSFORMS[TARGET_MARKER],
-            )
-            raw_tag = encode_tag(code, gate_body)
-            relocated += 1
+        if code == PLACE_OBJECT_2:
+            for name, transform in RELOCATED_TRANSFORMS.items():
+                if name in raw_tag:
+                    tag_body = relocate_matrix(
+                        body[body_start:tag_end],
+                        *transform,
+                    )
+                    raw_tag = encode_tag(code, tag_body)
+                    relocated += 1
+                    break
         kept.extend(raw_tag)
-        if code == PLACE_OBJECT_2 and TARGET_VISIBILITY_MARKER in raw_tag:
-            clone_body = bytearray(with_character_id(
-                source_button_body,
-                recommendation_visibility_character_id,
-            ))
+        if code == PLACE_OBJECT_2 and TARGET_MARKER in raw_tag:
+            clone_body = bytearray(source_button_body)
             struct.pack_into("<H", clone_body, 1, RECOMMENDATION_DEPTH)
             clone_body = bytearray(bytes(clone_body).replace(
                     TARGET_MARKER,
-                    RECOMMENDATION_VISIBILITY_MARKER,
+                    RECOMMENDATION_MARKER,
                     1,
                 ))
             clone_body = bytearray(relocate_matrix(
@@ -975,9 +908,7 @@ def build(source: Path, destination: Path) -> None:
     panel_control_character_id = paper_bitmap_character_id + 9
     panel_text_character_id = paper_bitmap_character_id + 10
     panel_compact_text_character_id = paper_bitmap_character_id + 11
-    target_visibility_character_id = paper_bitmap_character_id + 12
-    recommendation_visibility_character_id = paper_bitmap_character_id + 13
-    if recommendation_visibility_character_id > 0xFFFF:
+    if panel_compact_text_character_id > 0xFFFF:
         raise ValueError("no SWF character id remains for recommendation rows")
 
     output = bytearray(swf[:start])
@@ -999,22 +930,6 @@ def build(source: Path, destination: Path) -> None:
             iconless_body, _ = remove_button_icon(body)
             iconless_body, _ = center_button_labels(iconless_body)
             output.extend(encode_tag(code, iconless_body))
-            output.extend(encode_tag(
-                DEFINE_SPRITE,
-                make_button_visibility_gate(
-                    target_visibility_character_id,
-                    overlay_button_character_id,
-                    TARGET_MARKER,
-                ),
-            ))
-            output.extend(encode_tag(
-                DEFINE_SPRITE,
-                make_button_visibility_gate(
-                    recommendation_visibility_character_id,
-                    overlay_button_character_id,
-                    RECOMMENDATION_MARKER,
-                ),
-            ))
             output.extend(encode_tag(
                 DEFINE_BITS_LOSSLESS_2,
                 make_paper_bitmap(
@@ -1112,8 +1027,6 @@ def build(source: Path, destination: Path) -> None:
             body, removed, relocated, cloned = (
                 filter_overlay_sprite(
                     body,
-                    target_visibility_character_id,
-                    recommendation_visibility_character_id,
                     recommendation_row_character_id,
                     recommendation_text_character_id,
                     panel_background_character_id,

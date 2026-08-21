@@ -47,9 +47,6 @@ private:
 
     static void __cdecl Tick(void* user_data);
     void OnTick();
-    void UpdateHouseUiMode(
-        const UiContextSnapshot& context,
-        const std::vector<RuntimeScene>& scenes);
     void RefreshRuntimeSnapshotContext();
     void ApplyRuntimeConfig();
     SceneObservation ObserveScenes(
@@ -67,10 +64,6 @@ private:
     bool started_{};
     bool debug_probe_enabled_{};
     bool runtime_move_available_{};
-    bool furniture_mode_{};
-    void* furniture_mode_scene_manager_{};
-    std::uint32_t furniture_mode_component_count_{};
-    void* furniture_mode_component_{};
     std::filesystem::path diagnostics_root_;
     std::filesystem::path recommendation_sidecar_path_;
     SceneSignatures signatures_;

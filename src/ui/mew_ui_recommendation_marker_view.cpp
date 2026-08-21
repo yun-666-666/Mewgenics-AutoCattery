@@ -16,9 +16,6 @@ namespace {
 constexpr auto kButtonNode = "recommend_button";
 constexpr auto kButtonRole =
     "AutoCattery.Recommendation.MarkCombatCatsButton";
-constexpr auto kVisibilityNode = "recommend_button_visibility";
-constexpr int kVisibleGateFrame = 1;
-constexpr int kHiddenGateFrame = 2;
 constexpr std::array<const char*, 4> kItemNodes{
     "recommend_row_1",
     "recommend_row_2",
@@ -70,9 +67,6 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     }
 
     scene_manager_ = scene;
-    root_node_ = nullptr;
-    button_node_ = nullptr;
-    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = context.scene_generation;
     item_nodes_.fill(nullptr);
@@ -80,14 +74,10 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     active_ = false;
     click_handler_ = std::move(click_handler);
     item_click_handler_ = std::move(item_click_handler);
-    const auto match = FindSceneUiNode(scene_manager_, kVisibilityNode);
+    const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
+    auto* button_node = match.node;
     root_node_ = match.root;
-    visibility_node_ = match.node;
-    button_node_ = visibility_node_ == nullptr
-        ? nullptr
-        : MewUI_FindChildByName(visibility_node_, kButtonNode);
-    if (root_node_ == nullptr || button_node_ == nullptr ||
-        visibility_node_ == nullptr) {
+    if (root_node_ == nullptr || button_node == nullptr) {
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
@@ -97,7 +87,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
     create_info.root_node = root_node_;
-    create_info.button_node = button_node_;
+    create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
     create_info.label_text = english_
@@ -143,9 +133,9 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         };
     }
     active_ = true;
+    MewUI_SetButtonEnabled(button_, 1);
+    MewUI_SetButtonInteractable(button_, 1);
     ClearSummary();
-    SetFurnitureMode(furniture_mode_);
-    SetAvailable(available_);
     return {};
 }
 
@@ -177,8 +167,6 @@ void MewUiRecommendationMarkerView::ResetSceneState() noexcept {
     active_ = false;
     scene_manager_ = nullptr;
     root_node_ = nullptr;
-    button_node_ = nullptr;
-    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     item_nodes_.fill(nullptr);
@@ -201,18 +189,8 @@ void MewUiRecommendationMarkerView::SetAvailable(bool available) {
         availability_applied_ = false;
         return;
     }
-    if (furniture_mode_) {
-        // Match the game-owned House controls: preserve the live input
-        // component and gate only its independent parent artwork.
-        MewUI_SetButtonInteractable(button_, 0);
-        if (visibility_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
-        }
-        ClearSummary();
-        availability_applied_ = true;
-        return;
-    }
     MewUI_SetButtonInteractable(button_, available ? 1 : 0);
+    MewUI_SetButtonEnabled(button_, available ? 1 : 0);
     if (!available) ClearSummary();
     availability_applied_ = true;
 }
@@ -235,26 +213,6 @@ void MewUiRecommendationMarkerView::SetStatus(
     }
     MewUI_SetButtonLabelText(
         button_, english_ ? "Mark Combat Cats" : "标记推荐战斗猫");
-}
-
-void MewUiRecommendationMarkerView::SetFurnitureMode(
-    bool furniture_mode) {
-    furniture_mode_ = furniture_mode;
-    if (button_ == nullptr || !CanTouchScene()) return;
-    if (furniture_mode_) {
-        ClearSummary();
-        MewUI_SetButtonInteractable(button_, 0);
-        if (visibility_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
-        }
-        return;
-    }
-    if (visibility_node_ != nullptr) {
-        HoldMewUiMovieClipFrame(visibility_node_, kVisibleGateFrame);
-    }
-    availability_applied_ = false;
-    SetAvailable(available_);
-    SetStatus(current_status_);
 }
 
 void MewUiRecommendationMarkerView::SetEnglish(bool english) {

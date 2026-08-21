@@ -3,7 +3,6 @@
 #include <cstring>
 #include <utility>
 
-#include "mew_ui_movie_clip.hpp"
 #include "mew_ui_safe_node_lookup.hpp"
 
 namespace autocattery::ui {
@@ -11,9 +10,6 @@ namespace {
 
 constexpr auto kButtonNode = "test_button";
 constexpr auto kButtonRole = "AutoCattery.House.AutoOrganizeButton";
-constexpr auto kVisibilityNode = "test_button_visibility";
-constexpr int kVisibleGateFrame = 1;
-constexpr int kHiddenGateFrame = 2;
 
 }  // namespace
 
@@ -31,19 +27,13 @@ Result<void> MewUiHouseButtonView::Attach(
     }
 
     scene_manager_ = scene;
-    button_node_ = nullptr;
-    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = context.scene_generation;
     active_ = false;
     click_handler_ = std::move(click_handler);
-    const auto match = FindSceneUiNode(scene_manager_, kVisibilityNode);
-    visibility_node_ = match.node;
-    button_node_ = visibility_node_ == nullptr
-        ? nullptr
-        : MewUI_FindChildByName(visibility_node_, kButtonNode);
-    if (match.root == nullptr || button_node_ == nullptr ||
-        visibility_node_ == nullptr) {
+    const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
+    auto* button_node = match.node;
+    if (match.root == nullptr || button_node == nullptr) {
         ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
@@ -53,7 +43,7 @@ Result<void> MewUiHouseButtonView::Attach(
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
     create_info.root_node = match.root;
-    create_info.button_node = button_node_;
+    create_info.button_node = button_node;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
     create_info.label_text = english_
@@ -84,8 +74,8 @@ Result<void> MewUiHouseButtonView::Attach(
         this);
 
     active_ = true;
-    SetFurnitureMode(furniture_mode_);
-    SetState(current_state_, {});
+    MewUI_SetButtonEnabled(button_, 1);
+    MewUI_SetButtonInteractable(button_, 1);
     return {};
 }
 
@@ -111,8 +101,6 @@ void MewUiHouseButtonView::AbandonScene() noexcept {
 void MewUiHouseButtonView::ResetSceneState() noexcept {
     active_ = false;
     scene_manager_ = nullptr;
-    button_node_ = nullptr;
-    visibility_node_ = nullptr;
     button_ = nullptr;
     attached_generation_ = 0;
     click_handler_ = {};
@@ -124,15 +112,6 @@ void MewUiHouseButtonView::SetState(
     (void)detail;
     current_state_ = state;
     if (button_ == nullptr || !CanTouchScene()) {
-        return;
-    }
-    if (furniture_mode_) {
-        // Match the game-owned House controls: preserve the live input
-        // component and gate only its independent parent artwork.
-        MewUI_SetButtonInteractable(button_, 0);
-        if (visibility_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
-        }
         return;
     }
 
@@ -165,6 +144,7 @@ void MewUiHouseButtonView::SetState(
     }
     MewUI_SetButtonLabelText(button_, label);
     MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
+    MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
 }
 
 void MewUiHouseButtonView::ShowPlaceholder() {
@@ -172,22 +152,6 @@ void MewUiHouseButtonView::ShowPlaceholder() {
     // feedback surface. Avoid scene-wide text-node probes here: the pinned
     // MewUI build handles a missing text node through repeated SEH probes,
     // which caused a visible pause on every Stage 03 click.
-}
-
-void MewUiHouseButtonView::SetFurnitureMode(bool furniture_mode) {
-    furniture_mode_ = furniture_mode;
-    if (button_ == nullptr || !CanTouchScene()) return;
-    if (furniture_mode_) {
-        MewUI_SetButtonInteractable(button_, 0);
-        if (visibility_node_ != nullptr) {
-            HoldMewUiMovieClipFrame(visibility_node_, kHiddenGateFrame);
-        }
-        return;
-    }
-    if (visibility_node_ != nullptr) {
-        HoldMewUiMovieClipFrame(visibility_node_, kVisibleGateFrame);
-    }
-    SetState(current_state_, {});
 }
 
 void MewUiHouseButtonView::SetEnglish(bool english) {

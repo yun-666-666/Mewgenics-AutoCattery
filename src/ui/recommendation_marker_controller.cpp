@@ -175,22 +175,6 @@ void RecommendationMarkerController::SetSuppressed(bool suppressed) {
     }
 }
 
-void RecommendationMarkerController::SetFurnitureMode(
-    bool furniture_mode) {
-    if (furniture_mode_ == furniture_mode) return;
-    furniture_mode_ = furniture_mode;
-    marker_visible_ = false;
-    item_count_ = 0;
-    request_pending_ = false;
-    ready_after_ = {};
-    applied_availability_.reset();
-    view_.SetFurnitureMode(furniture_mode_);
-    if (view_.IsAttached()) {
-        view_.ClearSummary();
-        SyncAvailability(available_this_day_ && !suppressed_);
-    }
-}
-
 void RecommendationMarkerController::SyncAvailability(bool available) {
     if (applied_availability_.has_value() &&
         *applied_availability_ == available) {
@@ -203,7 +187,6 @@ void RecommendationMarkerController::SyncAvailability(bool available) {
 void RecommendationMarkerController::HandleClick() {
     if (!view_.IsAttached() ||
         suppressed_ ||
-        furniture_mode_ ||
         !available_this_day_ ||
         request_pending_ ||
         ready_after_.time_since_epoch().count() != 0) {
@@ -310,7 +293,7 @@ void RecommendationMarkerController::SetDetailsHandler(
 }
 
 bool RecommendationMarkerController::ShouldShow() const noexcept {
-    return available_this_day_ && !suppressed_ && !furniture_mode_;
+    return available_this_day_ && !suppressed_;
 }
 
 bool RecommendationMarkerController::IsAttached() const noexcept {
