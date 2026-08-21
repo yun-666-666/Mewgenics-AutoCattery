@@ -243,7 +243,7 @@ void MewUiRecommendationMarkerView::SetFurnitureMode(
         return;
     }
     if (button_node_ != nullptr) {
-        MewUI_PlayMovieClipFrame(button_node_, kVisibleButtonFrame);
+        HoldMewUiMovieClipFrame(button_node_, kVisibleButtonFrame);
     }
     availability_applied_ = false;
     SetAvailable(available_);

@@ -44,7 +44,21 @@
 - 缩短 F10 完整预览页的空预览中文提示，移除按钮名称两侧在当前字体下显示拥挤的中文引号。
 - 新提示为：`暂无预览。关闭 F10 后点击自动整理猫舍即可生成。`
 - 修改文件：`src/ui/in_game_panel_controller.cpp`。
-- 上一笔误改的 House 按钮隐藏逻辑已完整撤回，不包含在本次最终代码中。
+- 空预览提示修复本身未改动 House 按钮隐藏逻辑；后续合并仍保留了该逻辑。
 - 按玩家要求仅执行 Release 构建与部署，不运行 CTest、安装校验、哈希或其他额外检查。
+
+是否 push：否
+
+## 2026-08-21 最近两次家具界面闪退修复
+
+- 玩家操作与本地证据对齐：第一次在家具摆放后退出、两个 House 按钮无法点击，结束一天时于 11:20:28 闪退；第二次重新启动后进入家具摆放，于 11:22:04 闪退。
+- 第一次 WER 为 UI 线程 `0xC000001D` 非法指令，转储栈包含 `AutoCattery.dll`；第二次为 `0xC0000374` 堆损坏。两次主 MOD 日志最后的共同新增路径均为 `AC3210` 家具模式按钮隐藏/恢复。
+- 根因是按钮 MovieClip 从隐藏帧恢复可见帧时调用 `MewUI_PlayMovieClipFrame(..., 0)`，会继续播放整个 81 帧时间线，而不是停在可见帧；按钮子节点因持续时间线播放被反复移除/重建，先表现为按钮恢复后不可点击，随后破坏 House UI 生命周期和堆状态。
+- `MewUiHouseButtonView` 与 `MewUiRecommendationMarkerView` 的可见帧恢复均改为 `HoldMewUiMovieClipFrame(..., 0)`，与隐藏帧和管理面板既有 goto-and-stop 语义一致；家具模式仍隐藏两个普通 House 按钮，退出后恢复并停在可见帧。
+- 聚焦源码检查确认两处可见帧路径均不再调用持续播放。
+- `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
+- `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
+- 确认 `Mewgenics.exe` 未运行后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release`：成功；保留玩家重骰值 20，未运行哈希或安装完整性校验。
+- 自动化验证不能代替实机生命周期验证；部署后由玩家执行“进入家具界面 -> 摆放 -> 退出 -> 点击两个按钮 -> 结束一天 -> 再次进入家具界面”的完整路径。
 
 是否 push：否

@@ -179,7 +179,7 @@ void MewUiHouseButtonView::SetFurnitureMode(bool furniture_mode) {
         return;
     }
     if (button_node_ != nullptr) {
-        MewUI_PlayMovieClipFrame(button_node_, kVisibleButtonFrame);
+        HoldMewUiMovieClipFrame(button_node_, kVisibleButtonFrame);
     }
     SetState(current_state_, {});
 }
