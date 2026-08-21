@@ -121,3 +121,16 @@
 - 未运行哈希、`verify_install.ps1`，未启动或操纵游戏。自动化检查不能替代最终玩家验证；本轮只需要一次完整链路测试。
 
 是否 push：否
+
+## 2026-08-21 父级视觉门控 Attach 失败与持续闪烁修复
+
+- 玩家对提交 `9e39967` 的最新实机结论：普通 House 与家具摆放界面均持续闪烁，截图显示默认 `Clean Up!` 与四张空白推荐纸牌。
+- 最新日志在 15:03:36 同时记录 `AC3103 House button attach deferred: the AutoCattery house button asset is unavailable` 与 `AC4105 Recommendation button attach deferred: the dedicated recommendation button asset is unavailable`，与首次启动的同类记录一致。
+- 根因是 `9e39967` 将 `test_button` / `recommend_button` 嵌套到各自 `*_visibility` 父级后，两个视图仍从场景根直接查找内部 Button；当前 `MewUI_FindChildByName` 只查直接子节点，导致两个 Attach 都失败。Attach 失败后中文标签、推荐纸牌隐藏帧和父级门控停止帧均未应用，SWF 自行播放并产生持续闪烁。
+- `MewUiHouseButtonView::Attach()` 与 `MewUiRecommendationMarkerView::Attach()` 现在先从场景查找 `*_visibility`，再从该父节点查找内部 Button；推荐纸牌与文字节点仍从原 SWF 根节点解析，其他家具模式生命周期逻辑未改。
+- `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
+- `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
+- 部署前确认 `Mewgenics.exe` 未运行且现有 `AutoCattery.dll` 可独占打开；随后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release` 成功，保留玩家重骰值 20。
+- 未运行哈希、`verify_install.ps1`，未启动或操纵游戏。本次只修复已由最新日志直接证明的 Attach 查找错误；最终仍需玩家一次性实机验收 `House -> 家具摆放 -> House` 的稳定显示、隐藏、恢复点击与无闪退，不能在实机结果前写成已完成。
+
+是否 push：否

@@ -37,11 +37,11 @@ Result<void> MewUiHouseButtonView::Attach(
     attached_generation_ = context.scene_generation;
     active_ = false;
     click_handler_ = std::move(click_handler);
-    const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
-    button_node_ = match.node;
-    visibility_node_ = match.root == nullptr
+    const auto match = FindSceneUiNode(scene_manager_, kVisibilityNode);
+    visibility_node_ = match.node;
+    button_node_ = visibility_node_ == nullptr
         ? nullptr
-        : MewUI_FindChildByName(match.root, kVisibilityNode);
+        : MewUI_FindChildByName(visibility_node_, kButtonNode);
     if (match.root == nullptr || button_node_ == nullptr ||
         visibility_node_ == nullptr) {
         ResetSceneState();

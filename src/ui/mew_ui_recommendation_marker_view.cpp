@@ -80,13 +80,12 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     active_ = false;
     click_handler_ = std::move(click_handler);
     item_click_handler_ = std::move(item_click_handler);
-    const auto match = FindSceneUiNode(scene_manager_, kButtonNode);
-    auto* button_node = match.node;
+    const auto match = FindSceneUiNode(scene_manager_, kVisibilityNode);
     root_node_ = match.root;
-    button_node_ = button_node;
-    visibility_node_ = root_node_ == nullptr
+    visibility_node_ = match.node;
+    button_node_ = visibility_node_ == nullptr
         ? nullptr
-        : MewUI_FindChildByName(root_node_, kVisibilityNode);
+        : MewUI_FindChildByName(visibility_node_, kButtonNode);
     if (root_node_ == nullptr || button_node_ == nullptr ||
         visibility_node_ == nullptr) {
         ResetSceneState();
@@ -98,7 +97,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
     create_info.root_node = root_node_;
-    create_info.button_node = button_node;
+    create_info.button_node = button_node_;
     create_info.node_name = kButtonNode;
     create_info.role_name = kButtonRole;
     create_info.label_text = english_
