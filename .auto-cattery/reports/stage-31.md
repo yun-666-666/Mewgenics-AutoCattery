@@ -76,3 +76,17 @@
 - 未运行哈希、`verify_install.ps1` 或安装完整性检查；未启动或操纵游戏。玩家实机点击和闪退路径仍是最终验收门槛。
 
 是否 push：否
+
+## 2026-08-21 Clean Up 残留木牌修复
+
+- 玩家最新实机截图确认：退出家具摆放后两个 House 控制已经恢复中文标签并可正常点击；剩余失败仅是家具摆放期间两个位置仍显示 `Clean Up!` 木牌。
+- 结合当前 SWF 来源与运行路径确认，`Clean Up!` 不是新增控件，而是游戏家具界面继续推进复制自 House 原生木牌的时间轴，覆盖了进入模式时只设置一次的空白停止帧。
+- 保留上一版已通过实机验证的交互策略：不关闭 Button 组件，只在家具模式禁用交互，避免退出后丢失鼠标输入。
+- `HouseButtonController::Poll()` 与 `RecommendationMarkerController::Poll()` 现在在家具模式每个 MOD UI tick、原生更新之后重新应用空白停止帧；退出家具模式后立即停止该刷新，并按现有真实状态恢复可见帧和点击。
+- 回归测试增加逐 tick 隐藏刷新断言，同时继续证明家具模式拒绝点击、退出后底层整理状态与推荐可用性不被污染。
+- `tools/build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
+- `tools/build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
+- 确认 `Mewgenics.exe` 未运行后执行 `tools/deploy.ps1 -GameRoot '..' -Configuration Release`：成功；保留玩家升级重骰值 20。
+- 未运行哈希、`verify_install.ps1` 或安装完整性检查；未启动或操纵游戏。最终视觉验收仍由玩家确认：家具模式中两个位置应完全为空，退出后两个中文按钮仍可点击。
+
+是否 push：否

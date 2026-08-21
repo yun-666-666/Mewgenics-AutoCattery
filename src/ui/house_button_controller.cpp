@@ -179,6 +179,12 @@ void HouseButtonController::HandleClick() {
 }
 
 void HouseButtonController::Poll() {
+    if (furniture_mode_ && view_.IsAttached()) {
+        // The game keeps driving the copied House sign timeline in
+        // furniture mode (the same path that turns it into Clean Up).
+        // Reassert the empty stop frame after that native update.
+        view_.SetFurnitureMode(true);
+    }
     if (continuation_preview_pending_) {
         continuation_preview_pending_ = false;
         StartPreview(true);

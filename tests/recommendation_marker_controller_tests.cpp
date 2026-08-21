@@ -58,6 +58,7 @@ public:
     }
 
     void SetFurnitureMode(bool value) override {
+        ++set_furniture_mode_calls;
         furniture_mode = value;
     }
 
@@ -103,6 +104,7 @@ public:
     int abandon_calls{};
     int poll_calls{};
     int set_available_calls{};
+    int set_furniture_mode_calls{};
     bool available{true};
     std::vector<std::string> events;
     ClickHandler click_handler;
@@ -146,6 +148,10 @@ void RunRecommendationMarkerControllerTests() {
     AC_CHECK(view.furniture_mode);
     AC_CHECK(!controller.ShouldShow());
     AC_CHECK(view.available);
+    const int furniture_refreshes = view.set_furniture_mode_calls;
+    controller.Poll();
+    AC_CHECK(view.set_furniture_mode_calls == furniture_refreshes + 1);
+    AC_CHECK(view.furniture_mode);
     view.Click();
     controller.SetFurnitureMode(false);
     AC_CHECK(!view.furniture_mode);

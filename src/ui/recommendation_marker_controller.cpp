@@ -289,6 +289,12 @@ Result<void> RecommendationMarkerController::ShowRecommendations(
 
 void RecommendationMarkerController::Poll() {
     view_.Poll();
+    if (furniture_mode_ && view_.IsAttached()) {
+        // The native furniture UI advances copied House sign artwork
+        // to its Clean Up frame. Keep the MOD control on its empty
+        // stop frame without disabling the live Button component.
+        view_.SetFurnitureMode(true);
+    }
     if (ready_after_.time_since_epoch().count() == 0 ||
         clock_() < ready_after_) {
         return;

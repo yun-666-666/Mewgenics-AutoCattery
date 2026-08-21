@@ -42,6 +42,7 @@ public:
     }
 
     void SetFurnitureMode(bool value) override {
+        ++set_furniture_mode_calls;
         furniture_mode = value;
     }
 
@@ -65,6 +66,7 @@ public:
     int detach_calls{};
     int abandon_calls{};
     int placeholder_calls{};
+    int set_furniture_mode_calls{};
     ui::OrganizeButtonState state{ui::OrganizeButtonState::Hidden};
     ClickHandler click_handler;
 };
@@ -165,6 +167,10 @@ void RunHouseButtonControllerTests() {
     controller.SetFurnitureMode(true);
     AC_CHECK(view.furniture_mode);
     AC_CHECK(view.state == ui::OrganizeButtonState::Ready);
+    const int furniture_refreshes = view.set_furniture_mode_calls;
+    controller.Poll();
+    AC_CHECK(view.set_furniture_mode_calls == furniture_refreshes + 1);
+    AC_CHECK(view.furniture_mode);
     view.Click();
     AC_CHECK(workflow.preview_calls == 0);
     controller.SetFurnitureMode(false);
