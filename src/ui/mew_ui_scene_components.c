@@ -36,6 +36,22 @@ static int AcMewReadableRange(const void* pointer, size_t byte_count) {
     return 1;
 }
 
+static int AcMewExecutableAddress(const void* pointer) {
+    MEMORY_BASIC_INFORMATION info;
+    DWORD protection;
+    if (!pointer ||
+        VirtualQuery(pointer, &info, sizeof(info)) != sizeof(info) ||
+        info.State != MEM_COMMIT ||
+        (info.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0U) {
+        return 0;
+    }
+    protection = info.Protect & 0xFFU;
+    return protection == PAGE_EXECUTE ||
+           protection == PAGE_EXECUTE_READ ||
+           protection == PAGE_EXECUTE_READWRITE ||
+           protection == PAGE_EXECUTE_WRITECOPY;
+}
+
 MewPodVectorPtr* AcMewGetValidatedSceneComponents(void* scene_manager) {
     MewPodVectorPtr* components;
     size_t data_size;
@@ -66,6 +82,8 @@ MewPodVectorPtr* AcMewGetValidatedSceneComponents(void* scene_manager) {
 
 void* AcMewGetValidatedComponentRoot(void* component) {
     void* root;
+    void* child_collection;
+    void** vtable;
     if (!component || !AcMewReadableRange(component, 0x40U)) {
         return NULL;
     }
@@ -76,6 +94,24 @@ void* AcMewGetValidatedComponentRoot(void* component) {
         return NULL;
     }
     if (!root || root == component || !AcMewReadableRange(root, 0x88U)) {
+        return NULL;
+    }
+    __try {
+        child_collection = *(void**)((uint8_t*)root + 0x80U);
+        if (!child_collection) {
+            return root;
+        }
+        if (!AcMewReadableRange(child_collection, sizeof(void*))) {
+            return NULL;
+        }
+        vtable = *(void***)child_collection;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return NULL;
+    }
+    if (!vtable || !AcMewReadableRange(vtable, 4U * sizeof(void*)) ||
+        !AcMewExecutableAddress(vtable[0]) ||
+        !AcMewExecutableAddress(vtable[3])) {
         return NULL;
     }
     return root;

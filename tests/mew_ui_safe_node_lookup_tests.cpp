@@ -1,11 +1,18 @@
 #include <array>
+#include <cstddef>
 #include <string_view>
 #include <unordered_map>
 
 #include "mew_ui_safe_node_lookup.hpp"
+#include "mew_ui_scene_components.h"
 #include "test_support.hpp"
 
 namespace autocattery::tests {
+namespace {
+
+void UiChildCollectionVirtualCallProbe() {}
+
+}  // namespace
 
 void RunMewUiSafeNodeLookupTests() {
     void* component_a = reinterpret_cast<void*>(0x10);
@@ -58,6 +65,20 @@ void RunMewUiSafeNodeLookupTests() {
     AC_CHECK(missing.node == nullptr);
     AC_CHECK(child_calls == 2);
     AC_CHECK(root_calls == components.size());
+
+    alignas(void*) std::array<std::byte, 0x40> component{};
+    alignas(void*) std::array<std::byte, 0x88> root{};
+    alignas(void*) std::array<std::byte, sizeof(void*)> child_collection{};
+    std::array<void*, 4> vtable{};
+    *reinterpret_cast<void**>(component.data() + 0x38) = root.data();
+    *reinterpret_cast<void**>(root.data() + 0x80) = child_collection.data();
+    *reinterpret_cast<void***>(child_collection.data()) = vtable.data();
+    vtable[0] = reinterpret_cast<void*>(&UiChildCollectionVirtualCallProbe);
+    vtable[3] = reinterpret_cast<void*>(&UiChildCollectionVirtualCallProbe);
+    AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == root.data());
+
+    vtable[3] = reinterpret_cast<void*>(1);
+    AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == nullptr);
 }
 
 }  // namespace autocattery::tests
