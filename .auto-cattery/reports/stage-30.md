@@ -124,3 +124,30 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
   AutoCattery 热修复扩大为前置加载器变更。
 - 本次本地 commit：由最终回复记录。
 - 是否 push：否。
+
+## 2026-08-26 v0.5.18 粘性远征休眠修复
+
+- 最新 13:59:25–15:09:10 会话已不再加载 `AutoCatteryFurniture.dll`，但主
+  AutoCattery 在同一次远征中记录了大量交替的 `AC1203`/`AC1204`。原因是
+  战斗动画、房间切换和过场会让 `Battle`/`Map` 暂时不就绪，v0.5.17 因而
+  错误恢复全部 UI、业务和配置轮询，随后又重新休眠。
+- 回家场景同样存在短暂 ready 窗口；过早发布 `HouseReady` 会立即挂载面板和
+  按钮，随后又发布 `UnsafeTransition` 并废弃 UI，形成玩家看到的闪烁。最新
+  日志中的过早 House 挂载还伴随 AutoCattery 调用链内的空指针访问。
+- v0.5.18 在首次识别 `Battle`/`Map` 后保持粘性休眠，不再因中间场景缺失而
+  唤醒。只有明确进入 `SaveSelectionScreen`/`ClassChooser`，或 `House` 连续
+  ready 3 秒，才退出休眠并恢复正常 House 生命周期。
+- 修改文件：`src/ui/mew_ui_bridge.cpp`、
+  `include/auto_cattery/ui/mew_ui_bridge.hpp`、`CMakeLists.txt`、
+  `assets/description.json`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.18.md` 和本报告。
+- 构建、测试、部署结果：
+  - `build-v0517-debug` 完整构建成功，CTest 4/4 通过。
+  - `build-v0517-release` 完整构建成功，CTest 4/4 通过。
+  - Release DLL 已部署到 `Mewgenics/mods/AutoCattery.dll`，安装文件大小
+    1,380,864 字节；Mewtator `AutoCattery/description.json` 显示 v0.5.18。
+  - 已再次确认 `Mewgenics/mods/AutoCatteryFurniture.dll` 不存在，部署主 MOD
+    未将家具组件恢复；保护配置保留，升级重骰继续同步为 20。
+- 游戏验证状态：未启动或操纵游戏；部署后由玩家验证长时间远征和稳定回家。
+- 本次本地 commit：由最终回复记录。
+- 是否 push：否。

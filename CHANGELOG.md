@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Kept expedition sleep latched across transient `Battle` and `Map` readiness
+  gaps. AutoCattery now wakes only for save/class selection or after `House`
+  remains continuously ready for three seconds, preventing combat poll churn
+  and premature House UI attachment.
 - Suspended AutoCattery's UI, workflow, and configuration polling while a ready
   `Battle` or `Map` scene is present. A minimal once-per-second scene probe
   wakes the MOD after the expedition clears; House responsiveness is otherwise

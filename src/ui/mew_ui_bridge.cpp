@@ -50,6 +50,7 @@ constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
 constexpr auto kInteractiveTickInterval = std::chrono::milliseconds(8);
 constexpr auto kExpeditionWakeProbeInterval = std::chrono::seconds(1);
+constexpr auto kExpeditionHouseWakeStability = std::chrono::seconds(3);
 constexpr auto kConfigPollInterval = std::chrono::milliseconds(500);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
 constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
@@ -123,6 +124,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     last_tick_time_ = {};
     last_config_poll_time_ = {};
     expedition_scene_active_ = false;
+    expedition_house_ready_since_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
     last_recommendation_attach_error_.clear();
@@ -408,6 +410,7 @@ void MewUiBridge::Shutdown() noexcept {
     last_tick_time_ = {};
     last_config_poll_time_ = {};
     expedition_scene_active_ = false;
+    expedition_house_ready_since_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
     last_recommendation_attach_error_.clear();
@@ -472,6 +475,7 @@ void MewUiBridge::OnTick() {
     const auto count = AcMewEnumerateScenes(records.data(), records.size());
     const char* expedition_scene_name = nullptr;
     bool selection_scene_ready = false;
+    bool house_scene_ready = false;
     for (std::size_t index = 0; index < count; ++index) {
         if (records[index].ready == 0) {
             continue;
@@ -480,6 +484,8 @@ void MewUiBridge::OnTick() {
         if (scene_name == "SaveSelectionScreen" ||
             scene_name == "ClassChooser") {
             selection_scene_ready = true;
+        } else if (scene_name == "House") {
+            house_scene_ready = true;
         } else if (expedition_scene_name == nullptr &&
                    (scene_name == "Battle" || scene_name == "Map")) {
             expedition_scene_name = records[index].scene_name;
@@ -487,34 +493,51 @@ void MewUiBridge::OnTick() {
     }
 
     const bool expedition_ready =
-        expedition_scene_name != nullptr && !selection_scene_ready;
-    if (expedition_ready) {
-        if (!expedition_scene_active_) {
-            expedition_scene_active_ = true;
-            (void)scene_context_.Observe({
-                UiContextKind::UnsafeTransition,
-                expedition_scene_name,
-                0,
-                false,
-                false,
-                false,
-                {"expedition-sleep"}
-            });
-            Logger::Instance().Write(
-                LogLevel::Info,
-                Name(),
-                "AC1203",
-                "Expedition scene detected; AutoCattery UI work suspended.");
-        }
+        expedition_scene_name != nullptr &&
+        !selection_scene_ready &&
+        !house_scene_ready;
+    if (!expedition_scene_active_ && expedition_ready) {
+        expedition_scene_active_ = true;
+        expedition_house_ready_since_ = {};
+        (void)scene_context_.Observe({
+            UiContextKind::UnsafeTransition,
+            expedition_scene_name,
+            0,
+            false,
+            false,
+            false,
+            {"expedition-sleep"}
+        });
+        Logger::Instance().Write(
+            LogLevel::Info,
+            Name(),
+            "AC1203",
+            "Expedition scene detected; AutoCattery UI work suspended.");
         return;
     }
     if (expedition_scene_active_) {
+        if (!selection_scene_ready) {
+            if (!house_scene_ready) {
+                expedition_house_ready_since_ = {};
+                return;
+            }
+            if (expedition_house_ready_since_.time_since_epoch().count() == 0) {
+                expedition_house_ready_since_ = now;
+                return;
+            }
+            if (now - expedition_house_ready_since_ <
+                kExpeditionHouseWakeStability) {
+                return;
+            }
+        }
         expedition_scene_active_ = false;
+        expedition_house_ready_since_ = {};
         Logger::Instance().Write(
             LogLevel::Info,
             Name(),
             "AC1204",
-            "Expedition scene cleared; AutoCattery UI work resumed.");
+            "Stable House or selection scene detected; AutoCattery UI work "
+            "resumed.");
     }
 
     if (config_runtime_ &&
