@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keeps an already-confirmed House context through temporary no-ready-scene
+  gaps caused by native room updates. Explicit save, selection, expedition,
+  ambiguous-scene, and House-instance changes still replace the context.
 - Suspends MewUI's own tracked-button maintenance and AutoCattery button-hook
   record scans while expedition sleep is latched. The once-per-second scene
   callback remains active only to detect a stable return home.

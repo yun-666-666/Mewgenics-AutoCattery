@@ -190,3 +190,35 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
 - CombineDuplicateFurniture 本地 commit：`fe76afd Scan furniture only after the combine hotkey`。
 - 主仓库本次 commit：由最终回复记录。
 - 是否 push：否。
+
+## 2026-08-27 v0.5.20 House 空窗保持修复
+
+- 玩家确认 v0.5.19 的战斗卡顿已经消失，证明底层 MewUI 战斗休眠修复有效。
+- 最新会话在 `23:54:09` 记录稳定 House 恢复、F10 隐藏面板节点和两个 House
+  控件成功挂载。玩家随后预览并执行 32 次原生移动，四个 8 次批次在
+  `23:55:02` 完成；`23:55:04` 没有出现 Battle、Map、保存或选择场景，只有
+  无匹配 ready 场景被通用场景服务累计成 `UnsafeTransition`，导致 UI 被废弃。
+- v0.5.20 在当前上下文已经是 House 时忽略纯 `Unknown` 场景空窗，不再把
+  House 原生房间更新造成的短暂无 ready 状态当成真正离家。明确的保存场景、
+  Battle/Map 远征、职业选择、歧义场景和替换后的 House 实例仍按原路径切换
+  上下文并清理旧 UI。
+- 修改文件：`src/ui/mew_ui_bridge.cpp`、`CMakeLists.txt`、
+  `assets/description.json`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.20.md` 和本报告。
+- 验证结果：
+  - 新增编译期行为断言：House+Unknown 保持，House+UnsafeTransition 切换，
+    Unknown+Unknown 仍进入通用观察路径。
+  - `build-v0517-debug` 完整 219 步构建成功，CTest 4/4 通过。
+  - `build-v0517-release` 完整 219 步构建成功，CTest 4/4 通过。
+- 部署结果：
+  - Release DLL 已部署到 `Mewgenics/mods/AutoCattery.dll`，大小
+    1,380,864 字节；Mewtator 描述显示 v0.5.20。
+  - `CombineDuplicateFurniture` 继续为 v0.6.2；
+    `AutoCatteryFurniture.dll` 仍不存在。
+  - 玩家保护配置保留，升级重骰仍为 20。
+- 游戏验证状态：未启动或操纵游戏。需要玩家回家后执行一次包含多个批次的
+  自动整理，并观察整理结束至少 10 秒；预期不会在结束约 2 秒后发布空场景
+  `UnsafeTransition`，House 控件应保持稳定。F10 仍可用于额外验证，但不是
+  复现或确认本修复的必要条件。
+- 本次本地 commit：由最终回复记录。
+- 是否 push：否。

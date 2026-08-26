@@ -64,6 +64,23 @@ constexpr auto MewUiTickInterval(bool expedition_scene_active) noexcept {
 static_assert(MewUiTickInterval(false) == std::chrono::milliseconds(8));
 static_assert(MewUiTickInterval(true) == std::chrono::seconds(1));
 
+constexpr bool ShouldObserveSceneContext(
+    UiContextKind current,
+    UiContextKind observed) noexcept {
+    return observed != UiContextKind::Unknown ||
+           current != UiContextKind::House;
+}
+
+static_assert(!ShouldObserveSceneContext(
+    UiContextKind::House,
+    UiContextKind::Unknown));
+static_assert(ShouldObserveSceneContext(
+    UiContextKind::House,
+    UiContextKind::UnsafeTransition));
+static_assert(ShouldObserveSceneContext(
+    UiContextKind::Unknown,
+    UiContextKind::Unknown));
+
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
 }
@@ -587,7 +604,13 @@ void MewUiBridge::OnTick() {
             ExportSceneSummary(scenes);
         }
     }
-    (void)scene_context_.Observe(ObserveScenes(scenes));
+    const auto observation = ObserveScenes(scenes);
+    const auto current_before_observation = scene_context_.Current();
+    if (ShouldObserveSceneContext(
+            current_before_observation.kind,
+            observation.kind)) {
+        (void)scene_context_.Observe(observation);
+    }
 
     const auto context = scene_context_.Current();
     if (house_button_controller_) {
