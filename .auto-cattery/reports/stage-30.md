@@ -85,3 +85,42 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
 本轮最终本地 commit：由最终回复记录；提交对象不能在自身内容中包含最终哈希。
 
 是否 push：是（用户明确要求；待最终推送完成后确认）
+
+## 2026-08-26 v0.5.17 战斗卡顿热修复
+
+- 玩家本次 11:45:31–12:47:13 战斗会话中，AutoCattery 没有执行整理业务，
+  但 v0.5.15 `MewUiBridge::OnTick()` 仍按 UI 帧检查配置文件、枚举场景并分配
+  临时场景容器。同期 Mewjector 记录 204 次被游戏捕获的 C++ 异常；系统日志
+  没有 GPU 复位、WHEA、存储重试或战斗时 CPU 固件限频。
+- `Battle` 或 `Map` 就绪时，AutoCattery 现在立即废弃 House/F10/推荐 UI 和
+  MoveOnly 运行时入口，并停止业务、UI、控制器及配置轮询；仅保留每秒一次的
+  最小场景探针，以便检测远征结束。
+- `Battle`/`Map` 消失，或进入 `SaveSelectionScreen`/`ClassChooser` 后，MOD
+  在同一次探针中退出休眠，重新按正常生命周期观察 House 并挂载 UI。
+- 配置文件时间检查从每个 UI tick 改为最多每 500 ms 一次，保留现有 500 ms
+  热重载防抖语义。
+- 修改文件：`src/ui/mew_ui_bridge.cpp`、
+  `include/auto_cattery/ui/mew_ui_bridge.hpp`、`CMakeLists.txt`、
+  `assets/description.json`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.17.md` 和本报告。
+- 构建、测试、部署结果：
+  - 使用现有 Visual Studio 2022 Community 的 `VsDevCmd.bat`、MSVC
+    14.44.35207 和 Ninja 构建；默认 `tools/build.ps1` 因 VS Installer 已不再
+    注册该现存实例而无法使用其 Visual Studio generator 路径。
+  - `build-v0517-debug` 增量构建成功，CTest 4/4 通过。
+  - `build-v0517-release` 完整 176 步构建成功。首次 CTest 的三个冒烟测试
+    通过，`phase14_unit_tests` 在 Release 优化速度下因异步预览未及时完成而
+    出现一次时序失败；同一二进制直接复现通过，随后定向 CTest 1/1 通过。
+    本轮未改动该无关测试。
+  - Release DLL 已部署到 `Mewgenics/mods/AutoCattery.dll`，安装文件大小
+    1,380,352 字节；Mewtator `AutoCattery/description.json` 显示 v0.5.17。
+    部署保留现有保护配置，并同步玩家当前升级重骰 20。
+- 游戏验证状态：未启动或操纵游戏；需要玩家重新进行一段战斗，比较持续帧时间
+  和返回 House 时的日志。
+- 风险：游戏若短暂保留就绪的 `Battle`/`Map` 场景，返回 House 后最多可能
+  延迟约 1 秒恢复；存档选择和职业选择场景会覆盖残留远征场景，避免永久休眠。
+  本轮不会改变 MoveOnly、评分、保护或存档写入边界。
+- 省略的后续工作：未修改 Mewjector 的全局异常记录策略，避免把本次
+  AutoCattery 热修复扩大为前置加载器变更。
+- 本次本地 commit：由最终回复记录。
+- 是否 push：否。

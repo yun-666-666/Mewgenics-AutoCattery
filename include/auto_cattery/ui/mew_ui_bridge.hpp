@@ -73,6 +73,8 @@ private:
     std::string last_house_attach_error_;
     std::string last_recommendation_attach_error_;
     std::chrono::steady_clock::time_point last_tick_time_{};
+    std::chrono::steady_clock::time_point last_config_poll_time_{};
+    bool expedition_scene_active_{};
     std::chrono::steady_clock::time_point next_house_attach_retry_{};
     std::chrono::steady_clock::time_point
         next_recommendation_attach_retry_{};

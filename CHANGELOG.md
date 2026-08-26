@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Suspended AutoCattery's UI, workflow, and configuration polling while a ready
+  `Battle` or `Map` scene is present. A minimal once-per-second scene probe
+  wakes the MOD after the expedition clears; House responsiveness is otherwise
+  unchanged. Runtime configuration file timestamps are checked at most twice
+  per second outside expeditions instead of once per UI frame.
 - Breeding-room selection now optimizes the whole mixed-sex cohort, not only
   separate high-ranked pairs. Every newly preferred cat is evaluated against
   all already selected opposite-sex residents, maximizing the weakest

@@ -48,8 +48,20 @@ constexpr std::size_t kSceneProbeCapacity = 64;
 constexpr std::size_t kMappingRecordCapacity = 128;
 constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
+constexpr auto kInteractiveTickInterval = std::chrono::milliseconds(8);
+constexpr auto kExpeditionWakeProbeInterval = std::chrono::seconds(1);
+constexpr auto kConfigPollInterval = std::chrono::milliseconds(500);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
 constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
+
+constexpr auto MewUiTickInterval(bool expedition_scene_active) noexcept {
+    return expedition_scene_active
+        ? kExpeditionWakeProbeInterval
+        : kInteractiveTickInterval;
+}
+
+static_assert(MewUiTickInterval(false) == std::chrono::milliseconds(8));
+static_assert(MewUiTickInterval(true) == std::chrono::seconds(1));
 
 bool Contains(const std::vector<std::string>& values, std::string_view value) {
     return std::find(values.begin(), values.end(), value) != values.end();
@@ -109,6 +121,8 @@ const char* MewUiBridge::Name() const noexcept {
 bool MewUiBridge::Initialize(const InitContext& context) {
     ready_logged_.store(false);
     last_tick_time_ = {};
+    last_config_poll_time_ = {};
+    expedition_scene_active_ = false;
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
     last_recommendation_attach_error_.clear();
@@ -392,6 +406,8 @@ void MewUiBridge::Shutdown() noexcept {
     }
     started_ = false;
     last_tick_time_ = {};
+    last_config_poll_time_ = {};
+    expedition_scene_active_ = false;
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
     last_recommendation_attach_error_.clear();
@@ -447,11 +463,64 @@ void __cdecl MewUiBridge::Tick(void* user_data) {
 void MewUiBridge::OnTick() {
     const auto now = std::chrono::steady_clock::now();
     if (last_tick_time_.time_since_epoch().count() != 0 &&
-        now - last_tick_time_ < std::chrono::milliseconds(8)) {
+        now - last_tick_time_ < MewUiTickInterval(expedition_scene_active_)) {
         return;
     }
     last_tick_time_ = now;
-    if (config_runtime_) {
+
+    std::array<AcMewSceneRecord, kSceneProbeCapacity> records{};
+    const auto count = AcMewEnumerateScenes(records.data(), records.size());
+    const char* expedition_scene_name = nullptr;
+    bool selection_scene_ready = false;
+    for (std::size_t index = 0; index < count; ++index) {
+        if (records[index].ready == 0) {
+            continue;
+        }
+        const std::string_view scene_name(records[index].scene_name);
+        if (scene_name == "SaveSelectionScreen" ||
+            scene_name == "ClassChooser") {
+            selection_scene_ready = true;
+        } else if (expedition_scene_name == nullptr &&
+                   (scene_name == "Battle" || scene_name == "Map")) {
+            expedition_scene_name = records[index].scene_name;
+        }
+    }
+
+    const bool expedition_ready =
+        expedition_scene_name != nullptr && !selection_scene_ready;
+    if (expedition_ready) {
+        if (!expedition_scene_active_) {
+            expedition_scene_active_ = true;
+            (void)scene_context_.Observe({
+                UiContextKind::UnsafeTransition,
+                expedition_scene_name,
+                0,
+                false,
+                false,
+                false,
+                {"expedition-sleep"}
+            });
+            Logger::Instance().Write(
+                LogLevel::Info,
+                Name(),
+                "AC1203",
+                "Expedition scene detected; AutoCattery UI work suspended.");
+        }
+        return;
+    }
+    if (expedition_scene_active_) {
+        expedition_scene_active_ = false;
+        Logger::Instance().Write(
+            LogLevel::Info,
+            Name(),
+            "AC1204",
+            "Expedition scene cleared; AutoCattery UI work resumed.");
+    }
+
+    if (config_runtime_ &&
+        (last_config_poll_time_.time_since_epoch().count() == 0 ||
+         now - last_config_poll_time_ >= kConfigPollInterval)) {
+        last_config_poll_time_ = now;
         const auto state = organize_workflow_
             ? organize_workflow_->State()
             : workflow::WorkflowState::Idle;
@@ -474,8 +543,6 @@ void MewUiBridge::OnTick() {
             "MewUI API hooks are ready on the game UI thread.");
     }
 
-    std::array<AcMewSceneRecord, kSceneProbeCapacity> records{};
-    const auto count = AcMewEnumerateScenes(records.data(), records.size());
     std::vector<RuntimeScene> scenes;
     scenes.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
@@ -577,7 +644,7 @@ void MewUiBridge::OnTick() {
     const bool recommendation_button_enabled =
         mod_ui_enabled && active_config.ui.embark_button_enabled;
     const bool interstitial_ready = scene_ready("Interstitial");
-    const bool expedition_ready =
+    const bool runtime_expedition_ready =
         scene_ready("Map") || scene_ready("Battle");
     const bool save_selection_ready = scene_ready("SaveSelectionScreen");
     if (house_button_controller_) {
@@ -589,7 +656,7 @@ void MewUiBridge::OnTick() {
     recommendation_marker_controller_->ObserveRuntime(
         house_ready,
         interstitial_ready,
-        expedition_ready,
+        runtime_expedition_ready,
         save_selection_ready);
 
     if (!house_button_enabled && house_button_controller_ &&
