@@ -120,6 +120,7 @@ const char* MewUiBridge::Name() const noexcept {
 }
 
 bool MewUiBridge::Initialize(const InitContext& context) {
+    MewUI_SetWorkSuspended(false);
     ready_logged_.store(false);
     last_tick_time_ = {};
     last_config_poll_time_ = {};
@@ -386,6 +387,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
 }
 
 void MewUiBridge::Shutdown() noexcept {
+    MewUI_SetWorkSuspended(false);
     if (in_game_panel_controller_) {
         in_game_panel_controller_->Detach();
     }
@@ -508,6 +510,7 @@ void MewUiBridge::OnTick() {
             false,
             {"expedition-sleep"}
         });
+        MewUI_SetWorkSuspended(true);
         Logger::Instance().Write(
             LogLevel::Info,
             Name(),
@@ -530,6 +533,7 @@ void MewUiBridge::OnTick() {
                 return;
             }
         }
+        MewUI_SetWorkSuspended(false);
         expedition_scene_active_ = false;
         expedition_house_ready_since_ = {};
         Logger::Instance().Write(

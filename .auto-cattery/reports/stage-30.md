@@ -151,3 +151,42 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
 - 游戏验证状态：未启动或操纵游戏；部署后由玩家验证长时间远征和稳定回家。
 - 本次本地 commit：由最终回复记录。
 - 是否 push：否。
+
+## 2026-08-26 v0.5.19 底层战斗休眠修复
+
+- 最新 18:56:17–19:35:53 玩家会话中，v0.5.18 只记录一次 `AC1203`，没有
+  `AC1204`；这证明上层 UI、工作流和配置轮询已在整段远征保持休眠。玩家仍在
+  不到两关后严重卡顿，因此继续调整 `MewUiBridge::OnTick()` 的场景粘性不能
+  解决剩余问题。
+- 根因位于上层回调之前：共享 MewUI 场景钩子仍会在每个 ready update 执行
+  `MewUI_Tick()`，遍历最多 256 个按钮记录；两个全局原生按钮钩子也仍会查找
+  AutoCattery 按钮记录。
+- v0.5.19 新增 MewUI 底层 work-suspended 状态。远征休眠锁定后，场景回调仅
+  保留每秒一次的唤醒探针，跳过按钮维护循环；按钮可激活和激活钩子直接透传
+  原游戏/下游钩子，不再扫描 AutoCattery 记录。稳定 House 或选择场景恢复前
+  明确解除底层休眠，初始化和关闭时也重置该状态。
+- 同期加载的独立 `CombineDuplicateFurniture.dll` 共享场景 ready 钩子。其
+  v0.6.2 空闲时只检查热键；仅在 House 内按下热键或批处理仍在运行时才探测
+  家具组件，战斗期间不再逐 update 扫描家具 UI。
+- 主 MOD 修改文件：`src/ui/mew_ui_bridge.cpp`、`CMakeLists.txt`、
+  `assets/description.json`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.19.md`、MewUI 子模块和本报告。
+- 构建与测试：
+  - `build-v0517-debug` 完整 221 步构建成功，CTest 4/4 通过。
+  - `build-v0517-release` 完整 221 步构建成功，CTest 4/4 通过。
+  - `CombineDuplicateFurniture` v0.6.2 Release 构建完成，
+    `cdf_focused_tests` 1/1 通过，634 项家具目录探针通过。
+- 部署结果：
+  - `Mewgenics/mods/AutoCattery.dll` 已部署，大小 1,380,864 字节；Mewtator
+    描述显示 v0.5.19。
+  - `Mewgenics/Mods/CombineDuplicateFurniture.dll` 已部署，大小 206,336
+    字节；Mewtator 描述显示 v0.6.2。
+  - `Mewgenics/mods/AutoCatteryFurniture.dll` 仍不存在；玩家保护配置保留，
+    升级重骰仍为 20。
+- 游戏验证状态：未启动或操纵游戏。需要玩家进行至少 10–15 分钟远征并返回
+  House；预期远征期间只有一次 `AC1203`、没有 `AC1204`，返回 House 稳定
+  3 秒后面板恢复且不闪烁。
+- MewUI 子模块本地 commit：`e2d1f4c perf: suspend MewUI button work during expeditions`。
+- CombineDuplicateFurniture 本地 commit：`fe76afd Scan furniture only after the combine hotkey`。
+- 主仓库本次 commit：由最终回复记录。
+- 是否 push：否。

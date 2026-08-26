@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Suspends MewUI's own tracked-button maintenance and AutoCattery button-hook
+  record scans while expedition sleep is latched. The once-per-second scene
+  callback remains active only to detect a stable return home.
 - Kept expedition sleep latched across transient `Battle` and `Map` readiness
   gaps. AutoCattery now wakes only for save/class selection or after `House`
   remains continuously ready for three seconds, preventing combat poll churn
