@@ -424,6 +424,15 @@ def with_character_id(body: bytes, character_id: int) -> bytes:
     return bytes(output)
 
 
+def prepend_hidden_frame(body: bytes) -> bytes:
+    character_id, frame_count = struct.unpack_from("<HH", body)
+    return (
+        struct.pack("<HH", character_id, frame_count + 1)
+        + encode_tag(SHOW_FRAME, b"")
+        + body[4:]
+    )
+
+
 def make_recommendation_row_sprite(
     body: bytes,
     character_id: int,
@@ -910,6 +919,7 @@ def build(source: Path, destination: Path) -> None:
         raise ValueError("no SWF character id remains for recommendation rows")
 
     stop_classes = {
+        overlay_button_character_id: b"AutoCatteryHouseButton",
         recommendation_row_character_id: b"AutoCatteryRecommendationRow",
         panel_background_character_id: b"AutoCatteryPanelBackground",
         panel_control_character_id: b"AutoCatteryPanelControl",
@@ -950,6 +960,7 @@ def build(source: Path, destination: Path) -> None:
         ):
             iconless_body, _ = remove_button_icon(body)
             iconless_body, _ = center_button_labels(iconless_body)
+            iconless_body = prepend_hidden_frame(iconless_body)
             output.extend(encode_tag(code, iconless_body))
             output.extend(encode_tag(
                 DEFINE_BITS_LOSSLESS_2,

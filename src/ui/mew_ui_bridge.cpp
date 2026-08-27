@@ -50,7 +50,6 @@ constexpr auto kMappingSnapshotRetryDelay = std::chrono::seconds(1);
 constexpr auto kMappingSnapshotRetryWindow = std::chrono::seconds(30);
 constexpr auto kInteractiveTickInterval = std::chrono::milliseconds(8);
 constexpr auto kExpeditionWakeProbeInterval = std::chrono::seconds(1);
-constexpr auto kExpeditionHouseWakeStability = std::chrono::seconds(3);
 constexpr auto kConfigPollInterval = std::chrono::milliseconds(500);
 constexpr std::size_t kMinimumMappedCoverageNumerator = 3;
 constexpr std::size_t kMinimumMappedCoverageDenominator = 4;
@@ -142,7 +141,6 @@ bool MewUiBridge::Initialize(const InitContext& context) {
     last_tick_time_ = {};
     last_config_poll_time_ = {};
     expedition_scene_active_ = false;
-    expedition_house_ready_since_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
     last_recommendation_attach_error_.clear();
@@ -429,7 +427,6 @@ void MewUiBridge::Shutdown() noexcept {
     last_tick_time_ = {};
     last_config_poll_time_ = {};
     expedition_scene_active_ = false;
-    expedition_house_ready_since_ = {};
     last_scene_summary_.clear();
     last_house_attach_error_.clear();
     last_recommendation_attach_error_.clear();
@@ -517,7 +514,6 @@ void MewUiBridge::OnTick() {
         !house_scene_ready;
     if (!expedition_scene_active_ && expedition_ready) {
         expedition_scene_active_ = true;
-        expedition_house_ready_since_ = {};
         (void)scene_context_.Observe({
             UiContextKind::UnsafeTransition,
             expedition_scene_name,
@@ -536,28 +532,16 @@ void MewUiBridge::OnTick() {
         return;
     }
     if (expedition_scene_active_) {
-        if (!selection_scene_ready) {
-            if (!house_scene_ready) {
-                expedition_house_ready_since_ = {};
-                return;
-            }
-            if (expedition_house_ready_since_.time_since_epoch().count() == 0) {
-                expedition_house_ready_since_ = now;
-                return;
-            }
-            if (now - expedition_house_ready_since_ <
-                kExpeditionHouseWakeStability) {
-                return;
-            }
+        if (!selection_scene_ready && !house_scene_ready) {
+            return;
         }
         MewUI_SetWorkSuspended(false);
         expedition_scene_active_ = false;
-        expedition_house_ready_since_ = {};
         Logger::Instance().Write(
             LogLevel::Info,
             Name(),
             "AC1204",
-            "Stable House or selection scene detected; AutoCattery UI work "
+            "House or selection scene detected; AutoCattery UI work "
             "resumed.");
     }
 

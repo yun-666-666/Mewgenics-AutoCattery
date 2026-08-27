@@ -3,6 +3,7 @@
 #include <cstring>
 #include <utility>
 
+#include "mew_ui_movie_clip.hpp"
 #include "mew_ui_safe_node_lookup.hpp"
 
 namespace autocattery::ui {
@@ -76,6 +77,13 @@ Result<void> MewUiHouseButtonView::Attach(
     active_ = true;
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
+    if (!HoldMewUiMovieClipFrame(button_node, 1)) {
+        Detach();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "the AutoCattery house button could not be shown"
+        };
+    }
     return {};
 }
 

@@ -136,6 +136,13 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
     ClearSummary();
+    if (!HoldMewUiMovieClipFrame(button_node, 1)) {
+        Detach();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "the recommendation button could not be shown"
+        };
+    }
     return {};
 }
 

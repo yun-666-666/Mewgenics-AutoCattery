@@ -5,7 +5,7 @@ import struct
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from build_house_ui_asset import read_tags, tag_stream_start
+from build_house_ui_asset import placed_character_id, read_tags, tag_stream_start
 from swf_frame_scripts import Abc, Reader
 
 
@@ -49,6 +49,23 @@ def check_asset(path):
                    if b"panel_background\0" in body)
     check(b"test_button\0" in overlay and b"recommend_button\0" in overlay,
           "buttons and panel must share the MOD-owned overlay root")
+    button_ids = {placed_character_id(overlay[start:end])
+                  for code, _, start, end in read_tags(overlay, 4, len(overlay))
+                  if code == 26 and (b"test_button\0" in overlay[start:end] or
+                                     b"recommend_button\0" in overlay[start:end])}
+    check(len(button_ids) == 1, "both normal buttons must share one hidden asset")
+    button_id = next(iter(button_ids))
+    check(bindings.get(button_id) == b"house_fla.AutoCatteryHouseButton",
+          "normal buttons need their own AS3 first-frame stop")
+    button_frames = [[]]
+    for tag, _, start, end in read_tags(sprites[button_id], 4,
+                                       len(sprites[button_id])):
+        if tag == 1:
+            button_frames.append([])
+        elif tag != 0:
+            button_frames[-1].append((tag, sprites[button_id][start:end]))
+    check(not button_frames[0] and button_frames[1],
+          "normal buttons must stay hidden until native attachment")
     private_ids = set()
     panel_nodes = 0
     for code, _, start, end in read_tags(overlay, 4, len(overlay)):
@@ -117,8 +134,8 @@ def check_asset(path):
         for requested in (1, 2, 0):
             check(bool(frames[requested]) == (requested != 0), "F10 show/hide frames")
 
-    print("House UI asset: 72 panel nodes, 3 unique AS3 first-frame stops; "
-          "pre-attach hidden timeline and show/hide contract passed.")
+    print("House UI asset: 72 panel nodes, 4 unique AS3 first-frame stops; "
+          "buttons and panel stay hidden before native attachment.")
 
 
 if __name__ == "__main__":

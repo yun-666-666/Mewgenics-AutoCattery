@@ -75,7 +75,6 @@ private:
     std::chrono::steady_clock::time_point last_tick_time_{};
     std::chrono::steady_clock::time_point last_config_poll_time_{};
     bool expedition_scene_active_{};
-    std::chrono::steady_clock::time_point expedition_house_ready_since_{};
     std::chrono::steady_clock::time_point next_house_attach_retry_{};
     std::chrono::steady_clock::time_point
         next_recommendation_attach_retry_{};

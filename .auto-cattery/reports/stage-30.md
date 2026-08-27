@@ -330,3 +330,59 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
 - 省略的后续工作：未增加额外轮询、重试、看门狗或新的原生查找路径。
 - 本次本地 commit：由最终回复记录。
 - 是否 push：否。
+
+## 2026-08-27 v0.5.23 移除回家固定等待并隐藏按钮默认首帧
+
+- 玩家本次实际运行 v0.5.22，反馈战斗回家后先显示 `Clean Up!` 约 2–3 秒，
+  随后自动恢复正确文字。已读取的该次日志记录：`22:02:44 AC1203` 进入远征
+  休眠；`22:06:36 AC1204` 恢复，同秒发布 `HouseReady generation=7`，并依次
+  记录 `AC18000` 管理面板、`AC3100` 整理按钮及 `AC4100` 推荐按钮挂接。
+  日志证明该次最终成功重挂接；玩家观察结合固定计时代码定位了挂接前的等待
+  窗口，日志本身没有记录 House 首次 ready 的精确时刻。
+- 固定 3 秒是 v0.5.18 针对临时 House ready/失效和过早挂接增加的粗粒度缓冲，
+  不是游戏要求。后续 v0.5.20 已处理纯 Unknown 空窗，v0.5.21 已修复面板 AS3
+  首帧停止，v0.5.22 已按场景代数重挂接按钮并缩小面板原生节点查找范围。
+  按玩家要求，这次删除该固定计时及其状态字段；不把缓冲继续作为根因修复。
+- `MewUiBridge::OnTick()` 在原有每秒唤醒探针首次确认 ready House 或选择界面
+  时直接解除休眠，不再要求 House 连续 ready 3 秒。Battle/Map 的粘性休眠、
+  底层按钮工作暂停及每秒探针保持不变。因此这是“检测到 ready 后无额外等待”，
+  不宣称回家画面的同一渲染帧显示；检测仍受原有约 1 秒探针周期影响。
+- 两个普通 House 按钮的共享 Sprite 新增空首帧，并复用现有 AS3 stop 生成方式
+  绑定 `AutoCatteryHouseButton` 类。原生 View 安装标签及 Button 后显式切到
+  正常帧，避免挂接前短窗口直接展示素材默认 `Clean Up!`。未增加新的游戏偏移。
+- 修改文件：`src/ui/mew_ui_bridge.cpp`、
+  `include/auto_cattery/ui/mew_ui_bridge.hpp`、
+  `src/ui/mew_ui_house_button_view.cpp`、
+  `src/ui/mew_ui_recommendation_marker_view.cpp`、
+  `tools/build_house_ui_asset.py`、`tests/house_ui_asset_tests.py`、
+  `CMakeLists.txt`、`assets/description.json`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.23.md` 和本报告。
+- 构建与测试：
+  - 原 Debug 会话 9580 完成，CTest 5/5；该次尚不包含删除固定等待的修改。
+  - 补充修改后，在 VS 2022 x64 开发环境执行
+    `cmake --build build-v0517-debug --config Debug`，12 步增量构建成功；
+    `ctest --test-dir build-v0517-debug -C Debug --output-on-failure` 5/5
+    通过，耗时 8.53 秒。此前启动尝试因 CMake 不在 PATH、未加载 VS 头文件环境
+    以及 cmd 引号转义失败；未据此改动源码，修正命令环境后完成构建。
+  - 原 Release 会话 2006 已完成重新配置和构建，退出码 0；
+    `ctest --test-dir build-v0517-release -C Release --output-on-failure`
+    5/5 通过，耗时 2.76 秒，没有重新启动重复构建。对应监控已删除。
+  - 资产回归覆盖共享按钮 Sprite、空首帧/显示帧及独立 AS3 首帧停止绑定；
+    现有面板隐藏/显示契约继续通过，共 4 个首帧停止类。
+- 部署与安装：部署前确认 `Mewgenics.exe` 未运行；将本次 Release DLL、生成的
+  SWF 和 v0.5.23 描述刷新至 `dist/Release`，执行
+  `tools/deploy.ps1 -GameRoot <Mewgenics目录> -Configuration Release`，输出
+  `AutoCattery version deployed: 0.5.23`。随后单独运行
+  `tools/verify_install.ps1 -GameRoot <Mewgenics目录>`，退出码 0，输出
+  `Installed AutoCattery version verified: 0.5.23`；14 个职业的既有升级重骰值
+  继续为 20。未启动或控制游戏，未修改存档或玩家保护/用户配置。
+- 游戏验证状态：待玩家实测。请从战斗回家观察两个按钮，不应再先显示默认
+  `Clean Up!` 再换字，也不应在探针确认 ready 后额外等 3 秒；结束一天后按钮
+  应继续保持正确文字，管理面板仍只在主动 F10 时显示。自动化检查与安装结果
+  不能代替这些画面和原生节点生命周期的实际验证。
+- 风险及省略工作：原生 UI 挂接时机提前后的实际稳定性需玩家验证；未缩短远征
+  探针周期、增加高频轮询或改变 MoveOnly、评分、保护和存档写入逻辑。
+- 本次本地 commit：本节所在的 `fix: resume House UI without a fixed delay`
+  提交；实际 hash 在完成回复记录，可用 `git log -1 --format=%h -- .auto-cattery/reports/stage-30.md`
+  查询，避免在提交内容中引用自身 hash。
+- 是否 push：否。

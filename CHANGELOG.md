@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Keeps both normal House buttons on an empty, stopped first frame until their
+  native controllers have replaced the source `Clean Up!` labels, preventing
+  the default artwork from appearing before native attachment.
+- Removes the fixed three-second House wake delay. The first wake probe that
+  sees a ready House or selection scene resumes UI work without another timer;
+  expedition suspension and its once-per-second probe remain unchanged.
 - Reattaches both House buttons when the game replaces the House scene during
   a day transition, instead of retaining previous-generation UI pointers and
   exposing the source asset's `Clean Up!` labels.
@@ -21,9 +27,8 @@
   record scans while expedition sleep is latched. The once-per-second scene
   callback remains active only to detect a stable return home.
 - Kept expedition sleep latched across transient `Battle` and `Map` readiness
-  gaps. AutoCattery now wakes only for save/class selection or after `House`
-  remains continuously ready for three seconds, preventing combat poll churn
-  and premature House UI attachment.
+  gaps to prevent combat poll churn. The initial three-second House stability
+  delay introduced with this change was removed in v0.5.23.
 - Suspended AutoCattery's UI, workflow, and configuration polling while a ready
   `Battle` or `Map` scene is present. A minimal once-per-second scene probe
   wakes the MOD after the expedition clears; House responsiveness is otherwise
