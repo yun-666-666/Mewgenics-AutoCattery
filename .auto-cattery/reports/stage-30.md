@@ -296,7 +296,8 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
   `tests/house_button_controller_tests.cpp`、
   `tests/recommendation_marker_controller_tests.cpp`、
   `tests/house_ui_asset_tests.py`、`CMakeLists.txt`、`assets/description.json`、
-  `CHANGELOG.md`、`docs/RELEASE_NOTES_v0.5.22.md` 和本报告。
+  `tools/deploy.ps1`、`tools/verify_install.ps1`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.22.md` 和本报告。
 - 构建与测试：
   - 在 Visual Studio 2022 Community `VsDevCmd.bat` x64 环境中构建。
   - `build-v0517-debug` 构建成功，最终 CTest 5/5 通过。
@@ -309,11 +310,20 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
     按钮和 `panel_background` 位于同一个 AutoCattery 覆盖层 Sprite。
 - 部署结果：部署前确认 `Mewgenics.exe` 未运行；执行
   `tools/deploy.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics' -Configuration Release`
-  和 `tools/verify_install.ps1` 均退出 0。Release DLL、Mewtator UI 数据和 v0.5.22
-  描述已部署；现有保护配置未被改动，升级重骰继续同步为 20。
+  时，旧脚本实际从尚未刷新的 `dist\Release` 复制了 v0.5.21 DLL；随后命令串又
+  错用 `$LASTEXITCODE` 判断 PowerShell 脚本，导致 `verify_install.ps1` 没有执行。
+  玩家 `21:50:49` 的真实启动日志明确记录 `mod=0.5.21`，因此该次截图不能作为
+  v0.5.22 修复失败的证据，而证明了部署与验证假通过。
+- 已修正部署门禁：`deploy.ps1` 在复制前比较项目描述、dist 描述和 DLL 内嵌版本，
+  `verify_install.ps1` 比较已安装 DLL 与 Mewtator 描述版本。旧 dist 的只读部署检查
+  确定性拒绝并报告 `expected v0.5.22, found v0.5.21`；刷新已通过测试的 Release
+  DLL 后重新部署，输出 `AutoCattery version deployed: 0.5.22`，独立安装验证输出
+  `Installed AutoCattery version verified: 0.5.22`。现有保护配置未被改动，升级
+  重骰继续同步为 20。
 - 游戏验证状态：未启动或操纵游戏。玩家需完全重启后依次验证首次进入 House、
   结束一天后的两个按钮文字、战斗回家后的管理面板和按钮、F10 开关，并等待至少
-  30 秒观察稳定性。自动化构建、测试与安装验证不能替代这些玩家可见结果。
+  30 秒观察稳定性。当前真正的 v0.5.22 仍待首次玩家验证；自动化构建、测试与
+  安装验证不能替代这些玩家可见结果。
 - 风险：跨日按钮重挂接由确定性控制器测试覆盖，但 House 原生节点生命周期和首次
   进入时的疑似崩溃只能由当前游戏 build 的实机运行确认；本轮未修改 MoveOnly、
   评分、保护、存档写入或远征休眠逻辑。

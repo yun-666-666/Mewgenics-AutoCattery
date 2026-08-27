@@ -23,6 +23,18 @@ $dllSource = Join-Path $source 'AutoCattery.dll'
 if (-not (Test-Path -LiteralPath $dllSource)) {
     throw "Build output is missing: $dllSource"
 }
+$projectDescription = Get-Content -LiteralPath `
+    (Join-Path $projectRoot 'assets\description.json') -Raw | ConvertFrom-Json
+$sourceDescription = Get-Content -LiteralPath `
+    (Join-Path $source 'description.json') -Raw | ConvertFrom-Json
+if ($sourceDescription.version -ne $projectDescription.version) {
+    throw "dist\$Configuration is stale: expected v$($projectDescription.version), found v$($sourceDescription.version)."
+}
+$dllText = [System.Text.Encoding]::ASCII.GetString(
+    [System.IO.File]::ReadAllBytes($dllSource))
+if (-not $dllText.Contains([string]$sourceDescription.version)) {
+    throw "dist\$Configuration AutoCattery.dll does not contain v$($sourceDescription.version)."
+}
 
 $mods = Join-Path $resolvedGameRoot 'mods'
 $runtimeRoot = Join-Path $mods 'AutoCattery'
@@ -110,6 +122,7 @@ if ($PSCmdlet.ShouldProcess($resolvedGameRoot, 'Deploy AutoCattery files')) {
 }
 
 Write-Host 'DLL deployed to the non-recursive Mewjector mods directory.'
+Write-Host "AutoCattery version deployed: $($sourceDescription.version)"
 Write-Host "UI data mod deployed and enabled for Mewtator: $dataModRoot"
 Write-Host "Level-up rerolls prepared for next game launch: $rerollCount"
 Write-Host 'Installed SkillsPassivesFirstData reroll files were synchronized when present.'

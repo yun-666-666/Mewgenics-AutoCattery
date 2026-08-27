@@ -101,6 +101,13 @@ if ($enabledMods.Count -eq 0 -or $enabledMods[-1] -ine 'AutoCattery') {
 }
 
 $dllPath = Join-Path $resolvedGameRoot 'mods\AutoCattery.dll'
+$installedDescription = Get-Content -LiteralPath `
+    (Join-Path $dataModRoot 'description.json') -Raw | ConvertFrom-Json
+$dllText = [System.Text.Encoding]::ASCII.GetString(
+    [System.IO.File]::ReadAllBytes($dllPath))
+if (-not $dllText.Contains([string]$installedDescription.version)) {
+    throw "Installed AutoCattery.dll does not contain v$($installedDescription.version)."
+}
 $stream = [System.IO.File]::OpenRead($dllPath)
 $reader = [System.IO.BinaryReader]::new($stream)
 try {
@@ -120,4 +127,5 @@ try {
 }
 
 Write-Host 'AutoCattery phase 03 runtime DLL, enabled Mewtator data mod, and DLL architecture are valid.'
+Write-Host "Installed AutoCattery version verified: $($installedDescription.version)"
 Write-Host "Installed level-up rerolls verified for all 14 player classes: $rerollCount"

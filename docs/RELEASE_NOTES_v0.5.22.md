@@ -9,6 +9,8 @@
   `panel_background` and ended in heap-corruption detection.
 - Keeps the v0.5.21 hidden-first-frame panel behavior and the v0.5.19 combat
   suspension behavior unchanged.
+- Deployment now fails when `dist` is older than the project, and installation
+  verification checks the DLL's embedded MOD version against the data mod.
 
 Automated builds and tests validate the lifecycle and asset contracts. Final
 rendering and crash acceptance still require player testing in Mewgenics.
