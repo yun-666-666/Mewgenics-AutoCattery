@@ -40,7 +40,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\data\text\combined.csv.ap
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\data\classes\classes.gon.merge') -Destination (Join-Path $dist 'data\classes') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\data\classes\advanced_classes.gon.merge') -Destination (Join-Path $dist 'data\classes') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\localization\strings.json') -Destination (Join-Path $dist 'localization') -Force
-Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\swfs\auto_cattery_house.swf') -Destination (Join-Path $dist 'swfs') -Force
+Copy-Item -LiteralPath (Join-Path $buildDirectory 'generated\auto_cattery_house.swf') -Destination (Join-Path $dist 'swfs') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\swfs\swflist.gon.append') -Destination (Join-Path $dist 'swfs') -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\description.json') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD_PARTY_NOTICES.md') -Destination $dist -Force

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Gives private House panel clips an AS3 first-frame stop copied from the
+  pinned source SWF. The game ignores their former AVM1 DoAction stops, so
+  blank controls could animate before the post-expedition UI wake completed.
+- Generates the House SWF during builds instead of packaging the stale asset.
 - Keeps an already-confirmed House context through temporary no-ready-scene
   gaps caused by native room updates. Explicit save, selection, expedition,
   ambiguous-scene, and House-instance changes still replace the context.

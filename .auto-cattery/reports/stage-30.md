@@ -222,3 +222,54 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
   复现或确认本修复的必要条件。
 - 本次本地 commit：由最终回复记录。
 - 是否 push：否。
+
+## 2026-08-27 v0.5.21 回家后空白控件闪烁修复
+
+- 玩家实机确认 v0.5.20 回家后仍短暂出现管理面板控件但没有文字。最新会话加载
+  的确为 v0.5.20；`17:34:06.972` 记录远征休眠解除，`17:34:07.007`
+  发布稳定 `HouseReady`，`17:34:07.010` 才挂接隐藏面板。期间没有
+  `AC18002`（F10 打开），也没有 v0.5.19 所修的二次 `UnsafeTransition`。
+  因此这次不是场景上下文再次撤掉 UI，而是 SWF 在 C++ 挂接前自行显示控件。
+- 根因是生成器给私有三帧面板 MovieClip 写入了 AVM1 `DoAction(stop)`，但当前
+  House SWF 的 `FileAttributes=0x18`，使用 AVM2/ActionScript 3。当前 EXE 的
+  DefineSprite 编译分派对 tag 12 (`DoAction`) 直接走跳过路径，而 tag 82
+  (`DoABC`) 与 tag 76 (`SymbolClass`) 才生成并绑定 AS3 类。旧安装资源的面板
+  背景、控件和推荐行没有任何 `SymbolClass` 绑定，所以它们的空 frame 0 不会
+  停住，在回家后等待 House 连续稳定 3 秒期间可自行前进到有图形的 frame 1/2；
+  文字是独立节点且尚未由 F10 渲染，因此玩家只看到无文字控件。
+- v0.5.21 从固定的 MIT House 示例 SWF 复用已存在且有效的 AS3 首帧脚本模式：
+  三个私有 MovieClip 类各自绑定到 `SymbolClass`，构造器在 zero-based frame 0
+  注册唯一 `frame1` 回调，回调只调用 `stop()`。原来不会执行的 AVM1
+  `DoAction` 已移除；frame 0/1/2 仍分别为隐藏、正常和按压状态，现有原生
+  `goto-and-stop` 显隐路径不变。
+- House SWF 现在由 CMake 在构建时从固定源生成，`tools/build.ps1` 只打包该次
+  构建输出，避免源码生成器已修复但 `assets/swfs` 中旧二进制仍被部署。
+- 修改文件：`tools/build_house_ui_asset.py`、`tools/swf_panel_shapes.py`、
+  `tools/swf_frame_scripts.py`、`tests/house_ui_asset_tests.py`、
+  `CMakeLists.txt`、`tools/build.ps1`、`assets/description.json`、
+  `CHANGELOG.md` 和本报告。没有修改战斗休眠、House 3 秒稳定等待、F10 控制器、
+  MoveOnly、评分、保护或存档写入逻辑。
+- 构建与检查：
+  - 旧安装 SWF 运行新回归检查会确定性失败：
+    `sprite 153 has no AS3 stop binding (AVM1 is ignored)`。
+  - 修复资源通过 `tests/house_ui_asset_tests.py`：确认 72 个面板图形节点、3 个
+    唯一私有 AS3 首帧停止类、每个类的独立注册、frame 0 隐藏及 frame 1/2
+    显示状态仍完整。
+  - `build-v0517-release` 重新配置并完成 134/134 步 Release 构建；定向 CTest
+    `house_ui_asset_tests` 与 `phase14_dll_load_smoke` 2/2 通过。
+- 部署结果：游戏未运行时使用 `tools/deploy.ps1` 部署 Release DLL 和本次生成的
+  SWF。安装描述与 DLL 内嵌版本均为 v0.5.21；安装 SWF 再次通过同一资源检查；
+  `protection.json`、`user_config.json` 均保留，升级重骰继续为 20，
+  `AutoCatteryFurniture.dll` 仍不存在。
+- 游戏验证状态：未启动或操纵游戏。请玩家完全重启游戏，通过 Mewtator 进入
+  House，进行一段战斗后回家，整个返回过程不要按 F10并观察至少 10 秒。预期
+  House 稳定等待的 3 秒内不会再出现空白面板控件；F10 主动打开后文字和控件仍
+  正常，关闭后不残留。自动化检查证明资源结构与安装内容，不代替实机渲染验收。
+- 风险：该修复依赖当前固定 House 示例 SWF 中已有的 AS3 `stop()` 类模板；
+  生成器会在模板结构变化时直接失败，不会静默生成未停止的面板。没有新增游戏
+  地址、偏移或运行时原生调用。
+- 省略的后续工作：未缩短 House 3 秒稳定等待，也未恢复进入 House 时对约 70 个
+  子节点逐个调用原生时间轴函数；历史实机证据表明这两种方向分别会恢复过早
+  UI 挂接和大存档 heap corruption 风险。
+- 本次本地 commit：由最终回复记录。
+- 是否 push：否。

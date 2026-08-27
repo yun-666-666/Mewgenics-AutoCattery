@@ -7,10 +7,9 @@ four independently named Stage 12 recommendation rows, and removes the unused
 example fields. Each row is a private three-frame paper sign
 (hidden/normal/pressed) plus an independent text field. The paper is isolated
 from the source texture and enlarged to the original board bounds. It has no
-wooden board, rope, game Button component, or autonomous timeline animation.
-All other SWF definitions remain
-byte-for-byte intact so the known-good artwork and its transitive dependencies
-are preserved.
+wooden board, rope, or game Button component. Private clips use the source
+AS3 first-frame stop script; AVM1 DoAction stops are ignored by the game.
+The original artwork and its transitive dependencies are preserved.
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ import struct
 import zlib
 
 from swf_panel_shapes import rectangle_shape, three_frame_sprite
+from swf_frame_scripts import add_stop_classes
 from swf_panel_layout import (
     PANEL_BACKGROUND_TRANSFORM,
     PANEL_COMPACT_ELEMENTS,
@@ -36,7 +36,8 @@ DEFINE_SHAPE_3 = 32
 DEFINE_BITS_LOSSLESS_2 = 36
 PLACE_OBJECT_2 = 26
 SHOW_FRAME = 1
-DO_ACTION = 12
+DO_ABC = 82
+SYMBOL_CLASS = 76
 END = 0
 TARGET_MARKER = b"test_button\x00"
 RECOMMENDATION_MARKER = b"recommend_button\x00"
@@ -484,13 +485,10 @@ def make_recommendation_row_sprite(
         character_id,
         3,
     ))
-    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(encode_tag(SHOW_FRAME, b""))
     output.extend(encode_tag(PLACE_OBJECT_2, normal_background))
-    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(encode_tag(SHOW_FRAME, b""))
     output.extend(encode_tag(PLACE_OBJECT_2, pressed_background))
-    output.extend(encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(encode_tag(SHOW_FRAME, b""))
     output.extend(encode_tag(END, b""))
     return bytes(output)
@@ -911,6 +909,15 @@ def build(source: Path, destination: Path) -> None:
     if panel_compact_text_character_id > 0xFFFF:
         raise ValueError("no SWF character id remains for recommendation rows")
 
+    stop_classes = {
+        recommendation_row_character_id: b"AutoCatteryRecommendationRow",
+        panel_background_character_id: b"AutoCatteryPanelBackground",
+        panel_control_character_id: b"AutoCatteryPanelControl",
+    }
+    if sum(code == DO_ABC for code, *_ in tags) != 1 or sum(
+            code == SYMBOL_CLASS for code, *_ in tags) != 1:
+        raise ValueError("expected one source AS3 block and symbol table")
+
     output = bytearray(swf[:start])
     found = False
     cloned_row_sprite = False
@@ -922,6 +929,20 @@ def build(source: Path, destination: Path) -> None:
 
     for code, tag_start, body_start, tag_end in tags:
         body = swf[body_start:tag_end]
+        if code == DO_ABC:
+            abc_start = body.index(b"\x00", 4) + 1
+            body = body[:abc_start] + add_stop_classes(
+                body[abc_start:], list(stop_classes.values()))
+            output.extend(encode_tag(code, body))
+            continue
+        if code == SYMBOL_CLASS:
+            count = struct.unpack_from("<H", body)[0]
+            body = struct.pack("<H", count + len(stop_classes)) + body[2:]
+            for character_id, class_name in stop_classes.items():
+                body += (struct.pack("<H", character_id) + b"house_fla." +
+                         class_name + b"\x00")
+            output.extend(encode_tag(code, body))
+            continue
         if (
             code == DEFINE_SPRITE
             and struct.unpack_from("<H", body, 0)[0] ==

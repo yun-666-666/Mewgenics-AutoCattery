@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.20 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.21 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -9,6 +9,21 @@ endif()
 option(AUTOCATTERY_BUILD_TESTS "Build AutoCattery unit tests" ON)
 
 include(cmake/Warnings.cmake)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(HOUSE_UI_ASSET "${CMAKE_BINARY_DIR}/generated/auto_cattery_house.swf")
+add_custom_command(
+    OUTPUT "${HOUSE_UI_ASSET}"
+    COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_SOURCE_DIR}/tools/build_house_ui_asset.py"
+        "${CMAKE_SOURCE_DIR}/third_party/mew_ui_api/swfs/house_ui_test.swf"
+        "${HOUSE_UI_ASSET}"
+    DEPENDS tools/build_house_ui_asset.py tools/swf_frame_scripts.py
+        tools/swf_panel_shapes.py tools/swf_panel_layout.py
+        third_party/mew_ui_api/swfs/house_ui_test.swf
+    VERBATIM
+)
+add_custom_target(auto_cattery_house_ui_asset DEPENDS "${HOUSE_UI_ASSET}")
 
 add_library(mew_ui_api STATIC
     third_party/mew_ui_api/src/native/mew_ui_api.c
@@ -178,6 +193,7 @@ target_compile_definitions(auto_cattery_core
 autocattery_enable_warnings(auto_cattery_core)
 
 add_library(AutoCattery SHARED src/mod_main.cpp)
+add_dependencies(AutoCattery auto_cattery_house_ui_asset)
 target_link_libraries(AutoCattery PRIVATE auto_cattery_core)
 target_include_directories(AutoCattery PRIVATE third_party/mewjector)
 target_compile_features(AutoCattery PRIVATE cxx_std_20)
@@ -225,6 +241,11 @@ endforeach()
 
 if(AUTOCATTERY_BUILD_TESTS)
     enable_testing()
+    add_test(
+        NAME house_ui_asset_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_SOURCE_DIR}/tests/house_ui_asset_tests.py" "${HOUSE_UI_ASSET}"
+    )
     add_executable(auto_cattery_tests
         tests/balanced_move_only_planner_tests.cpp
         tests/deterministic_room_assignment_tests.cpp

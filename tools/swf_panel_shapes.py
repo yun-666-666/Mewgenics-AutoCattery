@@ -8,7 +8,6 @@ import struct
 DEFINE_SHAPE_3 = 32
 PLACE_OBJECT_2 = 26
 SHOW_FRAME = 1
-DO_ACTION = 12
 END = 0
 
 
@@ -121,13 +120,10 @@ def three_frame_sprite(
     pressed_shape_id: int,
 ) -> bytes:
     output = bytearray(struct.pack("<HH", character_id, 3))
-    output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(_encode_tag(SHOW_FRAME, b""))
     output.extend(_encode_tag(PLACE_OBJECT_2, _place(normal_shape_id)))
-    output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(_encode_tag(SHOW_FRAME, b""))
     output.extend(_encode_tag(PLACE_OBJECT_2, _place(pressed_shape_id)))
-    output.extend(_encode_tag(DO_ACTION, b"\x07\x00"))
     output.extend(_encode_tag(SHOW_FRAME, b""))
     output.extend(_encode_tag(END, b""))
     return bytes(output)
