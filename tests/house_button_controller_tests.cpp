@@ -107,11 +107,11 @@ public:
     std::vector<std::size_t> remaining_after_execution;
 };
 
-ui::UiContextSnapshot HouseContext() {
+ui::UiContextSnapshot HouseContext(std::uint64_t generation = 1) {
     return {
         ui::UiContextKind::House,
         "House",
-        1,
+        generation,
         true,
         false,
         {"scene:House"}
@@ -121,12 +121,12 @@ ui::UiContextSnapshot HouseContext() {
 void FinishPreview(
     ui::HouseButtonController& controller,
     const FakeHouseButtonView& view) {
-    for (int attempt = 0;
-         attempt < 10000 &&
-         view.state == ui::OrganizeButtonState::Running;
-         ++attempt) {
+    const auto deadline = std::chrono::steady_clock::now() +
+        std::chrono::seconds(1);
+    while (view.state == ui::OrganizeButtonState::Running &&
+           std::chrono::steady_clock::now() < deadline) {
         controller.Poll();
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     controller.Poll();
 }
@@ -215,6 +215,18 @@ void RunHouseButtonControllerTests() {
 
     controller.AbandonScene();
     AC_CHECK(view.abandon_calls == 1);
+
+    FakeHouseButtonView replacement_view;
+    FakeWorkflow replacement_workflow;
+    ui::HouseButtonController replacement_controller(
+        replacement_view,
+        replacement_workflow);
+    AC_CHECK(static_cast<bool>(replacement_controller.Attach(HouseContext())));
+    AC_CHECK(static_cast<bool>(
+        replacement_controller.Attach(HouseContext(2))));
+    AC_CHECK(replacement_controller.IsAttachedToGeneration(2));
+    AC_CHECK(replacement_view.abandon_calls == 1);
+    AC_CHECK(replacement_view.attach_calls == 2);
 
     FakeHouseButtonView changed_view;
     FakeWorkflow changed_workflow;

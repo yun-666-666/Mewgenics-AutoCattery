@@ -89,6 +89,10 @@ Result<void> RecommendationMarkerController::Attach(
             "recommendation control is not available in this House state"
         };
     }
+    if (view_.IsAttached() &&
+        attached_generation_ != context.scene_generation) {
+        AbandonScene();
+    }
     if (view_.IsAttached()) {
         return {};
     }
@@ -298,6 +302,11 @@ bool RecommendationMarkerController::ShouldShow() const noexcept {
 
 bool RecommendationMarkerController::IsAttached() const noexcept {
     return view_.IsAttached();
+}
+
+bool RecommendationMarkerController::IsAttachedToGeneration(
+    std::uint64_t scene_generation) const noexcept {
+    return view_.IsAttached() && attached_generation_ == scene_generation;
 }
 
 bool RecommendationMarkerController::IsSuppressed() const noexcept {

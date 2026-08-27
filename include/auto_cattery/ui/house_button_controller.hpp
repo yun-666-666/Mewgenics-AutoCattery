@@ -61,6 +61,8 @@ public:
         OrganizeButtonState state,
         std::string_view detail = {});
     [[nodiscard]] bool IsAttached() const noexcept;
+    [[nodiscard]] bool IsAttachedToGeneration(
+        std::uint64_t scene_generation) const noexcept;
     [[nodiscard]] bool IsSuppressed() const noexcept;
     void HandleClick();
     void Poll();

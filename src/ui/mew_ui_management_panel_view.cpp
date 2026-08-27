@@ -207,9 +207,14 @@ std::uint32_t MewUiManagementPanelView::LastChangedFrameCount() const noexcept {
 }
 
 bool MewUiManagementPanelView::ResolveNodes() noexcept {
-    const auto match = FindSceneUiNode(scene_manager_, "panel_background");
+    // Resolve the MOD-owned overlay with its short button marker first. Calling
+    // the native long-name lookup against unrelated House roots caused the
+    // observed heap-corruption path during initial panel attachment.
+    const auto match = FindSceneUiNode(scene_manager_, "test_button");
     root_node_ = match.root;
-    background_ = match.node;
+    background_ = root_node_ == nullptr
+        ? nullptr
+        : MewUI_FindChildByName(root_node_, "panel_background");
     if (root_node_ != nullptr && background_ != nullptr &&
         ResolveNodesInRoot(root_node_)) {
         resolve_mode_ = "safe-root";

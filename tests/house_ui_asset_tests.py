@@ -47,6 +47,8 @@ def check_asset(path):
                for code, body in tags if code == 39}
     overlay = next(body for body in sprites.values()
                    if b"panel_background\0" in body)
+    check(b"test_button\0" in overlay and b"recommend_button\0" in overlay,
+          "buttons and panel must share the MOD-owned overlay root")
     private_ids = set()
     panel_nodes = 0
     for code, _, start, end in read_tags(overlay, 4, len(overlay)):

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Reattaches both House buttons when the game replaces the House scene during
+  a day transition, instead of retaining previous-generation UI pointers and
+  exposing the source asset's `Clean Up!` labels.
+- Resolves the F10 panel through the short MOD button marker before looking up
+  panel nodes, avoiding long-name native searches against unrelated House
+  roots during initial attachment.
 - Gives private House panel clips an AS3 first-frame stop copied from the
   pinned source SWF. The game ignores their former AVM1 DoAction stops, so
   blank controls could animate before the post-expedition UI wake completed.

@@ -233,6 +233,17 @@ void RunRecommendationMarkerControllerTests() {
     controller.AbandonScene();
     AC_CHECK(view.abandon_calls == 1);
 
+    FakeRecommendationMarkerView replacement_view;
+    ui::RecommendationMarkerController replacement_controller(
+        replacement_view);
+    AC_CHECK(static_cast<bool>(
+        replacement_controller.Attach(RecommendationHouseContext())));
+    AC_CHECK(static_cast<bool>(
+        replacement_controller.Attach(RecommendationHouseContext(2))));
+    AC_CHECK(replacement_controller.IsAttachedToGeneration(2));
+    AC_CHECK(replacement_view.abandon_calls == 1);
+    AC_CHECK(replacement_view.attach_calls == 2);
+
     FakeRecommendationMarkerView probe_view;
     int requests{};
     std::uint64_t requested_generation{};

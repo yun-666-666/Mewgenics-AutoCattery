@@ -725,7 +725,8 @@ void MewUiBridge::OnTick() {
         context.input_enabled &&
         !context.save_in_progress &&
         house_button_controller_ &&
-        !house_button_controller_->IsAttached() &&
+        !house_button_controller_->IsAttachedToGeneration(
+            context.scene_generation) &&
         (next_house_attach_retry_.time_since_epoch().count() == 0 ||
          now >= next_house_attach_retry_)) {
         const auto attached = house_button_controller_->Attach(context);
@@ -749,7 +750,8 @@ void MewUiBridge::OnTick() {
     if (recommendation_button_enabled &&
         !panel_open &&
         house_ready &&
-        !recommendation_marker_controller_->IsAttached() &&
+        !recommendation_marker_controller_->IsAttachedToGeneration(
+            context.scene_generation) &&
         (next_recommendation_attach_retry_.time_since_epoch().count() == 0 ||
          now >= next_recommendation_attach_retry_)) {
         const auto attached =

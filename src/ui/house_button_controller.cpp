@@ -39,6 +39,9 @@ Result<void> HouseButtonController::Attach(
             "house UI is not safe for interaction"
         };
     }
+    if (view_.IsAttached() && scene_generation_ != context.scene_generation) {
+        AbandonScene();
+    }
     if (view_.IsAttached()) {
         return {};
     }
@@ -126,6 +129,11 @@ void HouseButtonController::SetState(
 
 bool HouseButtonController::IsAttached() const noexcept {
     return view_.IsAttached();
+}
+
+bool HouseButtonController::IsAttachedToGeneration(
+    std::uint64_t scene_generation) const noexcept {
+    return view_.IsAttached() && scene_generation_ == scene_generation;
 }
 
 bool HouseButtonController::IsSuppressed() const noexcept {

@@ -69,6 +69,8 @@ public:
 
     [[nodiscard]] bool ShouldShow() const noexcept;
     [[nodiscard]] bool IsAttached() const noexcept;
+    [[nodiscard]] bool IsAttachedToGeneration(
+        std::uint64_t scene_generation) const noexcept;
     [[nodiscard]] bool IsSuppressed() const noexcept;
     [[nodiscard]] bool MarkerVisible() const noexcept;
 

@@ -273,3 +273,50 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
   UI 挂接和大存档 heap corruption 风险。
 - 本次本地 commit：由最终回复记录。
 - 是否 push：否。
+
+## 2026-08-27 v0.5.22 跨日 House 控件重挂接修复
+
+- 玩家实机确认 v0.5.21 已消除战斗后回家时管理面板的空白闪烁；同一轮测试中，
+  两个普通 House 按钮首次进入时正常，但结束一天、House 实例刷新后恢复为素材
+  默认文字 `Clean Up!`。最新日志显示 House 从 generation 2 切换到 generation 3
+  后只有管理面板重新挂接，整理按钮和推荐按钮仍保留上一代节点，直到战斗回家
+  进入 generation 8 才重新挂接。
+- v0.5.22 让整理按钮和推荐按钮显式记录并比较 `scene_generation`。挂接目标代数
+  变化时，控制器先废弃旧场景节点记录，再挂接当前 House 覆盖层；
+  `MewUiBridge` 不再把“仍附着于旧 House”误判为当前代已挂接。
+- 同时收紧管理面板挂接路径：先用短名称 `test_button` 定位 AutoCattery 自己的
+  覆盖层根，再仅在该根内查找 `panel_background`，不再对多个 House 根执行长名称
+  原生子节点查找。该调整针对本轮 `0xC0000374` 报告中确认的
+  `MewUiManagementPanelView::Attach -> FindSceneUiNode -> FindChildByName` 调用链，
+  但是否消除首次进入时的疑似闪退仍需玩家实机确认。
+- 修改文件：`include/auto_cattery/ui/house_button_controller.hpp`、
+  `include/auto_cattery/ui/recommendation_marker_controller.hpp`、
+  `src/ui/house_button_controller.cpp`、`src/ui/recommendation_marker_controller.cpp`、
+  `src/ui/mew_ui_bridge.cpp`、`src/ui/mew_ui_management_panel_view.cpp`、
+  `tests/house_button_controller_tests.cpp`、
+  `tests/recommendation_marker_controller_tests.cpp`、
+  `tests/house_ui_asset_tests.py`、`CMakeLists.txt`、`assets/description.json`、
+  `CHANGELOG.md`、`docs/RELEASE_NOTES_v0.5.22.md` 和本报告。
+- 构建与测试：
+  - 在 Visual Studio 2022 Community `VsDevCmd.bat` x64 环境中构建。
+  - `build-v0517-debug` 构建成功，最终 CTest 5/5 通过。
+  - `build-v0517-release` 构建成功。首次 CTest 中
+    `phase14_unit_tests` 因测试的异步忙等在 Release 优化后过早结束而失败；将
+    该测试改为最长 1 秒、每次 1 ms 的有界等待后，Release CTest 5/5 通过，
+    Debug CTest 也重新验证为 5/5 通过。
+  - 新增确定性回归覆盖 generation 1 到 generation 2 的按钮替换：旧节点执行
+    一次 `AbandonScene()`，新节点完成第二次 `Attach()`；SWF 资产检查确认两个
+    按钮和 `panel_background` 位于同一个 AutoCattery 覆盖层 Sprite。
+- 部署结果：部署前确认 `Mewgenics.exe` 未运行；执行
+  `tools/deploy.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics' -Configuration Release`
+  和 `tools/verify_install.ps1` 均退出 0。Release DLL、Mewtator UI 数据和 v0.5.22
+  描述已部署；现有保护配置未被改动，升级重骰继续同步为 20。
+- 游戏验证状态：未启动或操纵游戏。玩家需完全重启后依次验证首次进入 House、
+  结束一天后的两个按钮文字、战斗回家后的管理面板和按钮、F10 开关，并等待至少
+  30 秒观察稳定性。自动化构建、测试与安装验证不能替代这些玩家可见结果。
+- 风险：跨日按钮重挂接由确定性控制器测试覆盖，但 House 原生节点生命周期和首次
+  进入时的疑似崩溃只能由当前游戏 build 的实机运行确认；本轮未修改 MoveOnly、
+  评分、保护、存档写入或远征休眠逻辑。
+- 省略的后续工作：未增加额外轮询、重试、看门狗或新的原生查找路径。
+- 本次本地 commit：由最终回复记录。
+- 是否 push：否。
