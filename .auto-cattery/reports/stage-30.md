@@ -386,3 +386,58 @@ Release 已部署并完成安装校验；等待玩家继续积累出生结果。
   提交；实际 hash 在完成回复记录，可用 `git log -1 --format=%h -- .auto-cattery/reports/stage-30.md`
   查询，避免在提交内容中引用自身 hash。
 - 是否 push：否。
+
+## 2026-08-29 v0.5.24 两个普通 House 按钮点击恢复
+
+- 玩家最新一次真实会话加载的是 v0.5.23。`14:41:51` 的日志依次记录
+  `HouseReady generation=2`、`AC18000`、`AC3100` 和 `AC4100`，证明管理面板
+  与两个普通 House 按钮都已找到当前场景节点并完成角色注册；玩家点击时却没有
+  出现整理按钮的 `AC3102`，也没有推荐按钮的 `AC12100`。跨日后的
+  `generation=3` 再次记录 `AC3100`/`AC4100`，仍没有点击回调。加载器完整性检查
+  通过，共用的 UI tick hook 链也同时包含 AutoCattery 与家具合并 MOD，因此本轮
+  不是 DLL 未加载、按钮未挂接、存档分析失败或 hook 链断裂。
+- 同一日志中的 v0.5.22 会话曾在按钮挂接后立即记录 `AC3102`、预览和原生移动，
+  将回归范围限定到 v0.5.23 新增的按钮隐藏首帧。该共享按钮 Sprite 的 frame 0
+  有意为空并由 AS3 `stop()` 停住；v0.5.23 先在空 frame 0 上调用
+  `MewUI_SetupButtonFromNode`，之后才切到 frame 1。原生 Button 组件和角色记录
+  因而可以创建成功，但安装时没有可解析的帧内状态节点和鼠标命中区域，最终表现
+  为按钮可见、日志显示 Attached、两边点击均没有回调。
+- v0.5.24 保留隐藏首帧和 AS3 停止类，但在两个 View 中都先把按钮节点切到并停在
+  frame 1，再调用原生 Button setup；标签仍在同一个 UI tick 内被替换，不恢复
+  `Clean Up!` 的提前显示窗口。若原生安装或推荐列表后续准备失败，会把节点退回
+  隐藏 frame 0 后安全失败。
+- `house_ui_asset_tests.py` 在原有 72 个面板节点、4 个唯一 AS3 首帧停止类、按钮
+  frame 0 为空和 frame 1 可见的检查上，新增两个 View 的确定性安装顺序回归：
+  `HoldMewUiMovieClipFrame(button_node, 1)` 必须早于
+  `MewUI_SetupButtonFromNode`。
+- 修改文件：`src/ui/mew_ui_house_button_view.cpp`、
+  `src/ui/mew_ui_recommendation_marker_view.cpp`、
+  `tests/house_ui_asset_tests.py`、`CMakeLists.txt`、
+  `assets/description.json`、`CHANGELOG.md`、
+  `docs/RELEASE_NOTES_v0.5.24.md` 和本报告。
+- 构建与测试：
+  - `cmake --build build-v0517-debug --config Debug`：退出码 0；
+    `ctest --test-dir build-v0517-debug -C Debug --output-on-failure`：
+    5/5 通过，耗时 7.42 秒。
+  - `cmake --build build-v0517-release --config Release`：退出码 0；
+    `ctest --test-dir build-v0517-release -C Release --output-on-failure`：
+    5/5 通过，耗时 2.80 秒。
+  - 旧的 v0.5.23 生成 SWF 与部署后的 v0.5.24 安装 SWF 均通过新的资源/安装顺序
+    回归；该检查证明资源结构和源码调用顺序，不代替真实鼠标输入。
+- 部署与安装：部署前确认 `Mewgenics.exe` 未运行，只用已通过测试的 Release DLL、
+  生成 SWF 和 v0.5.24 描述刷新 `dist\Release`。`deploy.ps1` 成功输出
+  `AutoCattery version deployed: 0.5.24`，保留玩家重骰值 20；
+  `verify_install.ps1` 验证运行时 DLL、x64、启用的数据 MOD、DLL 内嵌版本以及
+  14 个职业重骰全部通过。`user_config.json` 和 `protection.json` 继续存在，
+  `AutoCatteryFurniture.dll` 仍不存在。未启动或控制游戏，未修改存档。
+- 游戏验证状态：待玩家完全重启并进入 House 后分别点击“自动整理猫舍”和
+  “标记推荐战斗猫”。预期前者记录 `AC3102` 并生成只读预览，后者至少记录
+  `AC12100` 并进入推荐/兼容性探针；再按一次 F10 开关面板并结束一天，确认两个
+  按钮仍可点击且不闪现 `Clean Up!`。自动构建、安装和资源检查不能替代该验收。
+- 风险及省略工作：真实游戏对新顺序生成的命中区域仍由玩家验证；本轮没有改变
+  MoveOnly、评分、保护、存档写入、战斗休眠、F10 面板逻辑或任何游戏偏移。
+- 最终简化：按 `code-simplifier` 仅复查本轮两段 View 与回归；保留局部重复，
+  因为抽取一次性原生安装辅助函数会扩大改动且降低失败路径可读性，未再修改行为。
+- 本次本地 commit：本节所在的 `fix: restore House button clicks` 提交；最终 hash
+  由完成回复记录，避免在提交内容中引用自身 hash。
+- 是否 push：否。

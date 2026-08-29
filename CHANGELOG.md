@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Restores mouse input for both normal House buttons. Their AS3-stopped first
+  frame is intentionally empty, so v0.5.23 created the native Button while its
+  state nodes and hit area were absent. The view now materializes the stopped
+  visible frame before native setup, while setup still replaces the source
+  label in the same UI tick.
 - Keeps both normal House buttons on an empty, stopped first frame until their
   native controllers have replaced the source `Clean Up!` labels, preventing
   the default artwork from appearing before native attachment.

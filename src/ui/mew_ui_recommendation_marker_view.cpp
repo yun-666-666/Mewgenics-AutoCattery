@@ -84,6 +84,16 @@ Result<void> MewUiRecommendationMarkerView::Attach(
             "the dedicated recommendation button asset is unavailable"
         };
     }
+    // Native Button setup resolves the frame-owned state nodes and hit area.
+    // Frame 0 is intentionally empty, so materialize the stopped visible
+    // frame before setup and let setup replace the source label in this tick.
+    if (!HoldMewUiMovieClipFrame(button_node, 1)) {
+        ResetSceneState();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "the recommendation button could not be prepared"
+        };
+    }
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
     create_info.root_node = root_node_;
@@ -104,8 +114,8 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         &button_,
         &created);
     if (button_ == nullptr) {
-        scene_manager_ = nullptr;
-        click_handler_ = {};
+        HoldMewUiMovieClipFrame(button_node, 0);
+        ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
             "the dedicated recommendation button asset is unavailable"
@@ -118,6 +128,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
         this);
 
     if (!ResolveItemNodes()) {
+        HoldMewUiMovieClipFrame(button_node, 0);
         Detach();
         return {
             ErrorCode::UiNodeNotFound,
@@ -126,6 +137,7 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     }
 
     if (!InstallWheelHook()) {
+        HoldMewUiMovieClipFrame(button_node, 0);
         Detach();
         return {
             ErrorCode::InternalError,
@@ -136,13 +148,6 @@ Result<void> MewUiRecommendationMarkerView::Attach(
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
     ClearSummary();
-    if (!HoldMewUiMovieClipFrame(button_node, 1)) {
-        Detach();
-        return {
-            ErrorCode::UiNodeNotFound,
-            "the recommendation button could not be shown"
-        };
-    }
     return {};
 }
 

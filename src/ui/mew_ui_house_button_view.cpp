@@ -41,6 +41,16 @@ Result<void> MewUiHouseButtonView::Attach(
             "the AutoCattery house button asset is unavailable"
         };
     }
+    // Native Button setup resolves the frame-owned state nodes and hit area.
+    // Frame 0 is intentionally empty, so materialize the stopped visible
+    // frame before setup and let setup replace the source label in this tick.
+    if (!HoldMewUiMovieClipFrame(button_node, 1)) {
+        ResetSceneState();
+        return {
+            ErrorCode::UiNodeNotFound,
+            "the AutoCattery house button could not be prepared"
+        };
+    }
     MewButtonCreateInfo create_info{};
     create_info.scene_manager = scene_manager_;
     create_info.root_node = match.root;
@@ -61,8 +71,8 @@ Result<void> MewUiHouseButtonView::Attach(
         &button_,
         &created);
     if (button_ == nullptr) {
-        scene_manager_ = nullptr;
-        click_handler_ = {};
+        HoldMewUiMovieClipFrame(button_node, 0);
+        ResetSceneState();
         return {
             ErrorCode::UiNodeNotFound,
             "the AutoCattery house button asset is unavailable"
@@ -77,13 +87,6 @@ Result<void> MewUiHouseButtonView::Attach(
     active_ = true;
     MewUI_SetButtonEnabled(button_, 1);
     MewUI_SetButtonInteractable(button_, 1);
-    if (!HoldMewUiMovieClipFrame(button_node, 1)) {
-        Detach();
-        return {
-            ErrorCode::UiNodeNotFound,
-            "the AutoCattery house button could not be shown"
-        };
-    }
     return {};
 }
 

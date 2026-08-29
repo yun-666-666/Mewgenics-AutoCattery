@@ -14,6 +14,18 @@ def check(condition, message):
         raise AssertionError(message)
 
 
+def check_button_setup_order(repo_root):
+    for relative_path in (
+            "src/ui/mew_ui_house_button_view.cpp",
+            "src/ui/mew_ui_recommendation_marker_view.cpp"):
+        source = (repo_root / relative_path).read_text(encoding="utf-8")
+        show_frame = source.index(
+            "HoldMewUiMovieClipFrame(button_node, 1)")
+        native_setup = source.index("MewUI_SetupButtonFromNode")
+        check(show_frame < native_setup,
+              f"{relative_path} must materialize frame 1 before native setup")
+
+
 def check_asset(path):
     data = Path(path).read_bytes()
     tags = [(code, data[start:end]) for code, _, start, end in
@@ -134,8 +146,9 @@ def check_asset(path):
         for requested in (1, 2, 0):
             check(bool(frames[requested]) == (requested != 0), "F10 show/hide frames")
 
+    check_button_setup_order(Path(__file__).resolve().parents[1])
     print("House UI asset: 72 panel nodes, 4 unique AS3 first-frame stops; "
-          "buttons and panel stay hidden before native attachment.")
+          "buttons stay hidden, then materialize before native setup.")
 
 
 if __name__ == "__main__":
