@@ -7,7 +7,7 @@
 
 ## 崩溃证据与根因边界
 
-- 主存档 `steamcampaign01.sav` 第 263 天只读解析正常：88 只 House 猫，
+- 当时的主存档只读解析正常：88 只 House 猫，
   `errors=0`，稳定 CatId、评分、保护和房间规划均可重复。
 - 21:05:11 的整理成功提交 32 次原生移动；21:05:26 生成完整崩溃转储
   `Mewgenics.exe(1).14660.dmp`。异常为 `0xC0000374 STATUS_HEAP_CORRUPTION`，

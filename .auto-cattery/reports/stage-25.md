@@ -50,9 +50,9 @@ Debug 单测、Release DLL 构建与加载检查、部署和安装校验，等�
 - DLL 加载：`build/Release/dll_smoke_tests.exe build/out/Release/AutoCattery.dll`，
   退出码 0。
 - 为避免再次编译，仅把已生成的 Release DLL 与资源同步到 `dist/Release`，随后
-  执行 `tools/deploy.ps1 -GameRoot D:/steam/steam/steamapps/common/Mewgenics -Configuration Release`。
+  执行 `tools/deploy.ps1 -GameRoot <GAME_ROOT> -Configuration Release`。
 - 安装校验：
-  `tools/verify_install.ps1 -GameRoot D:/steam/steam/steamapps/common/Mewgenics`，通过。
+  `tools/verify_install.ps1 -GameRoot <GAME_ROOT>`，通过。
 - 构建、`dist/Release` 和游戏安装 DLL 的 SHA-256 均为
   `E0839A20EABC08E2DDCD225A8060BB50ECCD4815179AC182FBF38528909298AD`。
 - 已安装数据 MOD 版本为 v0.5.10；最终加载顺序为

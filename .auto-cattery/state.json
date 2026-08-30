@@ -1,181 +1,25 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 30,
-  "stages": {
-    "1": {
-      "status": "completed",
-      "commit": "f24a44e"
-    },
-    "2": {
-      "status": "completed",
-      "commit": "1fa3e93"
-    },
-    "3": {
-      "status": "completed",
-      "commit": "0f852b0"
-    },
-    "4": {
-      "status": "completed",
-      "commit": "d83629c"
-    },
-    "5": {
-      "status": "completed",
-      "commit": "252399f"
-    },
-    "6": {
-      "status": "completed",
-      "commit": null
-    },
-    "7": {
-      "status": "completed",
-      "commit": "8fac59f195a1c2ceafc92337e099bd0bde565816"
-    },
-    "8": {
-      "status": "completed",
-      "commit": "430c27ba0afc4e146c278bb1e485ec2661a996ca"
-    },
-    "9": {
-      "status": "completed",
-      "commit": null
-    },
-    "10": {
-      "status": "completed",
-      "commit": "2593442a08ba564e0b0f70a3109adb479e0ea349",
-      "historical_real_adapter_status": "unsupported_at_stage_10",
-      "superseded_by": "stage_14_current_build_runtime_move_only",
-      "stage_11_blocked": false
-    },
-    "11": {
-      "status": "completed_preview_only_at_stage_11",
-      "commit": null,
-      "real_execution_status": "superseded_by_stage_14_current_build_runtime_move_only",
-      "stage_12_blocked": false
-    },
-    "12": {
-      "status": "completed",
-      "commit": "0ef1808c3008d2e295f626e0d06341515fd385ff",
-      "capability": "ClickableHouseRecommendationDetails",
-      "real_highlight_status": "user_accepted",
-      "stage_13_blocked": false
-    },
-    "13": {
-      "status": "completed",
-      "commit": "3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc",
-      "implementation_commit": "3ca1fcb4f4e93cbe0af72c451d1542e04e8f44fc",
-      "validation_commit": "aa5429a8f1c60d33e14a174a3bcc202ad724e11c",
-      "cross_save_fix_commit": "69b04e0a2d240a934ee07347764581fc3841cfb8",
-      "capability": "ValidatedHotReloadableConfigWithExternalPersistentSettingsEditorAndReadOnlyCombatRecommendations",
-      "game_validation_status": "player_accepted_cross_save_recommendations_and_removed_in_game_settings;external_editor_automated_and_visual_validation_passed",
-      "stage_14_blocked": false
-    },
-    "14": {
-      "status": "completed_player_validated_current_build_runtime_move_only",
-      "commit": "3d296df0e7e28138e157d5b2e6877b82b3f49e77",
-      "safety_commit": "00c061b0298cc244a4013ad9fbc4852bbf994f9b",
-      "runtime_move_commit": null,
-      "capability": "VerifiedOfflineBackupAtomicRestoreAndCurrentBuildGatedRuntimePotentialMoveOnly",
-      "real_write_status": "current_build_native_runtime_move_enabled;real_cull_disabled",
-      "game_validation_status": "copied_save_move_readback_restore_passed;8_cat_runtime_moves_6_passed;25_cat_runtime_moves_10_passed;cross_save_refresh_passed",
-      "balanced_move_only_algorithm_status": "two_three_room_player_validation_passed;property_aware_concrete_cat_assignment_automated;player_revalidation_pending",
-      "remaining_business_scope": "property_aware_three_room_player_validation;outside_house_cat_player_validation;four_room_validation;breeding_genetics;protection_integration;real_cull;detailed_preview;same_count_save_identity"
-    },
-    "15": {
-      "status": "completed_player_validated",
-      "commit": null,
-      "capability": "ProgressGatedBaseAllSevenBreedingPairSelectionAndPropertyAwareCoLocation",
-      "game_validation_status": "pairing_passed;early_base_stats_and_room_mapping_passed;outside_null_room_native_move_passed"
-    },
-    "16": {
-      "status": "completed_current_game_resource_and_save_probe",
-      "commit": null,
-      "capability": "StableAllSevenStageAwareAbilityPassiveDisorderAndTypedVisualMutationPairScoring",
-      "game_validation_status": "foundation_three_save_regression_probe_passed;stable_all_seven_save_unavailable"
-    },
-    "17": {
-      "status": "completed_player_validated",
-      "commit": "0e72fd8fe771675544d4a554688b5738c24976da",
-      "capability": "GenericOptInStableIdentityProtectionEditorWithRuntimeEnforcement",
-      "game_validation_status": "automated_and_visual_validation_passed;player_accepted_no_move_fixed_room_and_remove;default_rules_empty"
-    },
-    "18": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "F10InGameSettingsAndProtectionPanel",
-      "game_validation_status": "clean_skin_visible_no_flicker;large_font_setting_backplates_recentered_and_spaced;virtual_resolution_scaling_confirmed;direct_numeric_input_three_column_selected_save_cats_choice_pages_cross_page_hide_and_exact_current_save_marker_deployed;player_revalidation_pending"
-    },
-    "19": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "F10FullMovePreviewCachedPanelRenderingBilingualUIAndOptInPrivateCatDiagnostics",
-      "game_validation_status": "automated_tests_passed;25_and_79_cat_panel_performance_and_visual_interaction_player_validation_pending"
-    },
-    "20": {
-      "status": "implementation_complete_release_assets_verified",
-      "commit": null,
-      "capability": "HardenedExternalSettingsExecutableWithMetadataManifestAndImportGates",
-      "game_validation_status": "debug_and_release_automated_tests_passed;defender_clean;external_editor_visual_revalidation_pending"
-    },
-    "21": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "GenerationSafeHouseUiEscIsolationFullSettingsHitTargetsAndDllOnlyDistribution",
-      "game_validation_status": "debug_and_release_automated_tests_passed;release_deployed_and_install_hash_verified;player_revalidation_pending"
-    },
-    "22": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "F10ConfigurableLevelUpRerollsForAllPlayerClasses",
-      "game_validation_status": "debug_and_release_automated_tests_passed;release_deployed;all_14_class_data_entries_verified_at_default_3;player_restart_validation_pending"
-    },
-    "23": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "ThrottledAttachOnlyHouseUiRootLookupAndIdempotentCachedRecommendationRendering",
-      "game_validation_status": "v0.5.7_blank_flickering_panel_rejected_by_player;incorrect_HouseTest_owner_constraint_removed;per_frame_panel_attach_retry_throttled;v0.5.8_debug_tests_and_release_dll_smoke_passed;release_deployed_and_hash_verified;player_revalidation_pending"
-    },
-    "24": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "PurposeSeparatedBreedingPairSexAllocation",
-      "game_validation_status": "debug_tests_passed;sex_constraints_limited_to_confirmed_breeding_pair_room;combat_and_general_rooms_ignore_sex;v0.5.9_release_dll_smoke_passed;release_deployed_and_hash_verified;player_preview_validation_pending"
-    },
-    "25": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "LastLoadedConfiguredRerollsAndNonDetachingF10HouseControls",
-      "game_validation_status": "debug_tests_passed;v0.5.10_release_dll_smoke_passed;release_deployed_and_hash_verified;modlist_order_and_14_class_rerolls_verified;restart_and_house_transition_player_validation_pending"
-    },
-    "26": {
-      "status": "implementation_complete_player_validation_pending",
-      "commit": null,
-      "capability": "BreedingRoomOnlyBestAchievableSexBalanceAndSexAgnosticCombatSelection",
-      "game_validation_status": "debug_tests_passed;85_cat_8f_77m_breeding_room_target_8_to_13;combat_training_and_general_rooms_ignore_sex;v0.5.11_release_dll_smoke_passed;release_deployed_and_hash_verified;player_preview_validation_pending"
-    },
-    "27": {
-      "status": "implementation_complete_automated_validation_passed_player_validation_pending",
-      "commit": null,
-      "capability": "PurposeAwareBreedingCombatAndKittenRoomAllocationWithEvidenceBasedSafety",
-      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;not_deployed;player_preview_and_move_validation_pending"
-    },
-    "28": {
-      "status": "implementation_complete_release_deployed_player_validation_pending",
-      "commit": null,
-      "capability": "SaveSelectionRecommendationResetAndDynamicSkillsPassivesFirstRerollSynchronization",
-      "game_validation_status": "debug_and_release_full_builds_passed;4_of_4_ctest_passed_both_configs;v0.5.13_release_deployed;8_cat_button_and_11_reroll_player_validation_pending"
-    },
-    "29": {
-      "status": "implementation_complete_release_deployed_player_validation_pending",
-      "commit": null,
-      "capability": "TickSeparatedNativeMoveBatchesAndCompatibleBreedingPairPool",
-      "game_validation_status": "matching_dump_symbols_show_heap_detection_in_ui_allocation_after_32_native_moves;targeted_debug_regressions_passed;88_cat_save_and_breeding_probes_passed;v0.5.14_release_dll_smoke_passed;release_deployed_and_hash_matched;player_crash_retest_pending"
-    },
-    "30": {
-      "status": "implementation_complete_release_deployed_player_validation_pending",
-      "commit": null,
-      "capability": "MultiDayMainSaveAnalysisAndCrossCompatibleBreedingRoomCohort",
-      "game_validation_status": "days_257_to_264_analyzed;debug_and_release_4_of_4_ctest_passed;day264_94_cat_probe_passed;v0.5.15_release_deployed_and_hash_verified;multi_day_player_followup_pending"
-    }
+  "active_stage": null,
+  "completed_stage": 30,
+  "current_release": {
+    "version": "0.5.24",
+    "commit": "c33fe74bf140ff386c40f9c9bb73df60a4bb430e",
+    "status": "player_validated",
+    "validation": "house_buttons_f10_move_only_and_current_player_flows_passed"
   },
-  "updated_at": "2026-08-08T00:35:05+08:00"
+  "capabilities": {
+    "runtime_execution": "current_build_move_only_player_validated",
+    "room_layouts": "two_three_four_room_player_validated",
+    "protection": "player_validated_opt_in_stable_identity_rules",
+    "preview": "player_validated_full_move_preview",
+    "real_cull": "disabled"
+  },
+  "deferred": {
+    "breeding_longitudinal_feedback": "waiting_for_more_player_game_days",
+    "future_features": "start_only_after_explicit_user_request"
+  },
+  "historical_issue_policy": "superseded historical failures are not current issues without new evidence",
+  "updated_at": "2026-08-30T00:00:00+08:00"
 }

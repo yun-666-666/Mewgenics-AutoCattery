@@ -61,7 +61,7 @@
 - 外部设置程序及其配置模型、解析、验证、迁移、热加载和文件编辑服务。
 - 推荐按钮、推荐列表、推荐详情和现有全量唯一身份校验。
 - 已安装的
-  `D:/steam/steam/steamapps/common/Mewgenics/Mods/AutoCattery/config/user_config.json`。
+`<GAME_ROOT>/Mods/AutoCattery/config/user_config.json`。
 - 用户未跟踪的 Toolkit、文档压缩包和 `PushToMeow/`。
 
 执行的验证：

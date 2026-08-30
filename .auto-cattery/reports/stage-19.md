@@ -69,7 +69,7 @@
   `9766e8e`；主仓库只更新对应子模块指针和面板调用。
 - `tools/build.ps1 -Configuration Release`：成功；CTest 5/5、DLL load smoke、
   x64 校验通过。
-- `tools/deploy.ps1 -GameRoot D:\\steam\\steam\\steamapps\\common\\Mewgenics
+- `tools/deploy.ps1 -GameRoot <GAME_ROOT>
   -Configuration Release`：成功，已部署到 Mewjector 与 Mewtator AutoCattery。
 - 实机视觉和 79 猫打开面板的体感仍待玩家复测；若仍有延迟，下一步只采集
   `AC18002` 到首帧显示的耗时，不扩大功能范围。
@@ -87,7 +87,7 @@
   smoke、x64 校验通过。
 - `tools/build.ps1 -Configuration Debug`：成功，CTest `5/5`、DLL load smoke、
   x64 校验通过。
-- `tools/deploy.ps1 -GameRoot D:\\steam\\steam\\steamapps\\common\\Mewgenics
+- `tools/deploy.ps1 -GameRoot <GAME_ROOT>
   -Configuration Release` 与 `tools/verify_install.ps1`：成功。
 - 当前回合未完成 F10/House 视觉实机复测；因此不能把新版本兼容性或 25/79 猫
   流畅度写成已由实机证明。

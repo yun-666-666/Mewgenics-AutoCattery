@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Recorded player acceptance of the current v0.5.24 House buttons, F10 panel,
+  two/three/four-room MoveOnly flows, stale-preview cancellation, unassigned-cat
+  handling, save/reload persistence, and repeated organization.
+- Public source packaging now reads the version from `CMakeLists.txt`, rejects a
+  mismatched explicit version, excludes internal stage/handoff/task state, and
+  stops if a personal absolute path enters the source archive.
+- Consolidated current-status documentation and removed obsolete handoff and
+  duplicate rollback notes. Historical failures are no longer listed as current
+  issues without new evidence on the current release.
 - Restores mouse input for both normal House buttons. Their AS3-stopped first
   frame is intentionally empty, so v0.5.23 created the native Button while its
   state nodes and hit area were absent. The view now materializes the stopped

@@ -1,12 +1,25 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '0.5.6',
+    [string]$Version,
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release'
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$cmakeProject = Get-Content -LiteralPath (Join-Path $projectRoot 'CMakeLists.txt') -Raw
+$declaredVersion = [regex]::Match(
+    $cmakeProject,
+    'project\(AutoCattery\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)')
+if (-not $declaredVersion.Success) {
+    throw 'Could not read the AutoCattery version from CMakeLists.txt.'
+}
+$projectVersion = $declaredVersion.Groups[1].Value
+if (-not $Version) {
+    $Version = $projectVersion
+} elseif ($Version -ne $projectVersion) {
+    throw "Package version $Version does not match CMakeLists.txt version $projectVersion."
+}
 $distRoot = Join-Path $projectRoot "dist\$Configuration"
 $releaseRoot = Join-Path $projectRoot 'dist\releases'
 $packageName = "AutoCattery-v$Version-Windows-x64"
@@ -60,10 +73,39 @@ Compress-Archive -LiteralPath $packageRoot -DestinationPath $binaryZip -Compress
 
 New-Item -ItemType Directory -Force -Path $sourceRoot | Out-Null
 $mainArchive = Join-Path $workRoot 'main.tar'
-& git -C $projectRoot archive --format=tar --output=$mainArchive HEAD
+$publicSourcePaths = @(
+    '.',
+    ':(exclude).auto-cattery',
+    ':(exclude).codex',
+    ':(exclude).local',
+    ':(exclude)CODEX_TASK.md',
+    ':(exclude)docs/HANDOFF*.md'
+)
+& git -C $projectRoot archive --format=tar --output=$mainArchive HEAD -- $publicSourcePaths
 if ($LASTEXITCODE -ne 0) { throw 'Could not archive the main repository.' }
 & tar -xf $mainArchive -C $sourceRoot
 if ($LASTEXITCODE -ne 0) { throw 'Could not extract the main source archive.' }
+
+$forbiddenSourceEntries = @(
+    (Join-Path $sourceRoot '.auto-cattery'),
+    (Join-Path $sourceRoot '.codex'),
+    (Join-Path $sourceRoot '.local'),
+    (Join-Path $sourceRoot 'CODEX_TASK.md')
+)
+if ($forbiddenSourceEntries | Where-Object { Test-Path -LiteralPath $_ }) {
+    throw 'Internal project state was included in the public source package.'
+}
+if (Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'docs') -Filter 'HANDOFF*.md' -File -ErrorAction SilentlyContinue) {
+    throw 'Internal handoff documentation was included in the public source package.'
+}
+$personalPathPattern = '(?i)[A-Z]:[\\/](?:Users[\\/][^\\/]+|steam[\\/]steam[\\/]steamapps[\\/]common[\\/]Mewgenics)'
+$personalPathMatch = Get-ChildItem -LiteralPath $sourceRoot -Recurse -File |
+    Where-Object Extension -In '.md', '.txt', '.json', '.ps1', '.py', '.c', '.cpp', '.h', '.hpp' |
+    Select-String -Pattern $personalPathPattern |
+    Select-Object -First 1
+if ($personalPathMatch) {
+    throw "Personal absolute path found in public source package: $($personalPathMatch.Path):$($personalPathMatch.LineNumber)"
+}
 
 $submodulePaths = & git -C $projectRoot config -f .gitmodules --get-regexp path |
     ForEach-Object { ($_ -split '\s+', 2)[1] }
@@ -84,5 +126,5 @@ if (Test-Path -LiteralPath $sourceZip) { Remove-Item -LiteralPath $sourceZip -Fo
 Compress-Archive -LiteralPath $sourceRoot -DestinationPath $sourceZip -CompressionLevel Optimal
 
 Remove-Item -LiteralPath $workRoot -Recurse -Force
-Get-FileHash -Algorithm SHA256 -LiteralPath $binaryZip, $sourceZip |
-    Select-Object Path, Hash
+Get-Item -LiteralPath $binaryZip, $sourceZip |
+    Select-Object FullName, Length

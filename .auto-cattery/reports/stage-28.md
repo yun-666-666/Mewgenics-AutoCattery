@@ -19,7 +19,7 @@ v0.5.13 Release 已部署，等待玩家实机验证。
    - AutoCattery 自己的文件已经包含 `AddLevelUpRerolls 11`，但两套数据 MOD
      同时修改相同职业资源时，玩家当前启动方式仍可能采用旧补丁。
    - 参考并复用了玩家提供的已验证项目
-     `D:\steam\steam\steamapps\common\Mewgenics\mewmod\SkillsPassivesFirstData`
+`<MEWTATOR_MOD_ROOT>\SkillsPassivesFirstData`
      的原生 `AddLevelUpRerolls N` 路线。
    - 数值没有固定为 11。F10 每次保存任意 `0`–`99` 当前值时，AutoCattery 会
      原子写入自己的普通/进阶职业补丁，并在检测到同级
@@ -49,7 +49,7 @@ v0.5.13 Release 已部署，等待玩家实机验证。
 - 定向 Debug 单元测试：通过。
 - `.\tools\build.ps1 -Configuration Debug`：通过，4/4 CTest 通过。
 - `.\tools\build.ps1 -Configuration Release`：通过，4/4 CTest 通过。
-- `.\tools\deploy.ps1 -GameRoot 'D:\steam\steam\steamapps\common\Mewgenics' -Configuration Release`：
+- `.\tools\deploy.ps1 -GameRoot '<GAME_ROOT>' -Configuration Release`：
   成功；读取当前 F10 配置为 11，并同步已安装的 `SkillsPassivesFirstData`。
 - 按用户要求未运行安装哈希验证。
 

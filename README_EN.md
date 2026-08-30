@@ -60,6 +60,9 @@ game files, Steam Cloud data, or player save databases.
   operation cancels it and requires a new preview.
 - Combat history, profession, injury, or whether a cat has fought are not used as
   automatic exclusion rules.
+- The player has validated the current v0.5.24 House buttons, F10 panel,
+  two/three/four-room MoveOnly flows, stale-preview cancellation, unassigned-cat
+  handling, save/reload persistence, and idempotent repeated organization.
 - Provides next-day combat recommendations, cat details, in-game settings and
   protection, backups, and offline restore source tools.
 - Press `F10` in House to open or close the management panel; `Esc` closes it.
@@ -80,8 +83,9 @@ game files, Steam Cloud data, or player save databases.
   account IDs, and never uploads automatically. See the issue-feedback section.
 
 The current live execution capability is `MoveOnly`. Room attributes, first-stage
-breeding pairing, default base-stat reads, room identity caching, and native
-movement of unassigned cats are implemented. Real culling is not enabled. See
+breeding pairing, default base-stat reads, room identity caching, native movement
+of unassigned cats, and Full Preview are player validated. Real culling is not
+enabled. See
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md).
 
 House UI text nodes are cached and updated only when content changes. The

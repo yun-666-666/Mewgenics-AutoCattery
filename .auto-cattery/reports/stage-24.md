@@ -42,8 +42,8 @@
 
 - Release 必要目标：`cmake --build build --config Release --target AutoCattery dll_smoke_tests --parallel`。
 - DLL 加载：`build/Release/dll_smoke_tests.exe build/out/Release/AutoCattery.dll`。
-- 部署：`tools/deploy.ps1 -GameRoot D:/steam/steam/steamapps/common/Mewgenics -Configuration Release`。
-- 安装校验：`tools/verify_install.ps1 -GameRoot D:/steam/steam/steamapps/common/Mewgenics`。
+- 部署：`tools/deploy.ps1 -GameRoot <GAME_ROOT> -Configuration Release`。
+- 安装校验：`tools/verify_install.ps1 -GameRoot <GAME_ROOT>`。
 
 ## 风险与未包含工作
 
