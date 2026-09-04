@@ -15,9 +15,10 @@ namespace autocattery::ui {
 namespace {
 
 constexpr std::array<const char*, 8> kFixedNames{
-    "panel_tab_settings", "panel_tab_protection", "panel_tab_preview",
-    "panel_close", "panel_prev", "panel_next", "panel_apply", "panel_remove"
+    "ac_tab_set", "ac_tab_prot", "ac_tab_prev", "ac_close",
+    "ac_prev", "ac_next", "ac_apply", "ac_remove"
 };
+constexpr const char* kTextSuffix = "_t";
 
 std::string IndexedName(const char* prefix, std::size_t index) {
     return std::string(prefix) + std::to_string(index + 1);
@@ -214,7 +215,7 @@ bool MewUiManagementPanelView::ResolveNodes() noexcept {
     root_node_ = match.root;
     background_ = root_node_ == nullptr
         ? nullptr
-        : MewUI_FindChildByName(root_node_, "panel_background");
+        : MewUI_FindChildByName(root_node_, "ac_panel_bg");
     if (root_node_ != nullptr && background_ != nullptr &&
         ResolveNodesInRoot(root_node_)) {
         resolve_mode_ = "safe-root";
@@ -234,7 +235,7 @@ bool MewUiManagementPanelView::ResolveNodesInRoot(void* root_node) noexcept {
             nodes[index].clip = MewUI_FindChildByName(
                 root_node_, name.c_str());
             nodes[index].text = MewUI_FindChildByName(
-                root_node_, (name + "_text").c_str());
+                root_node_, (name + kTextSuffix).c_str());
             if (nodes[index].clip == nullptr || nodes[index].text == nullptr)
                 return false;
         }
@@ -243,16 +244,16 @@ bool MewUiManagementPanelView::ResolveNodesInRoot(void* root_node) noexcept {
     for (std::size_t index = 0; index < fixed_nodes_.size(); ++index) {
         fixed_nodes_[index].clip = find(kFixedNames[index]);
         fixed_nodes_[index].text = find(
-            std::string(kFixedNames[index]) + "_text");
+            std::string(kFixedNames[index]) + kTextSuffix);
         if (fixed_nodes_[index].clip == nullptr ||
             fixed_nodes_[index].text == nullptr)
             return false;
     }
-    title_.text = find("panel_title");
-    status_.text = find("panel_status");
-    return resolve(list_nodes_, "panel_protection_row_") &&
-        resolve(group_nodes_, "panel_group_") &&
-        resolve(setting_nodes_, "panel_setting_row_") &&
+    title_.text = find("ac_title");
+    status_.text = find("ac_status");
+    return resolve(list_nodes_, "ac_prot_") &&
+        resolve(group_nodes_, "ac_group_") &&
+        resolve(setting_nodes_, "ac_set_") &&
         title_.text != nullptr && status_.text != nullptr;
 }
 

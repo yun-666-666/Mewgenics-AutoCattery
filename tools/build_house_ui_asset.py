@@ -22,9 +22,11 @@ import zlib
 from swf_panel_shapes import rectangle_shape, three_frame_sprite
 from swf_frame_scripts import add_stop_classes
 from swf_panel_layout import (
+    PANEL_BACKGROUND_NAME,
     PANEL_BACKGROUND_TRANSFORM,
     PANEL_COMPACT_ELEMENTS,
     PANEL_PROTECTION_ELEMENTS,
+    PANEL_TEXT_SUFFIX,
     PANEL_TEXTS,
 )
 
@@ -756,7 +758,7 @@ def filter_overlay_sprite(
             ))
             struct.pack_into("<H", background, 1, 60)
             background = bytearray(bytes(background).replace(
-                TARGET_MARKER, b"panel_background\x00", 1))
+                TARGET_MARKER, PANEL_BACKGROUND_NAME.encode() + b"\x00", 1))
             background = bytearray(relocate_matrix(
                 bytes(background), *PANEL_BACKGROUND_TRANSFORM))
             kept.extend(encode_tag(code, bytes(background)))
@@ -782,7 +784,7 @@ def filter_overlay_sprite(
                 struct.pack_into("<H", panel_text, 1, 90 + index)
                 panel_text = bytearray(bytes(panel_text).replace(
                     b"test_text\x00",
-                    f"{name}_text".encode() + b"\x00", 1))
+                    f"{name}{PANEL_TEXT_SUFFIX}".encode() + b"\x00", 1))
                 panel_text = bytearray(relocate_matrix(
                     bytes(panel_text), *text_transform))
                 kept.extend(encode_tag(code, bytes(panel_text)))
@@ -808,7 +810,7 @@ def filter_overlay_sprite(
                 struct.pack_into("<H", panel_text, 1, 300 + index)
                 panel_text = bytearray(bytes(panel_text).replace(
                     b"test_text\x00",
-                    f"{name}_text".encode() + b"\x00", 1))
+                    f"{name}{PANEL_TEXT_SUFFIX}".encode() + b"\x00", 1))
                 panel_text = bytearray(relocate_matrix(
                     bytes(panel_text), *text_transform))
                 kept.extend(encode_tag(code, bytes(panel_text)))

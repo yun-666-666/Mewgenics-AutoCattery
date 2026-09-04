@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Replaces every MOD-owned F10 panel instance name with an ASCII name of at
+  most 15 bytes. This keeps current beta House attachment on the native inline
+  string path instead of transferring dozens of heap-backed lookup strings to
+  the game, which was followed by the repeatable `Mewgenics.exe+0x963041`
+  access violation immediately after `AC18000`.
+- Adds an asset/runtime contract test covering all 145 panel artwork and text
+  instances, including uniqueness, the 15-byte limit, complete SWF placement,
+  and agreement with the C++ lookup names.
 - Replaces fixed MewUI function RVAs with runtime discovery against the game
   image that is actually running. Public and beta builds can resolve their own
   UI addresses without an executable hash, timestamp gate, or single-version

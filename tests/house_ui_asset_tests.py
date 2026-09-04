@@ -7,6 +7,13 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from build_house_ui_asset import placed_character_id, read_tags, tag_stream_start
 from swf_frame_scripts import Abc, Reader
+from swf_panel_layout import (
+    PANEL_BACKGROUND_NAME,
+    PANEL_COMPACT_ELEMENTS,
+    PANEL_PROTECTION_ELEMENTS,
+    PANEL_TEXT_SUFFIX,
+    PANEL_TEXTS,
+)
 
 
 def check(condition, message):
@@ -24,6 +31,31 @@ def check_button_setup_order(repo_root):
         native_setup = source.index("MewUI_SetupButtonFromNode")
         check(show_frame < native_setup,
               f"{relative_path} must materialize frame 1 before native setup")
+
+
+def panel_instance_names():
+    controls = tuple(name for name, *_ in
+                     PANEL_PROTECTION_ELEMENTS + PANEL_COMPACT_ELEMENTS)
+    text_nodes = tuple(f"{name}{PANEL_TEXT_SUFFIX}" for name in controls)
+    return ((PANEL_BACKGROUND_NAME,) + controls + text_nodes +
+            tuple(name for name, _ in PANEL_TEXTS))
+
+
+def check_panel_lookup_names(repo_root):
+    source = (repo_root / "src/ui/mew_ui_management_panel_view.cpp").read_text(
+        encoding="utf-8")
+    expected_literals = (
+        PANEL_BACKGROUND_NAME,
+        PANEL_TEXT_SUFFIX,
+        *(name for name, *_ in PANEL_COMPACT_ELEMENTS[:8]),
+        *(name for name, _ in PANEL_TEXTS),
+        "ac_prot_",
+        "ac_group_",
+        "ac_set_",
+    )
+    for name in expected_literals:
+        check(f'"{name}"' in source,
+              f"native panel lookup is missing generated name {name}")
 
 
 def check_asset(path):
@@ -57,8 +89,16 @@ def check_asset(path):
 
     sprites = {struct.unpack_from("<H", body)[0]: body
                for code, body in tags if code == 39}
+    panel_names = panel_instance_names()
+    check(len(panel_names) == len(set(panel_names)),
+          "panel instance names must be unique")
+    for name in panel_names:
+        check(len(name.encode("ascii")) <= 15,
+              f"panel instance name exceeds inline-string capacity: {name}")
+
+    background_marker = PANEL_BACKGROUND_NAME.encode() + b"\0"
     overlay = next(body for body in sprites.values()
-                   if b"panel_background\0" in body)
+                   if background_marker in body)
     check(b"test_button\0" in overlay and b"recommend_button\0" in overlay,
           "buttons and panel must share the MOD-owned overlay root")
     button_ids = {placed_character_id(overlay[start:end])
@@ -79,16 +119,22 @@ def check_asset(path):
     check(not button_frames[0] and button_frames[1],
           "normal buttons must stay hidden until native attachment")
     private_ids = set()
-    panel_nodes = 0
+    found_panel_names = set()
+    panel_markers = {name: name.encode() + b"\0" for name in panel_names}
     for code, _, start, end in read_tags(overlay, 4, len(overlay)):
         body = overlay[start:end]
-        if code == 26 and any(prefix in body for prefix in
-                              (b"panel_", b"recommend_row_")):
+        if code != 26:
+            continue
+        placed_panel_names = {name for name, marker in panel_markers.items()
+                              if marker in body}
+        if placed_panel_names:
+            found_panel_names.update(placed_panel_names)
+        if placed_panel_names or b"recommend_row_" in body:
             character_id = struct.unpack_from("<H", body, 3)[0]
             if character_id in sprites:
                 private_ids.add(character_id)
-                panel_nodes += int(b"panel_" in body)
-    check(panel_nodes == 72, "all 72 panel artwork placements remain discoverable")
+    check(found_panel_names == set(panel_names),
+          "all panel artwork and text placements must remain discoverable")
     check(len(private_ids) == 3, "panel background, controls and recommendation rows")
 
     for character_id in private_ids:
@@ -146,9 +192,12 @@ def check_asset(path):
         for requested in (1, 2, 0):
             check(bool(frames[requested]) == (requested != 0), "F10 show/hide frames")
 
-    check_button_setup_order(Path(__file__).resolve().parents[1])
-    print("House UI asset: 72 panel nodes, 4 unique AS3 first-frame stops; "
-          "buttons stay hidden, then materialize before native setup.")
+    repo_root = Path(__file__).resolve().parents[1]
+    check_button_setup_order(repo_root)
+    check_panel_lookup_names(repo_root)
+    print(f"House UI asset: {len(panel_names)} short panel instances, 4 "
+          "unique AS3 first-frame stops; buttons stay hidden, then "
+          "materialize before native setup.")
 
 
 if __name__ == "__main__":
