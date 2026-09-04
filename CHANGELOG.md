@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Resolves all runtime MewUI addresses from a clean `SEC_IMAGE` mapping of the
+  executable that launched the current process. Another MOD may therefore hook
+  scene-ready first without erasing the signature AutoCattery still needs to
+  join Mewjector's existing hook chain.
+- Adds a regression check showing that a simulated scene-ready hook invalidates
+  the old live-memory signature while the unmodified executable remains
+  uniquely resolvable. Successful startup now logs whether the clean executable
+  image or the live fallback supplied the addresses.
 - Replaces every MOD-owned F10 panel instance name with an ASCII name of at
   most 15 bytes. This keeps current beta House attachment on the native inline
   string path instead of transferring dozens of heap-backed lookup strings to

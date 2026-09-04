@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 32,
-  "completed_stage": 31,
+  "active_stage": 33,
+  "completed_stage": 32,
   "current_release": {
     "version": "0.5.24",
     "commit": "c33fe74bf140ff386c40f9c9bb73df60a4bb430e",
@@ -10,14 +10,14 @@
     "validation": "house_buttons_f10_move_only_and_current_player_flows_passed"
   },
   "test_candidate": {
-    "version": "0.5.26",
+    "version": "0.5.27",
     "status": "local_deployed_player_validation_pending",
-    "change": "beta_house_panel_inline_node_names",
-    "verification": "panel_name_contract_and_debug_release_ctest_5_of_5_dll_smoke_passed"
+    "change": "clean_executable_runtime_locator_survives_prior_hook",
+    "verification": "beta_locator_hook_mutation_regression_and_debug_release_ctest_5_of_5_passed"
   },
   "capabilities": {
-    "runtime_execution": "v0.5.24_player_validated_v0.5.26_beta_crash_retest_pending",
-    "mew_ui_addressing": "runtime_unique_function_location_no_hash_timestamp_or_version_whitelist",
+    "runtime_execution": "v0.5.24_player_validated_v0.5.27_beta_coexistence_retest_pending",
+    "mew_ui_addressing": "clean_sec_image_unique_function_location_with_live_fallback",
     "panel_node_lookup": "all_mod_owned_panel_names_ascii_unique_and_at_most_15_bytes",
     "room_layouts": "two_three_four_room_player_validated_on_v0.5.24",
     "protection": "player_validated_opt_in_stable_identity_rules",
@@ -25,10 +25,10 @@
     "real_cull": "disabled"
   },
   "deferred": {
-    "v0.5.26_player_validation": "waiting_for_beta_house_entry_f10_buttons_and_scene_transition_test",
+    "v0.5.27_player_validation": "waiting_for_beta_three_mod_coexistence_house_f10_and_buttons_test",
     "breeding_longitudinal_feedback": "waiting_for_more_player_game_days",
     "future_features": "start_only_after_explicit_user_request"
   },
   "historical_issue_policy": "superseded historical failures are not current issues without new evidence",
-  "updated_at": "2026-09-04T23:29:56+08:00"
+  "updated_at": "2026-09-05T00:00:00+08:00"
 }

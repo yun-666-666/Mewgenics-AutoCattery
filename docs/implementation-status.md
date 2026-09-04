@@ -1,27 +1,32 @@
 # AutoCattery 当前实现状态
 
-更新日期：2026-09-04
+更新日期：2026-09-05
 
-本文区分当前公开版本 v0.5.24 与已部署、等待玩家验证的 v0.5.26 测试候选。
+本文区分当前公开版本 v0.5.24 与已部署、等待玩家验证的 v0.5.27 测试候选。
 历史阶段报告和旧版本故障用于追溯，不代表当前版本仍存在同类问题。
 
-## v0.5.26 本地测试候选
+## v0.5.27 本地测试候选
 
-- 保留 v0.5.25 的运行时 MewUI 地址定位，并修复当前 BETA 进入 House 后稳定发生的
-  管理面板挂载崩溃。
-- 两次独立启动均在 `HouseReady` 和 `AC18000` 后约两秒以 `0xC0000005`、
-  `Mewgenics.exe+0x963041` 终止；时间顺序锁定首次管理面板挂载路径。
-- 全部 145 个 MOD 自有管理面板 artwork/text 实例改为唯一、ASCII 且不超过
-  15 字节的名称，避免原生 child lookup 进入 heap-backed 字符串所有权转移路径。
-- 运行时从实际加载的 `Mewgenics.exe` `.text` 中唯一定位 30 个所需 UI 地址，
-  不使用 EXE 哈希、时间戳或单版本地址白名单。
-- scene-ready、Button activate 和 Button can-activate Hook 均使用本次运行解析出的
-  RVA；任一必要地址不能唯一定位时不安装错误 Hook。
+- 保留 v0.5.26 的短管理面板节点名修复；玩家已确认该版本进入 House 不再闪退，
+  但 F10 和两个普通 House 按钮全部缺失。
+- 同次 BETA 启动 PID `28312` 中，CombineDuplicateFurniture v0.6.19 先通过
+  Mewjector Hook scene-ready `0x96AC50`；AutoCattery 的延迟 MewUI 初始化随后持续
+  报告 `Runtime UI locator could not uniquely resolve scene-ready update`，未到达
+  `AC1202`、`AC18000`、`AC3100` 或 `AC4100`。
+- 根因是先行 Hook 改写了进程内 `.text` 的 scene-ready 特征，不是按 BETA 版本号
+  禁用 AutoCattery，也没有关闭 F10 或 House 按钮。
+- 运行时改为从当前游戏进程实际 EXE 创建干净 `SEC_IMAGE` 映射，在未被其他 MOD
+  改写的映像中唯一定位 30 个 UI RVA，再通过 Mewjector 加入已有 Hook 链。
+- 干净映像使用 PE timestamp 与 image size 对照当前加载映像以确认身份；这是同一
+  映像校验，不是版本白名单。仅在干净映像无法打开时回退到进程内映像。
 - 当前 BETA 离线定位结果为 scene-ready `0x96AC50`、Button activate `0x97E8E0`、
   Button can-activate `0x97EAF0`。
-- 面板名称资产契约、Debug/Release CTest 5/5 与 DLL load smoke 均通过。
-- v0.5.26 已部署到本机 Mewjector/Mewtator 目录，配置、保护规则和本地数据保留。
-- 玩家状态：启动、F10、两个 House 按钮、存档切换和 House 重进测试待完成；
+- 新增回归测试模拟 scene-ready 特征首字节被先行 Hook 改写，确认旧的 live-image
+  策略失效而磁盘干净映像仍可完成 30/30 唯一定位。
+- Debug/Release CTest 5/5 与 DLL load smoke 均通过。
+- v0.5.27 已部署到本机 Mewjector/Mewtator 目录，配置、保护规则和本地数据保留。
+- 玩家状态：三个 MOD 同时启用时的启动、F10、两个 House 按钮、存档切换和 House
+  重进测试待完成；
   beta 布局仍以玩家实机结果为接受边界。
 
 ## 当前发布状态
@@ -85,5 +90,5 @@
 ## 证据解释
 
 证据优先级为当前代码、当前构建、最新运行日志和玩家对对应版本的实际结果。
-v0.5.24 的玩家通过结论不能代替 v0.5.26 的兼容性复测；同样，历史版本的崩溃、
+v0.5.24 的玩家通过结论不能代替 v0.5.27 的兼容性复测；同样，历史版本的崩溃、
 闪烁、卡顿或待验证记录不能覆盖已经取得的对应版本玩家结果。

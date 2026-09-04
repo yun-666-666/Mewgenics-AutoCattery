@@ -61,22 +61,50 @@ def main() -> int:
         print("usage: mew_ui_runtime_locator_tests.py <mew_ui_api.c> <Mewgenics.exe>")
         return 2
     source = Path(sys.argv[1]).read_text(encoding="utf-8")
+    for token in (
+            "GetModuleFileNameW",
+            "CreateFileMappingW",
+            "SEC_IMAGE",
+            "MapViewOfFile",
+            "MewUI_OpenCleanGameImage(&view)"):
+        if token not in source:
+            raise AssertionError(
+                f"runtime locator must scan a clean executable image: {token}")
     image = Path(sys.argv[2]).read_bytes()
     text_rva, text = text_section(image)
     entries = ENTRY.findall(source)
     if len(entries) < 25:
         raise AssertionError(f"only {len(entries)} runtime locator entries found")
     resolved = {}
+    match_offsets = {}
+    patterns = {}
     for name, pattern, displacement_offset, instruction_end_offset in entries:
         try:
-            match_rva = text_rva + locate_unique(text, pattern)
+            match_offset = locate_unique(text, pattern)
+            match_rva = text_rva + match_offset
         except AssertionError as error:
             raise AssertionError(f"{name}: {error}") from error
+        match_offsets[name] = match_offset
+        patterns[name] = pattern
         if displacement_offset:
             offset = match_rva - text_rva + int(displacement_offset)
             displacement = struct.unpack_from("<i", text, offset)[0]
             match_rva += int(instruction_end_offset) + displacement
         resolved[name] = match_rva
+    scene_name = "MEW_RVA_SCENE_READY_UPDATE"
+    scene_required = [token != "??" for token in patterns[scene_name].split()]
+    first_required = next(index for index, needed in enumerate(scene_required)
+                          if needed)
+    hooked_text = bytearray(text)
+    patch_offset = match_offsets[scene_name] + first_required
+    hooked_text[patch_offset] ^= 0xFF
+    try:
+        locate_unique(bytes(hooked_text), patterns[scene_name])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(
+            "the test hook mutation must invalidate the live scene-ready signature")
     scene_ready = resolved["MEW_RVA_SCENE_READY_UPDATE"]
     print(f"PASS: resolved {len(resolved)} unique runtime UI addresses")
     print(f"scene-ready update RVA: 0x{scene_ready:X}")
