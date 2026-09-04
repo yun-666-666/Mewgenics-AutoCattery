@@ -8,20 +8,51 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $vsRoot = 'C:\Program Files\Microsoft Visual Studio\2022\Community'
 $cmake = Join-Path $vsRoot 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+$ctest = Join-Path (Split-Path -Parent $cmake) 'ctest.exe'
 $dumpbin = Join-Path $vsRoot 'VC\Tools\MSVC'
+$vswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
+$vcvars = Join-Path $vsRoot 'VC\Auxiliary\Build\vcvars64.bat'
+$ninja = Join-Path $vsRoot 'Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe'
 
 if (-not (Test-Path -LiteralPath $cmake)) {
     throw 'Visual Studio bundled CMake was not found.'
 }
 
 $buildDirectory = Join-Path $projectRoot 'build'
-& $cmake -S $projectRoot -B $buildDirectory -G 'Visual Studio 17 2022' -A x64
+$registeredVisualStudio = if (Test-Path -LiteralPath $vswhere) {
+    & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        -property installationPath
+} else {
+    $null
+}
+if ($registeredVisualStudio) {
+    & $cmake -S $projectRoot -B $buildDirectory -G 'Visual Studio 17 2022' -A x64
+} else {
+    if (-not (Test-Path -LiteralPath $vcvars) -or
+        -not (Test-Path -LiteralPath $ninja)) {
+        throw 'Neither a registered Visual Studio instance nor the bundled MSVC/Ninja toolchain is available.'
+    }
+    $buildDirectory = Join-Path $projectRoot 'build-ninja'
+    $environment = & cmd.exe /d /s /c "`"$vcvars`" >nul && set"
+    if ($LASTEXITCODE -ne 0) { throw 'MSVC environment initialization failed.' }
+    foreach ($line in $environment) {
+        $separator = $line.IndexOf('=')
+        if ($separator -gt 0) {
+            [Environment]::SetEnvironmentVariable(
+                $line.Substring(0, $separator),
+                $line.Substring($separator + 1),
+                'Process')
+        }
+    }
+    & $cmake -S $projectRoot -B $buildDirectory -G 'Ninja Multi-Config' `
+        "-DCMAKE_MAKE_PROGRAM:FILEPATH=$ninja"
+}
 if ($LASTEXITCODE -ne 0) { throw 'CMake configure failed.' }
 
 & $cmake --build $buildDirectory --config $Configuration --parallel
 if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
 
-& $cmake --build $buildDirectory --config $Configuration --target RUN_TESTS
+& $ctest --test-dir $buildDirectory -C $Configuration --output-on-failure
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 
 $dist = Join-Path $projectRoot "dist\$Configuration"

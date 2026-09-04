@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Replaces fixed MewUI function RVAs with runtime discovery against the game
+  image that is actually running. Public and beta builds can resolve their own
+  UI addresses without an executable hash, timestamp gate, or single-version
+  address table; ambiguous or unavailable functions leave the UI disabled
+  instead of installing a hook at the wrong address.
+- Logs the resolved scene-ready and Button hook RVAs before installation so a
+  player startup report identifies the active game layout directly.
 - Recorded player acceptance of the current v0.5.24 House buttons, F10 panel,
   two/three/four-room MoveOnly flows, stale-preview cancellation, unassigned-cat
   handling, save/reload persistence, and repeated organization.
