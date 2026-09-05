@@ -2,32 +2,31 @@
 
 更新日期：2026-09-05
 
-本文区分当前公开版本 v0.5.24 与已部署、等待玩家验证的 v0.5.27 测试候选。
+本文区分当前公开版本 v0.5.24 与已完成本机部署、待玩家验证的 v0.5.28 测试候选。
 历史阶段报告和旧版本故障用于追溯，不代表当前版本仍存在同类问题。
 
-## v0.5.27 本地测试候选
+## v0.5.28 本地测试候选
 
-- 保留 v0.5.26 的短管理面板节点名修复；玩家已确认该版本进入 House 不再闪退，
-  但 F10 和两个普通 House 按钮全部缺失。
-- 同次 BETA 启动 PID `28312` 中，CombineDuplicateFurniture v0.6.19 先通过
-  Mewjector Hook scene-ready `0x96AC50`；AutoCattery 的延迟 MewUI 初始化随后持续
-  报告 `Runtime UI locator could not uniquely resolve scene-ready update`，未到达
-  `AC1202`、`AC18000`、`AC3100` 或 `AC4100`。
-- 根因是先行 Hook 改写了进程内 `.text` 的 scene-ready 特征，不是按 BETA 版本号
-  禁用 AutoCattery，也没有关闭 F10 或 House 按钮。
-- 运行时改为从当前游戏进程实际 EXE 创建干净 `SEC_IMAGE` 映射，在未被其他 MOD
-  改写的映像中唯一定位 30 个 UI RVA，再通过 Mewjector 加入已有 Hook 链。
-- 干净映像使用 PE timestamp 与 image size 对照当前加载映像以确认身份；这是同一
-  映像校验，不是版本白名单。仅在干净映像无法打开时回退到进程内映像。
-- 当前 BETA 离线定位结果为 scene-ready `0x96AC50`、Button activate `0x97E8E0`、
-  Button can-activate `0x97EAF0`。
-- 新增回归测试模拟 scene-ready 特征首字节被先行 Hook 改写，确认旧的 live-image
-  策略失效而磁盘干净映像仍可完成 30/30 唯一定位。
-- Debug/Release CTest 5/5 与 DLL load smoke 均通过。
-- v0.5.27 已部署到本机 Mewjector/Mewtator 目录，配置、保护规则和本地数据保留。
-- 玩家状态：三个 MOD 同时启用时的启动、F10、两个 House 按钮、存档切换和 House
-  重进测试待完成；
-  beta 布局仍以玩家实机结果为接受边界。
+- v0.5.27 已成功从干净 EXE 映像解析 scene-ready `0x96AC50`、Button activate
+  `0x97E8E0`、Button can-activate `0x97EAF0` 并到达 `AC1202`，因此 Stage 33 的
+  跨 MOD Hook 定位修复已经由两次实机启动证明生效。
+- 同两次启动 PID `29952`、`22356` 均进入 `HouseReady` 并记录 `AC18000`，随后
+  在 `Mewgenics.exe+0x963041` 以 `0xC0000005` 终止。
+- 两份完整转储的崩溃线程栈均含连续 AutoCattery 帧。调用点明确计算
+  `game_base + 0x963040`，并传入 House room component id `0x1D2`；这对应
+  `AcMewEnumerateNativeHouseRooms()` 的固定 component-bucket prepare 调用。
+- 当前 BETA 中该函数从 `0x963030` 开始，旧的 `0x963040` 落在内部 `call` 指令
+  的最后一个字节，恰好解释共同终止点 `0x963041` 与两次不同的非法写地址。
+- CombineDuplicateFurniture v0.6.20 在崩溃前只 Hook `0x1AC360`，日志明确说明
+  scene-ready Hook 延迟到家具模式；本次证据不支持归因给家具合并或技能 MOD。
+- v0.5.28 同时识别已验证稳定版 `0x963040` 和当前 BETA `0x963030`，仅在不含
+  相对调用位移的机器码签名完全匹配时调用；未知或歧义布局直接返回 0。
+- 当前 BETA 离线测试唯一解析 30 个 MewUI 地址，并将 component bucket prepare
+  解析为 `0x963030`；Debug/Release 构建、CTest 5/5 和 DLL load smoke 均通过。
+- 游戏退出后已部署 v0.5.28。AutoCattery 在 Mewtator 加载列表中恰好一次且位于
+  最后；用户配置、保护规则、本地数据和另外两个 MOD 均保留。
+- 玩家仍需验证 House 进入、F10、两个普通 House 按钮、MoveOnly 预览以及 House
+  重进；实际游戏行为仍是接受边界。
 
 ## 当前发布状态
 
@@ -90,5 +89,5 @@
 ## 证据解释
 
 证据优先级为当前代码、当前构建、最新运行日志和玩家对对应版本的实际结果。
-v0.5.24 的玩家通过结论不能代替 v0.5.27 的兼容性复测；同样，历史版本的崩溃、
+v0.5.24 的玩家通过结论不能代替 v0.5.28 的兼容性复测；同样，历史版本的崩溃、
 闪烁、卡顿或待验证记录不能覆盖已经取得的对应版本玩家结果。

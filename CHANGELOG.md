@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fixes the current beta House-entry crash after `AC18000`. Two independent
+  full dumps showed AutoCattery calling the legacy component-bucket preparation
+  RVA `0x963040`, which is ten bytes past the current beta function entry and
+  lands inside an instruction; both terminated at `Mewgenics.exe+0x963041`.
+- Selects the verified stable (`0x963040`) or current-beta (`0x963030`)
+  component-bucket preparation entry only when its invariant machine-code
+  signature matches. Unknown or ambiguous layouts now leave native room
+  enumeration unavailable instead of calling an unverified address.
 - Resolves all runtime MewUI addresses from a clean `SEC_IMAGE` mapping of the
   executable that launched the current process. Another MOD may therefore hook
   scene-ready first without erasing the signature AutoCattery still needs to
@@ -11,10 +19,10 @@
   uniquely resolvable. Successful startup now logs whether the clean executable
   image or the live fallback supplied the addresses.
 - Replaces every MOD-owned F10 panel instance name with an ASCII name of at
-  most 15 bytes. This keeps current beta House attachment on the native inline
-  string path instead of transferring dozens of heap-backed lookup strings to
-  the game, which was followed by the repeatable `Mewgenics.exe+0x963041`
-  access violation immediately after `AC18000`.
+  most 15 bytes, keeping current beta House attachment on the native inline
+  string path. Later full-dump analysis established that the repeated
+  `Mewgenics.exe+0x963041` crash was caused by the separate fixed native-room
+  RVA, not by these lookup strings.
 - Adds an asset/runtime contract test covering all 145 panel artwork and text
   instances, including uniqueness, the 15-byte limit, complete SWF placement,
   and agreement with the C++ lookup names.

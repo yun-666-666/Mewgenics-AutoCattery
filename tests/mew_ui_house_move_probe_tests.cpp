@@ -4,14 +4,46 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #include <windows.h>
 
+#include "mew_ui_house_move_adapter.h"
 #include "test_support.hpp"
 
 namespace autocattery::tests {
 
 void RunMewUiHouseMoveProbeTests() {
+    constexpr std::size_t kBetaPrepareRva = 0x963030U;
+    constexpr std::size_t kStablePrepareRva = 0x963040U;
+    constexpr std::array<std::uint8_t, 50> kPrepareSignature{
+        0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8B, 0xD9, 0x48,
+        0x83, 0xC1, 0x10, 0xE8, 0x11, 0x22, 0x33, 0x44, 0x4C, 0x8B,
+        0x03, 0x48, 0x8B, 0xD3, 0x48, 0x8B, 0xCB, 0x4D, 0x8B, 0x40,
+        0x08, 0xE8, 0x55, 0x66, 0x77, 0x88, 0x48, 0x8B, 0x0B, 0xBA,
+        0xA8, 0x00, 0x00, 0x00, 0x48, 0x83, 0xC4, 0x20, 0x5B, 0xE9
+    };
+    std::vector<std::uint8_t> executable(kStablePrepareRva + 0x80U);
+    auto install_prepare_signature = [&](std::size_t rva) {
+        std::copy(
+            kPrepareSignature.begin(),
+            kPrepareSignature.end(),
+            executable.begin() + rva);
+    };
+    install_prepare_signature(kBetaPrepareRva);
+    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
+                 executable.data(), executable.size()) == kBetaPrepareRva);
+    std::fill(
+        executable.begin() + kBetaPrepareRva,
+        executable.begin() + kBetaPrepareRva + kPrepareSignature.size(),
+        std::uint8_t{0});
+    install_prepare_signature(kStablePrepareRva);
+    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
+                 executable.data(), executable.size()) == kStablePrepareRva);
+    executable[kStablePrepareRva] = 0U;
+    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
+                 executable.data(), executable.size()) == 0U);
+
     std::array<std::uint8_t, AC_MEW_MOVE_PROBE_COMPONENT_BYTES> first{};
     std::array<std::uint8_t, AC_MEW_MOVE_PROBE_COMPONENT_BYTES> second{};
     std::array<std::uint8_t, AC_MEW_MOVE_PROBE_ROOT_BYTES> first_root{};

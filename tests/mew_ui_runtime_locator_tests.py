@@ -8,6 +8,11 @@ ENTRY = re.compile(
     r'\{(MEW_RVA_[A-Z0-9_]+), 0, "[^"]+", "([0-9A-F? ]+)", '
     r'(?:MEW_DIRECT_RVA|(\d+)U, (\d+)U)\}'
 )
+COMPONENT_BUCKET_PREPARE_PATTERN = (
+    "40 53 48 83 EC 20 48 8B D9 48 83 C1 10 E8 ?? ?? ?? ?? "
+    "4C 8B 03 48 8B D3 48 8B CB 4D 8B 40 08 E8 ?? ?? ?? ?? "
+    "48 8B 0B BA A8 00 00 00 48 83 C4 20 5B E9"
+)
 
 
 def text_section(image: bytes) -> tuple[int, bytes]:
@@ -54,6 +59,14 @@ def locate_unique(data: bytes, pattern: str) -> int:
         raise AssertionError(
             f"pattern resolved {len(matches)} matches instead of one")
     return matches[0]
+
+
+def matches_at(data: bytes, offset: int, pattern: str) -> bool:
+    tokens = pattern.split()
+    if offset < 0 or offset + len(tokens) > len(data):
+        return False
+    return all(token == "??" or data[offset + index] == int(token, 16)
+               for index, token in enumerate(tokens))
 
 
 def main() -> int:
@@ -106,10 +119,22 @@ def main() -> int:
         raise AssertionError(
             "the test hook mutation must invalidate the live scene-ready signature")
     scene_ready = resolved["MEW_RVA_SCENE_READY_UPDATE"]
+    component_candidates = (0x963030, 0x963040)
+    component_matches = [
+        rva for rva in component_candidates
+        if matches_at(
+            text, rva - text_rva, COMPONENT_BUCKET_PREPARE_PATTERN)
+    ]
+    if len(component_matches) != 1:
+        raise AssertionError(
+            "component bucket prepare candidate resolved "
+            f"{len(component_matches)} matches instead of one")
+    component_bucket_prepare = component_matches[0]
     print(f"PASS: resolved {len(resolved)} unique runtime UI addresses")
     print(f"scene-ready update RVA: 0x{scene_ready:X}")
     print(f"button activate RVA: 0x{resolved['MEW_RVA_BUTTON_ACTIVATE']:X}")
     print(f"button can-activate RVA: 0x{resolved['MEW_RVA_BUTTON_CAN_ACTIVATE']:X}")
+    print(f"component bucket prepare RVA: 0x{component_bucket_prepare:X}")
     return 0
 
 

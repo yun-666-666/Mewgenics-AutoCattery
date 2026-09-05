@@ -31,6 +31,10 @@ AcMewNativeHouseMoveResult AcMewInvokeNativeHouseMove(
     void* house_cat,
     void* target_room);
 
+uintptr_t AcMewSelectComponentBucketPrepareRva(
+    const uint8_t* image,
+    size_t image_size);
+
 #ifdef __cplusplus
 }
 #endif
