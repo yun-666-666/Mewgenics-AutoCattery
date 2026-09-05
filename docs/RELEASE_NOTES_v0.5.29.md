@@ -18,6 +18,6 @@
 
 Automated verification covers stable/current-beta native layout selection,
 room-count fallback, fail-closed rejection, current-beta offline EXE
-resolution, Debug and Release builds, CTest 5/5 and DLL loading. Actual preview,
-second-click movement and click-to-open behavior remain player-validation
-boundaries.
+resolution, Debug and Release builds, CTest 5/5 and DLL loading. Player testing
+passed on both the current beta and official game versions: the full preview,
+second-click movement, and click-to-open combat-cat detail flows all worked.

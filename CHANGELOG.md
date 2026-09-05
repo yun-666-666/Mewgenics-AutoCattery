@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Records player acceptance of v0.5.29 on both the current beta and official
+  game versions, including the full organization preview, second-click native
+  movement, and click-to-open combat recommendation details.
 - Restores current-beta MoveOnly previews by validating live `HouseCat`
   components by their engine type instead of the stable build's fixed vtable
   address. When the native room bucket is unavailable, the runtime snapshot

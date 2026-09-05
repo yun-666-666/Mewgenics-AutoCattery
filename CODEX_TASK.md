@@ -2,10 +2,10 @@
 
 更新日期：2026-09-05
 
-Stage 35 的 v0.5.29 BETA 房间指针、原生搬猫和战斗猫详情入口兼容修复已经完成，
-等待玩家实机复测。玩家使用 v0.5.28 已确认当前 BETA 能进入 House、显示两个按钮和
-F10 管理面板，但自动整理无法生成预览，战斗猫列表点击也不能打开猫详情。公开
-Latest Release 仍为玩家已验收的 v0.5.24。
+Stage 35 的 v0.5.29 BETA 房间指针、原生搬猫和战斗猫详情入口兼容修复已经完成。
+玩家已确认 BETA 与正式版游戏中的自动整理预览、第二次点击实际搬猫，以及点击战斗
+猫名称打开对应猫详情均通过。公开 Latest Release 暂仍为 v0.5.24；用户已明确授权
+发布 v0.5.29。
 
 ## Required reading
 
@@ -43,10 +43,9 @@ Latest Release 仍为玩家已验收的 v0.5.24。
 - 首轮 Debug 与 Release 构建成功；CTest 5/5 与 DLL load smoke 均通过。
 - code-simplifier 只简化本次房间集合类型和恒真条件；最终 v0.5.29 Debug/Release
   构建、CTest 5/5、DLL load smoke 与本机部署均已完成。
+- 玩家已确认 BETA 与正式版的自动整理预览、实际搬猫和战斗猫点击定位均通过。
 
 ## Next work
 
-由玩家保持 AutoCattery、CombineDuplicateFurniture、SkillsPassivesFirst 同时启用，
-通过 Mewtator 启动当前 BETA。进入同一 41 猫 House 后，第一次点击“自动整理猫舍”
-应生成完整预览，第二次点击应实际移动猫；点击战斗猫推荐名称应打开并定位对应猫的
-详情。完成后提供同次 AutoCattery 日志及预览/详情截图。
+按用户授权发布 v0.5.29：生成并验证 Windows x64 发布包，推送 `main`，创建并推送
+注释标签 `v0.5.29`，创建公开 Latest GitHub Release、上传二进制资产并远端复核。
