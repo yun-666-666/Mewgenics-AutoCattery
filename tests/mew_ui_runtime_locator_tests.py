@@ -13,6 +13,31 @@ COMPONENT_BUCKET_PREPARE_PATTERN = (
     "4C 8B 03 48 8B D3 48 8B CB 4D 8B 40 08 E8 ?? ?? ?? ?? "
     "48 8B 0B BA A8 00 00 00 48 83 C4 20 5B E9"
 )
+HOUSE_DETAIL_LAYOUTS = (
+    (0xEBEF0, 0xEFCB0, 0x1A93F0, 0x1FE082, 0x1FE262, 0x1FE2D5),
+    (0xEC7B0, 0xF0570, 0x1A9E10, 0x1FEAF2, 0x1FECD2, 0x1FED45),
+)
+HOUSE_DETAIL_OPEN_PATTERN = "40 53 48 83 EC 40 48 8B D9 48 85 D2"
+HOUSE_DETAIL_TARGET_PATTERN = (
+    "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 8B 71 18"
+)
+HOUSE_DETAIL_DRAWER_PATTERN = (
+    "48 89 5C 24 08 57 48 83 EC 20 48 8B 79 18 BA D5 01 00 00 "
+    "48 8B 5F 08 48"
+)
+HOUSE_DETAIL_CAT_CALL_PATTERN = "49 8B CF E8 ?? ?? ?? ?? 4C 8B F8"
+HOUSE_DETAIL_DRAWER_CALL_PATTERN = (
+    "49 8B CE E8 ?? ?? ?? ?? 48 8B F8 49 83 7E 38 00"
+)
+HOUSE_DETAIL_OPEN_CALL_PATTERN = (
+    "41 B0 01 49 8B D7 48 8B CF E8 ?? ?? ?? ??"
+)
+NATIVE_MOVE_CANDIDATES = (
+    (0x2E7DB0, "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20"),
+    (0x2E88D0,
+     "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 8B F9 "
+     "48 8B F2 48 8B 49 70 4C 8B C2 8B 47 6C"),
+)
 
 
 def text_section(image: bytes) -> tuple[int, bytes]:
@@ -67,6 +92,31 @@ def matches_at(data: bytes, offset: int, pattern: str) -> bool:
         return False
     return all(token == "??" or data[offset + index] == int(token, 16)
                for index, token in enumerate(tokens))
+
+
+def relative_call_target(data: bytes, offset: int) -> int | None:
+    if offset < 0 or offset + 5 > len(data) or data[offset] != 0xE8:
+        return None
+    return offset + 5 + struct.unpack_from("<i", data, offset + 1)[0]
+
+
+def detail_layout_matches(
+        text: bytes, text_rva: int, layout: tuple[int, ...]) -> bool:
+    open_rva, target_rva, drawer_rva, cat_call, drawer_call, open_call = layout
+    offsets = [value - text_rva for value in layout]
+    open_offset, target_offset, drawer_offset = offsets[:3]
+    cat_call_offset, drawer_call_offset, open_call_offset = offsets[3:]
+    return (
+        matches_at(text, open_offset, HOUSE_DETAIL_OPEN_PATTERN) and
+        matches_at(text, target_offset, HOUSE_DETAIL_TARGET_PATTERN) and
+        matches_at(text, drawer_offset, HOUSE_DETAIL_DRAWER_PATTERN) and
+        matches_at(text, cat_call_offset, HOUSE_DETAIL_CAT_CALL_PATTERN) and
+        relative_call_target(text, cat_call_offset + 3) == target_offset and
+        matches_at(text, drawer_call_offset,
+                   HOUSE_DETAIL_DRAWER_CALL_PATTERN) and
+        relative_call_target(text, drawer_call_offset + 3) == drawer_offset and
+        matches_at(text, open_call_offset, HOUSE_DETAIL_OPEN_CALL_PATTERN) and
+        relative_call_target(text, open_call_offset + 9) == open_offset)
 
 
 def main() -> int:
@@ -130,11 +180,33 @@ def main() -> int:
             "component bucket prepare candidate resolved "
             f"{len(component_matches)} matches instead of one")
     component_bucket_prepare = component_matches[0]
+    detail_matches = [
+        layout for layout in HOUSE_DETAIL_LAYOUTS
+        if detail_layout_matches(text, text_rva, layout)
+    ]
+    if len(detail_matches) != 1:
+        raise AssertionError(
+            f"House detail layout resolved {len(detail_matches)} matches "
+            "instead of one")
+    detail_layout = detail_matches[0]
+    native_move_matches = [
+        candidate_rva for candidate_rva, pattern in NATIVE_MOVE_CANDIDATES
+        if matches_at(text, candidate_rva - text_rva, pattern)
+    ]
+    if len(native_move_matches) != 1:
+        raise AssertionError(
+            f"native House move resolved {len(native_move_matches)} matches "
+            "instead of one")
+    native_move = native_move_matches[0]
     print(f"PASS: resolved {len(resolved)} unique runtime UI addresses")
     print(f"scene-ready update RVA: 0x{scene_ready:X}")
     print(f"button activate RVA: 0x{resolved['MEW_RVA_BUTTON_ACTIVATE']:X}")
     print(f"button can-activate RVA: 0x{resolved['MEW_RVA_BUTTON_CAN_ACTIVATE']:X}")
     print(f"component bucket prepare RVA: 0x{component_bucket_prepare:X}")
+    print(f"House detail open RVA: 0x{detail_layout[0]:X}")
+    print(f"House detail target RVA: 0x{detail_layout[1]:X}")
+    print(f"House drawer resolver RVA: 0x{detail_layout[2]:X}")
+    print(f"native House move RVA: 0x{native_move:X}")
     return 0
 
 

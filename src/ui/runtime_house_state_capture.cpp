@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <unordered_set>
 
 #include "mew_ui_house_cat_probe.h"
 #include "mew_ui_house_move_adapter.h"
@@ -9,6 +10,21 @@
 #include "mew_ui_live_house_state.h"
 
 namespace autocattery::ui {
+
+std::size_t InferAvailableRoomCount(
+    std::size_t native_room_count,
+    std::span<const RuntimeCatRoomState> cats) {
+    if (native_room_count > 2U) {
+        return std::clamp<std::size_t>(native_room_count - 2U, 2U, 4U);
+    }
+    std::unordered_set<RuntimePointer> occupied_rooms;
+    for (const auto& cat : cats) {
+        if (cat.room != 0U) {
+            occupied_rooms.insert(cat.room);
+        }
+    }
+    return std::clamp<std::size_t>(occupied_rooms.size(), 2U, 4U);
+}
 
 Result<RuntimeHouseState> CaptureRuntimeHouseState(
     void* house_scene_manager) {
@@ -38,10 +54,6 @@ Result<RuntimeHouseState> CaptureRuntimeHouseState(
         native_rooms.data(),
         native_rooms.size());
     RuntimeHouseState result;
-    result.available_room_count = std::clamp<std::size_t>(
-        native_count > 2U ? native_count - 2U : 2U,
-        2U,
-        4U);
     result.cats.reserve(cats.size());
     for (const auto& cat : cats) {
         result.cats.push_back({
@@ -50,6 +62,8 @@ Result<RuntimeHouseState> CaptureRuntimeHouseState(
             reinterpret_cast<RuntimePointer>(cat.room)
         });
     }
+    result.available_room_count = InferAvailableRoomCount(
+        native_count, result.cats);
     result.rooms.reserve(native_count);
     for (std::size_t index = 0; index < native_count; ++index) {
         RuntimeRoomEvidence evidence;

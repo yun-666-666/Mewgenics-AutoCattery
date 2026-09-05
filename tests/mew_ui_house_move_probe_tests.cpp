@@ -44,6 +44,35 @@ void RunMewUiHouseMoveProbeTests() {
     AC_CHECK(AcMewSelectComponentBucketPrepareRva(
                  executable.data(), executable.size()) == 0U);
 
+    constexpr std::size_t kBetaMoveRva = 0x2E88D0U;
+    constexpr std::size_t kStableMoveRva = 0x2E7DB0U;
+    constexpr std::array<std::uint8_t, 31> kMoveSignature{
+        0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74,
+        0x24, 0x10, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48,
+        0x8B, 0xF9, 0x48, 0x8B, 0xF2, 0x48, 0x8B, 0x49,
+        0x70, 0x4C, 0x8B, 0xC2, 0x8B, 0x47, 0x6C
+    };
+    std::vector<std::uint8_t> move_image(kBetaMoveRva + 0x80U);
+    std::copy_n(
+        kMoveSignature.begin(),
+        15,
+        move_image.begin() + kStableMoveRva);
+    AC_CHECK(AcMewSelectNativeHouseMoveRva(
+                 move_image.data(), move_image.size()) == kStableMoveRva);
+    std::fill(
+        move_image.begin() + kStableMoveRva,
+        move_image.begin() + kStableMoveRva + 15,
+        std::uint8_t{0});
+    std::copy(
+        kMoveSignature.begin(),
+        kMoveSignature.end(),
+        move_image.begin() + kBetaMoveRva);
+    AC_CHECK(AcMewSelectNativeHouseMoveRva(
+                 move_image.data(), move_image.size()) == kBetaMoveRva);
+    move_image[kBetaMoveRva] = 0U;
+    AC_CHECK(AcMewSelectNativeHouseMoveRva(
+                 move_image.data(), move_image.size()) == 0U);
+
     std::array<std::uint8_t, AC_MEW_MOVE_PROBE_COMPONENT_BYTES> first{};
     std::array<std::uint8_t, AC_MEW_MOVE_PROBE_COMPONENT_BYTES> second{};
     std::array<std::uint8_t, AC_MEW_MOVE_PROBE_ROOT_BYTES> first_root{};

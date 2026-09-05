@@ -35,6 +35,10 @@ uintptr_t AcMewSelectComponentBucketPrepareRva(
     const uint8_t* image,
     size_t image_size);
 
+uintptr_t AcMewSelectNativeHouseMoveRva(
+    const uint8_t* image,
+    size_t image_size);
+
 #ifdef __cplusplus
 }
 #endif

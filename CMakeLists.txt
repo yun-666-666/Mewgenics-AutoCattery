@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.28 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.29 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -297,6 +297,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/workflow_recommendation_writer_tests.cpp
         tests/lz4_block_tests.cpp
         tests/mew_ui_house_cat_probe_tests.cpp
+        tests/mew_ui_house_detail_adapter_tests.cpp
         tests/mew_ui_house_move_probe_tests.cpp
         tests/mew_ui_safe_node_lookup_tests.cpp
         tests/house_move_probe_session_tests.cpp

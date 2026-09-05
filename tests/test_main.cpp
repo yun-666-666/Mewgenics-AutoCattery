@@ -42,6 +42,7 @@ void RunInGamePreviewModelTests();
 void RunVirtualViewportTests();
 void RunLz4BlockTests();
 void RunMewUiHouseCatProbeTests();
+void RunMewUiHouseDetailAdapterTests();
 void RunMewUiHouseMoveProbeTests();
 void RunMewUiSafeNodeLookupTests();
 void RunModuleRegistryTests();
@@ -123,6 +124,7 @@ int main() {
     autocattery::tests::RunVirtualViewportTests();
     autocattery::tests::RunLz4BlockTests();
     autocattery::tests::RunMewUiHouseCatProbeTests();
+    autocattery::tests::RunMewUiHouseDetailAdapterTests();
     autocattery::tests::RunMewUiHouseMoveProbeTests();
     autocattery::tests::RunMewUiSafeNodeLookupTests();
     autocattery::tests::RunModuleRegistryTests();

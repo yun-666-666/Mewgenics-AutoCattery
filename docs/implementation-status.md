@@ -2,31 +2,26 @@
 
 更新日期：2026-09-05
 
-本文区分当前公开版本 v0.5.24 与已完成本机部署、待玩家验证的 v0.5.28 测试候选。
+本文区分当前公开版本 v0.5.24 与待完成本机部署、玩家验证的 v0.5.29 测试候选。
 历史阶段报告和旧版本故障用于追溯，不代表当前版本仍存在同类问题。
 
-## v0.5.28 本地测试候选
+## v0.5.29 本地测试候选
 
-- v0.5.27 已成功从干净 EXE 映像解析 scene-ready `0x96AC50`、Button activate
-  `0x97E8E0`、Button can-activate `0x97EAF0` 并到达 `AC1202`，因此 Stage 33 的
-  跨 MOD Hook 定位修复已经由两次实机启动证明生效。
-- 同两次启动 PID `29952`、`22356` 均进入 `HouseReady` 并记录 `AC18000`，随后
-  在 `Mewgenics.exe+0x963041` 以 `0xC0000005` 终止。
-- 两份完整转储的崩溃线程栈均含连续 AutoCattery 帧。调用点明确计算
-  `game_base + 0x963040`，并传入 House room component id `0x1D2`；这对应
-  `AcMewEnumerateNativeHouseRooms()` 的固定 component-bucket prepare 调用。
-- 当前 BETA 中该函数从 `0x963030` 开始，旧的 `0x963040` 落在内部 `call` 指令
-  的最后一个字节，恰好解释共同终止点 `0x963041` 与两次不同的非法写地址。
-- CombineDuplicateFurniture v0.6.20 在崩溃前只 Hook `0x1AC360`，日志明确说明
-  scene-ready Hook 延迟到家具模式；本次证据不支持归因给家具合并或技能 MOD。
-- v0.5.28 同时识别已验证稳定版 `0x963040` 和当前 BETA `0x963030`，仅在不含
-  相对调用位移的机器码签名完全匹配时调用；未知或歧义布局直接返回 0。
-- 当前 BETA 离线测试唯一解析 30 个 MewUI 地址，并将 component bucket prepare
-  解析为 `0x963030`；Debug/Release 构建、CTest 5/5 和 DLL load smoke 均通过。
-- 游戏退出后已部署 v0.5.28。AutoCattery 在 Mewtator 加载列表中恰好一次且位于
-  最后；用户配置、保护规则、本地数据和另外两个 MOD 均保留。
-- 玩家仍需验证 House 进入、F10、两个普通 House 按钮、MoveOnly 预览以及 House
-  重进；实际游戏行为仍是接受边界。
+- 玩家使用 v0.5.28 已确认当前 BETA 能进入 House，两个普通按钮和 F10 管理面板
+  正常出现，不再发生此前 `Mewgenics.exe+0x963041` 崩溃。
+- 同次 41 猫运行中，自动整理每次点击只记录 `AC3102`、`AC14315`、`AC14314`，
+  没有预览成功的 `AC11100`；运行时为 `native room components=0`。
+- 根因是当前房间读取仍要求稳定版固定 HouseCat vtable `0xEF4F58`。当前 BETA 已
+  可靠映射 41/41 个 HouseCat 及其类型，但固定 vtable 不匹配导致房间指针全为空。
+- v0.5.29 改用引擎 `HouseCat` 类型验证，并在原生 room bucket 不可用时按非空、
+  不重复的实际占用房间指针推导安全房间数；房间身份不完整或歧义时仍拒绝预览/执行。
+- 战斗推荐已成功生成 `marked=10`，但每次点击均为 `AC12109 signature=0`。当前 BETA
+  的详情打开、详情目标、抽屉解析入口分别为 `0xEC7B0`、`0xF0570`、`0x1A9E10`；
+  v0.5.29 将它们与三个调用点作为一个完整布局校验后才调用。
+- 当前 BETA 原生搬猫入口为 `0x2E88D0`；稳定版 `0x2E7DB0` 继续保留。未知或歧义
+  机器码布局安全返回，不调用原生函数。
+- 当前 BETA 离线测试已唯一解析全部上述入口；最终 Debug/Release 构建、CTest 5/5
+  和 DLL load smoke 已通过，v0.5.29 已在游戏退出后部署。玩家实测仍是接受边界。
 
 ## 当前发布状态
 

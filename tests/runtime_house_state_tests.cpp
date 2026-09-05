@@ -1,7 +1,9 @@
 #include "runtime_house_state.hpp"
 #include "runtime_house_move_gateway.hpp"
+#include "runtime_house_state_capture.hpp"
 
 #include <algorithm>
+#include <array>
 
 #include "test_support.hpp"
 
@@ -54,6 +56,15 @@ const snapshot::RoomSnapshot& Room(
 }  // namespace
 
 void RunRuntimeHouseStateTests() {
+    const std::array<ui::RuntimeCatRoomState, 4> occupied_rooms{{
+        {1, 1, 100},
+        {2, 2, 100},
+        {3, 3, 200},
+        {4, 4, 300}
+    }};
+    AC_CHECK(ui::InferAvailableRoomCount(0, occupied_rooms) == 3);
+    AC_CHECK(ui::InferAvailableRoomCount(5, occupied_rooms) == 3);
+
     room_planning::RoomPlan no_op;
     no_op.fully_satisfied = true;
     no_op.disposition = room_planning::PlanDisposition::Complete;

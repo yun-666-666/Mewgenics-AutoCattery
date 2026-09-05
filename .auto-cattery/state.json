@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 34,
-  "completed_stage": 33,
+  "active_stage": 35,
+  "completed_stage": 34,
   "current_release": {
     "version": "0.5.24",
     "commit": "c33fe74bf140ff386c40f9c9bb73df60a4bb430e",
@@ -10,15 +10,15 @@
     "validation": "house_buttons_f10_move_only_and_current_player_flows_passed"
   },
   "test_candidate": {
-    "version": "0.5.28",
+    "version": "0.5.29",
     "status": "local_deployed_player_validation_pending",
-    "change": "signature_checked_stable_and_beta_component_bucket_prepare_rva",
-    "verification": "two_full_dumps_identical_963041_crash_beta_offline_963030_debug_release_ctest_5_of_5_dll_load_and_local_deploy_passed"
+    "change": "beta_house_cat_room_move_and_detail_layout_resolution",
+    "verification": "v0528_player_log_root_causes_beta_offline_detail_and_move_resolution_final_debug_release_ctest_5_of_5_dll_load_and_local_deploy_passed"
   },
   "capabilities": {
-    "runtime_execution": "v0.5.24_player_validated_v0.5.28_beta_house_entry_retest_pending",
+    "runtime_execution": "v0.5.24_player_validated_v0.5.29_beta_preview_move_and_detail_retest_pending",
     "mew_ui_addressing": "clean_sec_image_unique_function_location_with_live_fallback",
-    "native_room_enumeration": "signature_checked_stable_or_current_beta_prepare_entry",
+    "native_room_enumeration": "signature_checked_prepare_with_occupied_room_pointer_fallback",
     "panel_node_lookup": "all_mod_owned_panel_names_ascii_unique_and_at_most_15_bytes",
     "room_layouts": "two_three_four_room_player_validated_on_v0.5.24",
     "protection": "player_validated_opt_in_stable_identity_rules",
@@ -26,10 +26,10 @@
     "real_cull": "disabled"
   },
   "deferred": {
-    "v0.5.28_player_validation": "waiting_for_beta_house_entry_f10_buttons_and_move_only_test",
+    "v0.5.29_player_validation": "waiting_for_beta_preview_move_and_recommendation_detail_test",
     "breeding_longitudinal_feedback": "waiting_for_more_player_game_days",
     "future_features": "start_only_after_explicit_user_request"
   },
   "historical_issue_policy": "superseded historical failures are not current issues without new evidence",
-  "updated_at": "2026-09-05T01:05:00+08:00"
+  "updated_at": "2026-09-05T13:15:00+08:00"
 }

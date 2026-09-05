@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Restores current-beta MoveOnly previews by validating live `HouseCat`
+  components by their engine type instead of the stable build's fixed vtable
+  address. When the native room bucket is unavailable, the runtime snapshot
+  now derives the safe available-room count from distinct occupied room
+  pointers; unknown or incomplete room identity still fails closed.
+- Resolves the current-beta native House move entry at `0x2E88D0` while
+  preserving the verified stable `0x2E7DB0` entry. Each candidate must match
+  its expected machine-code signature before a move can be invoked.
+- Restores click-to-open behavior for the combat recommendation list by
+  selecting a complete stable/current-beta House-detail layout. The target
+  resolver, drawer resolver, open-details function and all three relative
+  call sites must agree before any native detail call is allowed.
 - Fixes the current beta House-entry crash after `AC18000`. Two independent
   full dumps showed AutoCattery calling the legacy component-bucket preparation
   RVA `0x963040`, which is ten bytes past the current beta function entry and

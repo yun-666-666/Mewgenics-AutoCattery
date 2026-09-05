@@ -2,9 +2,10 @@
 
 更新日期：2026-09-05
 
-Stage 34 的 v0.5.28 BETA 原生房间枚举入口修复、自动验证和本机部署已经完成，
-等待玩家实机复测。玩家使用 v0.5.27 连续两次进入 House 后均闪退；公开 Latest
-Release 仍为玩家已验收的 v0.5.24。
+Stage 35 的 v0.5.29 BETA 房间指针、原生搬猫和战斗猫详情入口兼容修复已经完成，
+等待玩家实机复测。玩家使用 v0.5.28 已确认当前 BETA 能进入 House、显示两个按钮和
+F10 管理面板，但自动整理无法生成预览，战斗猫列表点击也不能打开猫详情。公开
+Latest Release 仍为玩家已验收的 v0.5.24。
 
 ## Required reading
 
@@ -15,38 +16,37 @@ Release 仍为玩家已验收的 v0.5.24。
 5. `.auto-cattery/state.json`
 6. 当前代码、测试、最新运行日志和 `git status --short`
 
-## Stage 34 scope
+## Stage 35 scope
 
-- 两次独立启动 PID `29952`、`22356` 均成功记录 clean-image locator、三项 runtime
-  UI RVA、`AC1202`、`HouseReady` 和 `AC18000`，证明 Stage 33 的跨 MOD Hook 修复生效。
-- 两份完整转储均为 `0xC0000005`、`Mewgenics.exe+0x963041`，崩溃线程栈含连续
-  AutoCattery 帧；调用点把目标设为 `game_base + 0x963040`，参数 component id 为
-  `0x1D2`，对应 `AcMewEnumerateNativeHouseRooms()` 的固定房间 bucket 准备入口。
-- 当前 BETA 的真实函数入口为 `0x963030`；`0x963040` 位于入口内部一条 `call`
-  指令的最后一个字节，执行会跳到 `0x963041` 并写入随机地址。
-- CombineDuplicateFurniture v0.6.20 当时只安装 `0x1AC360` Hook，并明确延迟
-  scene-ready Hook 到家具模式；本次崩溃不归因于家具合并 MOD。
-- 修复必须同时保留已验证稳定版 `0x963040` 和当前 BETA `0x963030`，调用前验证
-  不受相对调用位移影响的函数签名；未知或歧义布局安全返回 0，不调用原生入口。
+- v0.5.28 同次运行日志记录 `cats=41, native room components=0, available rooms=2`；
+  自动整理点击后只出现 `AC3102`、`AC14315`、`AC14314`，没有 `AC11100`，证明
+  预览在运行时房间映射阶段失败。
+- `AcMewReadHouseCatCurrentRoom()` 仍以稳定版固定 vtable RVA `0xEF4F58` 验证
+  `HouseCat`。当前 BETA 中 41/41 猫身份与类型均已可靠映射，但固定 vtable 不匹配，
+  因而所有当前房间指针被错误清空。
+- 战斗猫列表成功生成，日志为 `matched=41`、`marked=10`；每次点击均记录
+  `AC12109 signature=0`，证明详情适配器仍使用稳定版固定 RVA 并在 BETA 安全拒绝。
+- 修复必须保留稳定版入口，增加当前 BETA 的详情打开/目标/抽屉解析、原生搬猫入口，
+  所有布局都需要机器码与相对调用目标一致；未知或歧义布局安全返回。
 
 ## Required verification
 
-- 单元测试覆盖稳定版/BETA 入口选择和签名不匹配时的 fail-closed。
-- 当前 BETA 离线特征必须唯一解析到 component bucket prepare `0x963030`。
+- 单元测试覆盖稳定版/BETA 详情布局、原生搬猫入口、签名不匹配和占用房间计数回退。
+- 当前 BETA 离线特征必须唯一解析完整详情布局与原生搬猫入口。
 - Debug/Release CTest 与 DLL load smoke 必须通过。
-- 游戏退出后部署 v0.5.28，保留配置、保护规则、本地数据和其他 MOD。
+- 游戏退出后部署 v0.5.29，保留配置、保护规则、本地数据和其他 MOD。
 
 ## Verification completed
 
-- 当前 BETA 离线特征唯一解析 30 个 MewUI 地址，并将 component bucket prepare
-  解析为 `0x963030`。
-- Debug 与 Release 构建均成功；CTest 5/5 与 DLL load smoke 均通过。
-- 游戏退出后已部署 v0.5.28；AutoCattery 在 Mewtator `modlist.txt` 中恰好一次且
-  位于最后，用户配置、保护规则、本地数据和另外两个 MOD 均保留。
+- 当前 BETA 离线解析确认详情打开 `0xEC7B0`、详情目标 `0xF0570`、抽屉解析
+  `0x1A9E10`、原生搬猫 `0x2E88D0`，并保留稳定版布局。
+- 首轮 Debug 与 Release 构建成功；CTest 5/5 与 DLL load smoke 均通过。
+- code-simplifier 只简化本次房间集合类型和恒真条件；最终 v0.5.29 Debug/Release
+  构建、CTest 5/5、DLL load smoke 与本机部署均已完成。
 
 ## Next work
 
 由玩家保持 AutoCattery、CombineDuplicateFurniture、SkillsPassivesFirst 同时启用，
-通过 Mewtator 启动当前 BETA。进入 House 后应越过此前 `AC18000` 后的崩溃点，出现
-`AC3100`、`AC4100`，再验证 F10、Esc、两个普通 House 按钮、MoveOnly 预览以及
-离开/重进 House。
+通过 Mewtator 启动当前 BETA。进入同一 41 猫 House 后，第一次点击“自动整理猫舍”
+应生成完整预览，第二次点击应实际移动猫；点击战斗猫推荐名称应打开并定位对应猫的
+详情。完成后提供同次 AutoCattery 日志及预览/详情截图。
