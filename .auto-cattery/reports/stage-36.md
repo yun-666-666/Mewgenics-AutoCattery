@@ -1,6 +1,6 @@
 # Stage 36 — 战斗回家时 UI 根对象类型验证修复
 
-日期：2026-09-06。版本：v0.5.30。状态：本地构建、测试、部署及玩家实机验证完成；GitHub Release 发布已获授权。
+日期：2026-09-06。版本：v0.5.30。状态：本地构建、测试、部署、玩家实机验证及 GitHub Release 发布均已完成。
 
 ## 证据与判断
 
@@ -31,6 +31,19 @@
 
 没有实现后续功能，也没有转派其他 MOD 项目，因为当前证据首先指向本 MOD 的查找路径。
 
-本地实现提交：`96eb0c8fd80d8be4b4b19b9daa2dcf8b46e7dbe7`（fix(ui): validate display container types before House node lookup）。
-玩家已授权发布 v0.5.30；远端 Release 结果将在发布后补记。
-是否 push：实现提交已推送；发布标签待创建。
+## GitHub 发布
+
+- Windows x64 包含 21 个文件、恰好一个 `AutoCattery.dll`、不包含
+  `AutoCatteryFurniture`，并包含 v0.5.30 发布说明；描述和 DLL 版本均为 `0.5.30`。
+- `main`、注释标签 `v0.5.30` 与 Windows x64 ZIP 均已推送。
+- 注释标签指向玩家验收提交
+  `d47cdad4a7a1ade04ce4c0615e875afd34da66a3`。
+- GitHub API 已确认 Release 公开、非草稿、非预发布并为 Latest：
+  `https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.30`。
+- 发布资产：`AutoCattery-v0.5.30-Windows-x64.zip`，状态 `uploaded`。
+
+## Git
+
+- Stage 36 实现提交：`96eb0c8fd80d8be4b4b19b9daa2dcf8b46e7dbe7`。
+- 玩家验收与发布标签提交：`d47cdad4a7a1ade04ce4c0615e875afd34da66a3`。
+- 是否 push：是。

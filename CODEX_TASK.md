@@ -3,9 +3,9 @@
 更新日期：2026-09-06
 
 Stage 36 的 v0.5.30 House 子对象类型验证修复已经完成。玩家已确认在原先失败的
-存档中完成战斗并回家后不再闪退。实现提交
-`96eb0c8fd80d8be4b4b19b9daa2dcf8b46e7dbe7` 已推送到 `main`，用户已明确授权
-发布 v0.5.30 GitHub Release。
+存档中完成战斗并回家后不再闪退。v0.5.30 已推送并发布为公开 GitHub Latest
+Release；注释标签指向玩家验收提交
+`d47cdad4a7a1ade04ce4c0615e875afd34da66a3`。
 
 ## Required reading
 
@@ -42,5 +42,4 @@ Stage 36 的 v0.5.30 House 子对象类型验证修复已经完成。玩家已�
 
 ## Next work
 
-按用户授权发布 v0.5.30：生成并验证 Windows x64 发布包，创建并推送注释标签
-`v0.5.30`，创建公开 Latest GitHub Release、上传二进制资产并远端复核。
+Stage 36 已完成并发布。只有在用户明确提出下一项功能或新问题后才开始后续阶段。
