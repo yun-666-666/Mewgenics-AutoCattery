@@ -7,10 +7,30 @@
 #include "mew_ui_scene_components.h"
 #include "test_support.hpp"
 
+// Mirror the native RTTI names without calling any game code.
+namespace glaiel::swf {
+class MovieClip {
+public:
+    virtual int Type() { return 2; }
+    virtual void Slot1() {}
+    virtual void Slot2() {}
+    virtual void Prepare() {}
+};
+class DisplayObjectContainer : public MovieClip {};
+class DisplayObjectContainer_DynamicBatched : public MovieClip {};
+}  // namespace glaiel::swf
+
 namespace autocattery::tests {
 namespace {
 
 void UiChildCollectionVirtualCallProbe() {}
+class UnrelatedSceneObject {
+public:
+    virtual ~UnrelatedSceneObject() = default;
+    virtual void Slot1() {}
+    virtual void Slot2() {}
+    virtual void Slot3() {}
+};
 
 }  // namespace
 
@@ -75,9 +95,25 @@ void RunMewUiSafeNodeLookupTests() {
     *reinterpret_cast<void***>(child_collection.data()) = vtable.data();
     vtable[0] = reinterpret_cast<void*>(&UiChildCollectionVirtualCallProbe);
     vtable[3] = reinterpret_cast<void*>(&UiChildCollectionVirtualCallProbe);
-    AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == root.data());
+    // Readable objects with executable virtual slots are not proof of UI type.
+    AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == nullptr);
 
     vtable[3] = reinterpret_cast<void*>(1);
+    AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == nullptr);
+
+    glaiel::swf::MovieClip clip;
+    glaiel::swf::DisplayObjectContainer container;
+    glaiel::swf::DisplayObjectContainer_DynamicBatched batched;
+    UnrelatedSceneObject unrelated;
+    *reinterpret_cast<void**>(root.data() + 0x80) = &unrelated;
+    AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == nullptr);
+    for (void* display : {static_cast<void*>(&clip),
+                          static_cast<void*>(&container),
+                          static_cast<void*>(&batched)}) {
+        *reinterpret_cast<void**>(root.data() + 0x80) = display;
+        AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == root.data());
+    }
+    *reinterpret_cast<void**>(root.data() + 0x80) = nullptr;
     AC_CHECK(AcMewGetValidatedComponentRoot(component.data()) == nullptr);
 }
 

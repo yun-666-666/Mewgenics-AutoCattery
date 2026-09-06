@@ -1,6 +1,7 @@
 #include "mew_ui_scene_components.h"
 
 #include <stdint.h>
+#include <string.h>
 #include <windows.h>
 
 static int AcMewReadableRange(const void* pointer, size_t byte_count) {
@@ -52,6 +53,46 @@ static int AcMewExecutableAddress(const void* pointer) {
            protection == PAGE_EXECUTE_WRITECOPY;
 }
 
+static int AcMewIsDisplayContainer(void** vtable) {
+    /* FindChildByName calls slots 3 and 0 before checking the object type.
+       Executable slots alone also accept unrelated objects and destructors. */
+    static const char* const names[] = {
+        ".?AVMovieClip@swf@glaiel@@",
+        ".?AVDisplayObjectContainer@swf@glaiel@@",
+        ".?AVDisplayObjectContainer_DynamicBatched@swf@glaiel@@"
+    };
+    const uintptr_t image = (uintptr_t)GetModuleHandleW(NULL);
+    MEMORY_BASIC_INFORMATION info;
+    size_t index;
+    __try {
+        const uint32_t* locator;
+        const char* name;
+        if (!vtable || VirtualQuery(vtable, &info, sizeof(info)) != sizeof(info) ||
+            info.Type != MEM_IMAGE || (uintptr_t)info.AllocationBase != image ||
+            !AcMewReadableRange(vtable - 1, sizeof(void*))) {
+            return 0;
+        }
+        locator = (const uint32_t*)vtable[-1];
+        if (!AcMewReadableRange(locator, 6U * sizeof(uint32_t)) ||
+            locator[0] != 1U || locator[1] != 0U ||
+            (uintptr_t)locator != image + locator[5]) {
+            return 0;
+        }
+        name = (const char*)(image + locator[3] + 2U * sizeof(void*));
+        for (index = 0; index < sizeof(names) / sizeof(names[0]); ++index) {
+            const size_t length = strlen(names[index]) + 1U;
+            if (AcMewReadableRange(name, length) &&
+                memcmp(name, names[index], length) == 0) {
+                return 1;
+            }
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+    return 0;
+}
+
 MewPodVectorPtr* AcMewGetValidatedSceneComponents(void* scene_manager) {
     MewPodVectorPtr* components;
     size_t data_size;
@@ -98,9 +139,6 @@ void* AcMewGetValidatedComponentRoot(void* component) {
     }
     __try {
         child_collection = *(void**)((uint8_t*)root + 0x80U);
-        if (!child_collection) {
-            return root;
-        }
         if (!AcMewReadableRange(child_collection, sizeof(void*))) {
             return NULL;
         }
@@ -109,7 +147,8 @@ void* AcMewGetValidatedComponentRoot(void* component) {
     __except (EXCEPTION_EXECUTE_HANDLER) {
         return NULL;
     }
-    if (!vtable || !AcMewReadableRange(vtable, 4U * sizeof(void*)) ||
+    if (!AcMewIsDisplayContainer(vtable) ||
+        !AcMewReadableRange(vtable, 4U * sizeof(void*)) ||
         !AcMewExecutableAddress(vtable[0]) ||
         !AcMewExecutableAddress(vtable[3])) {
         return NULL;
