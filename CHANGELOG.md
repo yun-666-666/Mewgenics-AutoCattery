@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Records player acceptance of v0.5.30: completing combat and returning to the
+  House no longer crashes on the previously failing save.
+- Validates the House child collection's MSVC RTTI before calling the game's
+  native child lookup, accepting only the verified display-container types and
+  rejecting unrelated objects even when their virtual slots are executable.
 - Records player acceptance of v0.5.29 on both the current beta and official
   game versions, including the full organization preview, second-click native
   movement, and click-to-open combat recommendation details.
