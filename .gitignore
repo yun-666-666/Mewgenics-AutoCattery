@@ -4,6 +4,7 @@
 /CMakeUserPresets.json
 /.codex/
 /.local/
+/.auto-cattery/local-archive/
 *.user
 *.suo
 *.VC.db
