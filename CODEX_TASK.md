@@ -1,45 +1,20 @@
-# CODEX CURRENT STATUS
+# CODEX CURRENT TASK
 
-更新日期：2026-09-06
+更新日期：2026-09-08
 
-Stage 36 的 v0.5.30 House 子对象类型验证修复已经完成。玩家已确认在原先失败的
-存档中完成战斗并回家后不再闪退。v0.5.30 已推送并发布为公开 GitHub Latest
-Release；注释标签指向玩家验收提交
-`d47cdad4a7a1ade04ce4c0615e875afd34da66a3`。
+## Stage 37：参考游戏数据修正通用繁育逻辑
 
-## Required reading
+用户明确纠正：游戏数据用于参考、发现问题和验证，不得针对当前猫群、房间或数量定制算法。
+先前统一把繁育房缩为两只的改动已撤回，旧构建监控 automation-3 已暂停，没有部署。
 
-1. `AGENTS.md`
-2. `README.md`
-3. `docs/implementation-status.md`
-4. `docs/pre-completion-functional-roadmap.md`
-5. `.auto-cattery/state.json`
-6. 当前代码、测试、最新运行日志和 `git status --short`
+本轮范围：修正七项繁育属性权重只进入单猫评分、未进入配对基础属性分的问题。所有权重来自现有 BreedingScoringConfig，不内置玩家本机数值。默认等权行为保持。
+继续使用现有分阶段繁育、近交与性向处理、通用房间规划和保护规则。不得写死猫ID、房间ID、猫数或人口分布。
 
-## Stage 36 scope
+## Verification
 
-- 最新崩溃发生在战斗后恢复 House UI、面板完成附加之前，原始栈落在游戏
-  `FindChildByName` 路径。
-- 原验证只确认 root+0x80 对象可读且虚表槽可执行，无法证明它属于可安全查找子节点的
-  UI 容器类型。
-- 调用原生子节点查找前验证主程序镜像中的 MSVC RTTI，仅接受当前已确认的
-  `MovieClip`、`DisplayObjectContainer` 与 `DisplayObjectContainer_DynamicBatched`；
-  空容器、无关对象或歧义布局安全返回。
+合成配对在七项覆盖、亲缘和性向相同条件下，改变智力/力量权重应切换推荐配对；默认权重保持原排序。
+Release 构建及 CTest，之后一次 code-simplifier，仅本地任务提交。
 
-## Required verification
+## Frontier
 
-- 单元测试覆盖有效显示容器、无关多态对象、伪造可执行虚表槽及空容器。
-- Release 构建、CTest 5/5 与 DLL load smoke 必须通过。
-- 游戏退出后部署 v0.5.30，保留配置、保护规则、本地数据和其他 MOD。
-- 玩家必须用原先失败的存档完成一次战斗并回家，确认不再闪退。
-
-## Verification completed
-
-- Release 构建成功；CTest 5/5 与 DLL load smoke 均通过。
-- code-simplifier 已审阅本次差异，无需额外简化。
-- 游戏退出后已部署 v0.5.30，未修改配置、存档或其他 MOD。
-- 玩家已确认完成战斗并返回 House 后不再闪退。
-
-## Next work
-
-Stage 36 已完成并发布。只有在用户明确提出下一项功能或新问题后才开始后续阶段。
+通用权重修正已通过 Release 构建、CTest 5/5（含 DLL load smoke）和 git diff --check。code-simplifier 已检查本次差异，无需额外简化。已确认游戏退出并部署 v0.5.31 DLL 与版本描述，未修改玩家配置、存档或其他 MOD。本地提交见阶段报告。玩家实机与多日出生收益尚未验收；Stage 36 仍是最近已完成玩家验收的阶段。

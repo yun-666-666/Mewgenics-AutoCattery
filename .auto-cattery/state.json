@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 36,
+  "active_stage": 37,
   "completed_stage": 36,
   "current_release": {
     "version": "0.5.30",
@@ -10,10 +10,10 @@
     "validation": "post_combat_return_home_no_longer_crashes"
   },
   "test_candidate": {
-    "version": "0.5.30",
-    "status": "promoted_to_public_latest_release",
-    "change": "validate_display_container_rtti_before_house_node_lookup",
-    "verification": "release_ctest_5_of_5_dll_load_local_deploy_and_player_post_combat_house_return_passed"
+    "version": "0.5.31",
+    "status": "locally_deployed_awaiting_player_validation",
+    "change": "honor_configured_stat_weights_in_generic_pair_scoring",
+    "verification": "release_build_ctest_5_of_5_dll_load_diff_check_and_simplifier_passed"
   },
   "capabilities": {
     "runtime_execution": "v0.5.30_player_validated_for_post_combat_house_return",
@@ -30,5 +30,5 @@
     "future_features": "start_only_after_explicit_user_request"
   },
   "historical_issue_policy": "superseded historical failures are not current issues without new evidence",
-  "updated_at": "2026-09-06T19:31:03+08:00"
+  "updated_at": "2026-09-08"
 }

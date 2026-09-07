@@ -57,7 +57,8 @@ double OrientationQuality(
 BreedingPairScore ScorePair(
     const snapshot::CatSnapshot& a,
     const snapshot::CatSnapshot& b,
-    const std::map<PairKey, double>& coefficients) {
+    const std::map<PairKey, double>& coefficients,
+    const BreedingScoringConfig& config) {
     BreedingPairScore result{.cat_a_id = a.id, .cat_b_id = b.id};
     if (a.available_for_breeding != snapshot::TriState::Yes ||
         b.available_for_breeding != snapshot::TriState::Yes) {
@@ -78,7 +79,7 @@ BreedingPairScore ScorePair(
     } else {
         result.offspring_inbreeding_coefficient = coefficient->second;
     }
-    std::int64_t coverage_sum{};
+    double coverage_sum{};
     for (std::size_t i = 0; i < snapshot::kStatCount; ++i) {
         const auto av = a.genetic_stats.values[i];
         const auto bv = b.genetic_stats.values[i];
@@ -87,7 +88,7 @@ BreedingPairScore ScorePair(
             break;
         }
         const auto best = std::max(*av, *bv);
-        coverage_sum += best;
+        coverage_sum += static_cast<double>(best) * config.stat_weights[i];
         result.covered_seven_stats += best == 7 ? 1U : 0U;
         result.jointly_stable_seven_stats +=
             *av == 7 && *bv == 7 ? 1U : 0U;
@@ -100,7 +101,7 @@ BreedingPairScore ScorePair(
         result.score =
             static_cast<double>(result.covered_seven_stats) * 1000.0 +
             static_cast<double>(result.jointly_stable_seven_stats) * 100.0 +
-            static_cast<double>(coverage_sum) * 10.0 -
+            coverage_sum * 10.0 -
             *result.offspring_inbreeding_coefficient * 500.0 +
             OrientationQuality(a, b) * 10.0;
     }
@@ -134,7 +135,7 @@ Result<PairRanking> RankBreedingPairs(
         has_all_seven = has_all_seven || IsAllSeven(house.cats[i]);
         for (std::size_t j = i + 1; j < house.cats.size(); ++j) {
             ranking.ranked.push_back(
-                ScorePair(house.cats[i], house.cats[j], coefficients));
+                ScorePair(house.cats[i], house.cats[j], coefficients, config));
         }
     }
     const bool stable = std::ranges::any_of(

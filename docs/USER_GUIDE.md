@@ -49,7 +49,7 @@
 | `繁育最少已知属性`（默认 7，0-7） | 繁育评分至少需要多少项已确认基础属性。**截图中的 `7` 表示七项全部已知；缺一项就会显示限制并不能成为合格繁育候选。** |
 | `繁育资格已确认`（默认开） | 未确认成年、可繁育等字段时不把猫当成合格繁育候选；关闭只放宽资格门，不会伪造未知字段。 |
 | `繁育缺失属性惩罚`（默认 0，步进 0.25） | 每缺少一项基础属性，繁育分数扣除此值。**截图中的 `0.25` 意味着每缺一项扣 0.25 分；但当“繁育最少已知属性”为 7 时，缺失属性的猫已经因资格不足被排除，所以该惩罚主要在你把门槛调低后才会影响排序。** |
-| `繁育力量/敏捷/体质/智力/速度/魅力/幸运权重`（默认各 1） | 七项可遗传基础属性的加权和。稳定全 7 前，这些权重主导繁育评分；稳定全 7 后才会叠加已确认的技能槽和特征权重。 |
+| `繁育力量/敏捷/体质/智力/速度/魅力/幸运权重`（默认各 1） | 用于单猫基础属性加权和，以及配对中逐项取父母较高基础属性后的加权分。配对仍包含全 7 覆盖、双方共同全 7 项数、COI 和性向分；稳定全 7 后才会叠加已确认的技能槽和特征权重。默认等权保持原有评分。 |
 | `战斗分类优先`（默认关） | 一只猫同时进入战斗推荐和核心繁育池时，开启则把主角色显示为战斗推荐，关闭则显示为繁育核心；两个池仍都会保留。 |
 | `最低战斗保留池`（默认 8） | 分类器至少保留多少只**战斗评分合格且排序靠前**的猫不作为普通候选。**截图中的 `8` 不是强制组成 8 人队，也不是当前猫数；它是安全保留下限。**实际保留数为 `max(推荐猫数量, 此值)`，但不会把不合格或未知猫硬塞进池子；合格猫不足时只给出警告并停止危险淘汰。** |
 | `最低繁育保留池`（默认 8） | 与战斗保留池相同，但对象是繁育评分合格的猫。它保证繁育候选不足时不继续把普通猫当成可淘汰对象。 |
@@ -173,7 +173,7 @@ Movement and basic-attack slots are identified but have no universal default sco
 | `Breeding known stats` (default 7, 0-7) | Required count of confirmed base stats. **The screenshot value `7` means all seven must be known; a cat missing one is limited and cannot be an eligible breeder.** |
 | `Confirmed breeding eligibility` (on) | Requires confirmed adult/breeding availability. Disabling the gate does not fabricate unknown fields. |
 | `Breeding missing penalty` (0, step 0.25) | Subtracts this amount for every missing base stat. **The screenshot value `0.25` means minus 0.25 per missing stat. With known stats set to 7, missing-stat cats are already excluded, so this mainly affects ordering after lowering that gate.** |
-| `Breeding Strength/Dexterity/Constitution/Intelligence/Speed/Charisma/Luck weight` (1 each) | Weighted sum of heritable base stats. Before stable all-seven breeding, these dominate; after that stage, confirmed ability and trait weights are added. |
+| `Breeding Strength/Dexterity/Constitution/Intelligence/Speed/Charisma/Luck weight` (1 each) | Weights individual base stats and each pair's higher parental value per stat. Pair scores also include seven-stat coverage, jointly stable stats, COI, and orientation; confirmed ability and trait weights are added at the stable all-seven stage. Default equal weights preserve previous scores. |
 | `Combat role first` (off) | For a cat in both the combat recommendation and breeding core, chooses Combat as the displayed primary role when enabled; both pools still retain the cat. |
 | `Minimum combat pool` (default 8) | Keeps at least this many **eligible, highest-ranked combat cats** out of the general pool. **The screenshot value `8` is not an eight-cat team and not the current cat count.** The actual target is `max(Recommended cats, this value)`. Ineligible or unknown cats are never forced into the pool; too few eligible cats produces a warning and blocks unsafe culling. |
 | `Minimum breeding pool` (default 8) | The same safety boundary for eligible breeding cats. |

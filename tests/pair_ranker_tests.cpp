@@ -78,6 +78,33 @@ void RunPairRankerTests() {
     AC_CHECK(static_cast<bool>(base));
     AC_CHECK(base.value.stage == breeding::BreedingStage::BaseAllSeven);
 
+    // Equal coverage, COI and orientation: configurable preferences must
+    // influence pair selection as well as the individual-cat ranking.
+    auto weighted_house = PairHouse();
+    weighted_house.cats[0] = Adult(1, snapshot::CatSex::Female,
+        snapshot::CatSexuality::Straight, 0.0, 4);
+    weighted_house.cats[1] = Adult(2, snapshot::CatSex::Male,
+        snapshot::CatSexuality::Straight, 0.0, 5);
+    weighted_house.cats[2] = Adult(3, snapshot::CatSex::Male,
+        snapshot::CatSexuality::Straight, 0.0, 5);
+    weighted_house.cats[1].genetic_stats.values[0] = 6;
+    weighted_house.cats[2].genetic_stats.values[3] = 6;
+    weighted_house.pedigree_pair_coefficients = {{1, 2, 0.0}, {1, 3, 0.0}};
+    const auto equal_weights = breeding::RankBreedingPairs(weighted_house);
+    AC_CHECK(static_cast<bool>(equal_weights));
+    AC_CHECK(equal_weights.value.ranked[0].cat_b_id == 2);
+    breeding::BreedingScoringConfig preferred_stats;
+    preferred_stats.stat_weights[3] = 2.0;
+    const auto prefer_intelligence =
+        breeding::RankBreedingPairs(weighted_house, preferred_stats);
+    AC_CHECK(static_cast<bool>(prefer_intelligence));
+    AC_CHECK(prefer_intelligence.value.ranked[0].cat_b_id == 3);
+    preferred_stats.stat_weights[0] = 3.0;
+    const auto prefer_strength =
+        breeding::RankBreedingPairs(weighted_house, preferred_stats);
+    AC_CHECK(static_cast<bool>(prefer_strength));
+    AC_CHECK(prefer_strength.value.ranked[0].cat_b_id == 2);
+
     auto traits = PairHouse();
     auto favored = Adult(
         4, snapshot::CatSex::Male,
