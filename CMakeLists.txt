@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.31 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.32 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -140,6 +140,7 @@ add_library(auto_cattery_core STATIC
     src/ui/in_game_panel_controller.cpp
     src/ui/in_game_panel_current_save.cpp
     src/ui/in_game_panel_protection.cpp
+    src/ui/in_game_panel_senior.cpp
     src/ui/in_game_panel_render.cpp
     src/ui/in_game_panel_settings.cpp
     src/ui/in_game_preview_model.cpp

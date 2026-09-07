@@ -14,9 +14,9 @@
 namespace autocattery::ui {
 namespace {
 
-constexpr std::array<const char*, 8> kFixedNames{
+constexpr std::array<const char*, 9> kFixedNames{
     "ac_tab_set", "ac_tab_prot", "ac_tab_prev", "ac_close",
-    "ac_prev", "ac_next", "ac_apply", "ac_remove"
+    "ac_prev", "ac_next", "ac_apply", "ac_remove", "ac_tab_old"
 };
 constexpr const char* kTextSuffix = "_t";
 
@@ -107,6 +107,8 @@ Result<void> MewUiManagementPanelView::Show(
                content.page == ManagementPanelPage::Protection ? 2 : 1);
     SetElement(fixed_nodes_[2], english ? "Full Preview" : "完整预览",
                content.page == ManagementPanelPage::Preview ? 2 : 1);
+    SetElement(fixed_nodes_[8], english ? "Senior Cats" : "年迈猫",
+               content.page == ManagementPanelPage::Senior ? 2 : 1);
     SetElement(fixed_nodes_[3], english ? "Close" : "关闭", 1);
     SetElement(fixed_nodes_[4],
                content.show_navigation ? (english ? "Previous" : "上一页") : "",

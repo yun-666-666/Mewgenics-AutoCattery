@@ -30,6 +30,9 @@ constexpr std::size_t kExtendedAbilitySlotCount = 4;
 constexpr std::size_t kPostClassMetadataSize = 115;
 constexpr std::size_t kPostClassBirthDayOffset = 12;
 constexpr std::size_t kPostClassDeathDayOffset = 20;
+// Current format 19: the old-state int follows the serialized 8-byte ID
+// after death_day. The game's details UI shows "old" for values >= 2.
+constexpr std::size_t kPostClassOldStateOffset = 36;
 
 template<class T>
 bool ReadAt(
@@ -276,6 +279,7 @@ Result<CatSnapshot> ParseCatBlob(
     const auto post_class_start = bytes.size() - kPostClassMetadataSize;
     std::int64_t birth_day{};
     std::int64_t death_day{};
+    std::int32_t old_state{};
     if (!ReadAt(
             bytes,
             post_class_start + kPostClassBirthDayOffset,
@@ -284,6 +288,7 @@ Result<CatSnapshot> ParseCatBlob(
             bytes,
             post_class_start + kPostClassDeathDayOffset,
             death_day) ||
+        !ReadAt(bytes, post_class_start + kPostClassOldStateOffset, old_state) ||
         birth_day < 0 || death_day < -1) {
         return {
             {},
@@ -297,6 +302,8 @@ Result<CatSnapshot> ParseCatBlob(
     }
     if (death_day >= 0) {
         cat.life_stage = LifeStage::Dead;
+    } else if (old_state >= 2) {
+        cat.life_stage = LifeStage::Senior;
     } else if (std::ranges::find(
                    cat.raw_ability_slots,
                    "EternalYouth") != cat.raw_ability_slots.end() ||
@@ -316,6 +323,7 @@ Result<CatSnapshot> ParseCatBlob(
         cat.life_stage == LifeStage::Adult
             ? TriState::Yes
             : cat.life_stage == LifeStage::Kitten ||
+                    cat.life_stage == LifeStage::Senior ||
                     cat.life_stage == LifeStage::Dead
                 ? TriState::No
                 : TriState::Unknown;

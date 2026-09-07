@@ -15,6 +15,7 @@
 namespace autocattery::ui {
 
 enum class ManagementPanelControl {
+    SeniorTab,
     SettingsTab,
     ProtectionTab,
     PreviewTab,
@@ -30,7 +31,7 @@ enum class ManagementPanelControl {
     Row
 };
 
-enum class ManagementPanelPage { Settings, Protection, Preview };
+enum class ManagementPanelPage { Settings, Protection, Preview, Senior };
 
 struct ManagementPanelEvent {
     ManagementPanelControl control{ManagementPanelControl::Close};
@@ -101,7 +102,7 @@ private:
     std::uint64_t generation_{};
     void* root_node_{};
     void* background_{};
-    std::array<Element, 8> fixed_nodes_{};
+    std::array<Element, 9> fixed_nodes_{};
     std::array<Element, 12> list_nodes_{};
     std::array<Element, 3> group_nodes_{};
     std::array<Element, 48> setting_nodes_{};

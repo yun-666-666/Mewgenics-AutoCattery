@@ -46,6 +46,9 @@ private:
     void PollProtectionLoad();
     void ResolveCurrentSave();
     void LoadPreview();
+    void HandleSeniorRow(std::size_t row);
+    std::vector<const snapshot::CatSnapshot*> SeniorCats() const;
+    ManagementPanelContent SeniorContent();
     void Render();
     [[nodiscard]] ManagementPanelContent SettingsContent();
     [[nodiscard]] ManagementPanelContent ProtectionContent();
@@ -66,6 +69,8 @@ private:
     std::size_t cat_page_{};
     std::size_t choice_page_{};
     std::size_t preview_page_{};
+    std::size_t senior_page_{};
+    bool senior_sort_by_stats_{true};
     DetailedPreviewModel preview_;
     ProtectionChoice protection_choice_{ProtectionChoice::None};
     std::optional<std::size_t> editing_setting_;

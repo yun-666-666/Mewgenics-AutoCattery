@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "project": "Mewgenics Auto Cattery",
-  "active_stage": 37,
+  "active_stage": 38,
   "completed_stage": 36,
   "current_release": {
     "version": "0.5.30",
@@ -10,10 +10,11 @@
     "validation": "post_combat_return_home_no_longer_crashes"
   },
   "test_candidate": {
-    "version": "0.5.31",
-    "status": "locally_deployed_awaiting_player_validation",
-    "change": "honor_configured_stat_weights_in_generic_pair_scoring",
-    "verification": "release_build_ctest_5_of_5_dll_load_diff_check_and_simplifier_passed"
+    "version": "0.5.32",
+    "status": "deployed_waiting_player_senior_validation_and_delivery_probe",
+    "change": "game_old_state_filter_and_read_only_dead_cat_delivery_probe",
+    "verification": "release_build_and_ctest_5_of_5_passed_live_read_and_synthetic_probe_checks_passed",
+    "remaining": "player_validate_senior_filter_and_collect_manual_delivery_before_after_evidence_before_implementing_batch_delivery"
   },
   "capabilities": {
     "runtime_execution": "v0.5.30_player_validated_for_post_combat_house_return",

@@ -166,6 +166,14 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
     case ManagementPanelControl::Close:
         Close();
         return;
+    case ManagementPanelControl::SeniorTab:
+        view_.CancelNumericInput();
+        editing_setting_.reset();
+        editing_text_.clear();
+        page_ = ManagementPanelPage::Senior;
+        senior_page_ = 0;
+        if (!protection_loading_) StartProtectionLoad();
+        break;
     case ManagementPanelControl::SettingsTab:
         view_.CancelNumericInput();
         editing_setting_.reset();
@@ -201,6 +209,12 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         const int step = event.control == ManagementPanelControl::Scroll
             ? event.direction
             : (event.control == ManagementPanelControl::Next ? 1 : -1);
+        if (page_ == ManagementPanelPage::Senior) {
+            const auto pages = std::max<std::size_t>(1, (SeniorCats().size() + 8) / 9);
+            senior_page_ = step > 0 ? (senior_page_ + 1) % pages
+                : (senior_page_ == 0 ? pages - 1 : senior_page_ - 1);
+            break;
+        }
         if (page_ == ManagementPanelPage::Preview) {
             const auto pages = std::max<std::size_t>(1, preview_.pages.size());
             preview_page_ = step > 0
@@ -225,6 +239,10 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         break;
     }
     case ManagementPanelControl::Row:
+        if (page_ == ManagementPanelPage::Senior) {
+            HandleSeniorRow(event.row);
+            break;
+        }
         if (page_ == ManagementPanelPage::Protection)
             HandleProtectionRow(event.row, event.direction);
         else if (page_ == ManagementPanelPage::Settings)
@@ -245,7 +263,8 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
 }
 
 void InGamePanelController::Render() {
-    auto content = page_ == ManagementPanelPage::Protection
+    auto content = page_ == ManagementPanelPage::Senior ? SeniorContent()
+        : page_ == ManagementPanelPage::Protection
         ? ProtectionContent()
         : (page_ == ManagementPanelPage::Preview
             ? PreviewContent() : SettingsContent());

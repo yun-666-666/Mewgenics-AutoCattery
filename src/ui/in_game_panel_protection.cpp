@@ -79,7 +79,8 @@ void InGamePanelController::PollProtectionLoad() {
             ? "Select one cat before changing protection or fixed room"
             : "先明确选择一只猫，再设置保护等级或固定房间";
     }
-    if (open_ && page_ == ManagementPanelPage::Protection) Render();
+    if (open_ && (page_ == ManagementPanelPage::Protection ||
+                  page_ == ManagementPanelPage::Senior)) Render();
 }
 
 void InGamePanelController::HandleProtectionRow(

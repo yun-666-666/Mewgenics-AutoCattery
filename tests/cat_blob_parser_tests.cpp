@@ -159,6 +159,21 @@ void RunCatBlobParserTests() {
         17);
     AC_CHECK(static_cast<bool>(dead));
     AC_CHECK(dead.value.life_stage == snapshot::LifeStage::Dead);
+    auto senior_blob = CatBlob();
+    const std::int32_t old_state = 2;
+    std::memcpy(senior_blob.data() + senior_blob.size() - 115 + 36,
+                &old_state, sizeof(old_state));
+    const auto senior = snapshot::ParseCatBlob(48, senior_blob, 17);
+    AC_CHECK(static_cast<bool>(senior));
+    AC_CHECK(senior.value.life_stage == snapshot::LifeStage::Senior);
+    AC_CHECK(senior.value.available_for_breeding == snapshot::TriState::No);
+    AC_CHECK(parsed.value.life_stage == snapshot::LifeStage::Adult);
+    auto dead_senior_blob = CatBlob("Colorless", "", 12);
+    std::memcpy(dead_senior_blob.data() + dead_senior_blob.size() - 115 + 36,
+                &old_state, sizeof(old_state));
+    const auto dead_senior = snapshot::ParseCatBlob(49, dead_senior_blob, 17);
+    AC_CHECK(static_cast<bool>(dead_senior));
+    AC_CHECK(dead_senior.value.life_stage == snapshot::LifeStage::Dead);
     AC_CHECK(
         dead.value.available_for_combat == snapshot::TriState::No);
 

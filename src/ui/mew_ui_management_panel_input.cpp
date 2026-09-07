@@ -12,14 +12,14 @@ namespace autocattery::ui {
 namespace {
 
 struct Rect { double left; double top; double right; double bottom; };
-constexpr std::array<Rect, 8> kButtons{{
+constexpr std::array<Rect, 9> kButtons{{
     {165, 82, 355, 120}, {365, 82, 555, 120},
     {565, 82, 755, 120}, {990, 82, 1120, 124},
     {165, 540, 345, 585},
     {355, 540, 535, 585}, {755, 540, 935, 585},
-    {945, 540, 1125, 585}
+    {945, 540, 1125, 585}, {765, 82, 955, 120}
 }};
-constexpr std::array<ManagementPanelControl, 8> kButtonControls{
+constexpr std::array<ManagementPanelControl, 9> kButtonControls{
     ManagementPanelControl::SettingsTab,
     ManagementPanelControl::ProtectionTab,
     ManagementPanelControl::PreviewTab,
@@ -27,7 +27,8 @@ constexpr std::array<ManagementPanelControl, 8> kButtonControls{
     ManagementPanelControl::Previous,
     ManagementPanelControl::Next,
     ManagementPanelControl::Apply,
-    ManagementPanelControl::Remove
+    ManagementPanelControl::Remove,
+    ManagementPanelControl::SeniorTab
 };
 MewUiManagementPanelView* g_panel_view{};
 
@@ -130,7 +131,7 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
     const auto page = static_cast<ManagementPanelPage>(page_.load());
     for (std::size_t index = 0; index < kButtons.size(); ++index) {
         if (!Contains(kButtons[index], x, y)) continue;
-        if (page == ManagementPanelPage::Settings && index >= 4)
+        if (page == ManagementPanelPage::Settings && index >= 4 && index <= 7)
             continue;
         if ((index == 4 || index == 5) && !navigation_visible_.load())
             return std::nullopt;
@@ -151,7 +152,7 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
             if (!Contains(rectangle, x, y)) continue;
             return HitResult{ManagementPanelControl::Row, row + 1, 0};
         }
-        if (page == ManagementPanelPage::Protection &&
+        if ((page == ManagementPanelPage::Protection || page == ManagementPanelPage::Senior) &&
             Contains({160, 445, 610, 493}, x, y))
             return HitResult{ManagementPanelControl::Row, 10, 0};
         if (page == ManagementPanelPage::Protection &&
