@@ -79,7 +79,7 @@ Result<void> ProtectionEditorModel::Reload() {
             }
             saves.push_back({
                 SaveLabel(captured.value, saves.size()),
-                std::move(captured.value)
+                std::move(captured.value), path
             });
         }
     }

@@ -10,12 +10,11 @@
     "validation": "post_combat_return_home_no_longer_crashes"
   },
   "test_candidate": {
-    "version": "0.5.32",
-    "status": "senior_player_validated_runtime_delivery_trace_deployed",
-    "change": "game_old_state_filter_and_read_only_dead_cat_delivery_probe",
-    "verification": "senior_player_passed_and_delivery_save_diff_confirmed_runtime_trace_build_ctest_5_of_5_passed",
-    "remaining": "observe_player_button_delivery_runtime_binding_before_batch_execution",
-    "deployment_fix": "configured_mewtator_mod_folder_updated_senior_nodes_verified_after_player_missing_panel_report"
+    "version": "0.5.33",
+    "status": "deployed_waiting_player_batch_delivery_validation",
+    "change": "sequential_dead_cat_delivery_via_native_pipe_and_organ_grinder",
+    "verification": "release_build_ctest_5_of_5_passed_queue_protection_tests_and_native_layout_checks_passed",
+    "remaining": "player_validate_actual_automatic_delivery_and_cancellation"
   },
   "capabilities": {
     "runtime_execution": "v0.5.30_player_validated_for_post_combat_house_return",

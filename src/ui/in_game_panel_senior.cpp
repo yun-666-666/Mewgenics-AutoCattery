@@ -25,7 +25,17 @@ std::vector<const snapshot::CatSnapshot*>
 InGamePanelController::SeniorCats() const {
     std::vector<const snapshot::CatSnapshot*> cats;
     if (protection_loading_ || !protection_ || !current_save_) return cats;
-    for (const auto& cat : protection_->saves()[*current_save_].snapshot.cats) {
+    const auto& snapshot = protection_->saves()[*current_save_].snapshot;
+    if (delivery_preview_) {
+        if (!protection_->SelectSave(*current_save_)) return cats;
+        const auto ids = PlanDeadCatDelivery(snapshot, protection_->cats());
+        for (const auto id : ids) {
+            const auto cat = std::ranges::find(snapshot.cats, id, &snapshot::CatSnapshot::id);
+            cats.push_back(&*cat);
+        }
+        return cats;
+    }
+    for (const auto& cat : snapshot.cats) {
         if (cat.life_stage == snapshot::LifeStage::Senior) cats.push_back(&cat);
     }
     std::ranges::sort(cats, [this](const auto* a, const auto* b) {
@@ -43,13 +53,16 @@ InGamePanelController::SeniorCats() const {
 ManagementPanelContent InGamePanelController::SeniorContent() {
     ManagementPanelContent content;
     content.page = ManagementPanelPage::Senior;
-    content.title = English() ? "Senior Cats" : "年迈猫";
+    content.title = delivery_preview_
+        ? (English() ? "Dead Cat Delivery Preview" : "死亡猫交付预览")
+        : (English() ? "Senior Cats" : "年迈猫");
     if (protection_loading_ || !current_save_) {
         content.rows = {protection_loading_
             ? (English() ? "Reading current save..." : "正在读取当前存档…")
             : (English() ? "Current save unconfirmed; click to refresh"
                          : "当前存档未确认；点击此处重新读取")};
-        content.status = status_;
+        content.status = delivery_preview_ && !delivery_.Message().empty()
+            ? delivery_.Message() : status_;
         return content;
     }
     const auto cats = SeniorCats();
@@ -77,14 +90,23 @@ ManagementPanelContent InGamePanelController::SeniorContent() {
         }
         content.rows.push_back(std::move(text));
     }
-    content.rows.push_back(senior_sort_by_stats_
+    content.rows.push_back(delivery_preview_
+        ? (English() ? "Confirm: deliver to Organ Grinder" : "确认按编号顺序交付给接收死猫的NPC")
+        : senior_sort_by_stats_
         ? (English() ? "Sort: base total ↓ (click to switch)" : "排序：基础总值优先（点击切换）")
         : (English() ? "Sort: age ↓ (click to switch)" : "排序：年龄优先（点击切换）"));
+    content.rows.push_back(delivery_preview_
+        ? (English() ? "Back to senior cats" : "返回年迈猫")
+        : (English() ? "Preview dead cat delivery" : "死亡猫交付：查看预览"));
     content.status = cats.empty()
         ? (English() ? "No living cats marked old in this saved state."
                      : "当前已保存状态中没有被游戏标记为“老了”的活猫。")
         : (English() ? "STR/DEX/CON/INT/SPD/CHA/LCK. Click a cat for details."
                      : "属性顺序：力/敏/体/智/速/魅/运；点击猫打开详情。未保存变化需保存后刷新。");
+    if (delivery_preview_) {
+        content.status = "先正常保存；受保护猫已排除。确认后创建恢复副本，Esc/F10停止后续交付。";
+        if (!delivery_.Message().empty()) content.status = delivery_.Message();
+    }
     content.show_navigation = pages > 1;
     return content;
 }
@@ -92,6 +114,16 @@ ManagementPanelContent InGamePanelController::SeniorContent() {
 void InGamePanelController::HandleSeniorRow(std::size_t row) {
     if (row == 0) {
         if (!protection_loading_) StartProtectionLoad();
+        return;
+    }
+    if (row == 11) {
+        delivery_preview_ = !delivery_preview_;
+        senior_page_ = 0;
+        if (!protection_loading_) StartProtectionLoad();
+        return;
+    }
+    if (row == 10 && delivery_preview_) {
+        StartDeadCatDelivery();
         return;
     }
     if (row == 10) {
@@ -123,4 +155,16 @@ void InGamePanelController::HandleSeniorRow(std::size_t row) {
     else status_ = English() ? "Cat details unavailable" : "暂时无法打开猫详情";
 }
 
-}  // namespace autocattery::ui
+void InGamePanelController::StartDeadCatDelivery() {
+    if (!current_save_ || !protection_ || protection_loading_) return;
+    ResolveCurrentSave();
+    if (!current_save_) return;
+    const auto cats = SeniorCats();
+    std::vector<snapshot::CatId> ids;
+    for (const auto* cat : cats) ids.push_back(cat->id);
+    const auto& save = protection_->saves()[*current_save_];
+    const auto started = delivery_.Start(save.snapshot, std::move(ids), save.path, mod_root_, game_root_);
+    if (!started) { status_ = started.message; return; }
+    Close();
+}
+}

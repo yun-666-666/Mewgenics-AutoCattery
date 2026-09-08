@@ -75,3 +75,82 @@ AcDeliveryTrace AcMewReadDeliveryTrace(void* scene) {
     }
     return result;
 }
+
+#include "mew_ui_house_detail_adapter.h"
+
+static void* UniqueComponent(void* scene, const char* type) {
+    MewPodVectorPtr* components = AcMewGetValidatedSceneComponents(scene);
+    void* found = NULL;
+    uint32_t i;
+    if (!components) return NULL;
+    for (i = 0; i < components->size; ++i) {
+        if (!TypeEquals(components->data[i], type)) continue;
+        if (found) return NULL;
+        found = components->data[i];
+    }
+    return found;
+}
+
+static int DeadCatValid(void* scene, uint8_t* cat, int64_t id) {
+    uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
+    uint8_t* game;
+    uint8_t* data;
+    typedef void* (__fastcall *ResolveCat)(void*, int64_t);
+    if (!cat || !MewUI_IsComponentInScene(scene, cat) || !TypeEquals(cat, "HouseCat") ||
+        *(int64_t*)(cat + 0x80) != id) return 0;
+    /* Globals and CatData resolver are read by the verified 0x27E820 callback. */
+    game = *(uint8_t**)(image + 0x13dac30);
+    if (!game) return 0;
+    data = (uint8_t*)((ResolveCat)(image + 0xd7220))(*(void**)(game + 0x598), id);
+    return data && *(int64_t*)(data + 0xc40) >= 0;
+}
+
+int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t id) {
+    __try {
+        uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
+        AcDeliveryTrace state = AcMewReadDeliveryTrace(scene);
+        uint8_t* drawer;
+        void* closure[2];
+        AcMewHouseDetailResult opened;
+        typedef void (__fastcall *PipeClick)(void*);
+        static const uint8_t pipe_start[] = {
+            0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x20,
+            0x48,0x8b,0x41,0x08,0x48,0x8b,0xf9,0x48,0x8b,0x58,0x38
+        };
+        if (!state.layout_valid || state.drawer_count != 1 || state.seh_code ||
+            state.selected_valid || state.callback_rva ||
+            memcmp(image + 0xedf00, pipe_start, sizeof(pipe_start)) ||
+            !DeadCatValid(scene, (uint8_t*)cat, id)) return 0;
+        opened = AcMewOpenHouseCatDetails(scene, cat);
+        if (!opened.invoked) return 0;
+        drawer = (uint8_t*)UniqueComponent(scene, "CatStatsDrawer");
+        if (!drawer || *(void**)(drawer + 0x78) != cat ||
+            *(uint64_t*)(drawer + 0x80) != *(uint64_t*)((uint8_t*)cat - 8)) return 0;
+        /* Native closure reads only its captured CatStatsDrawer at +8. */
+        closure[0] = NULL;
+        closure[1] = drawer;
+        ((PipeClick)(image + 0xedf00))(closure);
+        return 1;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+}
+
+int AcMewChooseDeadCatRecipient(void* scene, int64_t id) {
+    __try {
+        uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
+        AcDeliveryTrace state = AcMewReadDeliveryTrace(scene);
+        uint8_t* drawer;
+        typedef void (__fastcall *ChooseRecipient)(void*);
+        static const uint8_t choose_start[] = {
+            0x48,0x89,0x5c,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,
+            0x55,0x48,0x8d,0x6c,0x24,0xa9,0x48,0x81,0xec,0xb0,0,0,0
+        };
+        if (!state.layout_valid || state.drawer_count != 1 || state.seh_code ||
+            !state.cat_mode || !state.selected_valid || state.cat_id != id ||
+            state.callback_rva ||
+            memcmp(image + 0x27c500, choose_start, sizeof(choose_start))) return 0;
+        drawer = (uint8_t*)UniqueComponent(scene, "NPCMapDrawer");
+        if (!drawer || !DeadCatValid(scene, *(uint8_t**)(drawer + 0x48), id)) return 0;
+        ((ChooseRecipient)(image + 0x27c500))(drawer);
+        return 1;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+}

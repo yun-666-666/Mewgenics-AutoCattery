@@ -155,7 +155,7 @@ MewUiManagementPanelView::HitTest(HWND window, POINT client_point) const noexcep
         if ((page == ManagementPanelPage::Protection || page == ManagementPanelPage::Senior) &&
             Contains({160, 445, 610, 493}, x, y))
             return HitResult{ManagementPanelControl::Row, 10, 0};
-        if (page == ManagementPanelPage::Protection &&
+        if ((page == ManagementPanelPage::Protection || page == ManagementPanelPage::Senior) &&
             Contains({640, 445, 1090, 493}, x, y))
             return HitResult{ManagementPanelControl::Row, 11, 0};
         return std::nullopt;

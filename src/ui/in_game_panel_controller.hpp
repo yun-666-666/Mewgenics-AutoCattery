@@ -11,6 +11,7 @@
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "in_game_preview_model.hpp"
 #include "in_game_settings_model.hpp"
+#include "dead_cat_delivery_service.hpp"
 #include "mew_ui_management_panel_view.hpp"
 
 namespace autocattery::ui {
@@ -48,6 +49,7 @@ private:
     void ResolveCurrentSave();
     void LoadPreview();
     void HandleSeniorRow(std::size_t row);
+    void StartDeadCatDelivery();
     std::vector<const snapshot::CatSnapshot*> SeniorCats() const;
     ManagementPanelContent SeniorContent();
     void Render();
@@ -75,6 +77,8 @@ private:
     std::size_t preview_page_{};
     std::size_t senior_page_{};
     bool senior_sort_by_stats_{true};
+    bool delivery_preview_{};
+    DeadCatDeliveryService delivery_;
     DetailedPreviewModel preview_;
     ProtectionChoice protection_choice_{ProtectionChoice::None};
     std::optional<std::size_t> editing_setting_;

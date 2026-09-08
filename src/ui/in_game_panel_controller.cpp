@@ -47,11 +47,24 @@ void InGamePanelController::Poll(
     const bool house_ready = context.kind == UiContextKind::House &&
         context.input_enabled && !context.save_in_progress;
     if (!house_ready) {
+        delivery_.Cancel();
         AbandonScene();
         return;
     }
     house_scene_manager_ = house_scene_manager;
     PollDeliveryTrace();
+    if (delivery_.Active()) {
+        if (f10_pressed || escape_pressed) delivery_.Cancel();
+        else delivery_.Poll(house_scene_manager);
+        if (!delivery_.Active()) {
+            Open(context);
+            page_ = ManagementPanelPage::Senior;
+            delivery_preview_ = true;
+            if (!protection_loading_) StartProtectionLoad();
+            Render();
+        }
+        return;
+    }
     if (view_.IsAttached() &&
         context.scene_generation != attached_generation_) {
         Detach();
@@ -199,6 +212,7 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         editing_setting_.reset();
         editing_text_.clear();
         page_ = ManagementPanelPage::Senior;
+        delivery_preview_ = false;
         senior_page_ = 0;
         if (!protection_loading_) StartProtectionLoad();
         break;

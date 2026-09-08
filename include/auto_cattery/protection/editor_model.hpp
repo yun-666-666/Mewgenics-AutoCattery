@@ -13,6 +13,7 @@ namespace autocattery::protection {
 struct ProtectionSaveOption {
     std::string label;
     snapshot::HouseSnapshot snapshot;
+    std::filesystem::path path;
 };
 
 struct ProtectionCatOption {

@@ -8,6 +8,7 @@
 
 namespace autocattery::tests {
 
+void RunDeadCatDeliveryTests();
 void RunConfigTests();
 void RunExecutionPreconditionTests();
 void RunExecutionStorageTests();
@@ -103,6 +104,7 @@ int main() {
     autocattery::tests::RunConfigBoundaryTests();
     autocattery::tests::RunConfigMigrationTests();
     autocattery::tests::RunConfigRuntimeTests();
+    autocattery::tests::RunDeadCatDeliveryTests();
     autocattery::tests::RunConfigTests();
     autocattery::tests::RunExecutionPreconditionTests();
     autocattery::tests::RunExecutionStorageTests();

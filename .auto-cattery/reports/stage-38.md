@@ -61,3 +61,21 @@ code-simplifier只检查当前差异，没有必要简化，代码未改，不�
 游戏未运行时已精确部署DLL及本机启用标记diagnostics/delivery_trace.enabled。未修改SWF、玩家配置或存档。此诊断候选仍为0.5.32，不表示批量功能发布。
 下一步玩家使用原按钮手动交付一次，日志自动记录；无需外部工具的前后按钮。逐帧采样可能无法捕获同帧内部短暂回调，需根据实际日志判断，不预先声称完成边界已验证。
 本次本地提交消息：feat: add opt-in read-only NPC delivery runtime trace；准确ID见交付。是否 push：否。
+
+## v0.5.33 顺序死亡猫交付候选
+
+玩家截图确认详情topipe→“把猫送给”NPC地图→Organ Grinder。运行时12:57:57选择猫750；12:58:36回调0x27E820，house14→13、选择清空、npc_result6，无异常。当前游戏原生topipe注册回调0xEDF00；读取CatStatsDrawer弱引用，调用原生管道移动路径0x2E88D0。未直接改写选中字段。
+
+实现文件：新增src/ui/dead_cat_delivery_service.hpp/.cpp、tests/dead_cat_delivery_tests.cpp；扩展mew_ui_delivery_trace.c/.h原生适配、in_game_panel_controller.cpp/.hpp、in_game_panel_senior.cpp、mew_ui_management_panel_input.cpp；ProtectionSaveOption保存实际来源路径（editor_model.hpp/.cpp）；CMakeLists.txt及test_main.cpp接入；description版本0.5.33；操作手册、任务、状态文件同步。
+
+UI预览与确认分开。只选当前匹配存档的屋内死亡猫，排除MOD保护或固定房间猫，按稳定编号排序。
+异步创建执行前已保存状态的恢复副本，复用StableSaveGuard锁定原存档，复制后用现有快照读取器验证可读及猫群一致；不新增哈希检查。失败不交付。
+执行服务每只重新验证完整运行时身份，原生适配重新检查该猫死亡状态，打开原生详情并调用topipe，然后选择NPC。结果6、选中清空及剩余猫完整身份匹配后进入下一只。Esc/F10取消后续；已开始原生交付可能完成。场景不安全时停止。不自动保存、不睡觉、不出征。
+日志AC19200记录恢复副本相对目录，AC19201请求ID，AC19203完成ID，AC19202完成/停止计数。临时自动只读采样标记已关闭；保留服务调用所需的状态读取适配。
+
+验证：89541 Release223步构建、CTest5/5通过（2.42秒），新增测试覆盖稳定顺序、活猫排除、保护排除、固定房间排除、缺失保护信息排除、服务拒绝非死亡猫。随后完成状态显示修复及一次code-simplifier移除重复namespace，必要增量11步与CTest5/5通过（2.35秒）。当前exe两个新原生入口布局检查通过；git diff --check通过。
+
+部署：游戏未运行，精确复制DLL及Mods/AutoCattery和Mewtator配置mod_folder下description，版本0.5.33。复用既有SWF节点；未改用户配置、存档或其他MOD。没有在本次工具操作中实际交付猫或创建玩家存档副本（副本由玩家确认执行时生成）。
+
+游戏验收仍待玩家完成：预览正确、自动一只/连续多只交付、NPC进度及尸体移除、取消。无需再运行外部取证工具。若有问题根据DeadCatDelivery日志修复，不把候选标为玩家已通过。
+本次本地任务提交消息：feat: deliver dead cats sequentially through native NPC flow。准确ID见交付或git log -1。是否 push：否。

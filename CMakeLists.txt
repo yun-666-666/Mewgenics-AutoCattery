@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.32 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.33 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -141,6 +141,7 @@ add_library(auto_cattery_core STATIC
     src/ui/in_game_panel_current_save.cpp
     src/ui/in_game_panel_protection.cpp
     src/ui/in_game_panel_senior.cpp
+    src/ui/dead_cat_delivery_service.cpp
     src/ui/in_game_panel_render.cpp
     src/ui/in_game_panel_settings.cpp
     src/ui/in_game_preview_model.cpp
@@ -255,6 +256,7 @@ if(AUTOCATTERY_BUILD_TESTS)
         tests/breeding_scorer_tests.cpp
         tests/classifier_tests.cpp
         tests/protection_policy_tests.cpp
+        tests/dead_cat_delivery_tests.cpp
         tests/protection_editor_tests.cpp
         tests/protection_sidecar_tests.cpp
         tests/recommendation_mapping_probe_tests.cpp

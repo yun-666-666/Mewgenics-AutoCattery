@@ -17,6 +17,8 @@ typedef struct AcDeliveryTrace {
     uintptr_t callback_rva;
 } AcDeliveryTrace;
 AcDeliveryTrace AcMewReadDeliveryTrace(void* scene);
+int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t cat_id);
+int AcMewChooseDeadCatRecipient(void* scene, int64_t cat_id);
 #ifdef __cplusplus
 }
 #endif
