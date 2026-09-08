@@ -51,6 +51,14 @@ AcDeliveryTrace AcMewReadDeliveryTrace(void* scene) {
         if (result.drawer_count != 1) return result;
         result.open = drawer[0x40];
         result.cat_mode = drawer[0x41];
+        /* Native DonateCat sets +0xc0 to 0.25. NPCMapDrawer's update
+           consumes it before closing its drawer and returning to details. */
+        memcpy(&result.completion_delay, drawer + 0xc0, sizeof(result.completion_delay));
+        {
+            typedef uint8_t (__fastcall *DrawerActive)(void*);
+            result.npc_drawer_active = ((DrawerActive)(image + 0x204800))(
+                *(void**)(drawer + 0x38));
+        }
         memcpy(&result.npc_result, drawer + 0xb8, sizeof(result.npc_result));
         {
             uint8_t* cat = *(uint8_t**)(drawer + 0x48);
@@ -105,27 +113,6 @@ static int DeadCatValid(void* scene, uint8_t* cat, int64_t id) {
     return data && *(int64_t*)(data + 0xc40) >= 0;
 }
 
-int AcMewCloseDeliveryDetails(void* scene) {
-    __try {
-        uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
-        AcDeliveryTrace state = AcMewReadDeliveryTrace(scene);
-        uint8_t* stats;
-        typedef void (__fastcall *CloseDrawer)(void*);
-        /* Current native close path resolves the drawer manager, closes only
-           when this drawer is active, and releases the active drawer slot. */
-        static const uint8_t close_start[] = {
-            0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x20,
-            0x48,0x8b,0xf9,0x48,0x8b,0x49,0x18
-        };
-        if (!state.layout_valid || state.seh_code || state.callback_rva ||
-            state.selected_valid || memcmp(image + 0x2048d0, close_start, sizeof(close_start))) return 0;
-        stats = (uint8_t*)UniqueComponent(scene, "CatStatsDrawer");
-        if (!stats || !*(void**)(stats + 0x38)) return 0;
-        ((CloseDrawer)(image + 0x2048d0))(*(void**)(stats + 0x38));
-        return 1;
-    } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
-}
-
 int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t id) {
     __try {
         uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
@@ -134,6 +121,7 @@ int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t id) {
         void* closure[2];
         AcMewHouseDetailResult opened;
         typedef void (__fastcall *PipeClick)(void*);
+        typedef uint8_t (__fastcall *DrawerActive)(void*);
         static const uint8_t pipe_start[] = {
             0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x20,
             0x48,0x8b,0x41,0x08,0x48,0x8b,0xf9,0x48,0x8b,0x58,0x38
@@ -142,11 +130,15 @@ int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t id) {
             state.selected_valid || state.callback_rva ||
             memcmp(image + 0xedf00, pipe_start, sizeof(pipe_start)) ||
             !DeadCatValid(scene, (uint8_t*)cat, id)) return 0;
+        if (state.npc_drawer_active || !(state.completion_delay <= 0.0)) return 2;
         opened = AcMewOpenHouseCatDetails(scene, cat);
         if (!opened.invoked) return 0;
         drawer = (uint8_t*)UniqueComponent(scene, "CatStatsDrawer");
         if (!drawer || *(void**)(drawer + 0x78) != cat ||
             *(uint64_t*)(drawer + 0x80) != *(uint64_t*)((uint8_t*)cat - 8)) return 0;
+        /* The native click silently returns if details did not acquire the
+           active drawer slot. Do not report that no-op as a pipe request. */
+        if (!((DrawerActive)(image + 0x204800))(*(void**)(drawer + 0x38))) return 2;
         /* Native closure reads only its captured CatStatsDrawer at +8. */
         closure[0] = NULL;
         closure[1] = drawer;

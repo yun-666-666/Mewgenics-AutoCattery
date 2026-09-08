@@ -94,3 +94,16 @@ UI预览与确认分开。只选当前匹配存档的屋内死亡猫，排除MOD
 交付1/1由玩家和日志确认成功；controller不再自动打开管理面板，delivery adapter调用原生0x2048D0关闭详情。原生共享NPC状态尚不支持任意并行操作，采用玩家明确允许的界面优化方案。
 猫解析器改为识别death_day后的uint64长度及字节数组；当前exe0x236D90已核实，避免防守后非空数据导致职业识别失败。新增1/4字节与截断测试。tools/build.ps1 Release成功，CTest5/5（2.80秒）；snapshot_probe对原失败实档读取160只，errors0。code-simplifier限本次差异检查无额外修改。
 文件：cat_blob_parser.cpp、cat_blob_parser_tests.cpp、in_game_panel_controller.cpp、mew_ui_delivery_trace.c/.h、USER_GUIDE、任务记录。DLL已部署，玩家需验证自动收起及实际整理。无存档修改，无备份增加。提交：fix: close delivery UI and parse variable cat metadata（编号见回复）。是否 push：否。
+
+## 2026-09-08 连续交付与取消闪退修复
+
+本次日志：22:45:12完成cat725，22:45:27停于1/5；第二次22:46:21完成cat771，22:46:22取消、强制关闭详情后，0x97E715读取空指针+0x20。闪退与强制关闭路径紧密关联，尚未由玩家复测验证修复效果。
+当前exe原生流程：0x27DAC0事件在交付回调结束后写NPCMapDrawer+0xC0=0.25；0x278695更新计时，0x2787A1关闭NPC并处理返回详情；0xEDF00先检查详情drawer是否活动，否则直接返回。原队列只等猫移除与回调清空，提前打开第二只并把管道按钮无操作当成功。
+
+修改文件：src/ui/dead_cat_delivery_service.cpp增加原生收尾门槛与入口待就绪重试；src/ui/mew_ui_delivery_trace.c/.h读取原生收尾计时及活动drawer，检查详情控制权，移除强制关闭函数；src/ui/in_game_panel_controller.cpp取消强制关闭，保留原生流程及F10隐藏；tests/dead_cat_delivery_sequence_tests.cpp和CMakeLists.txt新增独立原生替身回归；CODEX_TASK.md同步前沿。
+
+验证命令：tools/build.ps1 -Configuration Release，14步构建及CTest6/6通过（2.58秒）。测试覆盖连续3只按编号交付、已移除但原生计时/活动drawer未结束时不推进、入口待就绪重试、取消不再打开下一只。初次测试编译的C4244窄化警告已修正；cmake --build build-ninja --config Release --target dead_cat_delivery_sequence_tests及ctest --test-dir build-ninja -C Release -R '^dead_cat_delivery_sequence_tests$' --output-on-failure通过，重编译无警告，1/1（0.04秒）。code-simplifier限定本次差异检查无必要简化。git diff --check通过。
+
+部署：游戏未运行时精确复制dist/Release/AutoCattery.dll到已安装Mods/AutoCattery.dll，读取部署文件确认包含新日志native drawer cleanup retained。仍标识0.5.33；本次未更改SWF，无需更新数据MOD。未改存档、玩家配置、其他MOD，也未启动游戏。
+游戏验证：待玩家重启验证至少2只连续交付、取消不闪退、自然收尾及F10不自动重开。替身测试与静态原生控制流证据不等于真实游戏验收；NPC额外弹窗和实际UI行为仍以玩家反馈为准。没有扩展后续阶段。
+本地提交：fix: wait for native drawer cleanup between dead cat deliveries；准确提交哈希见本次交付回复或git log -1 --format=%H -- CODEX_TASK.md。是否 push：否。

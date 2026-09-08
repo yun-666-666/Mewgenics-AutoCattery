@@ -36,6 +36,7 @@ Result<void> DeadCatDeliveryService::Start(const snapshot::HouseSnapshot& snapsh
     for (const auto& cat : snapshot.cats) expected_.push_back(cat.id);
     done_ = 0;
     phase_ = Phase::OpenPipe;
+    deadline_ = std::chrono::steady_clock::now() + std::chrono::seconds(15);
     message_ = "正在按编号顺序交付";
     Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19200",
         "Started sequential delivery; automatic backup disabled; cats=" + std::to_string(queue_.size()));
@@ -68,10 +69,13 @@ bool DeadCatDeliveryService::Match(void* scene,
 void DeadCatDeliveryService::Poll(void* scene) {
     if (!Active()) return;
     const auto now = std::chrono::steady_clock::now();
+    if (now > deadline_) { Stop("等待原生交付状态超时，停止后续交付"); return; }
     if (phase_ == Phase::OpenPipe) {
         void* cat{};
         if (!Match(scene, expected_, &cat)) { Stop("猫群变化，请重新预览"); return; }
-        if (AcMewOpenDeadCatPipe(scene, cat, queue_[done_]) != 1) {
+        const auto opened = AcMewOpenDeadCatPipe(scene, cat, queue_[done_]);
+        if (opened == 2) return;
+        if (opened != 1) {
             Stop("原生管道入口未就绪，未继续交付"); return;
         }
         deadline_ = now + std::chrono::seconds(15);
@@ -82,7 +86,6 @@ void DeadCatDeliveryService::Poll(void* scene) {
     if (!state.layout_valid || state.seh_code || state.drawer_count != 1) {
         Stop("原生交付状态不可用"); return;
     }
-    if (now > deadline_) { Stop("等待原生交付状态超时，停止后续交付"); return; }
     if (phase_ == Phase::Choose) {
         if (!state.cat_mode || !state.selected_valid) return;
         if (state.cat_id != queue_[done_] ||
@@ -99,11 +102,17 @@ void DeadCatDeliveryService::Poll(void* scene) {
     auto remaining = expected_;
     std::erase(remaining, queue_[done_]);
     if (!Match(scene, remaining)) return;
+    // Cat removal precedes native drawer cleanup. Opening the next details
+    // during that interval loses drawer ownership and races the return path.
+    if (state.npc_drawer_active || !(state.completion_delay <= 0.0)) return;
     expected_ = std::move(remaining);
     ++done_;
     Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19203",
         "Completed Organ Grinder delivery cat_id=" + std::to_string(queue_[done_ - 1]));
     if (done_ == queue_.size()) Stop("死亡猫交付完成");
-    else phase_ = Phase::OpenPipe;
+    else {
+        phase_ = Phase::OpenPipe;
+        deadline_ = now + std::chrono::seconds(15);
+    }
 }
 }

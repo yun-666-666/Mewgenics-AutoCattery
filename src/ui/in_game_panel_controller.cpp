@@ -57,9 +57,8 @@ void InGamePanelController::Poll(
         if (f10_pressed || escape_pressed) delivery_.Cancel();
         else delivery_.Poll(house_scene_manager);
         if (!delivery_.Active()) {
-            const auto closed = AcMewCloseDeliveryDetails(house_scene_manager);
             Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19204",
-                "Delivery finished/stopped; panel remains closed; detail close=" + std::to_string(closed));
+                "Delivery finished/stopped; panel remains closed; native drawer cleanup retained");
         }
         return;
     }
