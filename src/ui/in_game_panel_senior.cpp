@@ -104,7 +104,7 @@ ManagementPanelContent InGamePanelController::SeniorContent() {
         : (English() ? "STR/DEX/CON/INT/SPD/CHA/LCK. Click a cat for details."
                      : "属性顺序：力/敏/体/智/速/魅/运；点击猫打开详情。未保存变化需保存后刷新。");
     if (delivery_preview_) {
-        content.status = "先正常保存；受保护猫已排除。确认后创建恢复副本，Esc/F10停止后续交付。";
+        content.status = "先正常保存；不生成备份。Esc/F10停止后续交付；需撤销请勿保存并重新读档。";
         if (!delivery_.Message().empty()) content.status = delivery_.Message();
     }
     content.show_navigation = pages > 1;

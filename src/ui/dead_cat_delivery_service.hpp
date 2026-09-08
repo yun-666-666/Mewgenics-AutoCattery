@@ -1,7 +1,6 @@
 #pragma once
 #include <chrono>
 #include <filesystem>
-#include <future>
 #include <string>
 #include <vector>
 #include "auto_cattery/snapshot/domain.hpp"
@@ -20,11 +19,10 @@ public:
     bool Active() const { return phase_ != Phase::Idle; }
     const std::string& Message() const { return message_; }
 private:
-    enum class Phase { Idle, Backup, OpenPipe, Choose, CompleteCat };
+    enum class Phase { Idle, OpenPipe, Choose, CompleteCat };
     void Stop(std::string message);
     bool Match(void* scene, const std::vector<snapshot::CatId>& ids, void** target = nullptr);
     Phase phase_{Phase::Idle};
-    std::future<Result<std::filesystem::path>> backup_;
     std::vector<snapshot::CatId> queue_, expected_;
     std::size_t done_{};
     std::string message_;

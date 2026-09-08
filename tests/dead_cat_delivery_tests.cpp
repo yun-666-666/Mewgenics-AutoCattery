@@ -26,5 +26,10 @@ void RunDeadCatDeliveryTests() {
     ui::DeadCatDeliveryService service;
     AC_CHECK(!service.Start(snapshot, {7}, "unused.sav", {}, {}));
     AC_CHECK(!service.Active());
+    AC_CHECK(static_cast<bool>(service.Start(snapshot, {2}, "unused.sav", {}, {})));
+    AC_CHECK(service.Active());
+    AC_CHECK(service.Message() == "正在按编号顺序交付");
+    service.Cancel();
+    AC_CHECK(!service.Active());
 }
 }

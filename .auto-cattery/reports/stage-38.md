@@ -86,3 +86,6 @@ UI预览与确认分开。只选当前匹配存档的屋内死亡猫，排除MOD
 验证：tools/build.ps1 -Configuration Release，构建成功，CTest5/5通过（2.32秒）。初次编译测试断言显式转换及测试临时侧文件清理已修正。code-simplifier检查无必要简化。
 部署：游戏未运行，精确更新Mods/AutoCattery.dll，版本仍0.5.33。未操作玩家存档。游戏自动交付仍待玩家复测。
 本地提交：fix: back up open saves before dead cat delivery（编号见任务回复）。是否 push：否。
+
+## 2026-09-08 取消强制自动备份
+移除service异步备份阶段，直接进入原生交付。同步预览提示及USER_GUIDE；不自动保存，撤销依赖未被覆盖的交付前正常存档。修改service.cpp/.hpp、senior.cpp及delivery tests。tools/build.ps1 Release通过，CTest5/5（2.88秒）；code-simplifier限定差异检查无必要修改。DLL已部署。旧13份副本清理被自动审批拒绝，未删除；实际交付待玩家验证。提交：fix: remove mandatory backups from dead cat delivery，编号见回复。是否 push：否。

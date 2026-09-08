@@ -1,8 +1,6 @@
 #include "dead_cat_delivery_service.hpp"
 #include <algorithm>
 #include "auto_cattery/logger.hpp"
-#include "auto_cattery/snapshot/detail/win_sqlite_api.hpp"
-#include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "mew_ui_house_cat_probe.h"
 #include "mew_ui_delivery_trace.h"
 namespace autocattery::ui {
@@ -22,7 +20,7 @@ std::vector<snapshot::CatId> PlanDeadCatDelivery(const snapshot::HouseSnapshot& 
 
 Result<void> DeadCatDeliveryService::Start(const snapshot::HouseSnapshot& snapshot,
     std::vector<snapshot::CatId> cats, const std::filesystem::path& source,
-    const std::filesystem::path& mod_root, const std::filesystem::path& game_root) {
+    const std::filesystem::path&, const std::filesystem::path&) {
     if (Active() || cats.empty() || source.empty()) {
         message_ = "没有可交付猫或存档尚未确认";
         return {ErrorCode::CatDataUnavailable, message_};
@@ -37,32 +35,10 @@ Result<void> DeadCatDeliveryService::Start(const snapshot::HouseSnapshot& snapsh
     expected_.clear();
     for (const auto& cat : snapshot.cats) expected_.push_back(cat.id);
     done_ = 0;
-    phase_ = Phase::Backup;
-    message_ = "正在保存恢复副本；尚未交付";
-    const auto ids = expected_;
-    backup_ = std::async(std::launch::async, [source, mod_root, game_root, ids]()
-        -> Result<std::filesystem::path> {
-        try {
-            const auto folder = mod_root / L"backups" / (L"dead-delivery-" +
-                std::to_wstring(std::chrono::system_clock::now().time_since_epoch().count()));
-            std::filesystem::create_directories(folder);
-            const auto destination = folder / source.filename();
-            const auto copied = snapshot::detail::WinSqliteApi::Instance().BackupReadOnly(source, destination);
-            if (!copied) return {{}, copied.code, copied.message};
-            snapshot::SaveSnapshotAdapter adapter(destination, game_root);
-            const auto saved = adapter.CaptureHouseSnapshot(1);
-            if (!saved) return {{}, saved.code, saved.message};
-            std::vector<snapshot::CatId> actual;
-            for (const auto& cat : saved.value.cats) actual.push_back(cat.id);
-            auto expected = ids;
-            std::ranges::sort(actual); std::ranges::sort(expected);
-            if (actual != expected) return {{}, ErrorCode::CatDataUnavailable,
-                "存档猫群已改变，请正常保存后重新预览"};
-            return {destination};
-        } catch (const std::exception& e) {
-            return {{}, ErrorCode::BackupFailed, e.what()};
-        }
-    });
+    phase_ = Phase::OpenPipe;
+    message_ = "正在按编号顺序交付";
+    Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19200",
+        "Started sequential delivery; automatic backup disabled; cats=" + std::to_string(queue_.size()));
     return {};
 }
 void DeadCatDeliveryService::Stop(std::string message) {
@@ -92,14 +68,6 @@ bool DeadCatDeliveryService::Match(void* scene,
 void DeadCatDeliveryService::Poll(void* scene) {
     if (!Active()) return;
     const auto now = std::chrono::steady_clock::now();
-    if (phase_ == Phase::Backup) {
-        if (backup_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
-        const auto backup = backup_.get();
-        if (!backup) { Stop("恢复副本失败：" + backup.message); return; }
-        Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19200",
-            "Recovery copy ready under backups/" + backup.value.parent_path().filename().string());
-        phase_ = Phase::OpenPipe;
-    }
     if (phase_ == Phase::OpenPipe) {
         void* cat{};
         if (!Match(scene, expected_, &cat)) { Stop("猫群变化，请重新预览"); return; }
