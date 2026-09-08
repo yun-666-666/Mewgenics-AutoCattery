@@ -11,10 +11,10 @@
   },
   "test_candidate": {
     "version": "0.5.32",
-    "status": "corrected_mewtator_asset_deployment_waiting_player_retest",
+    "status": "senior_player_validated_runtime_delivery_trace_deployed",
     "change": "game_old_state_filter_and_read_only_dead_cat_delivery_probe",
-    "verification": "release_build_and_ctest_5_of_5_passed_live_read_and_synthetic_probe_checks_passed",
-    "remaining": "player_validate_senior_filter_and_collect_manual_delivery_before_after_evidence_before_implementing_batch_delivery",
+    "verification": "senior_player_passed_and_delivery_save_diff_confirmed_runtime_trace_build_ctest_5_of_5_passed",
+    "remaining": "observe_player_button_delivery_runtime_binding_before_batch_execution",
     "deployment_fix": "configured_mewtator_mod_folder_updated_senior_nodes_verified_after_player_missing_panel_report"
   },
   "capabilities": {

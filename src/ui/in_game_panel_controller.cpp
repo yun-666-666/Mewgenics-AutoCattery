@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <sstream>
+#include "mew_ui_delivery_trace.h"
 
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/level_up_reroll_data.hpp"
@@ -30,7 +32,10 @@ InGamePanelController::InGamePanelController(
       settings_(
           mod_root_ / L"config" / L"default_config.json",
           mod_root_ / L"config" / L"user_config.json",
-          DataModRoot(game_root_)) {}
+          DataModRoot(game_root_)) {
+    delivery_trace_enabled_ = std::filesystem::exists(
+        mod_root_ / L"diagnostics" / L"delivery_trace.enabled");
+}
 
 InGamePanelController::~InGamePanelController() { Detach(); }
 
@@ -46,6 +51,7 @@ void InGamePanelController::Poll(
         return;
     }
     house_scene_manager_ = house_scene_manager;
+    PollDeliveryTrace();
     if (view_.IsAttached() &&
         context.scene_generation != attached_generation_) {
         Detach();
@@ -98,6 +104,28 @@ void InGamePanelController::Poll(
     }
     PollProtectionLoad();
     if (const auto event = view_.Poll()) Handle(*event);
+}
+
+void InGamePanelController::PollDeliveryTrace() {
+    if (!delivery_trace_enabled_) return;
+    const auto sample = AcMewReadDeliveryTrace(house_scene_manager_);
+    std::ostringstream text;
+    text << "layout=" << sample.layout_valid << " drawers=" << sample.drawer_count
+         << " house_cats=" << sample.house_cat_count
+         << " open=" << unsigned(sample.open) << " cat_mode=" << unsigned(sample.cat_mode)
+         << " selected=" << sample.selected_valid << " cat_id=" << sample.cat_id
+         << " npc_result=" << sample.npc_result
+         << " callback_bound=" << sample.callback_bound_to_drawer
+         << " callback_rva=0x" << std::hex << sample.callback_rva
+         << " seh=0x" << sample.seh_code;
+    if (text.str() == last_delivery_trace_) return;
+    last_delivery_trace_ = text.str();
+    Logger::Instance().Write(LogLevel::Info, "DeliveryTrace", "AC19100", last_delivery_trace_);
+    if (++delivery_trace_records_ >= 128 || sample.seh_code || !sample.layout_valid) {
+        delivery_trace_enabled_ = false;
+        Logger::Instance().Write(LogLevel::Info, "DeliveryTrace", "AC19101",
+            "Read-only delivery trace stopped for this launch.");
+    }
 }
 
 void InGamePanelController::Open(const UiContextSnapshot& context) {

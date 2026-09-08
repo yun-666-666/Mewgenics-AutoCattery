@@ -37,6 +37,7 @@ private:
     using ProtectionModel = protection::ProtectionEditorModel;
     using ProtectionLoad = Result<std::shared_ptr<ProtectionModel>>;
 
+    void PollDeliveryTrace();
     void Open(const UiContextSnapshot& context);
     void Close() noexcept;
     void Handle(const ManagementPanelEvent& event);
@@ -65,6 +66,9 @@ private:
     bool protection_loading_{};
     ManagementPanelPage page_{ManagementPanelPage::Settings};
     bool open_{};
+    bool delivery_trace_enabled_{};
+    unsigned delivery_trace_records_{};
+    std::string last_delivery_trace_;
     std::uint64_t attached_generation_{};
     std::size_t cat_page_{};
     std::size_t choice_page_{};

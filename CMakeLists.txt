@@ -155,6 +155,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_house_move_invoke.c
     src/ui/mew_ui_house_move_probe.c
     src/ui/mew_ui_house_move_room_scan.c
+    src/ui/mew_ui_delivery_trace.c
     src/ui/mew_ui_house_detail_adapter.c
     src/ui/mew_ui_mapping_probe.c
     src/ui/mew_ui_management_panel_input.cpp
