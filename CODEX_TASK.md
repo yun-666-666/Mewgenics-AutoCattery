@@ -19,3 +19,12 @@ code-simplifier完成一次范围内检查，无需改动。DLL、新SWF、descr
 批量死亡猫交付尚未实现，原生调用签名仍未确认；收到证据后继续，不重复当前已通过检查。
 上一轮v0.5.31繁育权重修复保留；未使用个人猫群或固定房间模板。
 原有build-ninja和缓存未跟踪目录必须保留。禁止push。
+
+## 2026-09-08 玩家反馈后的部署修正
+
+玩家反馈v0.5.32无法打开F10。11:46:05日志明确报F10 panel nodes are missing from the House SWF。
+核实Mewtator/config.json的mod_folder指向Mewtator/mods；上一轮只更新Mods/AutoCattery，漏了实际数据MOD目录。
+实际加载目录的旧SWF缺ac_tab_old及ac_tab_old_t，新构建产物两者齐全。
+游戏未运行时，已向配置指定的AutoCattery数据MOD精确复制新SWF和description，验证两个节点存在。
+未修改DLL或源码，无需重编译。已直接启动独立探针窗口，并在Mods/AutoCattery创建“死亡猫交付探针.lnk”。
+当前下一步：玩家重启游戏验证F10恢复，再验证年迈页；独立探针无需F10。

@@ -39,3 +39,11 @@
 本报告随任务代码同一提交；准确提交ID见最终任务回复或 git log -1（避免自引用提交ID）。
 是否 push：否。
 原有build-ninja/、tests/__pycache__/、tools/__pycache__/保持未跟踪。
+
+## 玩家反馈修正：F10资源部署遗漏
+
+玩家实测F10无法打开。当前启动日志11:46:05报面板节点缺失；Mewtator配置的mod_folder为Mewtator/mods，与上一轮复制资源的Mods不同。实际加载的旧SWF缺少ac_tab_old及ac_tab_old_t，两节点在新构建产物中存在。
+游戏已退出，按配置指定目录补部署SWF和description；解压SWF内容确认两个节点已存在。保留所有配置和其他MOD。
+独立探针已通过pythonw启动，并新增已安装MOD根目录“死亡猫交付探针.lnk”入口，不依赖游戏F10。
+此修正仅部署和说明，未修改代码；复用已完成构建测试，不进行无关简化或重编译。F10修复效果仍待玩家重启确认。
+本地修正提交消息：fix: correct active Mewtator UI deployment record；准确提交ID见交付。是否 push：否。
