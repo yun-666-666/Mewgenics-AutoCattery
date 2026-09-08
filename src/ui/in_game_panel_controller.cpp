@@ -54,11 +54,14 @@ void InGamePanelController::Poll(
     house_scene_manager_ = house_scene_manager;
     PollDeliveryTrace();
     if (delivery_.Active()) {
-        if (f10_pressed || escape_pressed) delivery_.Cancel();
+        const bool cancel_captured = view_.TakeDeliveryCancel();
+        if (cancel_captured || f10_pressed || escape_pressed) delivery_.Cancel();
         else delivery_.Poll(house_scene_manager);
         if (!delivery_.Active()) {
+            view_.StopDeliveryInput();
             Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19204",
-                "Delivery finished/stopped; panel remains closed; native drawer cleanup retained");
+                "Delivery finished/stopped; panel remains closed; native drawer cleanup retained; cancel key captured=" +
+                    std::to_string(cancel_captured));
         }
         return;
     }

@@ -53,6 +53,14 @@ std::optional<ManagementPanelEvent> MewUiManagementPanelView::Poll() {
 
 LRESULT CALLBACK MewUiManagementPanelView::MessageHook(
     int code, WPARAM remove_message, LPARAM message_pointer) {
+    if (code >= 0 && remove_message == PM_REMOVE && g_panel_view != nullptr) {
+        auto* message = reinterpret_cast<MSG*>(message_pointer);
+        if (message && g_panel_view->delivery_input_.Consume(
+                message->message, message->wParam)) {
+            message->message = WM_NULL;
+            return CallNextHookEx(nullptr, code, remove_message, message_pointer);
+        }
+    }
     if (code >= 0 && remove_message == PM_REMOVE &&
         g_panel_view != nullptr && g_panel_view->visible_.load()) {
         auto* message = reinterpret_cast<MSG*>(message_pointer);
@@ -108,6 +116,7 @@ bool MewUiManagementPanelView::InstallHook() noexcept {
 }
 
 void MewUiManagementPanelView::RemoveHook() noexcept {
+    delivery_input_ = {};
     if (message_hook_ != nullptr) {
         UnhookWindowsHookEx(message_hook_);
         message_hook_ = nullptr;

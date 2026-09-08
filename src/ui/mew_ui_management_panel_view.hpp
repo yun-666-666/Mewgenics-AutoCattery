@@ -11,6 +11,7 @@
 
 #include "auto_cattery/error.hpp"
 #include "auto_cattery/ui/scene_context.hpp"
+#include "auto_cattery/ui/management_panel_input.hpp"
 
 namespace autocattery::ui {
 
@@ -71,6 +72,9 @@ public:
     void BeginNumericInput(std::size_t row, std::string value);
     void CancelNumericInput() noexcept;
     [[nodiscard]] bool IsEditing() const noexcept;
+    void StartDeliveryInput() noexcept { delivery_input_.Start(); }
+    void StopDeliveryInput() noexcept { delivery_input_.Stop(); }
+    bool TakeDeliveryCancel() noexcept { return delivery_input_.TakeCancel(); }
 
 private:
     struct Element {
@@ -109,6 +113,7 @@ private:
     Element title_;
     Element status_;
     HHOOK message_hook_{};
+    DeliveryCancelInput delivery_input_;
     std::atomic_bool visible_{false};
     std::atomic<int> page_{static_cast<int>(ManagementPanelPage::Settings)};
     std::atomic_bool navigation_visible_{false};

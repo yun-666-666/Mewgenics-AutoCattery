@@ -107,3 +107,16 @@ UI预览与确认分开。只选当前匹配存档的屋内死亡猫，排除MOD
 部署：游戏未运行时精确复制dist/Release/AutoCattery.dll到已安装Mods/AutoCattery.dll，读取部署文件确认包含新日志native drawer cleanup retained。仍标识0.5.33；本次未更改SWF，无需更新数据MOD。未改存档、玩家配置、其他MOD，也未启动游戏。
 游戏验证：待玩家重启验证至少2只连续交付、取消不闪退、自然收尾及F10不自动重开。替身测试与静态原生控制流证据不等于真实游戏验收；NPC额外弹窗和实际UI行为仍以玩家反馈为准。没有扩展后续阶段。
 本地提交：fix: wait for native drawer cleanup between dead cat deliveries；准确提交哈希见本次交付回复或git log -1 --format=%H -- CODEX_TASK.md。是否 push：否。
+
+## 2026-09-08 Esc取消输入传递修复
+
+玩家实测e45121a：前2只连续交付成功，第三只详情按Esc仍闪退。23:00:17完成796、23:00:18完成837；第三只未发起NPC请求，取消2/3后0x97E715再次读取空指针+0x20。此证据否定“移除MOD强制关闭足以修复取消闪退”的判断；保留已经玩家确认的连续交付修复。
+直接代码缺陷：WH_GETMESSAGE仅在管理面板可见时消费Esc；顺序交付隐藏面板后，该键仍被转发原生游戏，GetAsyncKeyState同时令服务取消。存在同键取消队列并关闭切换中原生界面的输入冲突。本次修复此路径，不能以本地测试证明游戏崩溃已消失。
+
+文件：include/auto_cattery/ui/management_panel_input.hpp增加DeliveryCancelInput；src/ui/mew_ui_management_panel_input.cpp在可见性判断前捕获交付Esc/F10；mew_ui_management_panel_view.hpp保存输入状态；in_game_panel_senior.cpp成功开始后启用；in_game_panel_controller.cpp消费取消事件并结束捕获；tests/virtual_viewport_tests.cpp增加输入时序回归；CODEX_TASK.md更新前沿。
+捕获包含按下、重复、松开；取消后仍消费同次长按的后续消息，释放后下一次独立按键恢复原生输入。其他键和鼠标不在此捕获范围。场景离开或移除钩子时重置；复用已安装钩子，不新增原生函数调用或UI直接写入。AC19204记录cancel key captured，玩家Esc测试预期为1。
+
+验证：powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configuration Release，会话60272，21步构建成功、无警告；CTest6/6通过（2.70秒），连续交付替身回归继续通过。新增输入测试涵盖Esc、F10系统按键、取消后自动重复/松开、两次poll间快速按下松开、正常输入恢复和其他键鼠不受影响。code-simplifier仅检查本次差异，无必要简化；git diff --check通过。
+部署：游戏未运行时复制Release DLL到Mods/AutoCattery.dll，部署文件包含cancel key captured=日志。版本仍0.5.33；没有改存档、配置、SWF或其他MOD，没有启动或控制游戏。
+游戏验收与风险：待玩家重启，在交付详情阶段按Esc验证停止且不闪退；同次按键不会同时关闭原生窗口。原生取消/输入时机只能由玩家实测确认，不能以输入模型测试替代。无后续阶段扩展。
+上一轮本地提交：e45121a。本次提交消息：fix: consume cancellation keys during dead cat delivery；准确哈希见本次交付回复或git log -1 --format=%H -- CODEX_TASK.md。是否 push：否。

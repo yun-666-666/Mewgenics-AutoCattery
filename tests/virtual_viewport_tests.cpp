@@ -54,6 +54,38 @@ void RunVirtualViewportTests() {
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0100, 0x1B));
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0104, 0x1B));
     AC_CHECK(!ui::ShouldConsumePanelMessage(0x0100, 'A'));
+
+    ui::DeliveryCancelInput delivery_input;
+    AC_CHECK(!delivery_input.Consume(0x0100, 0x1B));
+    delivery_input.Start();
+    AC_CHECK(!delivery_input.Consume(0x0100, 'A'));
+    AC_CHECK(!delivery_input.Consume(0x0201, 0));
+    AC_CHECK(delivery_input.Consume(0x0100, 0x1B));
+    AC_CHECK(delivery_input.TakeCancel());
+    AC_CHECK(!delivery_input.TakeCancel());
+    delivery_input.Stop();
+    // Key repeat and release must not close the native drawer after cancel.
+    AC_CHECK(delivery_input.Consume(0x0100, 0x1B));
+    AC_CHECK(!delivery_input.TakeCancel());
+    AC_CHECK(delivery_input.Consume(0x0101, 0x1B));
+    AC_CHECK(!delivery_input.Consume(0x0100, 0x1B));
+
+    delivery_input.Start();
+    AC_CHECK(delivery_input.Consume(0x0104, 0x79)); // F10 uses WM_SYSKEYDOWN.
+    AC_CHECK(delivery_input.TakeCancel());
+    AC_CHECK(!delivery_input.Consume(0x0104, 0x73)); // Alt+F4 is untouched.
+    delivery_input.Stop();
+    AC_CHECK(delivery_input.Consume(0x0104, 0x79));
+    AC_CHECK(delivery_input.Consume(0x0105, 0x79));
+    AC_CHECK(!delivery_input.Consume(0x0104, 0x79));
+
+    delivery_input.Start();
+    // A short press between polls remains queued, even if released already.
+    AC_CHECK(delivery_input.Consume(0x0100, 0x1B));
+    AC_CHECK(delivery_input.Consume(0x0101, 0x1B));
+    AC_CHECK(delivery_input.TakeCancel());
+    delivery_input.Stop();
+    AC_CHECK(!delivery_input.Consume(0x0100, 0x1B));
 }
 
 }  // namespace autocattery::tests

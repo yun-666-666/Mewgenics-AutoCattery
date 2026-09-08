@@ -52,4 +52,37 @@ inline bool ShouldConsumePanelMessage(
         message == mouse_wheel;
 }
 
+// Used on the game UI thread, including while the management panel is hidden.
+// A captured press owns its repeats and key-up even after delivery is stopped.
+class DeliveryCancelInput {
+public:
+    void Start() noexcept { active_ = true; pending_ = false; }
+    void Stop() noexcept { active_ = false; pending_ = false; }
+    bool TakeCancel() noexcept {
+        const bool result = pending_;
+        pending_ = false;
+        return result;
+    }
+    bool Consume(std::uint32_t message, std::uintptr_t key) noexcept {
+        const unsigned bit = key == 0x1B ? 1U : key == 0x79 ? 2U : 0U;
+        const bool down = message == 0x0100 || message == 0x0104;
+        const bool up = message == 0x0101 || message == 0x0105;
+        if (!bit || (!down && !up)) return false;
+        if (down && (active_ || (captured_ & bit))) {
+            if (active_ && !(captured_ & bit)) pending_ = true;
+            captured_ |= bit;
+            return true;
+        }
+        if (up && (captured_ & bit)) {
+            captured_ &= ~bit;
+            return true;
+        }
+        return false;
+    }
+private:
+    bool active_{};
+    bool pending_{};
+    unsigned captured_{};
+};
+
 }  // namespace autocattery::ui

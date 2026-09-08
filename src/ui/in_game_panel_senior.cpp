@@ -166,5 +166,6 @@ void InGamePanelController::StartDeadCatDelivery() {
     const auto started = delivery_.Start(save.snapshot, std::move(ids), save.path, mod_root_, game_root_);
     if (!started) { status_ = started.message; return; }
     Close();
+    view_.StartDeliveryInput();
 }
 }
