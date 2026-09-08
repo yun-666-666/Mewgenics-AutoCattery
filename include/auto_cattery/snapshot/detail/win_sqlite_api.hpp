@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <filesystem>
+#include "auto_cattery/error.hpp"
 
 namespace autocattery::snapshot::detail {
 
@@ -54,6 +55,8 @@ struct WinSqliteApi {
     static WinSqliteApi LoadFrom(
         const std::filesystem::path& library) noexcept;
     static const WinSqliteApi& Instance() noexcept;
+    Result<void> BackupReadOnly(const std::filesystem::path& source,
+        const std::filesystem::path& destination) const;
 };
 
 }  // namespace autocattery::snapshot::detail

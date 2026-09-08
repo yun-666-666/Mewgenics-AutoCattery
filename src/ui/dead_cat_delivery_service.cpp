@@ -1,7 +1,7 @@
 #include "dead_cat_delivery_service.hpp"
 #include <algorithm>
 #include "auto_cattery/logger.hpp"
-#include "auto_cattery/save_safety/save_stability.hpp"
+#include "auto_cattery/snapshot/detail/win_sqlite_api.hpp"
 #include "auto_cattery/snapshot/save_snapshot_adapter.hpp"
 #include "mew_ui_house_cat_probe.h"
 #include "mew_ui_delivery_trace.h"
@@ -43,14 +43,12 @@ Result<void> DeadCatDeliveryService::Start(const snapshot::HouseSnapshot& snapsh
     backup_ = std::async(std::launch::async, [source, mod_root, game_root, ids]()
         -> Result<std::filesystem::path> {
         try {
-            const auto guard = save_safety::StableSaveGuard::Acquire(source,
-                std::chrono::milliseconds(150));
-            if (!guard) return {{}, guard.code, guard.message};
             const auto folder = mod_root / L"backups" / (L"dead-delivery-" +
                 std::to_wstring(std::chrono::system_clock::now().time_since_epoch().count()));
             std::filesystem::create_directories(folder);
             const auto destination = folder / source.filename();
-            std::filesystem::copy_file(source, destination);
+            const auto copied = snapshot::detail::WinSqliteApi::Instance().BackupReadOnly(source, destination);
+            if (!copied) return {{}, copied.code, copied.message};
             snapshot::SaveSnapshotAdapter adapter(destination, game_root);
             const auto saved = adapter.CaptureHouseSnapshot(1);
             if (!saved) return {{}, saved.code, saved.message};

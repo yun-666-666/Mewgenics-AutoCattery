@@ -79,3 +79,10 @@ UI预览与确认分开。只选当前匹配存档的屋内死亡猫，排除MOD
 
 游戏验收仍待玩家完成：预览正确、自动一只/连续多只交付、NPC进度及尸体移除、取消。无需再运行外部取证工具。若有问题根据DeadCatDelivery日志修复，不把候选标为玩家已通过。
 本次本地任务提交消息：feat: deliver dead cats sequentially through native NPC flow。准确ID见交付或git log -1。是否 push：否。
+
+## 2026-09-08 在线备份修复
+原因：游戏持有存档写句柄，旧恢复副本锁与其冲突；按钮触发但交付0/1。
+修改：win_sqlite_api.hpp/.cpp增加只读源在线备份；dead_cat_delivery_service.cpp接入；win_sqlite_api_tests.cpp覆盖打开写连接、WAL未提交数据排除及已有目标拒绝覆盖。
+验证：tools/build.ps1 -Configuration Release，构建成功，CTest5/5通过（2.32秒）。初次编译测试断言显式转换及测试临时侧文件清理已修正。code-simplifier检查无必要简化。
+部署：游戏未运行，精确更新Mods/AutoCattery.dll，版本仍0.5.33。未操作玩家存档。游戏自动交付仍待玩家复测。
+本地提交：fix: back up open saves before dead cat delivery（编号见任务回复）。是否 push：否。
