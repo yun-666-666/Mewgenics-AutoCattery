@@ -89,3 +89,8 @@ UI预览与确认分开。只选当前匹配存档的屋内死亡猫，排除MOD
 
 ## 2026-09-08 取消强制自动备份
 移除service异步备份阶段，直接进入原生交付。同步预览提示及USER_GUIDE；不自动保存，撤销依赖未被覆盖的交付前正常存档。修改service.cpp/.hpp、senior.cpp及delivery tests。tools/build.ps1 Release通过，CTest5/5（2.88秒）；code-simplifier限定差异检查无必要修改。DLL已部署。旧13份副本清理被自动审批拒绝，未删除；实际交付待玩家验证。提交：fix: remove mandatory backups from dead cat delivery，编号见回复。是否 push：否。
+
+## 2026-09-08 界面重叠与防守后预览修复
+交付1/1由玩家和日志确认成功；controller不再自动打开管理面板，delivery adapter调用原生0x2048D0关闭详情。原生共享NPC状态尚不支持任意并行操作，采用玩家明确允许的界面优化方案。
+猫解析器改为识别death_day后的uint64长度及字节数组；当前exe0x236D90已核实，避免防守后非空数据导致职业识别失败。新增1/4字节与截断测试。tools/build.ps1 Release成功，CTest5/5（2.80秒）；snapshot_probe对原失败实档读取160只，errors0。code-simplifier限本次差异检查无额外修改。
+文件：cat_blob_parser.cpp、cat_blob_parser_tests.cpp、in_game_panel_controller.cpp、mew_ui_delivery_trace.c/.h、USER_GUIDE、任务记录。DLL已部署，玩家需验证自动收起及实际整理。无存档修改，无备份增加。提交：fix: close delivery UI and parse variable cat metadata（编号见回复）。是否 push：否。

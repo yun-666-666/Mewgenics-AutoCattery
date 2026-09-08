@@ -143,6 +143,21 @@ void RunCatBlobParserTests() {
         17);
     AC_CHECK(static_cast<bool>(classed));
     AC_CHECK(classed.value.class_id == "Hunter");
+    for (const std::uint64_t payload_size : {1ULL, 4ULL}) {
+        auto history = CatBlob("Hunter");
+        const auto tail = history.size() - 115;
+        std::memcpy(history.data() + tail + 28, &payload_size, sizeof(payload_size));
+        history.insert(history.begin() + tail + 36, static_cast<std::size_t>(payload_size), 4);
+        const std::int32_t old_state = 2;
+        std::memcpy(history.data() + tail + 36 + payload_size, &old_state, sizeof(old_state));
+        const auto with_history = snapshot::ParseCatBlob(45, history, 17);
+        AC_CHECK(static_cast<bool>(with_history));
+        AC_CHECK(with_history.value.class_id == "Hunter");
+        AC_CHECK(with_history.value.birth_day == 3);
+        AC_CHECK(with_history.value.life_stage == snapshot::LifeStage::Senior);
+        history.pop_back();
+        AC_CHECK(!snapshot::ParseCatBlob(45, history, 17));
+    }
     AC_CHECK(
         classed.value.available_for_combat == snapshot::TriState::No);
 

@@ -30,8 +30,8 @@ constexpr std::size_t kExtendedAbilitySlotCount = 4;
 constexpr std::size_t kPostClassMetadataSize = 115;
 constexpr std::size_t kPostClassBirthDayOffset = 12;
 constexpr std::size_t kPostClassDeathDayOffset = 20;
-// Current format 19: the old-state int follows the serialized 8-byte ID
-// after death_day. The game's details UI shows "old" for values >= 2.
+// Format 19 stores an 8-byte byte-vector length after death_day, followed
+// by that many bytes. The old-state int follows the vector payload.
 constexpr std::size_t kPostClassOldStateOffset = 36;
 
 template<class T>
@@ -129,7 +129,8 @@ bool ReadStats(
 bool ReadClassId(
     std::span<const std::uint8_t> bytes,
     std::size_t search_start,
-    std::string& class_id) {
+    std::string& class_id, std::size_t& post_class_start,
+    std::size_t& history_size) {
     if (bytes.size() < kPostClassMetadataSize + sizeof(std::uint64_t) ||
         search_start >= bytes.size() - kPostClassMetadataSize) {
         return false;
@@ -140,9 +141,13 @@ bool ReadClassId(
          ++offset) {
         auto cursor = offset;
         std::string candidate;
+        std::uint64_t payload_size{};
         if (ReadAsciiString(bytes, cursor, candidate) &&
-            cursor == search_end) {
+            cursor <= search_end && ReadAt(bytes, cursor + 28, payload_size) &&
+            payload_size == search_end - cursor) {
             class_id = std::move(candidate);
+            post_class_start = cursor;
+            history_size = static_cast<std::size_t>(payload_size);
             return true;
         }
     }
@@ -269,14 +274,14 @@ Result<CatSnapshot> ParseCatBlob(
         }
         cursor += sizeof(ability_level);
     }
-    if (!ReadClassId(bytes, cursor, cat.class_id)) {
+    std::size_t post_class_start{}, history_size{};
+    if (!ReadClassId(bytes, cursor, cat.class_id, post_class_start, history_size)) {
         return {
             {},
             ErrorCode::CatDataUnavailable,
             "cat class is invalid"
         };
     }
-    const auto post_class_start = bytes.size() - kPostClassMetadataSize;
     std::int64_t birth_day{};
     std::int64_t death_day{};
     std::int32_t old_state{};
@@ -288,7 +293,7 @@ Result<CatSnapshot> ParseCatBlob(
             bytes,
             post_class_start + kPostClassDeathDayOffset,
             death_day) ||
-        !ReadAt(bytes, post_class_start + kPostClassOldStateOffset, old_state) ||
+        !ReadAt(bytes, post_class_start + kPostClassOldStateOffset + history_size, old_state) ||
         birth_day < 0 || death_day < -1) {
         return {
             {},

@@ -19,6 +19,7 @@ typedef struct AcDeliveryTrace {
 AcDeliveryTrace AcMewReadDeliveryTrace(void* scene);
 int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t cat_id);
 int AcMewChooseDeadCatRecipient(void* scene, int64_t cat_id);
+int AcMewCloseDeliveryDetails(void* scene);
 #ifdef __cplusplus
 }
 #endif

@@ -105,6 +105,27 @@ static int DeadCatValid(void* scene, uint8_t* cat, int64_t id) {
     return data && *(int64_t*)(data + 0xc40) >= 0;
 }
 
+int AcMewCloseDeliveryDetails(void* scene) {
+    __try {
+        uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
+        AcDeliveryTrace state = AcMewReadDeliveryTrace(scene);
+        uint8_t* stats;
+        typedef void (__fastcall *CloseDrawer)(void*);
+        /* Current native close path resolves the drawer manager, closes only
+           when this drawer is active, and releases the active drawer slot. */
+        static const uint8_t close_start[] = {
+            0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x20,
+            0x48,0x8b,0xf9,0x48,0x8b,0x49,0x18
+        };
+        if (!state.layout_valid || state.seh_code || state.callback_rva ||
+            state.selected_valid || memcmp(image + 0x2048d0, close_start, sizeof(close_start))) return 0;
+        stats = (uint8_t*)UniqueComponent(scene, "CatStatsDrawer");
+        if (!stats || !*(void**)(stats + 0x38)) return 0;
+        ((CloseDrawer)(image + 0x2048d0))(*(void**)(stats + 0x38));
+        return 1;
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+}
+
 int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t id) {
     __try {
         uint8_t* image = (uint8_t*)GetModuleHandleW(NULL);
