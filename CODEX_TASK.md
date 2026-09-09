@@ -82,3 +82,7 @@ code-simplifier已完成一次限本次差异检查，无额外生产代码简�
 
 
 2026-09-09 玩家反馈清便未执行：18:05:13加载日志明确扫描Mods并加载根目录AutoCattery.dll，实际版本0.5.33；18:06:17-18猫移动49只完成，之后两次零移动，没有AC19300。此前误将新DLL只复制到Mods/AutoCattery/AutoCattery.dll，未更新真正加载文件。游戏已退出时将已验证0.5.34产物精确复制到Mods/AutoCattery.dll；内容检查确认0.5.34、清便日志文本和“确认整理”，不含“确认整理并清便”。本次无源码变化、不重复构建，沿用已通过Release/CTest与最新DLL加载检查。tools/deploy.ps1第60行原本即使用正确根路径，后续部署必须遵循。下一步玩家启动游戏，点击自动整理、确认整理；读取新启动版本与AC19300验证清便。未启动或控制游戏。
+
+
+2026-09-09 18:10玩家复测仍有大便：本次确实加载0.5.34，五次AC19300均completed=1 cleaned=0 exception=0，零移动确认也进入清理。因此部署问题已修复，但旧筛选类型错误。原先根据Quick-Cleanup注释误将房间大便限定为战斗Pickup（vtable0x10BDE28），实际原生清便函数属于FurniturePiece流程。当前EXE的FurniturePiece RTTI/vtable为0xEE6858，虚表槽0返回FurniturePiece，槽48位于0x2ED450；家具流程0x2EE750以同一对象调用0x2EF9D0。已把类型筛选及RTTI校验更正为FurniturePiece，保留精确poop键判断，普通家具/其他物品不清除。按钮仍为确认整理。
+仅修正适配器c/h及测试对象类型说明；Release增量6步成功，清便专项与DLL加载2/2通过（0.11秒）。code-simplifier限本次差异检查，无额外改动。游戏未运行时部署到真正加载的Mods/AutoCattery.dll，并同步dist与子目录副本，仍0.5.34。未启动/控制游戏。下一步玩家复测并读取AC19300实际清理数量；此前的测试仅证明筛选算法，不证明生产对象类型正确，本次游戏验收仍待确认。

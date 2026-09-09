@@ -4,22 +4,22 @@
 #include <windows.h>
 
 /* Quick-Cleanup's poop path was the reference; see THIRD_PARTY_NOTICES.md.
-   Verified against the current executable: Pickup RTTI, item key comparison,
+   Verified against the current executable: FurniturePiece RTTI, item key comparison,
    room-cell release, item removal, and deferred component destruction. */
-enum { AC_POP_POOP_RVA = 0x2EF9D0, AC_PICKUP_VTABLE_RVA = 0x10BDE28 };
+enum { AC_POP_POOP_RVA = 0x2EF9D0, AC_FURNITURE_VTABLE_RVA = 0xEE6858 };
 
 AcPoopCleanupResult AcMewCleanPoopComponents(
-    void* const* components, size_t count, const void* pickup_vtable,
+    void* const* components, size_t count, const void* furniture_vtable,
     AcPoopPopFn pop) {
     AcPoopCleanupResult result = {0};
     size_t index;
-    if ((!components && count) || !pickup_vtable || !pop) return result;
+    if ((!components && count) || !furniture_vtable || !pop) return result;
     __try {
         for (index = 0; index < count; ++index) {
             uint8_t* component = (uint8_t*)components[index];
             uint8_t* item;
             MewNarrowString* key;
-            if (!component || *(void**)component != pickup_vtable ||
+            if (!component || *(void**)component != furniture_vtable ||
                 component[0xF] != 0) continue;
             item = *(uint8_t**)(component + 0x2D8);
             if (!item) continue;
@@ -52,15 +52,15 @@ AcPoopCleanupResult AcMewCleanHousePoop(void* scene_manager) {
         if (!image || !scene_manager ||
             *((uint8_t*)scene_manager + 0x4B0) != 0 ||
             memcmp(image + AC_POP_POOP_RVA, entry, sizeof(entry)) != 0) return failed;
-        locator = *(const uint32_t**)(image + AC_PICKUP_VTABLE_RVA - sizeof(void*));
+        locator = *(const uint32_t**)(image + AC_FURNITURE_VTABLE_RVA - sizeof(void*));
         if (locator[0] != 1 || locator[1] != 0 ||
             (const uint8_t*)locator != image + locator[5] ||
-            strcmp((const char*)(image + locator[3] + 16), ".?AVPickup@glaiel@@") != 0)
+            strcmp((const char*)(image + locator[3] + 16), ".?AVFurniturePiece@glaiel@@") != 0)
             return failed;
         components = AcMewGetValidatedSceneComponents(scene_manager);
         if (!components) return failed;
         return AcMewCleanPoopComponents(components->data, components->size,
-            image + AC_PICKUP_VTABLE_RVA, (AcPoopPopFn)(image + AC_POP_POOP_RVA));
+            image + AC_FURNITURE_VTABLE_RVA, (AcPoopPopFn)(image + AC_POP_POOP_RVA));
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         failed.seh_code = GetExceptionCode();
         return failed;

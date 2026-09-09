@@ -15,7 +15,7 @@ typedef struct AcPoopCleanupResult {
 /* The native pop path defers component destruction until the scene tick. */
 typedef void (*AcPoopPopFn)(void*);
 AcPoopCleanupResult AcMewCleanPoopComponents(
-    void* const* components, size_t count, const void* pickup_vtable,
+    void* const* components, size_t count, const void* furniture_vtable,
     AcPoopPopFn pop);
 AcPoopCleanupResult AcMewCleanHousePoop(void* scene_manager);
 
