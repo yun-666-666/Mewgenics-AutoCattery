@@ -93,3 +93,6 @@ code-simplifier已完成一次限本次差异检查，无额外生产代码简�
 
 2026-09-09 两按钮无响应再次反馈：23:18本次启动日志只有F10开关，无整理/清便回调。用户反馈上一版更差；撤回bb43300的延迟执行和追踪记录判断，保留清便FurniturePiece实现。当前两view在Running/临时不可用（含F10 suppression）时调用SetButtonEnabled(0)，API写原生enabled/activate字节；历史同类问题也指向停用原生Button后无法恢复。现两个view临时状态仅用SetButtonInteractable控制交互，SetButtonEnabled保持1，Detach仍可停用。未变按钮文字，未新增原生入口。根因尚需当前玩家复测确认，不将历史记录当作当前验证。
 Release增量7步通过，单元与DLL加载2/2通过（2.60秒）；回归覆盖整理一次、暂禁点击、恢复、第二次整理。code-simplifier限本次差异检查，无必要简化。游戏未运行时部署Mods/AutoCattery.dll并同步副本，版本仍0.5.34。下一步玩家测试两按钮连续使用及F10开关后恢复。未启动/控制游戏，未push。
+
+
+2026-09-10：玩家确认最终版本连续游玩数次无问题，明确授权推送GitHub并发布Release。以d668f99代码及已验证DLL发布0.5.34正式版；不重建未变化代码，新增中英发布说明并同步功能文档。

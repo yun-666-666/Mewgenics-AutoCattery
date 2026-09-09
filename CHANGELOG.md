@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.34 — 2026-09-10
+
+- Clear House poop after confirmed organization, including zero-move plans; preserve normal furniture and the confirmation label.
+- Keep both native House buttons updating during temporary input blocking so they remain usable afterward.
+- Player reported multiple successful play sessions with the final version.
+
 ## Unreleased
 
 - Records player acceptance of v0.5.30: completing combat and returning to the

@@ -9,6 +9,8 @@ game files, Steam Cloud data, or player save databases.
 
 ## Current capabilities
 
+- Confirming organization also clears House poop, including zero-move plans, without removing normal furniture.
+
 - Adds an **Auto-Organize Cattery** button in the stable `House` scene.
 - The first click creates a preview. The second click uses the native House
   room path available in the current runtime to move cats. Large plans submit
