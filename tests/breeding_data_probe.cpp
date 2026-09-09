@@ -156,6 +156,43 @@ int wmain(int argc, wchar_t** argv) {
                 std::cout << " preview_pair_rooms="
                           << room_for(pair.cat_a_id) << ','
                           << room_for(pair.cat_b_id);
+                std::size_t residents{};
+                std::size_t cross_pairs{};
+                std::size_t covered_cross_pairs{};
+                std::size_t current_residents{};
+                std::size_t current_cross_pairs{};
+                std::size_t current_covered_cross_pairs{};
+                const auto target = room_for(pair.cat_a_id);
+                for (const auto& cat : preview.value.snapshot.cats) {
+                    residents += room_for(cat.id) == target ? 1U : 0U;
+                    current_residents += cat.room_id == target ? 1U : 0U;
+                }
+                for (const auto& cross : ranking.value.ranked_pairs) {
+                    if (!cross.eligible) {
+                        continue;
+                    }
+                    if (FindCat(house, cross.cat_a_id)->room_id == target &&
+                        FindCat(house, cross.cat_b_id)->room_id == target) {
+                        ++current_cross_pairs;
+                        current_covered_cross_pairs += cross.covered_seven_stats >=
+                            pair.covered_seven_stats ? 1U : 0U;
+                    }
+                    if (room_for(cross.cat_a_id) != target ||
+                        room_for(cross.cat_b_id) != target) {
+                        continue;
+                    }
+                    ++cross_pairs;
+                    covered_cross_pairs += cross.covered_seven_stats >=
+                        pair.covered_seven_stats ? 1U : 0U;
+                }
+                std::cout << " preview_pool_residents=" << residents
+                          << " preview_eligible_cross_pairs=" << cross_pairs
+                          << " preview_target_coverage_cross_pairs="
+                          << covered_cross_pairs
+                          << " current_pool_residents=" << current_residents
+                          << " current_eligible_cross_pairs=" << current_cross_pairs
+                          << " current_target_coverage_cross_pairs="
+                          << current_covered_cross_pairs;
             }
         }
     }

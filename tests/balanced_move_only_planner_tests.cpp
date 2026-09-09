@@ -195,10 +195,9 @@ void RunBalancedMoveOnlyPlannerTests() {
   const auto breeding_final = FinalRooms(breeding.value);
   const auto [breeding_female, breeding_male] = SexCounts(
       breeding.value, breeding_final, "Attic");
-  AC_CHECK(breeding_female == 8);
-  AC_CHECK(breeding_male == 14);
-  AC_CHECK(SexCounts(
-      breeding.value, breeding_final, "Floor1_Small").first == 0);
+  // Only this pair has known pedigree compatibility in the fixture.
+  AC_CHECK(breeding_female == 1);
+  AC_CHECK(breeding_male == 1);
   AC_CHECK(breeding_final.at(1) == "Attic");
   AC_CHECK(breeding_final.at(9) == "Attic");
   AC_CHECK(std::ranges::all_of(
@@ -272,6 +271,58 @@ void RunBalancedMoveOnlyPlannerTests() {
       [](const auto& move) {
         return move.reason == "compatible-breeding-pool";
       }) == 2);
+
+  // No parent is all-seven. Complementary groups can reach all seven,
+  // whereas adding an ordinary cat would make some crosses unable to do so.
+  // Vary both the population and the compatible group: this is not a
+  // fixed two-cat room, and a second arrangement must remain idempotent.
+  for (const auto [population, pool_size] :
+       {std::pair{16U, 4U}, std::pair{24U, 6U}}) {
+    WorkflowReadFake quality_pool;
+    quality_pool.house = WorkflowHouse(population);
+    auto& house = quality_pool.house;
+    house.rooms.front().id = "Floor1_Large";
+    house.rooms.push_back({.id = "Attic"});
+    house.capabilities.read_room_attributes = true;
+    house.capabilities.read_sexuality = true;
+    house.capabilities.read_relationships = true;
+    Room(house, "Attic").attributes =
+        snapshot::RoomAttributes{.comfort = 30, .stimulation = 40};
+    Room(house, "Floor1_Large").attributes =
+        snapshot::RoomAttributes{.comfort = 5, .stimulation = 5};
+    for (auto& cat : house.cats) {
+      cat.room_id = "Floor1_Large";
+      cat.sex = cat.id % 2 == 1 ? snapshot::CatSex::Female
+                              : snapshot::CatSex::Male;
+      cat.sexuality = snapshot::CatSexuality::Straight;
+      cat.sexuality_coefficient = 0.0;
+      for (std::size_t i = 0; i < snapshot::kStatCount; ++i) {
+        cat.genetic_stats.values[i] = cat.id > pool_size ? 4 :
+            ((i < 4) == (cat.sex == snapshot::CatSex::Female) ? 7 : 6);
+      }
+      for (const auto& other : house.cats) {
+        if (other.id > cat.id) {
+          house.pedigree_pair_coefficients.push_back({cat.id, other.id, 0.0});
+        }
+      }
+    }
+    workflow::WorkflowStateMachine quality_state;
+    AC_CHECK(quality_state.BeginPreview());
+    const auto quality_plan = workflow::PreviewBuilder(quality_pool).Build(
+        42, workflow::WorkflowCapability::MoveOnly, quality_state);
+    AC_CHECK(static_cast<bool>(quality_plan));
+    const auto final = FinalRooms(quality_plan.value);
+    for (const auto& cat : house.cats) {
+      AC_CHECK((final.at(cat.id) == "Attic") == (cat.id <= pool_size));
+    }
+    ApplyRooms(house, final);
+    workflow::WorkflowStateMachine repeat_state;
+    AC_CHECK(repeat_state.BeginPreview());
+    const auto repeated = workflow::PreviewBuilder(quality_pool).Build(
+        43, workflow::WorkflowCapability::MoveOnly, repeat_state);
+    AC_CHECK(static_cast<bool>(repeated));
+    AC_CHECK(repeated.value.room_plan.moves.empty());
+  }
 
   WorkflowReadFake constrained;
   constrained.house = WorkflowHouse(18);

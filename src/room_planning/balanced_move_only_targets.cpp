@@ -527,7 +527,7 @@ bool BuildBalancedSlots(
     if (slots.size() == context.movable.size()) {
         AssignFixedRoomSlots(context, plan, slots);
         AssignBreedingPairSlots(context, breeding_target, plan, slots);
-        AssignBreedingPoolSlots(context, breeding_target, slots);
+        AssignBreedingPoolSlots(context, breeding_target, plan, slots);
         return true;
     }
     plan.validation_errors.push_back("balanced-room-slot-count-mismatch");

@@ -118,10 +118,24 @@ void AssignBreedingPairSlots(
 void AssignBreedingPoolSlots(
     const PlanningContext& context,
     const std::optional<snapshot::RoomId>& target,
+    RoomPlan& plan,
     std::vector<BalancedSlot>& slots) {
-    if (!target || !context.breeding_pair_preferences) {
+    if (!target || !context.breeding_pair_preferences ||
+        context.breeding_pair.size() != 2) {
         return;
     }
+
+    const auto coverage = [&](snapshot::CatId a, snapshot::CatId b) {
+        std::size_t count{};
+        const auto& left = context.cats.at(a)->genetic_stats.values;
+        const auto& right = context.cats.at(b)->genetic_stats.values;
+        for (std::size_t i = 0; i < snapshot::kStatCount; ++i) {
+            count += left[i] == 7 || right[i] == 7 ? 1U : 0U;
+        }
+        return count;
+    };
+    const auto target_coverage = coverage(
+        context.breeding_pair[0], context.breeding_pair[1]);
 
     const auto movable = [&](snapshot::CatId cat_id) {
         return std::ranges::find(context.movable, cat_id) !=
@@ -213,19 +227,13 @@ void AssignBreedingPoolSlots(
     struct CandidateQuality {
         snapshot::CatId cat_id{};
         std::size_t slot_index{};
-        bool all_cross_pairs_stable{true};
         double weakest_cross_score{
             std::numeric_limits<double>::infinity()};
         double average_cross_score{};
         double worst_cross_coi{};
     };
-    const auto better = [&](const CandidateQuality& left,
+    const auto better = [](const CandidateQuality& left,
                             const CandidateQuality& right) {
-        if (context.breeding_stats_stable &&
-            left.all_cross_pairs_stable !=
-                right.all_cross_pairs_stable) {
-            return left.all_cross_pairs_stable;
-        }
         return std::tuple{
             -left.weakest_cross_score,
             left.worst_cross_coi,
@@ -272,9 +280,14 @@ void AssignBreedingPoolSlots(
                     break;
                 }
                 const auto& preference = *pair->second;
-                quality.all_cross_pairs_stable =
-                    quality.all_cross_pairs_stable &&
-                    preference.stable_all_seven;
+                // Co-location permits cross-pair mating, not just the
+                // displayed recommendation. Preserve its attainable stats.
+                if (coverage(cat_id, selected_id) < target_coverage ||
+                    (context.breeding_stats_stable &&
+                     !preference.stable_all_seven)) {
+                    compatible = false;
+                    break;
+                }
                 quality.weakest_cross_score = std::min(
                     quality.weakest_cross_score,
                     preference.score);
@@ -301,6 +314,42 @@ void AssignBreedingPoolSlots(
         slot.preferred_cat = best->cat_id;
         slot.breeding_pool_preferred = true;
         selected.insert(best->cat_id);
+    }
+
+    // Unclaimed slots must not refill this room with unrelated breeders.
+    // Pool size follows compatible cats and available space, not a fixed
+    // two-cat template. Fixed/protected residents retain their assignments.
+    CountMap occupancy = context.pinned_count;
+    for (const auto& slot : slots) {
+        ++occupancy[slot.room_id];
+    }
+    for (auto& slot : slots) {
+        if (slot.room_id != *target || slot.preferred_cat) {
+            continue;
+        }
+        std::optional<snapshot::RoomId> destination;
+        for (const auto& room_id : context.rooms) {
+            if (room_id == *target) {
+                continue;
+            }
+            const auto capacity =
+                context.capabilities.at(room_id)->confirmed_hard_capacity;
+            if (capacity && occupancy.at(room_id) >= *capacity) {
+                continue;
+            }
+            if (!destination || PreferOccupancyRoom(
+                    context, room_id, *destination, occupancy)) {
+                destination = room_id;
+            }
+        }
+        if (!destination) {
+            AddUnique(plan.limitations, "breeding-pool-isolation-space-unavailable");
+            continue;
+        }
+        --occupancy.at(*target);
+        ++occupancy.at(*destination);
+        slot.room_id = *destination;
+        slot.required_sex = SlotSex::Any;
     }
 }
 

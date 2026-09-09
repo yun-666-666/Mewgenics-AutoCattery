@@ -114,6 +114,7 @@ void AssignBreedingPairSlots(
 void AssignBreedingPoolSlots(
     const PlanningContext& context,
     const std::optional<snapshot::RoomId>& target,
+    RoomPlan& plan,
     std::vector<BalancedSlot>& slots);
 
 void AssignFixedRoomSlots(
