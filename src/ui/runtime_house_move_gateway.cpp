@@ -7,6 +7,7 @@
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/save_safety/game_build_gate.hpp"
 #include "mew_ui_house_move_adapter.h"
+#include "mew_ui_poop_adapter.h"
 #include "runtime_house_state.hpp"
 #include "runtime_house_state_capture.hpp"
 
@@ -75,6 +76,18 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
             execution::FailureReason::PreconditionsChanged;
         return result;
     }
+    const auto clean_poop = [&] {
+        const auto cleanup = AcMewCleanHousePoop(house_scene_manager_);
+        result.cleaned_poop = cleanup.cleaned;
+        result.committed = cleanup.completed != 0;
+        if (!cleanup.completed) result.failure_reason = execution::FailureReason::CleanupFailed;
+        Logger::Instance().Write(
+            cleanup.completed ? LogLevel::Info : LogLevel::Error,
+            "HouseCleanup", "AC19300",
+            "Poop cleanup completed=" + std::to_string(cleanup.completed) +
+            " cleaned=" + std::to_string(cleanup.cleaned) +
+            " exception=" + std::to_string(cleanup.seh_code));
+    };
     if (bundle.room_plan.moves.empty()) {
         result.committed = true;
         Logger::Instance().Write(
@@ -82,6 +95,7 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
             "RuntimeHouseMove",
             "AC14304",
             "Native House moves committed=0");
+        clean_poop();
         return result;
     }
     const auto rooms =
@@ -155,6 +169,7 @@ execution::ExecutionResult RuntimeHouseMoveGateway::ExecuteApproved(
         "Native House move batch committed=" +
             std::to_string(result.completed_moves) +
             " remaining=" + std::to_string(result.remaining_moves));
+    if (result.remaining_moves == 0) clean_poop();
     return result;
 }
 

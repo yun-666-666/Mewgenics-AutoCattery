@@ -139,6 +139,11 @@ DetailedPreviewModel BuildDetailedPreview(
                  << bundle.room_plan.moves.size();
         summary.rows.push_back(overview.str());
     }
+    if (bundle.preview.capability == workflow::WorkflowCapability::MoveOnly) {
+        summary.rows.push_back(english
+            ? "On confirmation: clear room poop after cat moves, including zero-move plans."
+            : "确认整理后同时清除各房大便；无需移动猫时也会清理。");
+    }
     for (const auto& room : room_order) {
         const auto& old_counts = before[room];
         const auto& new_counts = after[room];

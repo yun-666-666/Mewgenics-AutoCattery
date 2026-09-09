@@ -37,7 +37,7 @@ std::string Summary(const OrganizePreview &preview) {
          << ", capacity_relief=" << preview.capacity_relief_count
          << ", unplaced=" << preview.unplaced_count;
   if (preview.capability == WorkflowCapability::MoveOnly) {
-    output << "; click Auto-Organize again to apply moves only.";
+    output << "; click Auto-Organize again to apply cat moves and clear room poop.";
   } else {
     output << "; no game data changed; real execution unavailable.";
   }

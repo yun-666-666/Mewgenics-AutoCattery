@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.33 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.34 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -152,6 +152,7 @@ add_library(auto_cattery_core STATIC
     src/ui/mew_ui_house_cat_probe.c
     src/ui/mew_ui_live_house_state.c
     src/ui/mew_ui_house_move_capture.c
+    src/ui/mew_ui_poop_adapter.c
     src/ui/mew_ui_house_move_adapter.c
     src/ui/mew_ui_house_move_invoke.c
     src/ui/mew_ui_house_move_probe.c
@@ -337,6 +338,11 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(dead_cat_delivery_sequence_tests PRIVATE auto_cattery_core)
     autocattery_enable_warnings(dead_cat_delivery_sequence_tests)
     add_test(NAME dead_cat_delivery_sequence_tests COMMAND dead_cat_delivery_sequence_tests)
+
+    add_executable(poop_cleanup_tests tests/poop_cleanup_tests.cpp)
+    target_link_libraries(poop_cleanup_tests PRIVATE auto_cattery_core)
+    autocattery_enable_warnings(poop_cleanup_tests)
+    add_test(NAME poop_cleanup_tests COMMAND poop_cleanup_tests)
 
     add_executable(snapshot_probe tests/snapshot_probe.cpp)
     target_link_libraries(snapshot_probe PRIVATE auto_cattery_core)

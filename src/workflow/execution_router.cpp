@@ -63,9 +63,12 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
             result.completed_moves,
             result.remaining_moves,
             result.completed_culls,
-            result.completed_moves != 0 || result.completed_culls != 0,
+            result.completed_moves != 0 || result.completed_culls != 0 || result.cleaned_poop != 0,
             false,
-            stale
+            result.failure_reason == execution::FailureReason::CleanupFailed
+                ? "Cat moves finished, but poop cleanup failed after clearing " +
+                      std::to_string(result.cleaned_poop) + "; check AC19300 in the log."
+                : stale
                 ? "Room assignments changed after preview. No moves were "
                   "made; click again to create a fresh preview."
                 : "Execution did not commit; no cull fallback was attempted."};
@@ -93,7 +96,7 @@ OrganizeOutcome ExecutionRouter::Execute(const PreviewBundle &bundle,
           true,
           false,
           result.remaining_moves == 0
-              ? "Organize transaction committed."
+              ? "Organize transaction committed. Poop cleared=" + std::to_string(result.cleaned_poop)
               : "Move batch committed; " +
                     std::to_string(result.remaining_moves) +
                     " planned moves remain and will continue after a fresh "

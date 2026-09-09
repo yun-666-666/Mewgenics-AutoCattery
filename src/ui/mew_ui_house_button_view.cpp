@@ -120,7 +120,6 @@ void MewUiHouseButtonView::ResetSceneState() noexcept {
 void MewUiHouseButtonView::SetState(
     OrganizeButtonState state,
     std::string_view detail) {
-    (void)detail;
     current_state_ = state;
     if (button_ == nullptr || !CanTouchScene()) {
         return;
@@ -142,14 +141,18 @@ void MewUiHouseButtonView::SetState(
         enabled = false;
         break;
     case OrganizeButtonState::Ready:
-        label = english_ ? "Auto-Organize Cattery" : "自动整理猫舍";
+        label = detail.starts_with("Organize preview:")
+            ? (english_ ? "Confirm + Clear Poop" : "确认整理并清便")
+            : (english_ ? "Auto-Organize Cattery" : "自动整理猫舍");
         break;
     case OrganizeButtonState::Completed:
         label = english_ ? "Preview Complete" : "预览已完成";
         enabled = false;
         break;
     case OrganizeButtonState::Failed:
-        label = english_ ? "Preview Unavailable" : "预览不可用";
+        label = detail.find("poop cleanup failed") != std::string_view::npos
+            ? (english_ ? "Cleanup Failed" : "清便失败，请查日志")
+            : (english_ ? "Preview Unavailable" : "预览不可用");
         enabled = false;
         break;
     }

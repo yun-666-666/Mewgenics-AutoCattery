@@ -60,7 +60,8 @@ enum class FailureReason {
     MoveVerificationFailed,
     CullFailed,
     CullVerificationFailed,
-    RollbackFailed
+    RollbackFailed,
+    CleanupFailed
 };
 
 enum class JournalStatus {
@@ -94,6 +95,7 @@ struct ExecutionResult {
     std::size_t completed_culls{};
     bool rollback_attempted{};
     bool rollback_succeeded{};
+    std::size_t cleaned_poop{};
 };
 
 class ApprovedExecutionPlan final {
