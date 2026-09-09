@@ -142,7 +142,7 @@ void MewUiHouseButtonView::SetState(
         break;
     case OrganizeButtonState::Ready:
         label = detail.starts_with("Organize preview:")
-            ? (english_ ? "Confirm + Clear Poop" : "确认整理并清便")
+            ? (english_ ? "Confirm Organization" : "确认整理")
             : (english_ ? "Auto-Organize Cattery" : "自动整理猫舍");
         break;
     case OrganizeButtonState::Completed:
