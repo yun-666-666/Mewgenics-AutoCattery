@@ -264,8 +264,21 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(move_workflow.execution_calls == 0);
     AC_CHECK(move_view.state == ui::OrganizeButtonState::Ready);
     move_view.Click();
+    AC_CHECK(move_workflow.execution_calls == 0);
+    move_controller.Poll();
     AC_CHECK(move_workflow.execution_calls == 1);
     AC_CHECK(move_workflow.preview_calls == 1);
+
+    // A confirmed zero-move run must return to ready and accept another run.
+    AC_CHECK(move_view.state == ui::OrganizeButtonState::Ready);
+    move_view.Click();
+    FinishPreview(move_controller, move_view);
+    AC_CHECK(move_workflow.preview_calls == 2);
+    move_view.Click();
+    AC_CHECK(move_workflow.execution_calls == 1);
+    move_controller.Poll();
+    AC_CHECK(move_workflow.execution_calls == 2);
+    AC_CHECK(move_view.state == ui::OrganizeButtonState::Ready);
 
     FakeHouseButtonView batched_view;
     FakeWorkflow batched_workflow;
@@ -280,6 +293,8 @@ void RunHouseButtonControllerTests() {
     batched_view.Click();
     FinishPreview(batched_controller, batched_view);
     batched_view.Click();
+    AC_CHECK(batched_workflow.execution_calls == 0);
+    batched_controller.Poll();
     AC_CHECK(batched_workflow.execution_calls == 1);
     AC_CHECK(batched_workflow.preview_calls == 1);
     batched_controller.Poll();
@@ -313,6 +328,8 @@ void RunHouseButtonControllerTests() {
     cancelled_view.Click();
     FinishPreview(cancelled_controller, cancelled_view);
     cancelled_view.Click();
+    AC_CHECK(cancelled_workflow.execution_calls == 0);
+    cancelled_controller.Poll();
     AC_CHECK(cancelled_workflow.execution_calls == 1);
     cancelled_controller.AbandonScene();
     for (int attempt = 0; attempt < 1000; ++attempt) {

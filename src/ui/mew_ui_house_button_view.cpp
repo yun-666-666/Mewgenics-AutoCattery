@@ -174,7 +174,8 @@ void MewUiHouseButtonView::SetEnglish(bool english) {
 }
 
 bool MewUiHouseButtonView::IsAttached() const noexcept {
-    return active_ && scene_manager_ != nullptr && button_ != nullptr;
+    return active_ && scene_manager_ != nullptr && button_ != nullptr &&
+           MewUI_GetButtonRecord(button_) != nullptr;
 }
 
 bool MewUiHouseButtonView::CanTouchScene() const noexcept {
