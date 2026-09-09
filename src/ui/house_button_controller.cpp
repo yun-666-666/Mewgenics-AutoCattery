@@ -162,7 +162,7 @@ void HouseButtonController::HandleClick() {
             "Move-only execution confirmed; applying the preview through "
             "the native House room path.");
         SetState(OrganizeButtonState::Running);
-        continuation_execute_pending_ = true;
+        ExecuteBatch();
         return;
     }
 

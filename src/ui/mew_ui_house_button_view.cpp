@@ -158,7 +158,8 @@ void MewUiHouseButtonView::SetState(
     }
     MewUI_SetButtonLabelText(button_, label);
     MewUI_SetButtonInteractable(button_, enabled ? 1 : 0);
-    MewUI_SetButtonEnabled(button_, enabled ? 1 : 0);
+    // Temporary input blocking must not stop the native button update path.
+    MewUI_SetButtonEnabled(button_, 1);
 }
 
 void MewUiHouseButtonView::ShowPlaceholder() {
@@ -174,8 +175,7 @@ void MewUiHouseButtonView::SetEnglish(bool english) {
 }
 
 bool MewUiHouseButtonView::IsAttached() const noexcept {
-    return active_ && scene_manager_ != nullptr && button_ != nullptr &&
-           MewUI_GetButtonRecord(button_) != nullptr;
+    return active_ && scene_manager_ != nullptr && button_ != nullptr;
 }
 
 bool MewUiHouseButtonView::CanTouchScene() const noexcept {

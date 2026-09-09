@@ -202,7 +202,8 @@ void MewUiRecommendationMarkerView::SetAvailable(bool available) {
         return;
     }
     MewUI_SetButtonInteractable(button_, available ? 1 : 0);
-    MewUI_SetButtonEnabled(button_, available ? 1 : 0);
+    // Keep native input updates alive while availability temporarily blocks clicks.
+    MewUI_SetButtonEnabled(button_, 1);
     if (!available) ClearSummary();
     availability_applied_ = true;
 }
