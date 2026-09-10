@@ -19,6 +19,9 @@ Result<workflow::PreviewBundle> Preview(
     AC_CHECK(state.BeginPreview());
     Config config;
     config.room_planning.default_soft_capacity = 10;
+    // This fixture tests canonical balancing, with all cats retained as
+    // breeding core rather than surplus adults sent to the combat room.
+    config.breeding_scoring.core_breeders = reader.house.cats.size();
     return workflow::PreviewBuilder(reader, config).Build(
         generation,
         workflow::WorkflowCapability::MoveOnly,

@@ -337,6 +337,7 @@ void RunBalancedMoveOnlyPlannerTests() {
     };
     auto settings = quality_config;
     settings.room_planning.keep_breeding_pairs_together = false;
+    settings.room_planning.prefer_single_combat_staging_room = false;
     const auto ungrouped = with_settings(settings);
     AC_CHECK(static_cast<bool>(ungrouped));
     const auto ungrouped_rooms = FinalRooms(ungrouped.value);
@@ -513,7 +514,6 @@ void RunBalancedMoveOnlyPlannerTests() {
   AC_CHECK(purpose_final.at(10) == "Floor2_Large");
   AC_CHECK(purpose_final.at(11) == "Floor2_Large");
   AC_CHECK(purpose_final.at(12) == "Floor2_Large");
-  std::size_t staged_combat_adults{};
   for (const auto& decision : purpose_plan.value.classification.decisions) {
     if (decision.cat_id == 1 || decision.cat_id == 2 ||
         decision.cat_id >= 10 ||
@@ -521,10 +521,11 @@ void RunBalancedMoveOnlyPlannerTests() {
             classification::CatRole::CombatRecommended) {
       continue;
     }
-    staged_combat_adults +=
-        purpose_final.at(decision.cat_id) == "Floor1_Small" ? 1U : 0U;
+    AC_CHECK(purpose_final.at(decision.cat_id) == "Floor1_Small");
   }
-  AC_CHECK(staged_combat_adults == 3);
+  for (snapshot::CatId id = 3; id <= 9; ++id) {
+    AC_CHECK(purpose_final.at(id) == "Floor1_Small");
+  }
   AC_CHECK(std::ranges::count_if(
       purpose_plan.value.room_plan.moves,
       [](const auto& move) {
