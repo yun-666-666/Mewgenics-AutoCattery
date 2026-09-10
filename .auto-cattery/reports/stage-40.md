@@ -103,3 +103,20 @@ code-simplifier仅本轮差异检查，无需进一步简化，不重复未受�
 测试修改balanced_move_only_planner_tests与deterministic_room_assignment_tests，前者加强为逐只验证全部剩余成年猫到战斗房且幼猫仍在育幼房；后者明确全猫为繁育核心以保持纯均衡测试的原目标。关闭单一战斗房的设置用例继续验证普通均衡行为。Release及CTest7/7通过，2.43秒。code-simplifier仅本次差异检查，无额外修改。
 USER_GUIDE同步规则。游戏未运行时最终DLL已部署实际Mods/AutoCattery.dll，没有启动游戏或改写存档/配置。玩家重启后开启优先单一战斗房，预览并确认整理，核对剩余成年猫在战斗房、幼猫和保护猫保持各自规则；居住变化不表示加入出征队。实机结果仍待玩家确认。
 本地提交见最终回复或本报告最新Git历史。是否 push：否。
+
+## 2026-09-11 攻略复核与实际配置启用
+
+玩家反馈阁楼仍拥挤。实际安装配置的keep_breeding_pairs_together和prefer_single_combat_staging_room均为false，导致前两轮实现的集中繁育与剩余成年猫集中归置没有启用；此前仅要求玩家自行开启，不代表已完成玩家要求的效果。
+
+阅读Steam Breeding Basics（3664011595）及Meta Breeding Guide（3672568623）的繁育、房间与Maxing statlines内容。用于本任务的结论：按可遗传基础属性保留互补种猫，逐代筛选更好后代，缺失的基础7从新血统引入，隔离普通成年猫和幼猫；舒适影响繁殖环境，刺激并不保证全7。对照此前SciresM遗传分析，不采用攻略中刺激保证高值、忽略近交风险等未经证实的断言。不照搬阁楼固定用途、攻略家具数值或故意制造打斗环境。
+
+来源：
+- https://steamcommunity.com/sharedfiles/filedetails/?id=3664011595
+- https://steamcommunity.com/sharedfiles/filedetails/?id=3672568623
+- https://gist.github.com/SciresM/95a9dbba22937420e75d4da617af1397
+
+游戏未运行时，仅将安装目录config/user_config.json中的上述两个布尔值从false改为true。人数不限制、避近亲、幼猫分离、评分及其他配置保持原值；未修改源码、DLL或存档。没有强制覆盖面板开关的代码，后续手动调整仍有效。
+
+以同一实际配置运行已有breeding_data_probe：167猫，七项基础值均可读，预览109次移动、无validation_errors；推荐父母同在阁楼，阁楼居民42→2，已知后代COI=0，基础7覆盖7项，共同为7为1项。二者并非全7猫；预览只证明互补配对成立，不能保证下一胎全7或实际繁殖效率。人数2是当前合法候选的筛选结果，非固定上限，也没有硬编码猫或房间。剩余成年猫归置沿用6f8823c已通过的针对性测试。
+
+本轮仅实际配置与报告变更，不重复构建未变源码，也不适用代码简化步骤。游戏内执行仍需玩家重启后预览并确认整理；未操作游戏、自动过日或出征。既有build-ninja/及tools/__pycache__/未跟踪文件保持。实际用户配置不纳入Git；本报告提交号见最终回复。是否 push：否。
