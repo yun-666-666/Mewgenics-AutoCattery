@@ -27,6 +27,7 @@ struct BalancedSlot {
 };
 
 struct PlanningContext {
+    RoomPlanningConfig config;
     std::vector<snapshot::RoomId> rooms;
     std::unordered_map<
         snapshot::CatId,
@@ -62,6 +63,9 @@ struct PlanningContext {
     bool prefer_single_combat_staging_room{true};
     bool keep_kittens_separate_when_possible{true};
 };
+
+[[nodiscard]] std::size_t RoomCapacity(
+    const PlanningContext& context, const snapshot::RoomId& room_id);
 
 [[nodiscard]] bool BuildPlanningContext(
     const RoomPlanningInput& input,

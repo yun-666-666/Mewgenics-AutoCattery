@@ -23,7 +23,9 @@ RoomPlan PlanCurrentBuildBalancedMoveOnlyRooms(
     RoomPlan plan;
     plan.source_snapshot_id = input.snapshot.snapshot_id;
     plan.algorithm_version = kBalancedMoveOnlyAlgorithmVersion;
-    if (config.version != 1 ||
+    if (config.version != 1 || config.default_soft_capacity == 0 ||
+        config.default_soft_capacity > 1000 ||
+        config.max_soft_overflow_per_room > 1000 ||
         !config.never_exceed_known_hard_capacity ||
         !config.allow_partial_plan) {
         plan.validation_errors.push_back("room-planning-config-invalid");

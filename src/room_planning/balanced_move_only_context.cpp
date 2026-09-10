@@ -91,6 +91,7 @@ bool BuildPlanningContext(
     const RoomPlanningConfig& config,
     RoomPlan& plan,
     PlanningContext& context) {
+    context.config = config;
     context.prefer_single_combat_staging_room =
         config.prefer_single_combat_staging_room;
     context.keep_kittens_separate_when_possible =
@@ -212,6 +213,9 @@ bool BuildPlanningContext(
             }
             return left < right;
         });
+    if (!config.keep_breeding_pairs_together) {
+        return true;
+    }
     const std::unordered_set<snapshot::CatId> movable_ids(
         context.movable.begin(), context.movable.end());
     for (const auto id : context.movable) {

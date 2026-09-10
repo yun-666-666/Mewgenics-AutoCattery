@@ -131,9 +131,6 @@ void ApplyPotentialOnlyRoles(
             : classification::CatRole::GeneralReserve;
     decision.combat_recommended = selected;
     decision.combat_pool_protected = selected;
-    decision.breeding_core = false;
-    decision.breeding_reserve = false;
-    decision.breeding_pool_protected = false;
     decision.preview_cull_candidate = false;
     decision.destructive_action_allowed = false;
   }
@@ -211,7 +208,8 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
           : captured.value;
   auto combat = scoring::RankCombatCats(scoring_snapshot, combat_config);
   auto breeding =
-      breeding::RankBreedingCats(captured.value, breeding_config);
+      breeding::RankBreedingCats(captured.value, breeding_config,
+          config_.room_planning.avoid_inbreeding_pairs);
   if (!combat) {
     state.Fail();
     return {{}, combat.code, combat.message};
@@ -310,6 +308,9 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
   preview.fully_satisfied = bundle.room_plan.fully_satisfied;
   preview.game_data_modified = false;
   preview.warnings = bundle.classification.global_warnings;
+  for (const auto& error : bundle.room_plan.validation_errors) {
+    AddUnique(preview.warnings, error);
+  }
   for (const auto &warning : bundle.room_plan.warnings) {
     AddUnique(preview.warnings, warning);
   }

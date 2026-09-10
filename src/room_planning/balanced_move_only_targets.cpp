@@ -22,6 +22,13 @@ bool AllocateOccupancyTargets(
         }
         ++target[room_id];
     }
+    for (const auto& room_id : context.rooms) {
+        if (target.at(room_id) > RoomCapacity(context, room_id)) {
+            plan.limitations.push_back(
+                "protected-residents-exceed-configured-room-capacity");
+            break;
+        }
+    }
     if (context.fixed_rooms.size() > context.movable.size()) {
         plan.validation_errors.push_back(
             "fixed-room-count-exceeds-movable-count");
@@ -33,9 +40,7 @@ bool AllocateOccupancyTargets(
          --remaining) {
         std::optional<snapshot::RoomId> best;
         for (const auto& room_id : context.rooms) {
-            const auto& capability = *context.capabilities.at(room_id);
-            if (capability.confirmed_hard_capacity &&
-                target[room_id] >= *capability.confirmed_hard_capacity) {
+            if (target[room_id] >= RoomCapacity(context, room_id)) {
                 continue;
             }
             if (!best ||
@@ -46,7 +51,7 @@ bool AllocateOccupancyTargets(
         }
         if (!best) {
             plan.validation_errors.push_back(
-                "confirmed-room-capacity-insufficient");
+                "configured-or-hard-room-capacity-insufficient");
             return false;
         }
         ++target[*best];

@@ -9,7 +9,8 @@ namespace autocattery::breeding {
 
 Result<BreedingRanking> RankBreedingCats(
     const snapshot::HouseSnapshot& snapshot,
-    const BreedingScoringConfig& config) {
+    const BreedingScoringConfig& config,
+    bool avoid_inbreeding_pairs) {
     const auto config_validation = Validate(config);
     if (!config_validation) {
         return {{}, config_validation.code, config_validation.message};
@@ -34,6 +35,15 @@ Result<BreedingRanking> RankBreedingCats(
         }
         ranking.stage = pairs.value.stage;
         ranking.ranked_pairs = std::move(pairs.value.ranked);
+        if (avoid_inbreeding_pairs) {
+            for (auto& pair : ranking.ranked_pairs) {
+                if (pair.eligible &&
+                    pair.offspring_inbreeding_coefficient.value_or(1.0) > 0.0) {
+                    pair.eligible = false;
+                    pair.exclusion_reasons.push_back("inbreeding-excluded-by-setting");
+                }
+            }
+        }
         const auto recommended = std::ranges::find_if(
             ranking.ranked_pairs,
             [](const auto& pair) { return pair.eligible; });

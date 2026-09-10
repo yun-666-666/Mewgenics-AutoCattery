@@ -332,9 +332,7 @@ void AssignBreedingPoolSlots(
             if (room_id == *target) {
                 continue;
             }
-            const auto capacity =
-                context.capabilities.at(room_id)->confirmed_hard_capacity;
-            if (capacity && occupancy.at(room_id) >= *capacity) {
+            if (occupancy.at(room_id) >= RoomCapacity(context, room_id)) {
                 continue;
             }
             if (!destination || PreferOccupancyRoom(

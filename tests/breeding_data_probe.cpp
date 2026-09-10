@@ -53,6 +53,17 @@ const autocattery::snapshot::RoomSnapshot* BestBreedingRoom(
 
 int wmain(int argc, wchar_t** argv) {
     const std::filesystem::path save = argc > 1 ? argv[1] : L"";
+    autocattery::Config config;
+    if (argc > 2) {
+        const std::filesystem::path config_root = argv[2];
+        const auto loaded = autocattery::LoadConfig(
+            config_root / L"default_config.json", config_root / L"user_config.json");
+        if (!loaded) {
+            std::cerr << "config failed: " << loaded.message << '\n';
+            return 3;
+        }
+        config = loaded.value;
+    }
     const auto game_root = std::filesystem::current_path().parent_path();
     autocattery::snapshot::SaveSnapshotAdapter adapter(save, game_root);
     const auto captured = adapter.CaptureHouseSnapshot(1);
@@ -93,7 +104,7 @@ int wmain(int argc, wchar_t** argv) {
         }
     }
     const auto ranking = autocattery::breeding::RankBreedingCats(
-        house, autocattery::breeding::BreedingScoringConfig{});
+        house, config.breeding_scoring, config.room_planning.avoid_inbreeding_pairs);
     if (!ranking) {
         std::cerr << "ranking failed: " << ranking.message << '\n';
         return 2;
@@ -136,11 +147,14 @@ int wmain(int argc, wchar_t** argv) {
     }
     autocattery::workflow::WorkflowStateMachine state;
     if (state.BeginPreview()) {
-        const auto preview = autocattery::workflow::PreviewBuilder(adapter).Build(
+        const auto preview = autocattery::workflow::PreviewBuilder(adapter, config).Build(
             2, autocattery::workflow::WorkflowCapability::MoveOnly, state);
         if (preview) {
             std::cout << " preview_moves="
                       << preview.value.room_plan.moves.size();
+            for (const auto& error : preview.value.room_plan.validation_errors) {
+                std::cout << " preview_error=" << error;
+            }
             if (ranking.value.recommended_pair) {
                 auto room_for = [&](autocattery::snapshot::CatId id) {
                     auto room = FindCat(preview.value.snapshot, id)->room_id

@@ -17,7 +17,9 @@ Result<workflow::PreviewBundle> Preview(
     std::uint64_t generation) {
     workflow::WorkflowStateMachine state;
     AC_CHECK(state.BeginPreview());
-    return workflow::PreviewBuilder(reader).Build(
+    Config config;
+    config.room_planning.default_soft_capacity = 10;
+    return workflow::PreviewBuilder(reader, config).Build(
         generation,
         workflow::WorkflowCapability::MoveOnly,
         state);

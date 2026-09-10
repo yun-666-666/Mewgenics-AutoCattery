@@ -51,6 +51,7 @@ void RunWorkflowPreviewBuilderTests() {
   }
   Config potential_config;
   potential_config.combat_scoring.recommended_count = 10;
+  potential_config.room_planning.default_soft_capacity = 13;
   workflow::WorkflowStateMachine potential_state;
   AC_CHECK(potential_state.BeginPreview());
   const auto potential_built =

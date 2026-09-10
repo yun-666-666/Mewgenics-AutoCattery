@@ -160,7 +160,9 @@ void RunBalancedMoveOnlyPlannerTests() {
   }
   workflow::WorkflowStateMachine skewed_state;
   AC_CHECK(skewed_state.BeginPreview());
-  const auto skewed = workflow::PreviewBuilder(skewed_sexes).Build(
+  Config large_house_config;
+  large_house_config.room_planning.default_soft_capacity = 40;
+  const auto skewed = workflow::PreviewBuilder(skewed_sexes, large_house_config).Build(
       34, workflow::WorkflowCapability::MoveOnly, skewed_state);
   AC_CHECK(static_cast<bool>(skewed));
   std::unordered_map<snapshot::CatId, snapshot::RoomId> skewed_final;
@@ -189,7 +191,7 @@ void RunBalancedMoveOnlyPlannerTests() {
   ConfigureBreedingPair(breeding_sexes.house, 1, 9);
   workflow::WorkflowStateMachine breeding_state;
   AC_CHECK(breeding_state.BeginPreview());
-  const auto breeding = workflow::PreviewBuilder(breeding_sexes).Build(
+  const auto breeding = workflow::PreviewBuilder(breeding_sexes, large_house_config).Build(
       35, workflow::WorkflowCapability::MoveOnly, breeding_state);
   AC_CHECK(static_cast<bool>(breeding));
   const auto breeding_final = FinalRooms(breeding.value);
@@ -211,7 +213,7 @@ void RunBalancedMoveOnlyPlannerTests() {
   workflow::WorkflowStateMachine breeding_repeated_state;
   AC_CHECK(breeding_repeated_state.BeginPreview());
   const auto breeding_repeated =
-      workflow::PreviewBuilder(breeding_sexes).Build(
+      workflow::PreviewBuilder(breeding_sexes, large_house_config).Build(
           36,
           workflow::WorkflowCapability::MoveOnly,
           breeding_repeated_state);
@@ -256,7 +258,9 @@ void RunBalancedMoveOnlyPlannerTests() {
   };
   workflow::WorkflowStateMachine pair_pool_state;
   AC_CHECK(pair_pool_state.BeginPreview());
-  const auto pair_pool_plan = workflow::PreviewBuilder(pair_pool).Build(
+  Config pair_pool_config;
+  pair_pool_config.room_planning.avoid_inbreeding_pairs = false;
+  const auto pair_pool_plan = workflow::PreviewBuilder(pair_pool, pair_pool_config).Build(
       41, workflow::WorkflowCapability::MoveOnly, pair_pool_state);
   AC_CHECK(static_cast<bool>(pair_pool_plan));
   const auto pair_pool_final = FinalRooms(pair_pool_plan.value);
@@ -308,7 +312,9 @@ void RunBalancedMoveOnlyPlannerTests() {
     }
     workflow::WorkflowStateMachine quality_state;
     AC_CHECK(quality_state.BeginPreview());
-    const auto quality_plan = workflow::PreviewBuilder(quality_pool).Build(
+    Config quality_config;
+    quality_config.room_planning.default_soft_capacity = population;
+    const auto quality_plan = workflow::PreviewBuilder(quality_pool, quality_config).Build(
         42, workflow::WorkflowCapability::MoveOnly, quality_state);
     AC_CHECK(static_cast<bool>(quality_plan));
     const auto final = FinalRooms(quality_plan.value);
@@ -318,10 +324,87 @@ void RunBalancedMoveOnlyPlannerTests() {
     ApplyRooms(house, final);
     workflow::WorkflowStateMachine repeat_state;
     AC_CHECK(repeat_state.BeginPreview());
-    const auto repeated = workflow::PreviewBuilder(quality_pool).Build(
+    const auto repeated = workflow::PreviewBuilder(quality_pool, quality_config).Build(
         43, workflow::WorkflowCapability::MoveOnly, repeat_state);
     AC_CHECK(static_cast<bool>(repeated));
     AC_CHECK(repeated.value.room_plan.moves.empty());
+
+    const auto with_settings = [&](const Config& config) {
+      workflow::WorkflowStateMachine settings_state;
+      AC_CHECK(settings_state.BeginPreview());
+      return workflow::PreviewBuilder(quality_pool, config).Build(
+          44, workflow::WorkflowCapability::MoveOnly, settings_state);
+    };
+    auto settings = quality_config;
+    settings.room_planning.keep_breeding_pairs_together = false;
+    const auto ungrouped = with_settings(settings);
+    AC_CHECK(static_cast<bool>(ungrouped));
+    const auto ungrouped_rooms = FinalRooms(ungrouped.value);
+    AC_CHECK(std::ranges::count_if(ungrouped_rooms, [](const auto& entry) {
+      return entry.second == "Attic";
+    }) == population / 2);
+    AC_CHECK(std::ranges::none_of(ungrouped.value.room_plan.moves,
+        [](const auto& move) {
+          return move.reason == "recommended-breeding-pair" ||
+              move.reason == "compatible-breeding-pool";
+        }));
+
+    settings.room_planning.default_soft_capacity = population / 2 - 1;
+    settings.room_planning.allow_soft_overflow = false;
+    const auto too_small = with_settings(settings);
+    AC_CHECK(static_cast<bool>(too_small));
+    AC_CHECK(!too_small.value.room_plan.validation_errors.empty());
+    AC_CHECK(!too_small.value.room_plan.move_execution_allowed);
+    AC_CHECK(std::ranges::find(too_small.value.preview.warnings,
+        "configured-or-hard-room-capacity-insufficient") !=
+        too_small.value.preview.warnings.end());
+    settings.room_planning.allow_soft_overflow = true;
+    settings.room_planning.max_soft_overflow_per_room = 0;
+    const auto no_overflow_space = with_settings(settings);
+    AC_CHECK(!no_overflow_space.value.room_plan.validation_errors.empty());
+    settings.room_planning.max_soft_overflow_per_room = 1;
+    const auto fits_overflow = with_settings(settings);
+    AC_CHECK(fits_overflow.value.room_plan.validation_errors.empty());
+    settings.room_planning.allow_soft_overflow = false;
+    ++settings.room_planning.default_soft_capacity;
+    const auto fits_soft = with_settings(settings);
+    AC_CHECK(fits_soft.value.room_plan.validation_errors.empty());
+
+    settings.breeding_scoring.core_breeders = 0;
+    settings.breeding_scoring.reserve_breeders = 0;
+    const auto pair_only_core = with_settings(settings);
+    AC_CHECK(pair_only_core.value.preview.breeding_core_count == 2);
+    AC_CHECK(pair_only_core.value.preview.breeding_reserve_count == 0);
+    settings.breeding_scoring.core_breeders = 8;
+    settings.breeding_scoring.reserve_breeders = 4;
+    const auto larger_pools = with_settings(settings);
+    AC_CHECK(larger_pools.value.preview.breeding_core_count == 8);
+    AC_CHECK(larger_pools.value.preview.breeding_reserve_count == 4);
+    settings.breeding_scoring.core_breeders = 0;
+    settings.breeding_scoring.reserve_breeders = 0;
+    settings.classification.minimum_breeding_pool = 0;
+    const auto no_retention = with_settings(settings);
+    AC_CHECK(std::ranges::count_if(no_retention.value.classification.decisions,
+        [](const auto& d) { return d.breeding_pool_protected; }) == 0);
+    settings.classification.minimum_breeding_pool = 12;
+    const auto retention = with_settings(settings);
+    AC_CHECK(std::ranges::count_if(retention.value.classification.decisions,
+        [](const auto& d) { return d.breeding_pool_protected; }) == 12);
+
+    // No known unrelated pair remains: enabled must not silently choose
+    // a related pair; disabled retains the existing COI ranking penalty.
+    for (auto& coefficient : house.pedigree_pair_coefficients) {
+      coefficient.coefficient = 0.125;
+    }
+    settings.room_planning.keep_breeding_pairs_together = true;
+    settings.room_planning.default_soft_capacity = population;
+    const auto avoid_related = with_settings(settings);
+    AC_CHECK(avoid_related.value.classification.breeding_pair_preferences.empty());
+    settings.room_planning.avoid_inbreeding_pairs = false;
+    const auto allow_related = with_settings(settings);
+    AC_CHECK(!allow_related.value.classification.breeding_pair_preferences.empty());
+    AC_CHECK(std::ranges::any_of(allow_related.value.classification.decisions,
+        [](const auto& decision) { return decision.breeding_partner_id.has_value(); }));
   }
 
   WorkflowReadFake constrained;
