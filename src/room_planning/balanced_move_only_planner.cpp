@@ -62,6 +62,22 @@ RoomPlan PlanCurrentBuildBalancedMoveOnlyRooms(
     if (!input.snapshot.capabilities.read_room_attributes) {
         AddUnique(plan.limitations, "room-attributes-unavailable");
     }
+    if (config.allow_soft_overflow) {
+        auto occupancy = context.current_count;
+        for (const auto& move : plan.moves) {
+            if (occupancy.contains(move.from_room)) {
+                --occupancy.at(move.from_room);
+            }
+            ++occupancy[move.to_room];
+        }
+        for (const auto& [room, count] : occupancy) {
+            if (count > config.default_soft_capacity +
+                    config.max_soft_overflow_per_room) {
+                AddUnique(plan.limitations, "room-crowding-advisory-threshold-exceeded");
+                break;
+            }
+        }
+    }
     if (!input.snapshot.capabilities.read_sexuality ||
         !input.snapshot.capabilities.read_relationships) {
         AddUnique(plan.limitations, "unlocked-breeding-fields-unavailable");

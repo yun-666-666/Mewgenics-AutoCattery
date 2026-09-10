@@ -67,8 +67,8 @@ std::vector<InGameSettingsModel::Page> InGameSettingsModel::Pages() {
     });
     groups.emplace_back(L(en, "房间、安全与 MOD", "Rooms, Safety & MOD"), std::vector<F>{
         {L(en, "默认软容量", "Default soft capacity"), &rooms.default_soft_capacity, 1, 1000, 1},
-        {L(en, "允许软容量溢出", "Allow soft overflow"), &rooms.allow_soft_overflow},
-        {L(en, "每房最大软溢出", "Maximum room overflow"), &rooms.max_soft_overflow_per_room, 0, 1000, 1},
+        {L(en, "不限制房间人数", "Unlimited room population"), &rooms.allow_soft_overflow},
+        {L(en, "软容量超额提醒", "Soft overflow advisory"), &rooms.max_soft_overflow_per_room, 0, 1000, 1},
         {L(en, "优先单一战斗房", "Prefer one combat room"), &rooms.prefer_single_combat_staging_room},
         {L(en, "繁育配对保持同房", "Keep breeding pair together"), &rooms.keep_breeding_pairs_together},
         {L(en, "避免近亲配对", "Avoid inbreeding pairs"), &rooms.avoid_inbreeding_pairs},

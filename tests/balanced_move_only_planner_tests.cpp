@@ -361,10 +361,16 @@ void RunBalancedMoveOnlyPlannerTests() {
     settings.room_planning.allow_soft_overflow = true;
     settings.room_planning.max_soft_overflow_per_room = 0;
     const auto no_overflow_space = with_settings(settings);
-    AC_CHECK(!no_overflow_space.value.room_plan.validation_errors.empty());
+    AC_CHECK(no_overflow_space.value.room_plan.validation_errors.empty());
+    AC_CHECK(std::ranges::find(no_overflow_space.value.preview.warnings,
+        "room-crowding-advisory-threshold-exceeded") !=
+        no_overflow_space.value.preview.warnings.end());
     settings.room_planning.max_soft_overflow_per_room = 1;
     const auto fits_overflow = with_settings(settings);
     AC_CHECK(fits_overflow.value.room_plan.validation_errors.empty());
+    AC_CHECK(std::ranges::find(fits_overflow.value.preview.warnings,
+        "room-crowding-advisory-threshold-exceeded") ==
+        fits_overflow.value.preview.warnings.end());
     settings.room_planning.allow_soft_overflow = false;
     ++settings.room_planning.default_soft_capacity;
     const auto fits_soft = with_settings(settings);

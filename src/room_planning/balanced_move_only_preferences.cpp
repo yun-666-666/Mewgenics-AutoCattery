@@ -1,6 +1,7 @@
 #include "balanced_move_only_internal.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <tuple>
 
 namespace autocattery::room_planning::balanced_internal {
@@ -87,9 +88,9 @@ auto KittenKey(
 
 std::size_t RoomCapacity(
     const PlanningContext& context, const snapshot::RoomId& room_id) {
-    const auto configured = context.config.default_soft_capacity +
-        (context.config.allow_soft_overflow
-            ? context.config.max_soft_overflow_per_room : 0U);
+    const auto configured = context.config.allow_soft_overflow
+        ? std::numeric_limits<std::size_t>::max()
+        : context.config.default_soft_capacity;
     const auto hard = context.capabilities.at(room_id)->confirmed_hard_capacity;
     return hard ? std::min(configured, *hard) : configured;
 }
