@@ -117,3 +117,7 @@ Release/CTest7/7（2.57秒）通过；code-simplifier复用计数后增量构建
 
 2026-09-12 Stage40续修：玩家预览不可用由空房快照与运行时零枚举/占用房计数不一致触发。当前EXE证明房间组件桶入口0x96B470，旧0x963030/40语义错误；已更正并验证原生call。补AC3105实际失败日志。用户证明第三测试存档有五房，已用house.gon及house_unlocks确认Floor2_Small；解析实际解锁记录恢复空房，删除按数量猜顺序，接通第五间能力/原生识别/显示并扩展至五房。五房育幼最终集中，保留保护和容量。文本改“繁育房猫数”，配置值保留。
 Release/CTest7/7（2.61秒）通过，独立当前EXE call目标检查通过；第三档12猫实际配置只读预览5移动、阁楼4、一楼小房7、二楼大房1、其余备用，五房完整。code-simplifier限定本轮无额外改动。游戏未运行时最终DLL已部署实际目录，未控制游戏/改存档/改用户设置。下一步玩家重启验证主档预览及五房整理；若失败优先看AC3105，不重复已通过构建。此前“只有四房”的说明由此更正。
+
+2026-09-12 Stage40设置实际不可见续修：截图证实此前仅后台模型49项，原生view容量48、点击分栏17/18/13、SWF分栏17/18/13，最后一项根本未进入游戏面板。现三处同步49项/17/18/14，生成ac_set_49及ac_set_49_t，位置为右侧房间与安全栏升级重骰次数下方，文本沿用繁育房猫数。未改设置值、默认值或繁育算法。
+修改文件：src/ui/mew_ui_management_panel_view.hpp、include/auto_cattery/ui/management_panel_input.hpp、tools/swf_panel_layout.py、tests/house_ui_asset_tests.py、tests/virtual_viewport_tests.cpp。./tools/build.ps1 -Configuration Release成功，CTest7/7通过（2.73秒）；新增生成节点/原生容量一致检查及第49行编辑、左右调整点击检查。git diff --check通过。code-simplifier一次仅本轮差异检查，无需额外简化。
+游戏未运行时部署DLL到Mods/AutoCattery.dll及既有子目录副本；新SWF同时部署Mods/AutoCattery/swfs与Mewtator/config.json实际mod_folder下AutoCattery/swfs，两份均读取确认包含新控件和文本节点。保留用户配置、存档与其他MOD；未启动或控制游戏。游戏中显示与点击仍待玩家重启后F10确认，不能把静态资源/点击函数测试当作游戏实测。原有build-ninja/与tools/__pycache__/未跟踪文件保留。本地提交见本报告最新Git历史及最终回复。是否 push：否。

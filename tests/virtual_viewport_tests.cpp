@@ -51,6 +51,22 @@ void RunVirtualViewportTests() {
         AC_CHECK(reroll_count->row == 47);
         AC_CHECK(reroll_count->begin_edit);
     }
+    const auto population = ui::HitTestSettingsRow(944.0, 528.0);
+    AC_CHECK(population.has_value());
+    if (population) {
+        AC_CHECK(population->row == 48);
+        AC_CHECK(population->begin_edit);
+    }
+    for (const auto x : {810.0, 1070.0}) {
+        const auto arrow = ui::HitTestSettingsRow(x, 528.0);
+        AC_CHECK(arrow.has_value());
+        if (arrow) {
+            AC_CHECK(arrow->row == 48);
+            AC_CHECK(!arrow->begin_edit);
+            AC_CHECK(arrow->direction == (x < 944.0 ? -1 : 1));
+        }
+    }
+    AC_CHECK(!ui::HitTestSettingsRow(944.0, 553.0));
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0100, 0x1B));
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0104, 0x1B));
     AC_CHECK(!ui::ShouldConsumePanelMessage(0x0100, 'A'));

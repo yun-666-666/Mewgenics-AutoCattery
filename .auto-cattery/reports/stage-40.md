@@ -162,3 +162,7 @@ code-simplifier仅当前差异，复用已定义的assigned_count消除重复计
 
 code-simplifier一次限本次差异检查，无额外修改，沿用通过验证。游戏未运行时最终DLL部署到实际Mods/AutoCattery.dll及既有子目录副本，0.5.34本地候选；未更改玩家配置。玩家下一步重启后分别在主存档和五房测试档点击自动整理→确认，检查预览恢复、五房纳入及设置名称；真实原生枚举/执行仍待玩家验收。如失败读取AC3105和同次房间枚举日志。
 本地提交见最终回复或本报告最新Git历史。原有build-ninja/及tools/__pycache__/未跟踪文件保持。是否 push：否。
+
+2026-09-12 Stage40设置实际不可见续修：截图证实此前仅后台模型49项，原生view容量48、点击分栏17/18/13、SWF分栏17/18/13，最后一项根本未进入游戏面板。现三处同步49项/17/18/14，生成ac_set_49及ac_set_49_t，位置为右侧房间与安全栏升级重骰次数下方，文本沿用繁育房猫数。未改设置值、默认值或繁育算法。
+修改文件：src/ui/mew_ui_management_panel_view.hpp、include/auto_cattery/ui/management_panel_input.hpp、tools/swf_panel_layout.py、tests/house_ui_asset_tests.py、tests/virtual_viewport_tests.cpp。./tools/build.ps1 -Configuration Release成功，CTest7/7通过（2.73秒）；新增生成节点/原生容量一致检查及第49行编辑、左右调整点击检查。git diff --check通过。code-simplifier一次仅本轮差异检查，无需额外简化。
+游戏未运行时部署DLL到Mods/AutoCattery.dll及既有子目录副本；新SWF同时部署Mods/AutoCattery/swfs与Mewtator/config.json实际mod_folder下AutoCattery/swfs，两份均读取确认包含新控件和文本节点。保留用户配置、存档与其他MOD；未启动或控制游戏。游戏中显示与点击仍待玩家重启后F10确认，不能把静态资源/点击函数测试当作游戏实测。原有build-ninja/与tools/__pycache__/未跟踪文件保留。本地提交见本报告最新Git历史及最终回复。是否 push：否。

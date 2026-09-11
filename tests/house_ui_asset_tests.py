@@ -1,6 +1,7 @@
 """Check private House clips before native UI attachment, including AS3 stop."""
 
 from pathlib import Path
+import re
 import struct
 import sys
 
@@ -11,6 +12,7 @@ from swf_panel_layout import (
     PANEL_BACKGROUND_NAME,
     PANEL_COMPACT_ELEMENTS,
     PANEL_PROTECTION_ELEMENTS,
+    PANEL_SETTING_ELEMENTS,
     PANEL_TEXT_SUFFIX,
     PANEL_TEXTS,
 )
@@ -42,6 +44,11 @@ def panel_instance_names():
 
 
 def check_panel_lookup_names(repo_root):
+    header = (repo_root / "src/ui/mew_ui_management_panel_view.hpp").read_text(
+        encoding="utf-8")
+    capacity = re.search(r"std::array<Element, (\d+)> setting_nodes_", header)
+    check(capacity and int(capacity.group(1)) == len(PANEL_SETTING_ELEMENTS),
+          "native setting capacity must match generated controls")
     source = (repo_root / "src/ui/mew_ui_management_panel_view.cpp").read_text(
         encoding="utf-8")
     expected_literals = (
@@ -135,6 +142,8 @@ def check_asset(path):
                 private_ids.add(character_id)
     check(found_panel_names == set(panel_names),
           "all panel artwork and text placements must remain discoverable")
+    check({"ac_set_49", "ac_set_49_t"} <= found_panel_names,
+          "breeding population needs both a visible control and text node")
     check(len(private_ids) == 3, "panel background, controls and recommendation rows")
 
     for character_id in private_ids:

@@ -109,7 +109,7 @@ private:
     std::array<Element, 9> fixed_nodes_{};
     std::array<Element, 12> list_nodes_{};
     std::array<Element, 3> group_nodes_{};
-    std::array<Element, 48> setting_nodes_{};
+    std::array<Element, 49> setting_nodes_{};
     Element title_;
     Element status_;
     HHOOK message_hook_{};

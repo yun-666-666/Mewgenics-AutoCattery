@@ -16,7 +16,7 @@ struct SettingsRowHit {
 inline std::optional<SettingsRowHit> HitTestSettingsRow(
     double x, double y) noexcept {
     constexpr std::array<std::size_t, 3> starts{0, 17, 35};
-    constexpr std::array<std::size_t, 3> counts{17, 18, 13};
+    constexpr std::array<std::size_t, 3> counts{17, 18, 14};
     for (std::size_t column = 0; column < counts.size(); ++column) {
         for (std::size_t row = 0; row < counts[column]; ++row) {
             const double left = 160.0 + column * 317.0;
