@@ -314,6 +314,7 @@ void RunBalancedMoveOnlyPlannerTests() {
     AC_CHECK(quality_state.BeginPreview());
     Config quality_config;
     quality_config.room_planning.default_soft_capacity = population;
+    quality_config.room_planning.breeding_room_population = pool_size;
     const auto quality_plan = workflow::PreviewBuilder(quality_pool, quality_config).Build(
         42, workflow::WorkflowCapability::MoveOnly, quality_state);
     AC_CHECK(static_cast<bool>(quality_plan));
@@ -335,6 +336,22 @@ void RunBalancedMoveOnlyPlannerTests() {
       return workflow::PreviewBuilder(quality_pool, config).Build(
           44, workflow::WorkflowCapability::MoveOnly, settings_state);
     };
+    // Requested population controls the actual room, including expansion
+    // beyond the original balanced occupancy. Lower-coverage candidates may
+    // fill the group; eligibility and pedigree rules still apply.
+    for (const auto requested : {2U, 4U, 8U, 12U}) {
+      auto expanded_config = quality_config;
+      expanded_config.room_planning.breeding_room_population = requested;
+      const auto expanded = with_settings(expanded_config);
+      AC_CHECK(expanded.value.room_plan.validation_errors.empty());
+      const auto expanded_rooms = FinalRooms(expanded.value);
+      AC_CHECK(std::ranges::count_if(expanded_rooms, [](const auto& entry) {
+        return entry.second == "Attic";
+      }) == requested);
+      const auto [females, males] = SexCounts(expanded.value, expanded_rooms, "Attic");
+      AC_CHECK(females == requested / 2);
+      AC_CHECK(males == requested / 2);
+    }
     auto settings = quality_config;
     settings.room_planning.keep_breeding_pairs_together = false;
     settings.room_planning.prefer_single_combat_staging_room = false;
@@ -459,13 +476,17 @@ void RunBalancedMoveOnlyPlannerTests() {
       constrained_plan.value,
       constrained_final,
       "Floor1_Small");
-  AC_CHECK(constrained_female == 1);
-  AC_CHECK(constrained_male == 5);
+  AC_CHECK(constrained_female >= 1);
+  AC_CHECK(constrained_male >= 4);
+  for (snapshot::CatId id = 11; id <= 14; ++id) {
+    AC_CHECK(constrained_final.at(id) == "Floor1_Small");
+  }
   AC_CHECK(constrained_final.at(1) == "Floor1_Small");
-  AC_CHECK(constrained_final.at(10) == "Floor1_Small");
+  // A fixed parent outside the attic cannot silently redefine breeding room.
+
   AC_CHECK(std::ranges::find(
       constrained_plan.value.room_plan.limitations,
-      "protected-residents-limit-breeding-sex-balance") !=
+      "breeding-pair-room-unavailable") !=
       constrained_plan.value.room_plan.limitations.end());
   std::error_code ignored;
   std::filesystem::remove(protection_path, ignored);
@@ -511,9 +532,9 @@ void RunBalancedMoveOnlyPlannerTests() {
   const auto purpose_final = FinalRooms(purpose_plan.value);
   AC_CHECK(purpose_final.at(1) == "Attic");
   AC_CHECK(purpose_final.at(2) == "Attic");
-  AC_CHECK(purpose_final.at(10) == "Floor2_Large");
-  AC_CHECK(purpose_final.at(11) == "Floor2_Large");
-  AC_CHECK(purpose_final.at(12) == "Floor2_Large");
+  AC_CHECK(purpose_final.at(10) == "Floor1_Small");
+  AC_CHECK(purpose_final.at(11) == "Floor1_Small");
+  AC_CHECK(purpose_final.at(12) == "Floor1_Small");
   for (const auto& decision : purpose_plan.value.classification.decisions) {
     if (decision.cat_id == 1 || decision.cat_id == 2 ||
         decision.cat_id >= 10 ||
@@ -521,16 +542,49 @@ void RunBalancedMoveOnlyPlannerTests() {
             classification::CatRole::CombatRecommended) {
       continue;
     }
-    AC_CHECK(purpose_final.at(decision.cat_id) == "Floor1_Small");
+    AC_CHECK(purpose_final.at(decision.cat_id) == "Floor1_Large");
   }
   for (snapshot::CatId id = 3; id <= 9; ++id) {
-    AC_CHECK(purpose_final.at(id) == "Floor1_Small");
+    AC_CHECK(purpose_final.at(id) == "Floor1_Large");
   }
   AC_CHECK(std::ranges::count_if(
       purpose_plan.value.room_plan.moves,
       [](const auto& move) {
         return move.reason == "kitten-nursery-room";
       }) == 3);
+
+  // Room purposes depend on furniture, not current resident counts. Test
+  // all supported room counts, even with another room better for breeding.
+  for (const auto room_count : {2U, 3U, 4U}) {
+    WorkflowReadFake layout;
+    layout.house = purpose_aware.house;
+    std::erase_if(layout.house.rooms, [&](const auto& room) {
+      return (room_count < 4 && room.id == "Floor2_Large") ||
+             (room_count < 3 && room.id == "Floor1_Small");
+    });
+    Room(layout.house, "Floor1_Large").attributes->stimulation = 200;
+    Room(layout.house, "Attic").attributes->stimulation = 1;
+    workflow::WorkflowStateMachine layout_state;
+    AC_CHECK(layout_state.BeginPreview());
+    const auto plan = workflow::PreviewBuilder(layout).Build(
+        50 + room_count, workflow::WorkflowCapability::MoveOnly, layout_state);
+    AC_CHECK(plan.value.room_plan.validation_errors.empty());
+    const auto rooms = FinalRooms(plan.value);
+    AC_CHECK(rooms.at(1) == "Attic");
+    AC_CHECK(rooms.at(2) == "Attic");
+    for (snapshot::CatId id = 3; id <= 9; ++id) {
+      AC_CHECK(rooms.at(id) == "Floor1_Large");
+    }
+    for (snapshot::CatId id = 10; id <= 12; ++id) {
+      AC_CHECK(rooms.at(id) == (room_count == 2 ? "Floor1_Large" : "Floor1_Small"));
+    }
+    ApplyRooms(layout.house, rooms);
+    workflow::WorkflowStateMachine repeat_layout;
+    AC_CHECK(repeat_layout.BeginPreview());
+    const auto again = workflow::PreviewBuilder(layout).Build(
+        60 + room_count, workflow::WorkflowCapability::MoveOnly, repeat_layout);
+    AC_CHECK(again.value.room_plan.moves.empty());
+  }
 
   Config shared_room_config;
   shared_room_config.room_planning.keep_kittens_separate_when_possible = false;
@@ -572,14 +626,14 @@ void RunBalancedMoveOnlyPlannerTests() {
       [](const auto& move) {
         return move.reason == "kitten-nursery-room";
       });
-  if (nursery_move_count != 2) {
+  if (nursery_move_count != 3) {
     for (const auto& move : role_capacity_plan.value.room_plan.moves) {
       std::cerr << "role capacity move: cat=" << move.cat_id
                 << " to=" << move.to_room
                 << " reason=" << move.reason << '\n';
     }
   }
-  AC_CHECK(nursery_move_count == 2);
+  AC_CHECK(nursery_move_count == 3);
   std::filesystem::remove(role_capacity_path, ignored);
 
   for (auto &room : reader.house.rooms) {

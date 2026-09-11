@@ -162,6 +162,8 @@ Result<Config> DecodeConfig(const Json& value) {
         result.room_planning.version = planning.at("version").get<std::uint32_t>();
         result.room_planning.default_soft_capacity =
             planning.at("default_soft_capacity").get<std::size_t>();
+        result.room_planning.breeding_room_population =
+            planning.at("breeding_room_population").get<std::size_t>();
         result.room_planning.allow_soft_overflow =
             planning.at("allow_soft_overflow").get<bool>();
         result.room_planning.max_soft_overflow_per_room =

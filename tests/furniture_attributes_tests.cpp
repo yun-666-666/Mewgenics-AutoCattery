@@ -61,6 +61,19 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(house.rooms[0].attributes->comfort == 3);
     AC_CHECK(house.rooms[0].attributes->stimulation == 2);
 
+    // Occupancy and poop cannot change the furnished baseline, and a room
+    // with furniture but no cats must not disappear from purpose selection.
+    house.rooms[0].residents.resize(100);
+    placements.push_back({"poop", "Attic"});
+    placements.push_back({"chair", "Floor1_Large"});
+    catalog["poop"] = {.comfort = -100};
+    snapshot::detail::ApplyFurnitureRoomAttributes(house, placements, catalog);
+    AC_CHECK(house.rooms.size() == 2);
+    AC_CHECK(house.rooms[0].attributes->comfort == 3);
+    AC_CHECK(house.rooms[1].id == "Floor1_Large");
+    AC_CHECK(house.rooms[1].residents.empty());
+    AC_CHECK(house.rooms[1].attributes->comfort == 3);
+
     const auto game_root = std::filesystem::path(__FILE__)
         .parent_path().parent_path().parent_path();
     if (std::filesystem::exists(game_root / "resources.gpak")) {

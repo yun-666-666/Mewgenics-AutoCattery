@@ -40,12 +40,14 @@ bool AllocateOccupancyTargets(
          --remaining) {
         std::optional<snapshot::RoomId> best;
         for (const auto& room_id : context.rooms) {
+            const bool breeding = !context.breeding_pair.empty() && room_id == "Attic";
             if (target[room_id] >= RoomCapacity(context, room_id)) {
                 continue;
             }
-            if (!best ||
-                PreferOccupancyRoom(
-                    context, room_id, *best, target)) {
+            if (!best || (breeding && target[room_id] < 2) ||
+                (!(context.breeding_pair.size() == 2 && *best == "Attic" &&
+                    target[*best] < 2) && PreferOccupancyRoom(
+                    context, room_id, *best, target))) {
                 best = room_id;
             }
         }
@@ -195,6 +197,7 @@ std::optional<snapshot::RoomId> FindDevelopmentTarget(
     std::optional<snapshot::RoomId> target;
     for (const auto& room_id : context.rooms) {
         if (occupancy.at(room_id) == 0 ||
+            (context.config.keep_breeding_pairs_together && room_id == "Attic") ||
             (breeding_target && room_id == *breeding_target)) {
             continue;
         }

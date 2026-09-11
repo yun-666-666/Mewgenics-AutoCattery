@@ -45,6 +45,10 @@ std::optional<snapshot::RoomId> FindBreedingTarget(
     }
     std::optional<snapshot::RoomId> target;
     for (const auto& room_id : context.rooms) {
+        // Attic is the player-selected breeding room, independent of occupancy.
+        if (room_id != "Attic") {
+            continue;
+        }
         if (fixed_target && room_id != *fixed_target) {
             continue;
         }
@@ -125,18 +129,6 @@ void AssignBreedingPoolSlots(
         return;
     }
 
-    const auto coverage = [&](snapshot::CatId a, snapshot::CatId b) {
-        std::size_t count{};
-        const auto& left = context.cats.at(a)->genetic_stats.values;
-        const auto& right = context.cats.at(b)->genetic_stats.values;
-        for (std::size_t i = 0; i < snapshot::kStatCount; ++i) {
-            count += left[i] == 7 || right[i] == 7 ? 1U : 0U;
-        }
-        return count;
-    };
-    const auto target_coverage = coverage(
-        context.breeding_pair[0], context.breeding_pair[1]);
-
     const auto movable = [&](snapshot::CatId cat_id) {
         return std::ranges::find(context.movable, cat_id) !=
             context.movable.end();
@@ -170,13 +162,13 @@ void AssignBreedingPoolSlots(
         auto best_rank = std::numeric_limits<int>::max();
         for (std::size_t index = 0; index < slots.size(); ++index) {
             const auto& slot = slots[index];
-            if (slot.room_id != *target ||
-                slot.preferred_cat ||
+            if (slot.preferred_cat ||
                 slot.kitten_preferred ||
                 !SexMatches(cat, slot.required_sex)) {
                 continue;
             }
             const auto rank =
+                (slot.room_id == *target ? 0 : 4) +
                 (slot.required_sex == SlotSex::Any ? 1 : 0) +
                 (slot.potential_preferred ? 2 : 0);
             if (rank < best_rank) {
@@ -227,6 +219,8 @@ void AssignBreedingPoolSlots(
     struct CandidateQuality {
         snapshot::CatId cat_id{};
         std::size_t slot_index{};
+        std::size_t sex_imbalance{};
+        bool male{};
         double weakest_cross_score{
             std::numeric_limits<double>::infinity()};
         double average_cross_score{};
@@ -235,12 +229,16 @@ void AssignBreedingPoolSlots(
     const auto better = [](const CandidateQuality& left,
                             const CandidateQuality& right) {
         return std::tuple{
+            left.sex_imbalance,
+            left.male,
             -left.weakest_cross_score,
             left.worst_cross_coi,
             -left.average_cross_score,
             left.cat_id,
             left.slot_index
         } < std::tuple{
+            right.sex_imbalance,
+            right.male,
             -right.weakest_cross_score,
             right.worst_cross_coi,
             -right.average_cross_score,
@@ -249,7 +247,15 @@ void AssignBreedingPoolSlots(
         };
     };
 
-    while (true) {
+    const auto resident_target = std::min(
+        context.config.breeding_room_population, RoomCapacity(context, *target));
+    const auto assigned_count = [&] {
+        return context.pinned_count.at(*target) +
+            static_cast<std::size_t>(std::ranges::count_if(slots, [&](const auto& slot) {
+                return slot.room_id == *target && slot.preferred_cat.has_value();
+            }));
+    };
+    while (assigned_count() < resident_target) {
         std::optional<CandidateQuality> best;
         for (const auto cat_id : candidates) {
             if (selected.contains(cat_id) || !available(cat_id) ||
@@ -265,6 +271,15 @@ void AssignBreedingPoolSlots(
                 .cat_id = cat_id,
                 .slot_index = slot_index
             };
+            std::size_t females{}, males{};
+            for (const auto id : selected) {
+                females += context.cats.at(id)->sex == snapshot::CatSex::Female;
+                males += context.cats.at(id)->sex == snapshot::CatSex::Male;
+            }
+            females += cat.sex == snapshot::CatSex::Female;
+            males += cat.sex == snapshot::CatSex::Male;
+            quality.sex_imbalance = females > males ? females - males : males - females;
+            quality.male = cat.sex == snapshot::CatSex::Male;
             double total_score{};
             std::size_t cross_pair_count{};
             bool compatible = true;
@@ -280,14 +295,6 @@ void AssignBreedingPoolSlots(
                     break;
                 }
                 const auto& preference = *pair->second;
-                // Co-location permits cross-pair mating, not just the
-                // displayed recommendation. Preserve its attainable stats.
-                if (coverage(cat_id, selected_id) < target_coverage ||
-                    (context.breeding_stats_stable &&
-                     !preference.stable_all_seven)) {
-                    compatible = false;
-                    break;
-                }
                 quality.weakest_cross_score = std::min(
                     quality.weakest_cross_score,
                     preference.score);
@@ -311,14 +318,19 @@ void AssignBreedingPoolSlots(
             break;
         }
         auto& slot = slots[best->slot_index];
+        slot.room_id = *target;
         slot.preferred_cat = best->cat_id;
         slot.breeding_pool_preferred = true;
         selected.insert(best->cat_id);
     }
 
+    if (assigned_count() < context.config.breeding_room_population) {
+        AddUnique(plan.limitations, "breeding-population-limited-by-eligible-cats-or-protection");
+    }
+
     // Unclaimed slots must not refill this room with unrelated breeders.
-    // Pool size follows compatible cats and available space, not a fixed
-    // two-cat template. Fixed/protected residents retain their assignments.
+    // Honor the requested population when eligible cats and space permit.
+    // Fixed/protected residents retain their assignments.
     CountMap occupancy = context.pinned_count;
     for (const auto& slot : slots) {
         ++occupancy[slot.room_id];

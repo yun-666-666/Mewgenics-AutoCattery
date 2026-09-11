@@ -16,7 +16,7 @@ namespace autocattery::room_planning {
 inline constexpr char kRoomPlanningAlgorithmVersion[] =
     "capacity-aware-room-planner-v1";
 inline constexpr char kBalancedMoveOnlyAlgorithmVersion[] =
-    "current-build-coverage-preserving-breeding-pool-v10";
+    "current-build-configured-breeding-population-v11";
 
 enum class CapabilityState {
     Unknown,
@@ -49,6 +49,7 @@ struct RoomCapability {
 struct RoomPlanningConfig {
     std::uint32_t version{1};
     std::size_t default_soft_capacity{4};
+    std::size_t breeding_room_population{4};
     bool allow_soft_overflow{true};
     std::size_t max_soft_overflow_per_room{2};
     bool never_exceed_known_hard_capacity{true};

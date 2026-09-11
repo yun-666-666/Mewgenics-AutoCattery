@@ -41,10 +41,10 @@ auto DevelopmentKey(
     const auto* attributes = Attributes(context, room_id);
     return std::tuple{
         attributes ? 0 : 1,
-        attributes ? -attributes->health : 0.0,
-        attributes ? -attributes->comfort : 0.0,
-        attributes ? -attributes->stimulation : 0.0,
+        attributes ? attributes->comfort : 0.0,
         attributes ? -attributes->mutation : 0.0,
+        attributes ? attributes->health : 0.0,
+        attributes ? attributes->stimulation : 0.0,
         room_id
     };
 }

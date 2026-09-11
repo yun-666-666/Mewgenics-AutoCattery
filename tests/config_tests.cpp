@@ -62,6 +62,7 @@ void RunConfigTests() {
     AC_CHECK(valid.value.protection.require_stable_identity_for_sidecar);
     AC_CHECK(valid.value.room_planning.version == 1);
     AC_CHECK(valid.value.room_planning.default_soft_capacity == 4);
+    AC_CHECK(valid.value.room_planning.breeding_room_population == 4);
     AC_CHECK(valid.value.room_planning.never_exceed_known_hard_capacity);
     AC_CHECK(valid.value.workflow.preview_ttl_seconds == 120);
     AC_CHECK(valid.value.level_up.reroll_count == 3);

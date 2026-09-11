@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <iostream>
 #include <limits>
+#include <map>
+#include <cmath>
 #include <tuple>
 
 namespace {
@@ -63,6 +65,9 @@ int wmain(int argc, wchar_t** argv) {
             return 3;
         }
         config = loaded.value;
+    }
+    if (argc > 3) {
+        config.room_planning.breeding_room_population = std::stoul(argv[3]);
     }
     const auto game_root = std::filesystem::current_path().parent_path();
     autocattery::snapshot::SaveSnapshotAdapter adapter(save, game_root);
@@ -170,6 +175,24 @@ int wmain(int argc, wchar_t** argv) {
                 std::cout << " preview_pair_rooms="
                           << room_for(pair.cat_a_id) << ','
                           << room_for(pair.cat_b_id);
+                std::map<std::string, std::size_t> final_counts;
+                for (const auto& cat : house.cats) ++final_counts[room_for(cat.id)];
+                for (const auto& [room, count] : final_counts) {
+                    std::cout << " final_" << room << '=' << count;
+                }
+                std::size_t females{}, males{};
+                double probability_sum{}, expected_sevens_sum{};
+                double min_coverage = 7;
+                const auto* actual_room = &*std::ranges::find(house.rooms,
+                    room_for(pair.cat_a_id), &autocattery::snapshot::RoomSnapshot::id);
+                const auto stim = actual_room->attributes ? actual_room->attributes->stimulation : 0.0;
+                const auto p_high = (1 + .01 * std::max(0.0, stim)) /
+                    (2 + .01 * std::max(0.0, stim));
+                for (const auto& cat : house.cats) {
+                    if (room_for(cat.id) != room_for(pair.cat_a_id)) continue;
+                    females += cat.sex == autocattery::snapshot::CatSex::Female;
+                    males += cat.sex == autocattery::snapshot::CatSex::Male;
+                }
                 std::size_t residents{};
                 std::size_t cross_pairs{};
                 std::size_t covered_cross_pairs{};
@@ -196,9 +219,28 @@ int wmain(int argc, wchar_t** argv) {
                         continue;
                     }
                     ++cross_pairs;
+                    min_coverage = std::min(min_coverage, static_cast<double>(cross.covered_seven_stats));
+                    const auto* left = FindCat(house, cross.cat_a_id);
+                    const auto* right = FindCat(house, cross.cat_b_id);
+                    double probability = 1, expected_sevens = 0;
+                    for (std::size_t i = 0; i < autocattery::snapshot::kStatCount; ++i) {
+                        const bool a7 = left->genetic_stats.values[i] == 7;
+                        const bool b7 = right->genetic_stats.values[i] == 7;
+                        const double p = a7 && b7 ? 1.0 : a7 || b7 ? p_high : 0.0;
+                        probability *= p;
+                        expected_sevens += p;
+                    }
+                    probability_sum += probability;
+                    expected_sevens_sum += expected_sevens;
                     covered_cross_pairs += cross.covered_seven_stats >=
                         pair.covered_seven_stats ? 1U : 0U;
                 }
+                std::cout << " requested=" << config.room_planning.breeding_room_population
+                          << " females=" << females << " males=" << males
+                          << " mean_all7_probability_proxy=" << (cross_pairs ? probability_sum / cross_pairs : 0)
+                          << " female_opportunity_proxy=" << (males ? probability_sum / males : 0)
+                          << " mean_inherited_sevens_proxy=" << (cross_pairs ? expected_sevens_sum / cross_pairs : 0)
+                          << " min_cross_coverage=" << min_coverage;
                 std::cout << " preview_pool_residents=" << residents
                           << " preview_eligible_cross_pairs=" << cross_pairs
                           << " preview_target_coverage_cross_pairs="

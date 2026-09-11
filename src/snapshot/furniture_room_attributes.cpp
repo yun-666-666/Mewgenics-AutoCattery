@@ -1,5 +1,6 @@
 #include "auto_cattery/snapshot/detail/furniture_attributes.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <span>
@@ -77,12 +78,26 @@ void ApplyFurnitureRoomAttributes(
     HouseSnapshot& snapshot,
     const std::vector<FurniturePlacement>& placements,
     const FurnitureCatalog& catalog) {
+    // A furnished room remains available even when its last resident moved out.
+    // Cat-derived house entries alone omit empty rooms.
+    for (const auto& placement : placements) {
+        const auto& id = placement.room_id;
+        if (id != "Attic" && id != "Floor1_Large" &&
+            id != "Floor1_Small" && id != "Floor2_Large") {
+            continue;
+        }
+        if (std::ranges::none_of(snapshot.rooms, [&](const auto& room) {
+                return room.id == id;
+            })) {
+            snapshot.rooms.push_back({.id = id});
+        }
+    }
     std::unordered_map<RoomId, RoomAttributes> totals;
     for (const auto& room : snapshot.rooms) {
         totals.emplace(room.id, RoomAttributes{});
     }
     for (const auto& placement : placements) {
-        if (placement.room_id.empty() ||
+        if (placement.item_id == "poop" || placement.room_id.empty() ||
             !totals.contains(placement.room_id)) {
             continue;
         }

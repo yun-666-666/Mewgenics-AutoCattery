@@ -103,6 +103,7 @@ std::string DigestConfig(const Config &config) {
   Append(canonical, config.protection.require_stable_identity_for_sidecar);
   Append(canonical, config.room_planning.version);
   Append(canonical, config.room_planning.default_soft_capacity);
+  Append(canonical, config.room_planning.breeding_room_population);
   Append(canonical, config.room_planning.allow_soft_overflow);
   Append(canonical, config.room_planning.max_soft_overflow_per_room);
   Append(canonical, config.room_planning.never_exceed_known_hard_capacity);

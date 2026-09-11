@@ -294,6 +294,11 @@ Result<void> ValidateProtectionAndPlanning(const Json& value) {
     if (!result) {
         return result;
     }
+    const auto population = planning.at("breeding_room_population").get<std::size_t>();
+    if (population < 2 || population > 1000) {
+        return {ErrorCode::ConfigInvalid,
+            "room_planning.breeding_room_population must be between 2 and 1000"};
+    }
     const auto capacity = planning.at("default_soft_capacity").get<std::size_t>();
     const auto overflow = planning.at("max_soft_overflow_per_room")
         .get<std::size_t>();

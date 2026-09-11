@@ -115,6 +115,7 @@ Json EditableLayer(const Json& existing, const Config& config) {
         config.classification.never_cull_if_data_confidence_below;
 
     auto& planning = layer["room_planning"];
+    planning["breeding_room_population"] = config.room_planning.breeding_room_population;
     planning["default_soft_capacity"] =
         config.room_planning.default_soft_capacity;
     planning["allow_soft_overflow"] =

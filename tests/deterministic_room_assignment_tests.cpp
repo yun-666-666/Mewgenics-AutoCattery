@@ -121,7 +121,7 @@ void RunDeterministicRoomAssignmentTests() {
     for (const auto& decision : initial.value.classification.decisions) {
         if (decision.primary_role ==
             classification::CatRole::CombatRecommended) {
-            AC_CHECK(canonical.at(decision.cat_id) == "Floor1_Large");
+            AC_CHECK(canonical.at(decision.cat_id) == "Floor1_Small");
         }
     }
 
@@ -174,8 +174,8 @@ void RunDeterministicRoomAssignmentTests() {
     const auto breeding_preview = Preview(breeding_reader, 43);
     AC_CHECK(static_cast<bool>(breeding_preview));
     const auto breeding_rooms = FinalRooms(breeding_preview.value);
-    AC_CHECK(breeding_rooms.at(1) == "Floor1_Large");
-    AC_CHECK(breeding_rooms.at(2) == "Floor1_Large");
+    AC_CHECK(breeding_rooms.at(1) == "Attic");
+    AC_CHECK(breeding_rooms.at(2) == "Attic");
 }
 
 }  // namespace autocattery::tests

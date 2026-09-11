@@ -64,8 +64,8 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(static_cast<bool>(model.Reload()));
     AC_CHECK(model.PageCount() == 8);
     AC_CHECK(model.Rows(0).size() == 8);
-    AC_CHECK(model.Rows(7).size() == 5);
-    AC_CHECK(model.AllRows().size() == 48);
+    AC_CHECK(model.Rows(7).size() == 6);
+    AC_CHECK(model.AllRows().size() == 49);
     AC_CHECK(model.DirectValue(0).has_value());
     AC_CHECK(!model.DirectValue(3).has_value());
     AC_CHECK(model.PageTitle(0).find("1/8") != std::string::npos);
@@ -96,11 +96,13 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(!model.RequiresGameRestart(46));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(47, "9")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(47, "100")));
-    AC_CHECK(!static_cast<bool>(model.AdjustFlat(48, 1)));
+    AC_CHECK(!static_cast<bool>(model.AdjustFlat(49, 1)));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(0, "23")));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(1, "12.50")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(0, "wrong")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(3, "1")));
+    AC_CHECK(static_cast<bool>(model.SetFlatValue(48, "12")));
+    AC_CHECK(!static_cast<bool>(model.SetFlatValue(48, "1")));
     const auto direct = reader.Load();
     AC_CHECK(static_cast<bool>(direct));
     AC_CHECK(direct.value.combat_scoring.recommended_count == 23);
@@ -109,6 +111,7 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(direct.value.general.language == "en-US");
     AC_CHECK(direct.value.diagnostics.collect_cat_data);
     AC_CHECK(direct.value.level_up.reroll_count == 9);
+    AC_CHECK(direct.value.room_planning.breeding_room_population == 12);
     const auto base_rerolls = ReadRerollData(
         data_mod / "data" / "classes" / "classes.gon.merge");
     const auto advanced_rerolls = ReadRerollData(

@@ -27,9 +27,14 @@ void RouteSurplusAdults(
     for (const auto& move : plan.moves) {
         rooms[move.cat_id] = move.to_room;
     }
-    const auto breeding_room = context.breeding_pair.empty()
-        ? std::optional<snapshot::RoomId>{}
-        : rooms.at(context.breeding_pair.front());
+    const auto breeding_room = context.config.keep_breeding_pairs_together &&
+        std::ranges::find(context.rooms, "Attic") != context.rooms.end()
+        ? std::optional<snapshot::RoomId>{"Attic"}
+        : std::nullopt;
+    const bool has_breeding_group = breeding_room && context.breeding_pair.size() == 2 &&
+        std::ranges::all_of(context.breeding_pair, [&](const auto id) {
+            return rooms.at(id) == *breeding_room;
+        });
     std::optional<snapshot::RoomId> combat_room;
     for (const auto& room : context.rooms) {
         if (breeding_room == room ||
@@ -53,7 +58,7 @@ void RouteSurplusAdults(
              cat.life_stage != snapshot::LifeStage::Senior) ||
             context.fixed_rooms.contains(id) || rooms.at(id) == *combat_room ||
             (breeding_room && rooms.at(id) == *breeding_room) ||
-            (!breeding_room && (decision.breeding_core || decision.breeding_reserve))) {
+            (!has_breeding_group && (decision.breeding_core || decision.breeding_reserve))) {
             continue;
         }
         if (count >= balanced_internal::RoomCapacity(context, *combat_room)) {
@@ -78,7 +83,8 @@ RoomPlan PlanCurrentBuildBalancedMoveOnlyRooms(
     RoomPlan plan;
     plan.source_snapshot_id = input.snapshot.snapshot_id;
     plan.algorithm_version = kBalancedMoveOnlyAlgorithmVersion;
-    if (config.version != 1 || config.default_soft_capacity == 0 ||
+    if (config.version != 1 || config.breeding_room_population < 2 ||
+        config.breeding_room_population > 1000 || config.default_soft_capacity == 0 ||
         config.default_soft_capacity > 1000 ||
         config.max_soft_overflow_per_room > 1000 ||
         !config.never_exceed_known_hard_capacity ||

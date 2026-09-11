@@ -115,6 +115,7 @@ Json SafeDefaultsJson() {
         {"room_planning", {
             {"version", 1},
             {"default_soft_capacity", 4},
+            {"breeding_room_population", 4},
             {"allow_soft_overflow", true},
             {"max_soft_overflow_per_room", 2},
             {"never_exceed_known_hard_capacity", true},
