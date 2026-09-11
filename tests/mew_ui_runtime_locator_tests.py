@@ -9,9 +9,8 @@ ENTRY = re.compile(
     r'(?:MEW_DIRECT_RVA|(\d+)U, (\d+)U)\}'
 )
 COMPONENT_BUCKET_PREPARE_PATTERN = (
-    "40 53 48 83 EC 20 48 8B D9 48 83 C1 10 E8 ?? ?? ?? ?? "
-    "4C 8B 03 48 8B D3 48 8B CB 4D 8B 40 08 E8 ?? ?? ?? ?? "
-    "48 8B 0B BA A8 00 00 00 48 83 C4 20 5B E9"
+    "40 56 41 56 41 57 48 83 EC 40 48 8B 41 20 48 8B F1 4C 63 FA "
+    "4D 8B C7 4D 8B F7 49 C1 E0 04 42 80 7C 00 08 00"
 )
 HOUSE_DETAIL_LAYOUTS = (
     (0xEBEF0, 0xEFCB0, 0x1A93F0, 0x1FE082, 0x1FE262, 0x1FE2D5),
@@ -169,7 +168,7 @@ def main() -> int:
         raise AssertionError(
             "the test hook mutation must invalidate the live scene-ready signature")
     scene_ready = resolved["MEW_RVA_SCENE_READY_UPDATE"]
-    component_candidates = (0x963030, 0x963040)
+    component_candidates = (0x96B470,)
     component_matches = [
         rva for rva in component_candidates
         if matches_at(

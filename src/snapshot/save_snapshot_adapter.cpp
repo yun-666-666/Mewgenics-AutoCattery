@@ -210,6 +210,11 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
         unlocks.base_stats,
         unlocks.sexuality);
     if (snapshot) {
+        std::optional<std::vector<std::byte>> house_unlocks;
+        if (!database->ReadFileBlob("house_unlocks", house_unlocks, error) ||
+            (house_unlocks && !detail::ApplyUnlockedHouseRooms(snapshot.value, *house_unlocks))) {
+            return Failure(ErrorCode::RoomDataUnavailable, "house room unlocks unavailable", error);
+        }
         if (!mutation_catalog_.empty()) {
             for (auto& cat : snapshot.value.cats) {
                 detail::ApplyMutationCatalog(cat, mutation_catalog_);

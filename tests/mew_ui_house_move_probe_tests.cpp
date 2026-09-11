@@ -1,4 +1,7 @@
 #include "mew_ui_house_move_probe.h"
+extern "C" {
+#include "mew_ui_house_move_room_scan.h"
+}
 
 #include <algorithm>
 #include <array>
@@ -14,35 +17,32 @@
 namespace autocattery::tests {
 
 void RunMewUiHouseMoveProbeTests() {
-    constexpr std::size_t kBetaPrepareRva = 0x963030U;
-    constexpr std::size_t kStablePrepareRva = 0x963040U;
-    constexpr std::array<std::uint8_t, 50> kPrepareSignature{
-        0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8B, 0xD9, 0x48,
-        0x83, 0xC1, 0x10, 0xE8, 0x11, 0x22, 0x33, 0x44, 0x4C, 0x8B,
-        0x03, 0x48, 0x8B, 0xD3, 0x48, 0x8B, 0xCB, 0x4D, 0x8B, 0x40,
-        0x08, 0xE8, 0x55, 0x66, 0x77, 0x88, 0x48, 0x8B, 0x0B, 0xBA,
-        0xA8, 0x00, 0x00, 0x00, 0x48, 0x83, 0xC4, 0x20, 0x5B, 0xE9
+    constexpr std::size_t kPrepareRva = 0x96B470U;
+    constexpr std::array<std::uint8_t, 36> kPrepareSignature{
+        0x40, 0x56, 0x41, 0x56, 0x41, 0x57, 0x48, 0x83, 0xEC, 0x40,
+        0x48, 0x8B, 0x41, 0x20, 0x48, 0x8B, 0xF1, 0x4C, 0x63, 0xFA,
+        0x4D, 0x8B, 0xC7, 0x4D, 0x8B, 0xF7, 0x49, 0xC1, 0xE0, 0x04,
+        0x42, 0x80, 0x7C, 0x00, 0x08, 0x00
     };
-    std::vector<std::uint8_t> executable(kStablePrepareRva + 0x80U);
-    auto install_prepare_signature = [&](std::size_t rva) {
-        std::copy(
-            kPrepareSignature.begin(),
-            kPrepareSignature.end(),
-            executable.begin() + rva);
-    };
-    install_prepare_signature(kBetaPrepareRva);
-    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
-                 executable.data(), executable.size()) == kBetaPrepareRva);
-    std::fill(
-        executable.begin() + kBetaPrepareRva,
-        executable.begin() + kBetaPrepareRva + kPrepareSignature.size(),
-        std::uint8_t{0});
-    install_prepare_signature(kStablePrepareRva);
-    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
-                 executable.data(), executable.size()) == kStablePrepareRva);
-    executable[kStablePrepareRva] = 0U;
+    std::vector<std::uint8_t> executable(kPrepareRva + 0x80U);
+    // The previously accepted address must not resolve, even with matching bytes.
+    std::copy(kPrepareSignature.begin(), kPrepareSignature.end(),
+              executable.begin() + 0x963030U);
     AC_CHECK(AcMewSelectComponentBucketPrepareRva(
                  executable.data(), executable.size()) == 0U);
+    std::copy(kPrepareSignature.begin(), kPrepareSignature.end(),
+              executable.begin() + kPrepareRva);
+    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
+                 executable.data(), executable.size()) == kPrepareRva);
+    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
+                 executable.data(), kPrepareRva + 10) == 0U);
+    executable[kPrepareRva] = 0U;
+    AC_CHECK(AcMewSelectComponentBucketPrepareRva(
+                 executable.data(), executable.size()) == 0U);
+
+    const char fifth_room[] = "Floor2_Small";
+    AC_CHECK((AcMewMoveRoomMask(reinterpret_cast<const std::uint8_t*>(fifth_room),
+                              sizeof(fifth_room)) & (1U << 5)) != 0);
 
     constexpr std::size_t kBetaMoveRva = 0x2E88D0U;
     constexpr std::size_t kStableMoveRva = 0x2E7DB0U;

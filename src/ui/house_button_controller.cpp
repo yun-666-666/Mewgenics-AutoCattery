@@ -191,6 +191,10 @@ void HouseButtonController::Poll() {
         const bool continuation = continuation_preview_;
         continuation_preview_ = false;
         const auto preview = preview_task_.get();
+        if (!preview) {
+            Logger::Instance().Write(LogLevel::Error, "HouseButton", "AC3105",
+                "Auto-organize preview failed: " + preview.message);
+        }
         if (!view_.IsAttached() ||
             preview_generation_ != scene_generation_) {
             continuation_execute_pending_ = false;

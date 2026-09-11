@@ -1,44 +1,11 @@
 #include "runtime_matched_save_snapshot_adapter.hpp"
 
 #include <algorithm>
-#include <array>
 #include <sstream>
 
 #include "auto_cattery/logger.hpp"
 
 namespace autocattery::ui {
-namespace {
-
-constexpr std::array<const char*, 4> kAvailableRoomOrder{
-    "Floor1_Large",
-    "Attic",
-    "Floor1_Small",
-    "Floor2_Large"
-};
-
-void AddAvailableEmptyRooms(
-    snapshot::HouseSnapshot& snapshot,
-    std::size_t available_room_count) {
-    const auto count =
-        std::min(available_room_count, kAvailableRoomOrder.size());
-    for (std::size_t index = 0; index < count; ++index) {
-        const auto* id = kAvailableRoomOrder[index];
-        if (std::ranges::none_of(
-                snapshot.rooms,
-                [id](const auto& room) {
-                    return room.id == id;
-                })) {
-            snapshot::RoomSnapshot room{.id = id};
-            if (snapshot.capabilities.read_room_attributes) {
-                room.attributes = snapshot::RoomAttributes{};
-            }
-            snapshot.rooms.push_back(std::move(room));
-        }
-    }
-}
-
-}  // namespace
-
 RuntimeMatchedSaveSnapshotAdapter::RuntimeMatchedSaveSnapshotAdapter(
     std::filesystem::path game_root)
     : saves_({}, std::move(game_root)) {}
@@ -128,7 +95,6 @@ RuntimeMatchedSaveSnapshotAdapter::CaptureHouseSnapshot(
     }
 
     auto snapshot = std::move(*selected);
-    AddAvailableEmptyRooms(snapshot, expected_rooms);
     if (runtime_state) {
         if (!room_mapping) {
             const auto resolved =

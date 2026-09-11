@@ -50,12 +50,14 @@ void RunRoomCapabilityAdapterTests() {
         {.id = "Floor1_Large", .residents = {1}},
         {.id = "Attic", .residents = {2}},
         {.id = "Floor1_Small"},
-        {.id = "Floor2_Large"}
+        {.id = "Floor2_Large"},
+        {.id = "Floor2_Small"}
     };
     const auto movable =
         room_planning::BuildCurrentBuildMoveRoomCapabilities(
             current_build);
-    AC_CHECK(movable.size() == 4);
+    AC_CHECK(movable.size() == 5);
+    AC_CHECK(movable[4].native_capacity_gate == room_planning::CapabilityState::Yes);
     AC_CHECK(
         movable[0].confirmed_role ==
         room_planning::RoomRole::General);

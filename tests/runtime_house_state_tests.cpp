@@ -64,6 +64,7 @@ void RunRuntimeHouseStateTests() {
     }};
     AC_CHECK(ui::InferAvailableRoomCount(0, occupied_rooms) == 3);
     AC_CHECK(ui::InferAvailableRoomCount(5, occupied_rooms) == 3);
+    AC_CHECK(ui::InferAvailableRoomCount(7, occupied_rooms) == 5);
 
     room_planning::RoomPlan no_op;
     no_op.fully_satisfied = true;
@@ -110,6 +111,36 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(!outside_overlay.cats.front().room_id.has_value());
     AC_CHECK(Room(outside_overlay, "Floor1_Large").residents.size() == 1);
     AC_CHECK(ui::RuntimeHouseStateMatches(outside_overlay, outside));
+
+    // Regression: furniture adds an empty room to the save snapshot.
+    // Occupied-cat pointers alone cannot resolve it; native room evidence must
+    // include it, and overlay must keep both its identity and attributes.
+    auto with_empty = original;
+    with_empty.rooms.push_back({.id = "Floor1_Small",
+        .attributes = snapshot::RoomAttributes{.comfort = -14}});
+    auto empty_runtime = unchanged;
+    AC_CHECK(!ui::ResolveRuntimeRoomPointers(with_empty, empty_runtime));
+    empty_runtime.available_room_count = 3;
+    empty_runtime.rooms.push_back({300, {"Floor1_Small"}});
+    const auto empty_mapping = ui::ResolveRuntimeRoomPointers(with_empty, empty_runtime);
+    AC_CHECK(static_cast<bool>(empty_mapping));
+    AC_CHECK(empty_mapping.value.at("Floor1_Small") == 300);
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(with_empty, empty_runtime)));
+    AC_CHECK(Room(with_empty, "Floor1_Small").residents.empty());
+    AC_CHECK(Room(with_empty, "Floor1_Small").attributes->comfort == -14);
+
+    auto five_rooms = with_empty;
+    five_rooms.rooms.push_back({.id = "Floor2_Large"});
+    five_rooms.rooms.push_back({.id = "Floor2_Small"});
+    auto five_runtime = empty_runtime;
+    five_runtime.available_room_count = 5;
+    five_runtime.rooms.push_back({400, {"Floor2_Large"}});
+    five_runtime.rooms.push_back({500, {"Floor2_Small"}});
+    const auto five_mapping = ui::ResolveRuntimeRoomPointers(five_rooms, five_runtime);
+    AC_CHECK(static_cast<bool>(five_mapping));
+    AC_CHECK(five_mapping.value.at("Floor2_Small") == 500);
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(five_rooms, five_runtime)));
+    AC_CHECK(five_rooms.rooms.size() == 5);
 
     auto changed_identity = unchanged;
     changed_identity.cats.back().cat_id = 99;

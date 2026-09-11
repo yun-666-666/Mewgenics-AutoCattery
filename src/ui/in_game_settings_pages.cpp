@@ -81,7 +81,7 @@ std::vector<InGameSettingsModel::Page> InGameSettingsModel::Pages() {
          &diagnostics.collect_cat_data},
         {L(en, "升级重骰次数（重启生效）", "Level-up rerolls (restart)"),
          &level_up.reroll_count, 0, 99, 1},
-        {L(en, "繁育房目标猫数", "Breeding room target cats"),
+        {L(en, "繁育房猫数", "Breeding room target cats"),
          &rooms.breeding_room_population, 2, 1000, 1},
     });
 

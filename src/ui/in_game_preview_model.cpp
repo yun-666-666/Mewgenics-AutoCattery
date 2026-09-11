@@ -19,6 +19,7 @@ std::string RoomName(std::string_view id, bool english) {
     if (id == "Attic") return english ? "Attic" : "阁楼";
     if (id == "Floor1_Large") return english ? "1F Large" : "一楼大房";
     if (id == "Floor1_Small") return english ? "1F Small" : "一楼小房";
+    if (id == "Floor2_Small") return english ? "2F Small" : "二楼小房";
     if (id == "Floor2_Large") return english ? "2F Large" : "二楼大房";
     if (id == "Outside" || id.empty()) return english ? "Outside" : "房外";
     return std::string(id);

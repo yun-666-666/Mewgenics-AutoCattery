@@ -74,6 +74,48 @@ bool ParseFurniturePlacements(
     return true;
 }
 
+bool ApplyUnlockedHouseRooms(HouseSnapshot& snapshot, std::span<const std::byte> bytes) {
+    std::size_t cursor{};
+    const auto read_string = [&](std::string& text) {
+        std::uint64_t length{};
+        if (!Read(bytes, cursor, length)) return false;
+        cursor += sizeof(length);
+        if (length > bytes.size() - cursor) return false;
+        text.assign(reinterpret_cast<const char*>(bytes.data() + cursor),
+                    static_cast<std::size_t>(length));
+        cursor += static_cast<std::size_t>(length);
+        return true;
+    };
+    std::uint32_t version{};
+    if (!Read(bytes, cursor, version) || version != 1) return false;
+    cursor += sizeof(version);
+    std::string house;
+    if (!read_string(house)) return false;
+    std::uint64_t count{};
+    if (!Read(bytes, cursor, count) || count > bytes.size() / 8) return false;
+    cursor += sizeof(count);
+    std::vector<RoomId> rooms;
+    for (std::uint64_t index = 0; index < count; ++index) {
+        std::string upgrade;
+        if (!read_string(upgrade)) return false;
+        // Upgrade-to-room mapping verified in current data/house.gon.
+        const char* id = upgrade == "Default" ? "Floor1_Large" :
+            upgrade == "SmallHouse_Attic" ? "Attic" :
+            upgrade == "MediumHouse_SmallRoom" ? "Floor1_Small" :
+            upgrade == "LargeHouse_Floor2Large" ? "Floor2_Large" :
+            upgrade == "LargeHouse_Floor2Small" ? "Floor2_Small" : nullptr;
+        if (id) rooms.emplace_back(id);
+    }
+    for (const auto& id : rooms) {
+        if (std::ranges::none_of(snapshot.rooms, [&](const auto& room) {
+                return room.id == id;
+            })) {
+            snapshot.rooms.push_back({.id = id});
+        }
+    }
+    return true;
+}
+
 void ApplyFurnitureRoomAttributes(
     HouseSnapshot& snapshot,
     const std::vector<FurniturePlacement>& placements,
@@ -83,7 +125,7 @@ void ApplyFurnitureRoomAttributes(
     for (const auto& placement : placements) {
         const auto& id = placement.room_id;
         if (id != "Attic" && id != "Floor1_Large" &&
-            id != "Floor1_Small" && id != "Floor2_Large") {
+            id != "Floor1_Small" && id != "Floor2_Large" && id != "Floor2_Small") {
             continue;
         }
         if (std::ranges::none_of(snapshot.rooms, [&](const auto& room) {

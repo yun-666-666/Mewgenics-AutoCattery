@@ -12,9 +12,7 @@
 #include "mew_ui_api.h"
 
 enum {
-    AC_COMPONENT_BUCKET_PREPARE_BETA_RVA = 0x963030,
-    AC_COMPONENT_BUCKET_PREPARE_STABLE_RVA = 0x963040,
-    AC_COMPONENT_BUCKET_PREPARE_SIGNATURE_SIZE = 50,
+    AC_COMPONENT_BUCKET_PREPARE_RVA = 0x96B470,
     AC_HOUSE_ROOM_COMPONENT_ID = 0x1D2
 };
 
@@ -22,64 +20,24 @@ typedef void (__fastcall *AcPrepareComponentBucketFn)(
     void* component_registry,
     uint32_t component_id);
 
-static const uint8_t kPrepareSignatureStart[] = {
-    0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x48,
-    0x8B, 0xD9, 0x48, 0x83, 0xC1, 0x10, 0xE8
+/* Current executable: 0x1E5434 passes edx=0x1D2 to 0x96B470, then
+   reads registry+0x20 and bucket+0x1D20. The old 0x963030 entry was
+   unrelated and did not prepare the requested component bucket. */
+static const uint8_t kPrepareSignature[] = {
+    0x40, 0x56, 0x41, 0x56, 0x41, 0x57, 0x48, 0x83, 0xEC, 0x40,
+    0x48, 0x8B, 0x41, 0x20, 0x48, 0x8B, 0xF1, 0x4C, 0x63, 0xFA,
+    0x4D, 0x8B, 0xC7, 0x4D, 0x8B, 0xF7, 0x49, 0xC1, 0xE0, 0x04,
+    0x42, 0x80, 0x7C, 0x00, 0x08, 0x00
 };
-static const uint8_t kPrepareSignatureMiddle[] = {
-    0x4C, 0x8B, 0x03, 0x48, 0x8B, 0xD3, 0x48,
-    0x8B, 0xCB, 0x4D, 0x8B, 0x40, 0x08, 0xE8
-};
-static const uint8_t kPrepareSignatureEnd[] = {
-    0x48, 0x8B, 0x0B, 0xBA, 0xA8, 0x00, 0x00,
-    0x00, 0x48, 0x83, 0xC4, 0x20, 0x5B, 0xE9
-};
-
-static int AcMatchesComponentBucketPrepare(
-    const uint8_t* image,
-    size_t image_size,
-    uintptr_t rva) {
-    const uint8_t* candidate;
-    if (!image || rva > image_size ||
-        image_size - rva < AC_COMPONENT_BUCKET_PREPARE_SIGNATURE_SIZE) {
-        return 0;
-    }
-    candidate = image + rva;
-    return memcmp(
-               candidate,
-               kPrepareSignatureStart,
-               sizeof(kPrepareSignatureStart)) == 0 &&
-           memcmp(
-               candidate + 18U,
-               kPrepareSignatureMiddle,
-               sizeof(kPrepareSignatureMiddle)) == 0 &&
-           memcmp(
-               candidate + 36U,
-               kPrepareSignatureEnd,
-               sizeof(kPrepareSignatureEnd)) == 0;
-}
 
 uintptr_t AcMewSelectComponentBucketPrepareRva(
     const uint8_t* image,
     size_t image_size) {
-    const uintptr_t candidates[] = {
-        AC_COMPONENT_BUCKET_PREPARE_BETA_RVA,
-        AC_COMPONENT_BUCKET_PREPARE_STABLE_RVA
-    };
-    uintptr_t selected = 0U;
-    size_t index;
-    for (index = 0U; index < sizeof(candidates) / sizeof(candidates[0]);
-         ++index) {
-        if (!AcMatchesComponentBucketPrepare(
-                image, image_size, candidates[index])) {
-            continue;
-        }
-        if (selected != 0U) {
-            return 0U;
-        }
-        selected = candidates[index];
-    }
-    return selected;
+    const uintptr_t rva = AC_COMPONENT_BUCKET_PREPARE_RVA;
+    return image && rva <= image_size &&
+        image_size - rva >= sizeof(kPrepareSignature) &&
+        memcmp(image + rva, kPrepareSignature, sizeof(kPrepareSignature)) == 0
+        ? rva : 0U;
 }
 
 static size_t AcExecutableImageSize(HMODULE executable) {

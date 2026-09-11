@@ -1,5 +1,7 @@
 #pragma once
 
+#include <span>
+
 #include "auto_cattery/snapshot/detail/save_database.hpp"
 
 #include <filesystem>
@@ -26,6 +28,9 @@ using FurnitureCatalog =
     const std::vector<FurnitureStorageRecord>& records,
     std::vector<FurniturePlacement>& placements,
     std::string& error);
+
+// Read confirmed upgrades from the current house_unlocks save record.
+bool ApplyUnlockedHouseRooms(HouseSnapshot& snapshot, std::span<const std::byte> bytes);
 
 void ApplyFurnitureRoomAttributes(
     HouseSnapshot& snapshot,

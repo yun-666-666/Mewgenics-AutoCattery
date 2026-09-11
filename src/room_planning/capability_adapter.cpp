@@ -27,6 +27,7 @@ std::vector<RoomCapability> BuildCurrentBuildMoveRoomCapabilities(
         if (capability.room_id != "Floor1_Large" &&
             capability.room_id != "Floor1_Small" &&
             capability.room_id != "Floor2_Large" &&
+            capability.room_id != "Floor2_Small" &&
             capability.room_id != "Attic") {
             continue;
         }

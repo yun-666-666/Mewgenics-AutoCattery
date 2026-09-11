@@ -74,6 +74,30 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(house.rooms[1].residents.empty());
     AC_CHECK(house.rooms[1].attributes->comfort == 3);
 
+    std::vector<std::byte> unlocks;
+    Append<std::uint32_t>(unlocks, 1);
+    const auto append_string = [&](std::string_view text) {
+        Append<std::uint64_t>(unlocks, text.size());
+        for (const auto ch : text) unlocks.push_back(static_cast<std::byte>(ch));
+    };
+    append_string("House3");
+    Append<std::uint64_t>(unlocks, 5);
+    for (const auto upgrade : {"Default", "SmallHouse_Attic", "MediumHouse_SmallRoom",
+                              "LargeHouse_Floor2Large", "LargeHouse_Floor2Small"}) {
+        append_string(upgrade);
+    }
+    snapshot::HouseSnapshot empty_house;
+    AC_CHECK(snapshot::detail::ApplyUnlockedHouseRooms(empty_house, unlocks));
+    AC_CHECK(empty_house.rooms.size() == 5);
+    AC_CHECK(empty_house.rooms.back().id == "Floor2_Small");
+    AC_CHECK(snapshot::detail::ApplyUnlockedHouseRooms(empty_house, unlocks));
+    AC_CHECK(empty_house.rooms.size() == 5);
+    auto truncated = unlocks;
+    truncated.pop_back();
+    snapshot::HouseSnapshot incomplete;
+    AC_CHECK(!snapshot::detail::ApplyUnlockedHouseRooms(incomplete, truncated));
+    AC_CHECK(incomplete.rooms.empty());
+
     const auto game_root = std::filesystem::path(__FILE__)
         .parent_path().parent_path().parent_path();
     if (std::filesystem::exists(game_root / "resources.gpak")) {

@@ -15,7 +15,7 @@ std::size_t InferAvailableRoomCount(
     std::size_t native_room_count,
     std::span<const RuntimeCatRoomState> cats) {
     if (native_room_count > 2U) {
-        return std::clamp<std::size_t>(native_room_count - 2U, 2U, 4U);
+        return std::clamp<std::size_t>(native_room_count - 2U, 2U, 5U);
     }
     std::unordered_set<RuntimePointer> occupied_rooms;
     for (const auto& cat : cats) {
@@ -23,7 +23,7 @@ std::size_t InferAvailableRoomCount(
             occupied_rooms.insert(cat.room);
         }
     }
-    return std::clamp<std::size_t>(occupied_rooms.size(), 2U, 4U);
+    return std::clamp<std::size_t>(occupied_rooms.size(), 2U, 5U);
 }
 
 Result<RuntimeHouseState> CaptureRuntimeHouseState(

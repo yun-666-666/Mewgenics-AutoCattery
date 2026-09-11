@@ -555,9 +555,13 @@ void RunBalancedMoveOnlyPlannerTests() {
 
   // Room purposes depend on furniture, not current resident counts. Test
   // all supported room counts, even with another room better for breeding.
-  for (const auto room_count : {2U, 3U, 4U}) {
+  for (const auto room_count : {2U, 3U, 4U, 5U}) {
     WorkflowReadFake layout;
     layout.house = purpose_aware.house;
+    if (room_count == 5) {
+      layout.house.rooms.push_back({.id = "Floor2_Small",
+        .attributes = snapshot::RoomAttributes{.comfort = 25, .health = 5}});
+    }
     std::erase_if(layout.house.rooms, [&](const auto& room) {
       return (room_count < 4 && room.id == "Floor2_Large") ||
              (room_count < 3 && room.id == "Floor1_Small");

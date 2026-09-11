@@ -72,6 +72,44 @@ void RouteSurplusAdults(
                 "surplus-adult-combat-room", 0, true});
         }
     }
+    // Extra rooms must not split the nursery merely because the initial
+    // balanced slot budget is smaller than the kitten population.
+    if (context.keep_kittens_separate_when_possible) {
+        std::optional<snapshot::RoomId> nursery;
+        for (const auto& room : context.rooms) {
+            if (room == breeding_room || room == combat_room ||
+                !context.room_snapshots.at(room)->attributes) continue;
+            if (!nursery || balanced_internal::PreferKittenRoom(context, room, *nursery)) {
+                nursery = room;
+            }
+        }
+        if (nursery) {
+            balanced_internal::CountMap occupancy;
+            for (const auto& [id, cat] : context.cats) {
+                auto destination = cat->room_id.value_or("Outside");
+                for (const auto& move : plan.moves) {
+                    if (move.cat_id == id) destination = move.to_room;
+                }
+                rooms[id] = destination;
+                ++occupancy[destination];
+            }
+            for (const auto id : context.movable) {
+                const auto& cat = *context.cats.at(id);
+                if (cat.life_stage != snapshot::LifeStage::Kitten ||
+                    context.fixed_rooms.contains(id) || rooms.at(id) == *nursery) continue;
+                if (occupancy[*nursery] >= balanced_internal::RoomCapacity(context, *nursery)) {
+                    AddUnique(plan.limitations, "kitten-nursery-room-capacity-unavailable");
+                    break;
+                }
+                ++occupancy[*nursery];
+                std::erase_if(plan.moves, [id](const auto& move) { return move.cat_id == id; });
+                if (cat.room_id != *nursery) {
+                    plan.moves.push_back({id, cat.room_id.value_or("Outside"), *nursery,
+                        "kitten-nursery-room", 0, true});
+                }
+            }
+        }
+    }
     std::ranges::sort(plan.moves, {}, &PlannedMove::cat_id);
 }
 
