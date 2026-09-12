@@ -140,6 +140,17 @@ bool HouseButtonController::IsSuppressed() const noexcept {
     return suppressed_;
 }
 
+bool HouseButtonController::IsBusy() const noexcept {
+    return preview_task_.valid() || state_ == OrganizeButtonState::Running ||
+        continuation_preview_pending_ || continuation_execute_pending_;
+}
+
+void HouseButtonController::InvalidatePreview() {
+    awaiting_execution_ = false;
+    ready_after_ = {};
+    if (view_.IsAttached()) SetState(OrganizeButtonState::Ready);
+}
+
 void HouseButtonController::HandleClick() {
     if (!view_.IsAttached() ||
         suppressed_ ||
@@ -153,6 +164,10 @@ void HouseButtonController::HandleClick() {
         return;
     }
     last_click_ = now;
+
+    // Refresh saved settings before deciding whether this click confirms
+    // a preview. A changed configuration invalidates that old preview.
+    if (before_preview_) before_preview_();
 
     if (awaiting_execution_) {
         Logger::Instance().Write(
@@ -239,7 +254,7 @@ void HouseButtonController::Poll() {
 }
 
 void HouseButtonController::StartPreview(bool continuation) {
-    if (before_preview_) {
+    if (continuation && before_preview_) {
         before_preview_();
     }
     SetState(OrganizeButtonState::Running);

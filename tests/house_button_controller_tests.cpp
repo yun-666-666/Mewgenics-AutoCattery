@@ -279,6 +279,22 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(move_workflow.execution_calls == 2);
     AC_CHECK(move_view.state == ui::OrganizeButtonState::Ready);
 
+    // A saved setting invalidates confirmation; the next click must preview,
+    // never execute the plan made using the old population/room settings.
+    now += 1s;
+    move_view.Click();
+    AC_CHECK(move_controller.IsBusy());
+    FinishPreview(move_controller, move_view);
+    AC_CHECK(!move_controller.IsBusy());
+    const auto previous_previews = move_workflow.preview_calls.load();
+    const auto previous_executions = move_workflow.execution_calls;
+    move_controller.InvalidatePreview();
+    now += 1s;
+    move_view.Click();
+    FinishPreview(move_controller, move_view);
+    AC_CHECK(move_workflow.preview_calls == previous_previews + 1);
+    AC_CHECK(move_workflow.execution_calls == previous_executions);
+
     FakeHouseButtonView batched_view;
     FakeWorkflow batched_workflow;
     batched_workflow.capability =
@@ -294,6 +310,7 @@ void RunHouseButtonControllerTests() {
     batched_view.Click();
     AC_CHECK(batched_workflow.execution_calls == 1);
     AC_CHECK(batched_workflow.preview_calls == 1);
+    AC_CHECK(batched_controller.IsBusy());
     batched_controller.Poll();
     for (int attempt = 0;
          attempt < 10000 && batched_workflow.preview_calls < 2;
@@ -311,6 +328,7 @@ void RunHouseButtonControllerTests() {
     AC_CHECK(batched_workflow.execution_calls == 6);
     AC_CHECK(batched_workflow.preview_calls == 6);
     AC_CHECK(batched_view.state == ui::OrganizeButtonState::Ready);
+    AC_CHECK(!batched_controller.IsBusy());
 
     FakeHouseButtonView cancelled_view;
     FakeWorkflow cancelled_workflow;

@@ -1,4 +1,5 @@
 #include "auto_cattery/workflow/preview_builder.hpp"
+#include "auto_cattery/workflow/organize_workflow_facade.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -9,6 +10,7 @@
 
 #include "test_support.hpp"
 #include "workflow_test_fixture.hpp"
+#include "../src/room_planning/balanced_move_only_internal.hpp"
 
 namespace autocattery::tests {
 namespace {
@@ -103,6 +105,115 @@ std::pair<std::size_t, std::size_t> SexCounts(
 }  // namespace
 
 void RunBalancedMoveOnlyPlannerTests() {
+  {
+    using namespace room_planning::balanced_internal;
+    // Female 3 wins the first addition (90 > 80), but male 4 exposes
+    // her weak cross (20). Female 5 improves the complete group to 80.
+    auto house = WorkflowHouse(6);
+    PlanningContext context;
+    context.config.breeding_room_population = 4;
+    context.rooms = {"Attic"};
+    room_planning::RoomCapability capability;
+    context.capabilities.emplace("Attic", &capability);
+    context.pinned_count.emplace("Attic", 0);
+    for (auto& cat : house.cats) {
+      cat.sex = cat.id % 2 ? snapshot::CatSex::Female : snapshot::CatSex::Male;
+      cat.libido = snapshot::CatLibido::Normal;
+      context.cats.emplace(cat.id, &cat);
+      context.movable.push_back(cat.id);
+    }
+    const std::vector<classification::BreedingPairPreference> pairs{
+        {1, 2, 100, 0}, {3, 2, 90, 0}, {5, 2, 80, 0},
+        {1, 4, 90, 0}, {3, 4, 20, 0}, {5, 4, 80, 0}};
+    context.breeding_pair = {1, 2};
+    context.breeding_pair_preferences = &pairs;
+    const auto initial_slots = std::vector<BalancedSlot>{
+        {.room_id = "Attic", .preferred_cat = 1},
+        {.room_id = "Attic", .preferred_cat = 2},
+        {.room_id = "Attic"}, {.room_id = "Attic"}};
+    auto slots = initial_slots;
+    room_planning::RoomPlan plan;
+    AssignBreedingPoolSlots(context, "Attic", plan, slots);
+    AC_CHECK(slots[2].preferred_cat == 5);
+    AC_CHECK(slots[3].preferred_cat == 4);
+    AC_CHECK(plan.limitations.empty());
+
+    // A protected low-libido resident occupies a physical place but is
+    // excluded from partner comparisons; automatic choices stay identical.
+    house.cats.back().libido = snapshot::CatLibido::Low;
+    house.cats.back().room_id = "Attic";
+    context.movable.pop_back();
+    context.pinned_count.at("Attic") = 1;
+    context.config.breeding_room_population = 5;
+    slots = initial_slots;
+    plan = {};
+    AssignBreedingPoolSlots(context, "Attic", plan, slots);
+    AC_CHECK(slots[2].preferred_cat == 5);
+    AC_CHECK(slots[3].preferred_cat == 4);
+    AC_CHECK(context.pinned_count.at("Attic") + slots.size() == 5);
+    AC_CHECK(std::ranges::find(plan.limitations,
+        "protected-low-libido-resident-in-breeding-room") != plan.limitations.end());
+  }
+  {
+    // Reproduce the whole completed-workflow -> changed settings -> new plan
+    // sequence with a synthetic house, without any protected cats.
+    auto source = std::make_unique<WorkflowReadFake>();
+    auto* house = &source->house;
+    *house = WorkflowHouse(24);
+    house->rooms.front().id = "Floor1_Large";
+    house->rooms.push_back({.id = "Attic"});
+    house->rooms.push_back({.id = "Floor1_Small"});
+    house->rooms.push_back({.id = "Floor2_Large"});
+    ConfigureRoomPurposes(*house);
+    house->capabilities.read_sexuality = true;
+    house->capabilities.read_relationships = true;
+    for (auto& cat : house->cats) {
+      cat.room_id = "Floor1_Large";
+      cat.sex = cat.id % 2 ? snapshot::CatSex::Female : snapshot::CatSex::Male;
+      cat.sexuality = snapshot::CatSexuality::Straight;
+      cat.sexuality_coefficient = 0.0;
+      cat.libido = snapshot::CatLibido::Normal;
+      cat.genetic_stats.values.fill(7);
+      for (const auto& other : house->cats) {
+        if (other.id > cat.id) house->pedigree_pair_coefficients.push_back({cat.id, other.id, 0});
+      }
+    }
+    class Gateway final : public workflow::IApprovedTransactionGateway {
+    public:
+      snapshot::HouseSnapshot* house{};
+      execution::ExecutionResult ExecuteApproved(
+          const workflow::PreviewBundle& bundle, workflow::ExecutionChoice) override {
+        ApplyRooms(*house, FinalRooms(bundle));
+        execution::ExecutionResult result;
+        result.committed = true;
+        result.completed_moves = bundle.room_plan.moves.size();
+        return result;
+      }
+    } gateway;
+    gateway.house = house;
+    Config config;
+    config.room_planning.breeding_room_population = 7;
+    workflow::OrganizeWorkflowFacade organizer(std::move(source), config,
+        workflow::WorkflowCapability::MoveOnly, &gateway);
+    AC_CHECK(static_cast<bool>(organizer.RequestPreview(1)));
+    AC_CHECK(static_cast<bool>(organizer.RequestExecution()));
+    AC_CHECK(organizer.State() == workflow::WorkflowState::Completed);
+    AC_CHECK(Room(*house, "Attic").residents.size() == 7);
+    AC_CHECK(Room(*house, "Floor2_Large").residents.empty() ||
+        Room(*house, "Floor1_Large").residents.empty());
+    config.room_planning.breeding_room_population = 6;
+    config.room_planning.prefer_single_combat_staging_room = false;
+    AC_CHECK(static_cast<bool>(organizer.ApplyConfig(config)));
+    AC_CHECK(static_cast<bool>(organizer.RequestPreview(2)));
+    AC_CHECK(static_cast<bool>(organizer.RequestExecution()));
+    AC_CHECK(Room(*house, "Attic").residents.size() == 6);
+    AC_CHECK(std::ranges::all_of(house->rooms, [](const auto& room) {
+      return !room.residents.empty();
+    }));
+    AC_CHECK(static_cast<bool>(organizer.RequestPreview(3)));
+    AC_CHECK(organizer.LatestPreview().value.room_plan.moves.empty());
+  }
+
   WorkflowReadFake reader;
   reader.house = WorkflowHouse(12);
   reader.house.rooms.front().id = "Floor1_Large";

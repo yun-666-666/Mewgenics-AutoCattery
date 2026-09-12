@@ -99,6 +99,7 @@ Json CatJson(
         {"sex", Sex(cat.sex)},
         {"sexuality", Sexuality(cat.sexuality)},
         {"sexuality_coefficient", cat.sexuality_coefficient},
+        {"libido_coefficient", cat.libido_coefficient},
         {"parent_a_id", cat.parent_a_id},
         {"parent_b_id", cat.parent_b_id},
         {"inbreeding_coefficient", cat.inbreeding_coefficient},

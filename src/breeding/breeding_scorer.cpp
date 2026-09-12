@@ -126,6 +126,9 @@ Result<BreedingScoreResult> ScoreBreedingCat(
         }
     }
 
+    if (cat.libido == snapshot::CatLibido::Low) {
+        result.exclusion_reasons.push_back("low-libido-not-selected-for-breeding");
+    }
     if (cat.available_for_breeding == snapshot::TriState::No) {
         result.exclusion_reasons.push_back("not-available-for-breeding");
     } else if (cat.available_for_breeding == snapshot::TriState::Unknown) {

@@ -121,3 +121,10 @@ Release/CTest7/7（2.61秒）通过，独立当前EXE call目标检查通过；�
 2026-09-12 Stage40设置实际不可见续修：截图证实此前仅后台模型49项，原生view容量48、点击分栏17/18/13、SWF分栏17/18/13，最后一项根本未进入游戏面板。现三处同步49项/17/18/14，生成ac_set_49及ac_set_49_t，位置为右侧房间与安全栏升级重骰次数下方，文本沿用繁育房猫数。未改设置值、默认值或繁育算法。
 修改文件：src/ui/mew_ui_management_panel_view.hpp、include/auto_cattery/ui/management_panel_input.hpp、tools/swf_panel_layout.py、tests/house_ui_asset_tests.py、tests/virtual_viewport_tests.cpp。./tools/build.ps1 -Configuration Release成功，CTest7/7通过（2.73秒）；新增生成节点/原生容量一致检查及第49行编辑、左右调整点击检查。git diff --check通过。code-simplifier一次仅本轮差异检查，无需额外简化。
 游戏未运行时部署DLL到Mods/AutoCattery.dll及既有子目录副本；新SWF同时部署Mods/AutoCattery/swfs与Mewtator/config.json实际mod_folder下AutoCattery/swfs，两份均读取确认包含新控件和文本节点。保留用户配置、存档与其他MOD；未启动或控制游戏。游戏中显示与点击仍待玩家重启后F10确认，不能把静态资源/点击函数测试当作游戏实测。原有build-ninja/与tools/__pycache__/未跟踪文件保留。本地提交见本报告最新Git历史及最终回复。是否 push：否。
+
+2026-09-12 Stage40 设置热重载与繁育候选续修：原问题发生在低性欲猫被固定前，不归因于后加保护。日志显示已完成整理后持续使用旧目标7/单一战斗房；RuntimeConfigService与WorkflowFacade仅接受Idle，而完成/待确认状态不返回Idle。现接受Completed、AwaitingConfirmation、Failed、Cancelled，配置变化使旧预览失效，下一次点击重新预览；批次执行期间不重载。AC1303记录实际繁育人数和单一战斗房开关。
+当前EXE House详情对CatData+BB8的0.3/0.7比较及序列化字段顺序支持性欲解析；使用变长breed串后的实际位置读取性欲与性取向，保持原解锁门槛。低性欲(<0.3)从自动繁育评分/配对排除，不解释为绝对不能生育。扩群保留公母平衡、首选配对和固定居民，新增同性替换，改善整组最弱交叉评分、最坏COI及平均分。固定低性欲居民仍计入房间人数，不参与配对并记录限制。
+验证：最终增量AutoCattery/auto_cattery_tests构建成功；CTest phase14_unit_tests与phase14_dll_load_smoke 2/2通过（2.79秒），其他未受后续修改影响的检查沿用此前结果。新增完整7整理→Completed→改6/关闭单一→执行6且四房使用→重复零移动回归；配置/预览失效、批次Busy、性欲边界、排除低性欲高属性候选，以及先贪心选90分候选、后续产生20分弱交叉后替换为整组最低80分的回归通过。固定低性欲计数和限制回归通过。
+实际162猫存档只读比较：无保护目标6为3母3公，最弱覆盖5、9合法交叉中1组全七项覆盖，均值代理4.04425与旧版相同，不能声称本档6猫质量提高或全局最优。目标7代理由3.85029至3.85988，小幅改善。实际保护下目标6为阁楼6、其余三房各52；固定低性欲猫保留，自动配对排除该猫；全屋仍有17组合法七项全覆盖配对。代理不是实测出生率，不硬编码个人猫数据。
+code-simplifier一次限定本轮差异检查完成，无需额外简化，复用通过验证。游戏未运行时部署build-ninja/out/Release/AutoCattery.dll至真实加载Mods/AutoCattery.dll，同步既有子目录副本和dist/Release。未启动/控制游戏、未改存档/用户配置/其他MOD，未发布。5小时续接提醒已触发后暂停，8分钟构建监控已暂停，无活跃构建。
+下一步玩家重启加载DLL，同一游戏会话内7整理→6整理，关闭单一战斗房后确认原空房加入分配；固定低性欲猫仍在阁楼属于保留保护。若失败读取新启动AC1303及整理日志。游戏验收待玩家确认，自动化验证不等同实机成功。本地提交见本报告Git历史及最终回复。既有build-ninja/、tests/__pycache__/、tools/__pycache__/未跟踪文件保留。是否 push：否。

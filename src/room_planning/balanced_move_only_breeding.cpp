@@ -285,7 +285,7 @@ void AssignBreedingPoolSlots(
             bool compatible = true;
             for (const auto selected_id : selected) {
                 const auto& other = *context.cats.at(selected_id);
-                if (cat.sex == other.sex) {
+                if (cat.sex == other.sex || other.libido == snapshot::CatLibido::Low) {
                     continue;
                 }
                 const auto pair = preferences.find(
@@ -324,8 +324,71 @@ void AssignBreedingPoolSlots(
         selected.insert(best->cat_id);
     }
 
+    // Greedy additions cannot reconsider an early donor after later members
+    // expose a weak cross. Improve the complete group with same-sex swaps,
+    // keeping its seed pair, population and protected residents unchanged.
+    const auto group_quality = [&]() -> std::optional<std::tuple<double, double, double>> {
+        double weakest = std::numeric_limits<double>::infinity();
+        double total{}, worst_coi{};
+        std::size_t count{};
+        std::vector<snapshot::CatId> members(selected.begin(), selected.end());
+        std::ranges::sort(members);
+        for (const auto left : members) {
+            for (const auto right : members) {
+                if (left >= right || context.cats.at(left)->sex == context.cats.at(right)->sex ||
+                    context.cats.at(left)->libido == snapshot::CatLibido::Low ||
+                    context.cats.at(right)->libido == snapshot::CatLibido::Low) continue;
+                const auto found = preferences.find(pair_key(left, right));
+                if (found == preferences.end()) return std::nullopt;
+                const auto& pair = *found->second;
+                weakest = std::min(weakest, pair.score);
+                total += pair.score;
+                worst_coi = std::max(worst_coi, pair.offspring_inbreeding_coefficient
+                    .value_or(std::numeric_limits<double>::infinity()));
+                ++count;
+            }
+        }
+        if (count == 0) return std::nullopt;
+        return std::tuple{-weakest, worst_coi, -total / static_cast<double>(count)};
+    };
+    while (const auto current_quality = group_quality()) {
+        auto best_quality = *current_quality;
+        std::optional<std::pair<std::size_t, snapshot::CatId>> best_swap;
+        for (std::size_t index = 0; index < slots.size(); ++index) {
+            const auto& slot = slots[index];
+            if (slot.room_id != *target || !slot.breeding_pool_preferred ||
+                !slot.preferred_cat) continue;
+            const auto incumbent = *slot.preferred_cat;
+            for (const auto candidate : candidates) {
+                if (selected.contains(candidate) || !available(candidate) ||
+                    context.cats.at(candidate)->sex != context.cats.at(incumbent)->sex) continue;
+                selected.erase(incumbent);
+                selected.insert(candidate);
+                const auto quality = group_quality();
+                selected.erase(candidate);
+                selected.insert(incumbent);
+                if (quality && *quality < best_quality) {
+                    best_quality = *quality;
+                    best_swap = {index, candidate};
+                }
+            }
+        }
+        if (!best_swap) break;
+        auto& slot = slots[best_swap->first];
+        selected.erase(*slot.preferred_cat);
+        slot.preferred_cat = best_swap->second;
+        selected.insert(best_swap->second);
+    }
+
     if (assigned_count() < context.config.breeding_room_population) {
         AddUnique(plan.limitations, "breeding-population-limited-by-eligible-cats-or-protection");
+    }
+    if (std::ranges::any_of(context.cats, [&](const auto& entry) {
+            const auto& [id, cat] = entry;
+            return cat->libido == snapshot::CatLibido::Low &&
+                ((cat->room_id == *target && !movable(id)) || preferred_in_target(id));
+        })) {
+        AddUnique(plan.limitations, "protected-low-libido-resident-in-breeding-room");
     }
 
     // Unclaimed slots must not refill this room with unrelated breeders.

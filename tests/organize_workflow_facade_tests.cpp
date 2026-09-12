@@ -64,7 +64,8 @@ void RunOrganizeWorkflowFacadeTests() {
     AC_CHECK(
         workflow.State() ==
         autocattery::workflow::WorkflowState::AwaitingConfirmation);
-    AC_CHECK(!static_cast<bool>(workflow.ApplyConfig(Config{})));
+    AC_CHECK(static_cast<bool>(workflow.ApplyConfig(Config{})));
+    AC_CHECK(!workflow.LatestPreview());
     const auto execution = workflow.RequestExecution();
     AC_CHECK(!static_cast<bool>(execution));
     AC_CHECK(execution.code == ErrorCode::UnsupportedGameBuild);

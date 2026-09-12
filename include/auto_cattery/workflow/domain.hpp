@@ -28,6 +28,13 @@ enum class WorkflowState {
 
 enum class WorkflowCapability { PreviewOnly, MoveOnly, MoveAndCull };
 
+inline bool CanReloadConfig(WorkflowState state) noexcept {
+  return state == WorkflowState::Idle ||
+      state == WorkflowState::AwaitingConfirmation ||
+      state == WorkflowState::Completed || state == WorkflowState::Failed ||
+      state == WorkflowState::Cancelled;
+}
+
 enum class WorkflowFailureReason {
   None,
   Busy,

@@ -138,6 +138,19 @@ void RunConfigRuntimeTests() {
              ConfigReloadStatus::Applied);
     AC_CHECK(runtime.Current().combat_scoring.recommended_count == 6);
     AC_CHECK(runtime.Current().combat_scoring.exclude_injured);
+
+    // The live organizer remains Completed after a successful organize.
+    // Settings must also invalidate an unconfirmed preview, not wait forever.
+    for (const auto state : {workflow::WorkflowState::Completed,
+             workflow::WorkflowState::AwaitingConfirmation,
+             workflow::WorkflowState::Failed, workflow::WorkflowState::Cancelled}) {
+        fixture.Write(R"({"room_planning":{"breeding_room_population":7,"prefer_single_combat_staging_room":true}})");
+        AC_CHECK(runtime.RequestReload(state).status == ConfigReloadStatus::Applied);
+        fixture.Write(R"({"room_planning":{"breeding_room_population":6,"prefer_single_combat_staging_room":false}})");
+        AC_CHECK(runtime.RequestReload(state).status == ConfigReloadStatus::Applied);
+        AC_CHECK(runtime.Current().room_planning.breeding_room_population == 6);
+        AC_CHECK(!runtime.Current().room_planning.prefer_single_combat_staging_room);
+    }
 }
 
 }  // namespace autocattery::tests

@@ -9,7 +9,7 @@ namespace autocattery::snapshot::detail {
 
 void ApplyUnlockedSexuality(
     std::span<const std::uint8_t> decoded_cat,
-    std::size_t personality_anchor,
+    std::size_t equipment_start,
     CatSnapshot& cat);
 
 }  // namespace autocattery::snapshot::detail

@@ -64,6 +64,8 @@ public:
     [[nodiscard]] bool IsAttachedToGeneration(
         std::uint64_t scene_generation) const noexcept;
     [[nodiscard]] bool IsSuppressed() const noexcept;
+    [[nodiscard]] bool IsBusy() const noexcept;
+    void InvalidatePreview();
     void HandleClick();
     void Poll();
 

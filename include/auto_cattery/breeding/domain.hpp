@@ -14,7 +14,7 @@
 namespace autocattery::breeding {
 
 inline constexpr char kBreedingAlgorithmVersion[] =
-    "configured-pair-stat-weights-v5";
+    "configured-pair-stat-weights-libido-v6";
 
 enum class BreedingStage {
     Foundation,

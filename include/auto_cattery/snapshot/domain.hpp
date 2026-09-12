@@ -39,6 +39,8 @@ enum class CatSexuality {
     Gay
 };
 
+enum class CatLibido { Unknown, Low, Normal, High };
+
 enum class VisualTraitKind {
     Mutation,
     BirthDefect
@@ -82,6 +84,8 @@ struct CatSnapshot {
     CatSex sex{CatSex::Unknown};
     CatSexuality sexuality{CatSexuality::Unknown};
     std::optional<double> sexuality_coefficient;
+    CatLibido libido{CatLibido::Unknown};
+    std::optional<double> libido_coefficient;
     std::optional<CatId> parent_a_id;
     std::optional<CatId> parent_b_id;
     std::optional<double> inbreeding_coefficient;

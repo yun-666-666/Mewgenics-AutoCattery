@@ -60,6 +60,10 @@ BreedingPairScore ScorePair(
     const std::map<PairKey, double>& coefficients,
     const BreedingScoringConfig& config) {
     BreedingPairScore result{.cat_a_id = a.id, .cat_b_id = b.id};
+    if (a.libido == snapshot::CatLibido::Low ||
+        b.libido == snapshot::CatLibido::Low) {
+        result.exclusion_reasons.push_back("low-libido-not-selected-for-breeding");
+    }
     if (a.available_for_breeding != snapshot::TriState::Yes ||
         b.available_for_breeding != snapshot::TriState::Yes) {
         result.exclusion_reasons.push_back("not-adult-breeding-pair");

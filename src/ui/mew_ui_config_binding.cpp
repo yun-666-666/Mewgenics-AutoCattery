@@ -1,6 +1,7 @@
 #include "auto_cattery/ui/mew_ui_bridge.hpp"
 
 #include "auto_cattery/logger.hpp"
+#include "auto_cattery/ui/house_button_controller.hpp"
 #include "auto_cattery/ui/recommendation_marker_controller.hpp"
 #include "auto_cattery/workflow/organize_workflow_facade.hpp"
 #include "mew_ui_house_button_view.hpp"
@@ -28,6 +29,7 @@ void MewUiBridge::ApplyRuntimeConfig() {
     }
 
     recommendation_scoring_config_ = config.combat_scoring;
+    if (house_button_controller_) house_button_controller_->InvalidatePreview();
     recommendation_marker_config_ = config.recommendation_marker;
     const bool english = config.general.language == "en-US";
     if (house_button_view_) house_button_view_->SetEnglish(english);
@@ -51,7 +53,10 @@ void MewUiBridge::ApplyRuntimeConfig() {
         "Config",
         "AC1303",
         "Runtime configuration applied; recommendation markers and cached "
-        "scoring views require recomputation.");
+        "scoring views require recomputation; breeding_population=" +
+            std::to_string(config.room_planning.breeding_room_population) +
+            " single_combat_room=" +
+            std::to_string(config.room_planning.prefer_single_combat_staging_room));
 }
 
 }  // namespace autocattery::ui

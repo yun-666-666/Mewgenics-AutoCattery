@@ -218,7 +218,7 @@ ConfigReloadResult RuntimeConfigService::ApplyIfChanged(Config next) {
 }
 
 bool RuntimeConfigService::Idle(workflow::WorkflowState state) const noexcept {
-    return state == workflow::WorkflowState::Idle;
+    return workflow::CanReloadConfig(state);
 }
 
 void RuntimeConfigService::NoticeFileChange() {

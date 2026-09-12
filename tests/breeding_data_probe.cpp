@@ -152,7 +152,8 @@ int wmain(int argc, wchar_t** argv) {
     }
     autocattery::workflow::WorkflowStateMachine state;
     if (state.BeginPreview()) {
-        const auto preview = autocattery::workflow::PreviewBuilder(adapter, config).Build(
+        const auto preview = autocattery::workflow::PreviewBuilder(adapter, config,
+            argc > 4 ? std::filesystem::path(argv[4]) : std::filesystem::path{}).Build(
             2, autocattery::workflow::WorkflowCapability::MoveOnly, state);
         if (preview) {
             std::cout << " preview_moves="
@@ -192,7 +193,16 @@ int wmain(int argc, wchar_t** argv) {
                     if (room_for(cat.id) != room_for(pair.cat_a_id)) continue;
                     females += cat.sex == autocattery::snapshot::CatSex::Female;
                     males += cat.sex == autocattery::snapshot::CatSex::Male;
+                    std::cout << "\nresident=" << cat.id << " name=" << cat.display_name
+                              << " sex=" << (cat.sex == autocattery::snapshot::CatSex::Female ? "F" : "M")
+                              << " libido=" << (cat.libido_coefficient ? std::to_string(*cat.libido_coefficient) : "unknown")
+                              << " base=";
+                    for (const auto& value : cat.genetic_stats.values) std::cout << value.value_or(-1) << ',';
                 }
+                std::cout << "\nall_house_eligible_full_coverage_pairs="
+                          << std::ranges::count_if(ranking.value.ranked_pairs, [](const auto& candidate) {
+                              return candidate.eligible && candidate.covered_seven_stats == 7;
+                          });
                 std::size_t residents{};
                 std::size_t cross_pairs{};
                 std::size_t covered_cross_pairs{};

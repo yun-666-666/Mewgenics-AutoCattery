@@ -50,6 +50,13 @@ snapshot::HouseSnapshot PairHouse() {
 }  // namespace
 
 void RunPairRankerTests() {
+    auto low_libido_house = PairHouse();
+    low_libido_house.cats[1].libido = snapshot::CatLibido::Low;
+    const auto without_low = breeding::RankBreedingPairs(low_libido_house);
+    AC_CHECK(without_low && without_low.value.ranked.front().cat_b_id == 3);
+    AC_CHECK(std::ranges::none_of(without_low.value.ranked, [](const auto& pair) {
+        return pair.eligible && (pair.cat_a_id == 2 || pair.cat_b_id == 2);
+    }));
     const auto ranked = breeding::RankBreedingPairs(PairHouse());
     AC_CHECK(static_cast<bool>(ranked));
     AC_CHECK(ranked.value.ranked.size() == 3);

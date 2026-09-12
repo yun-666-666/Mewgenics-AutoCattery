@@ -204,14 +204,13 @@ Result<CatSnapshot> ParseCatBlob(
         kPostDescriptorMetadataSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat metadata is truncated"};
     }
-    const auto personality_anchor = cursor;
-    if (sexuality_unlocked) {
-        detail::ApplyUnlockedSexuality(bytes, personality_anchor, cat);
-    }
     cursor += kPostDescriptorMetadataSize;
     if (!ReadAsciiString(bytes, cursor, cat.breed_id) ||
         kEquipmentBlockSize > bytes.size() - cursor) {
         return {{}, ErrorCode::CatDataUnavailable, "cat breed block is invalid"};
+    }
+    if (sexuality_unlocked) {
+        detail::ApplyUnlockedSexuality(bytes, cursor, cat);
     }
     detail::ParseVisualPartSlots(bytes, cursor, cat);
     cursor += kEquipmentBlockSize;

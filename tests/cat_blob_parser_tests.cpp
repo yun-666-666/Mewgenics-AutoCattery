@@ -28,7 +28,8 @@ std::vector<std::uint8_t> CatBlob(
     std::string_view stat_affinity = "",
     std::int64_t death_day = -1,
     std::string_view voice_id = "female31",
-    double sexuality = 0.5) {
+    double sexuality = 0.5,
+    double libido = 0.5) {
     std::vector<std::uint8_t> bytes(20, 0);
     const std::uint32_t magic = 19;
     const std::uint32_t name_length = 3;
@@ -43,6 +44,7 @@ std::vector<std::uint8_t> CatBlob(
     AppendString(bytes, "None");
     const auto equipment_start = bytes.size();
     bytes.resize(bytes.size() + 368, 0);
+    std::memcpy(bytes.data() + equipment_start + 4, &libido, sizeof(libido));
     const std::uint32_t fur_mutation = 300;
     const std::uint32_t body_defect = 700;
     std::memcpy(
@@ -129,12 +131,21 @@ void RunCatBlobParserTests() {
     AC_CHECK(
         bisexual.value.sexuality == snapshot::CatSexuality::Bisexual);
     AC_CHECK(bisexual.value.sexuality_coefficient == 0.5);
+    AC_CHECK(bisexual.value.libido == snapshot::CatLibido::Normal);
+    for (const auto value : {0.0, 0.299, 0.3, 0.7, 0.701, 1.0}) {
+        const auto read = snapshot::ParseCatBlob(42,
+            CatBlob("Colorless", "", -1, "female31", 0.5, value), 17, true, true);
+        AC_CHECK(read && read.value.libido_coefficient == value);
+        AC_CHECK(read.value.libido == (value < 0.3 ? snapshot::CatLibido::Low
+            : value > 0.7 ? snapshot::CatLibido::High : snapshot::CatLibido::Normal));
+    }
 
     const auto hidden = snapshot::ParseCatBlob(
         49, CatBlob(), 17, false, false);
     AC_CHECK(static_cast<bool>(hidden));
     AC_CHECK(
         hidden.value.sexuality == snapshot::CatSexuality::Unknown);
+    AC_CHECK(hidden.value.libido == snapshot::CatLibido::Unknown);
     AC_CHECK(!hidden.value.genetic_stats.values[0].has_value());
 
     const auto classed = snapshot::ParseCatBlob(

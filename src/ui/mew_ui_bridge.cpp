@@ -304,6 +304,9 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         *organize_workflow_,
         HouseButtonController::Clock{},
         [this] {
+            if (config_runtime_ && !house_button_controller_->IsBusy()) {
+                (void)config_runtime_->RequestReload(organize_workflow_->State());
+            }
             RefreshRuntimeSnapshotContext();
         });
     house_move_probe_controller_ =
@@ -546,6 +549,7 @@ void MewUiBridge::OnTick() {
     }
 
     if (config_runtime_ &&
+        (!house_button_controller_ || !house_button_controller_->IsBusy()) &&
         (last_config_poll_time_.time_since_epoch().count() == 0 ||
          now - last_config_poll_time_ >= kConfigPollInterval)) {
         last_config_poll_time_ = now;

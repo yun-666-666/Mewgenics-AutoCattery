@@ -206,10 +206,10 @@ Result<PreviewBundle> OrganizeWorkflowFacade::LatestPreview() const {
 }
 
 Result<void> OrganizeWorkflowFacade::ApplyConfig(Config config) {
-    if (state_.State() != WorkflowState::Idle) {
+    if (!CanReloadConfig(state_.State())) {
         return {
             ErrorCode::WriteConflict,
-            "configuration can only be applied while the workflow is idle"
+            "configuration cannot be applied during planning or execution"
         };
     }
     if (!read_adapter_) {
