@@ -1,5 +1,17 @@
 # CODEX CURRENT TASK
 
+## 2026-09-13 当前请求：依据游戏代码尝试游戏外繁育实验
+
+用户明确要求先定位游戏繁育/后代随机代码，再按真实实现做外部测试程序。
+已定位本机 EXE CatData::breed RVA0xA89A0，后代创建0xD8580、房屋调用0x1EA15B、
+原生BreedingTest调用0x777F51；七属性选择0xA7A00、随机数0x1595A0、家具效果0x1B4930。
+新增tools/breeding_lab.py、tools/breeding_native_reference.py、tests/breeding_lab_tests.py及用法说明。
+七项遗传区段在独立模拟器执行EXE原始指令，与Python移植1080组结果及最终RNG状态完全一致；
+24项原生家具效果对照通过。三种构造场景各10万次实验已完成，见tools/breeding_lab.md。
+这只是确认的遗传区段，不是完整新生猫生成器或每天出生率；完整技能/部件/缺陷/家具求值、
+交配条件和整次出生RNG顺序仍未复现。未更改MOD评分、部署、游戏或存档。
+后续从这些未完成依赖继续，不重复已通过的七属性对照。属于Stage40繁育研究续接，不推进其他阶段。
+
 更新日期：2026-09-08
 
 ## Stage 38：死亡猫交付与游戏年迈状态筛选
