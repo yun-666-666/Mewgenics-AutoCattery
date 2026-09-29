@@ -11,6 +11,14 @@ option(AUTOCATTERY_BUILD_TESTS "Build AutoCattery unit tests" ON)
 include(cmake/Warnings.cmake)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+# Normalize localized/ANSI MSVC output to the UTF-8 prefix Ninja parses.
+# VSLANG alone cannot select English when only Chinese resources are installed.
+if(MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
+    set(CMAKE_DEFAULT_BUILD_TYPE Release)
+    set(CMAKE_CL_SHOWINCLUDES_PREFIX "Note: including file: ")
+    set(CMAKE_C_COMPILER_LAUNCHER "${Python3_EXECUTABLE};${CMAKE_SOURCE_DIR}/tools/msvc_includes.py")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_C_COMPILER_LAUNCHER}")
+endif()
 set(HOUSE_UI_ASSET "${CMAKE_BINARY_DIR}/generated/auto_cattery_house.swf")
 add_custom_command(
     OUTPUT "${HOUSE_UI_ASSET}"

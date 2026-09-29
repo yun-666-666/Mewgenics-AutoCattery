@@ -84,10 +84,15 @@ game files, Steam Cloud data, or player save databases.
   It excludes cat names, save names and paths, OS usernames, machine IDs, and
   account IDs, and never uploads automatically. See the issue-feedback section.
 
-The current live execution capability is `MoveOnly`. Room attributes, first-stage
+Auto-Organize continues to use `MoveOnly`. Room attributes, first-stage
 breeding pairing, default base-stat reads, room identity caching, native movement
-of unassigned cats, and Full Preview are player validated. Real culling is not
-enabled. See
+of unassigned cats, and Full Preview are player validated. The local test build
+also checks the population limit when entering the house or starting a new day.
+With read-only and safe modes off, a surplus list appears for 10 seconds before
+sequential trash delivery. Esc/F10/Close cancels this house visit; protected,
+fixed-room, and unknown-state cats are retained. Re-entering the house or changing
+the limit permits another check. In-game acceptance of this repair is pending. See
+[`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) and
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md).
 
 House UI text nodes are cached and updated only when content changes. The

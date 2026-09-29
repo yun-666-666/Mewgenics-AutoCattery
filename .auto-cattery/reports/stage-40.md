@@ -1,5 +1,21 @@
 # Stage 40：繁育群七项覆盖保持
 
+## 2026-09-29 玩家测试问题续修：存档识别与数量上限
+
+- 原因：面板控制器结构更新后current_save对象未重编；Ninja头依赖为0。数量上限之前只用于手动超额预览，未在新一天接入执行。
+- 实现：中文/ANSI编译器include提示转换为UTF8固定前缀；Ninja默认Release。识别失败保留实际提示。进入House/新一天自动加载当前档，超额名单显示10秒后通过既有原生垃圾桶服务交付；Esc/F10/关闭取消本次访问，翻页不取消；配置或场景变化取消；保护猫/固定房间/冒险箱/未知数据保留。整理与交付互斥。
+- 文件：CMakeLists.txt、tools/msvc_includes.py、src/ui/in_game_panel_{controller.cpp,controller.hpp,current_save.cpp,protection.cpp,senior.cpp,population.cpp}、src/ui/in_game_settings_pages.cpp、tests/population_automation_tests.cpp；README中英、docs/USER_GUIDE.md、docs/implementation-status.md、CODEX_TASK.md。
+- 构建：MSVC环境下cmake -S . -B build-ninja；cmake --build build-ninja --config Release --target AutoCattery population_automation_tests population_selection_tests dead_cat_delivery_sequence_tests --parallel 12。34985与24577均exit0；前者语言环境方案无效，后者使用最终规范化launcher。仅测试桩链式赋值有C4244警告。
+- 测试：ctest --test-dir build-ninja -C Release -R '^(population_automation_tests|population_selection_tests|dead_cat_delivery_sequence_tests)$' --output-on-failure，3/3通过0.31秒。真实控制器与模拟原生边界验证173减150、冒险箱保护、Esc取消不重启、只读阻止、模糊/变化存档拒绝，顺序交付测试覆盖原生清理等待。编译输出语言修复不改变行为，复用该测试结果。
+- 依赖验证：ninja -C build-ninja -f build-Release.ninja指定current_save对象重编成功；-t deps结果146项，含in_game_panel_controller.hpp。先前错误默认配置查询清掉Release依赖，已固定默认Release，之后验证通过。git diff --check通过。
+- code-simplifier：仅本轮改动，未发现值得增加差异的简化，无代码变化。
+- 部署：游戏未运行时部署成功构建DLL到Mods根、既有AutoCattery子目录及dist；未启动/控制游戏，未修改真实存档/用户设置。
+- 游戏验证：待玩家重启；检查年迈/死亡猫读取，超过150时自动名单及倒计时，实际垃圾桶移除；参考AC18005、AC4200/4201、AC19201/19203。上述自动化验证不等于游戏确认。
+- 边界：保护数量超过上限不会强行淘汰；存档未唯一匹配时停止并记录原因；取消后下一次进入House或改上限才重新检查；撤销需在再次保存前读回原档，不自动备份或推进日期。未推进其他模拟/网页/分房优化。
+- 本地提交：本报告所属提交（git log -1 -- .auto-cattery/reports/stage-40.md可定位）。只提交可独立隔离的依赖修复、读档诊断和文档。自动管理接线与前一会话未提交的数量字段及服务改动有依赖，无法安全拆分，保留未提交，不混入该提交；工作树及部署包含完整本次修复。
+- 是否 push：否。
+
+
 日期：2026-09-10。基线：746f065。目标：改善通用基础全 7 培育，不能针对玩家猫、ID、房间、数量或当前属性分布定制规则。
 
 ## 结论与机制边界

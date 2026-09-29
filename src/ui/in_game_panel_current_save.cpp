@@ -12,7 +12,12 @@ void InGamePanelController::ResolveCurrentSave() {
     const auto started = std::chrono::steady_clock::now();
     current_save_.reset();
     current_save_checked_ = house_scene_manager_ != nullptr;
-    if (!current_save_checked_ || !protection_) return;
+    if (!current_save_checked_ || !protection_) {
+        status_ = English() ? "House context unavailable; refresh in the cat house"
+                            : "猫舍场景尚未就绪，请在猫舍内刷新";
+        Logger::Instance().Write(LogLevel::Warn, "ManagementPanel", "AC18005", status_);
+        return;
+    }
 
     const auto runtime_cat_count = AcMewCountHouseCats(house_scene_manager_);
     std::size_t candidate_count{};
@@ -47,6 +52,11 @@ void InGamePanelController::ResolveCurrentSave() {
         current_save_ = index;
     }
     if (exact_matches != 1U) current_save_.reset();
+    if (!current_save_) {
+        status_ = English()
+            ? "Saved cats do not uniquely match the current house; save normally, then refresh"
+            : "已保存猫群与当前猫舍未唯一匹配，请正常保存后刷新";
+    }
 
     const auto elapsed_us = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::microseconds>(
