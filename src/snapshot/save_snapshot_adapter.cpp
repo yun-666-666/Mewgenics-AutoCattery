@@ -129,7 +129,6 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
     if (!breeding_data) {
         return {{}, breeding_data.code, breeding_data.message};
     }
-    const auto& unlocks = breeding_data.value.unlocks;
     std::vector<detail::FurniturePlacement> furniture;
     const bool furniture_read =
         database->ReadFurniture(stored_furniture, error) &&
@@ -186,8 +185,8 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
                 stored_cat.id,
                 AsBytes(stored_cat.blob),
                 day,
-                unlocks.base_stats,
-                unlocks.sexuality);
+                true,
+                true); // Verified format-19 stats/personality exist before Tink UI unlocks.
         if (!parsed) {
             return Failure(
                 parsed.code,
@@ -207,8 +206,8 @@ Result<HouseSnapshot> SaveSnapshotAdapter::CaptureHouseSnapshotFromPath(
         house_entries.value,
         breeding_data.value.pedigree
             ? &*breeding_data.value.pedigree : nullptr,
-        unlocks.base_stats,
-        unlocks.sexuality);
+        true,
+        true);
     if (snapshot) {
         std::optional<std::vector<std::byte>> house_unlocks;
         if (!database->ReadFileBlob("house_unlocks", house_unlocks, error) ||

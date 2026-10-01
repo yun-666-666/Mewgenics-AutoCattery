@@ -1,5 +1,6 @@
 #include "auto_cattery/snapshot/detail/save_database.hpp"
 #include "auto_cattery/snapshot/detail/win_sqlite_api.hpp"
+#include "auto_cattery/snapshot/detail/unlocked_breeding_data.hpp"
 
 #include "test_support.hpp"
 
@@ -41,6 +42,21 @@ std::filesystem::path CreateFixture() {
         "INSERT INTO files VALUES('house_state',X'04050607');";
     AC_CHECK(api.exec(
         database, kSchemaAndData, nullptr, nullptr, nullptr) == 0);
+    // Three empty versioned pedigree tables, with no Tink progress record.
+    std::vector<std::uint8_t> pedigree;
+    for (int table = 0; table < 3; ++table) {
+        pedigree.insert(pedigree.end(), {0xf5, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff});
+        pedigree.resize(pedigree.size() + 16, 0);
+        pedigree.resize(pedigree.size() + 17, 0x80);
+        pedigree.resize(pedigree.size() + 8, 0);
+    }
+    snapshot::detail::sqlite3_stmt* statement = nullptr;
+    AC_CHECK(api.prepare_v2(database, "INSERT INTO files VALUES('pedigree',?)",
+        -1, &statement, nullptr) == 0);
+    AC_CHECK(api.bind_blob(statement, 1, pedigree.data(),
+        static_cast<int>(pedigree.size()), nullptr) == 0);
+    AC_CHECK(api.step(statement) == 101);
+    AC_CHECK(api.finalize(statement) == 0);
     AC_CHECK(api.close_v2(database) == 0);
     return path;
 }
@@ -69,6 +85,12 @@ void RunSaveDatabaseTests() {
             AC_CHECK(database->ReadHouseState(house_state, error));
             AC_CHECK(house_state.has_value());
             AC_CHECK(house_state->size() == 4);
+
+            const auto breeding = snapshot::detail::LoadUnlockedBreedingData(*database);
+            AC_CHECK(static_cast<bool>(breeding));
+            AC_CHECK(!breeding.value.unlocks.pedigree);
+            AC_CHECK(!breeding.value.unlocks.sexuality);
+            AC_CHECK(breeding.value.pedigree.has_value());
         }
     }
     std::filesystem::remove(fixture);

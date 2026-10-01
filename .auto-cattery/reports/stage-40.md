@@ -1,5 +1,21 @@
 # Stage 40：繁育群七项覆盖保持
 
+## 2026-10-01 玩家反馈续修：猫数上限被 Tink 显示解锁阻断
+
+- 原因证据：当日日志在多个House generation记录AC4201 `breeding pair fields are not unlocked`，同时AC18005 `exact_matches=1`。实际猫数曾到183；死亡猫交付13/13完成。只读检查当前存档显示三个Tink显示解锁均未购买，但存在838480字节族谱。旧读取结果171猫、sexuality=0、pedigree=0，使自动数量管理直接失败，繁育推荐也未产生。
+- 修改：SaveSnapshotAdapter用既有验证过的format19解析基础属性、性欲和性取向，不以显示解锁为读取门槛；LoadUnlockedBreedingData读取实际族谱并保留进度元数据，缺失/损坏继续按原数据边界处理，不写游戏解锁。SelectPopulation后续种猫保留循环也遵守avoid_inbreeding_pairs，避免独立血线选择未成功时保留近亲推荐对。
+- 文件：src/snapshot/save_snapshot_adapter.cpp、src/snapshot/unlocked_breeding_data.cpp、src/breeding/population_selection.cpp、tests/save_database_tests.cpp、新增tests/population_saved_data_tests.cpp、docs/USER_GUIDE.md、本报告；CODEX_TASK.md只更新当前前沿。
+- 构建：MSVC环境 `cmake --build build-ninja --config Release --target AutoCattery auto_cattery_tests population_selection_tests population_automation_tests breeding_data_probe --parallel 4`，原会话63570最终222/222，exit0；监控autocattery-5已暂停。现有控制器测试有C4244警告。
+- 检查：`ctest --test-dir build-ninja -C Release -R '^(phase14_unit_tests|population_selection_tests|population_automation_tests|phase14_dll_load_smoke)$' --output-on-failure`：数量筛选、真实controller模拟原生边界、DLL加载3项通过；综合unit失败10条，全部在未修改的deterministic_room_assignment_tests.cpp的124/177/178行，断言写死Floor1_Small/Attic，而工作树已有真实房属性选房改动。本轮不改这些无关断言，不宣称完整suite通过；其余unit组没有报告失败（含新增无npc_progress但有合法族谱回归）。
+- 新回归：MSVC `cl /nologo /EHsc /std:c++20 /MD /O2 /utf-8 /DNOMINMAX /Iinclude /Itests /Isrc/ui tests/population_saved_data_tests.cpp /Fo.local/population_saved_data_tests.obj /Fe.local/population_saved_data_tests.exe build-ninja/Release/auto_cattery_core.lib build-ninja/Release/mew_ui_api.lib user32.lib kernel32.lib bcrypt.lib shell32.lib`编译成功。无参数测试通过：只有一组无亲缘对、不能找到两独立血线时，开避近亲仍优先保留无亲缘对；关闭开关可以保留高评分近亲对。
+- 真实数据只读：新回归传当前存档、游戏根、安装config目录，exit0，171猫→150保留/21超额，protected=0，配对14535。独立breeding_data_probe按当前配置读取sexuality=1、pedigree=1、pair_coi=16653；推荐对七项覆盖、COI=0，预览66移动，繁育房6居民，其余83/82；没有改真实存档/设置。此证据是读取、筛选及移动预览，不是游戏移除或出生率验证。
+- code-simplifier：只检查本轮差异一次，无值得扩大diff的简化，未改代码；复用上述检查。
+- 部署：确认游戏未运行，将本轮成功构建DLL部署到Mods根及既有AutoCattery子目录副本，并同步dist/Release；文件长度1484288字节、构建时间2026-10-01 17:39。不做哈希比较。未启动/控制游戏；不改真实存档、玩家配置或其他MOD。
+- 游戏验收：待玩家重启。上限150且关闭只读/安全时，进入House应有AC4200及10秒名单；未取消时逐只Trash交付，检查最终猫数。F10/Esc/关闭仍取消本次访问；保护或未知数据可能导致超过上限。繁育重新整理检查实际6居民及避近亲；不保证全七出生率。
+- 未做：长期模拟、网页、持续自动分房等其他未完成工作；未恢复已停止的无遗传辅助路线。
+- 本地提交：本节所属任务提交，哈希在完成提交后补录。本轮src/breeding/population_selection.cpp原是上一会话未跟踪文件，完整提交会夹带既有实现，因此留工作树，但此次避近亲修复已包含在部署DLL；其他既有未提交改动全部保留。
+- 是否 push：否。
+
 ## 2026-09-29 玩家测试问题续修：存档识别与数量上限
 
 - 原因：面板控制器结构更新后current_save对象未重编；Ninja头依赖为0。数量上限之前只用于手动超额预览，未在新一天接入执行。

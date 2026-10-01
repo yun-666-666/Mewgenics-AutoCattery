@@ -18,21 +18,24 @@ Result<UnlockedBreedingData> LoadUnlockedBreedingData(
     if (progress) {
         result.unlocks = ParseProgressUnlocks(*progress);
     }
-    if (!result.unlocks.pedigree) {
-        return {std::move(result)};
-    }
+    // Tink progress controls UI visibility, not whether ancestry is serialized.
+    // Read the actual table so locked UI cannot disable pairing or population control.
     std::optional<std::vector<std::byte>> pedigree;
-    if (!database.ReadFileBlob("pedigree", pedigree, error) || !pedigree) {
+    if (!database.ReadFileBlob("pedigree", pedigree, error)) {
         return {
             {}, ErrorCode::CatDataUnavailable,
-            "unlocked pedigree is unavailable: " + error
+            "pedigree query failed: " + error
         };
+    }
+    if (!pedigree) {
+        if (!result.unlocks.pedigree) return {std::move(result)};
+        return {{}, ErrorCode::CatDataUnavailable, "unlocked pedigree is unavailable"};
     }
     auto parsed = ParsePedigreeBlob(*pedigree);
     if (!parsed) {
         return {
             {}, parsed.code,
-            "unlocked pedigree parsing failed: " + parsed.message
+            "pedigree parsing failed: " + parsed.message
         };
     }
     result.pedigree = std::move(parsed.value);
