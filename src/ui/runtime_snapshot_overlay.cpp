@@ -31,12 +31,14 @@ Result<void> OverlayRuntimeHouseState(
     for (const auto& cat : runtime.cats) {
         current_rooms.emplace(cat.cat_id, cat.room);
     }
+    std::erase_if(snapshot.rooms, [](const auto& room) { return room.id == "HousePipe"; });
     for (auto& room : snapshot.rooms) {
         room.residents.clear();
     }
     for (auto& cat : snapshot.cats) {
         const auto current = current_rooms.find(cat.id);
-        if (current != current_rooms.end() && current->second == 0) {
+        if (current != current_rooms.end() && (current->second == 0 ||
+                RuntimeRoomIsDeliveryPipe(runtime, current->second))) {
             cat.room_id.reset();
             cat.in_adventure_box = false;
             continue;

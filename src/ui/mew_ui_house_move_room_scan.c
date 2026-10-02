@@ -9,7 +9,8 @@ static const char* const kKnownRooms[AC_MEW_MOVE_PROBE_ROOM_COUNT] = {
     "Floor2_Large",
     "Attic",
     "AdventureBox",
-    "Floor2_Small"
+    "Floor2_Small",
+    "HousePipe"
 };
 
 static int AcReadableLiteral(

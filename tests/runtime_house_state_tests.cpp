@@ -8,6 +8,8 @@
 #include "mew_ui_house_move_adapter.h"
 
 #include "test_support.hpp"
+#include "workflow_test_fixture.hpp"
+#include "auto_cattery/workflow/preview_builder.hpp"
 
 namespace autocattery::tests {
 namespace {
@@ -76,6 +78,9 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == 0);
     set_name("Floor2_Small");
     AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == (1U << 5));
+    set_name("HousePipe");
+    AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == (1U << 6));
+    set_name("Floor2_Small");
     // The same native MSVC string can use heap storage.
     const std::size_t capacity = 31;
     std::memcpy(native_room.data() + 0x40, &stray, sizeof(stray));
@@ -112,6 +117,61 @@ void RunRuntimeHouseStateTests() {
     std::erase_if(interrupted_runtime.cats, [](const auto& cat) { return cat.cat_id == 2; });
     interrupted_runtime.rooms.push_back({300, {}}); // Actual special room.
     AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(interrupted_snapshot, interrupted_runtime)));
+
+    auto saved_pipe = original;
+    saved_pipe.cats.front().room_id = "HousePipe";
+    saved_pipe.rooms.front().residents = {2};
+    saved_pipe.rooms.push_back({.id = "HousePipe", .residents = {1}});
+    auto pipe_runtime = unchanged;
+    pipe_runtime.cats.front().room = 300;
+    pipe_runtime.rooms.push_back({300, {"HousePipe"}});
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(saved_pipe, pipe_runtime)));
+    AC_CHECK(saved_pipe.rooms.size() == 2);
+    AC_CHECK(!saved_pipe.cats.front().room_id);
+    AC_CHECK(ui::RuntimeHouseStateMatches(saved_pipe, pipe_runtime));
+    // The cat may enter the pipe after the mapping was cached, or return home
+    // while the save still records HousePipe. Both use the live position.
+    auto cached_pipe = original;
+    const auto ordinary_mapping = ui::ResolveRuntimeRoomPointers(original, unchanged);
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(cached_pipe, pipe_runtime,
+        ordinary_mapping.value)));
+    AC_CHECK(!cached_pipe.cats.front().room_id);
+    saved_pipe.rooms.push_back({.id = "HousePipe"});
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(saved_pipe, unchanged)));
+    AC_CHECK(saved_pipe.cats.front().room_id == "Floor1_Large");
+    AC_CHECK(saved_pipe.rooms.size() == 2);
+    auto unknown_pipe = pipe_runtime;
+    unknown_pipe.rooms.back().detected_ids.clear();
+    AC_CHECK(!ui::ResolveRuntimeRoomPointers(original, unknown_pipe));
+
+    WorkflowReadFake pipe_reader;
+    pipe_reader.house = WorkflowHouse(8);
+    pipe_reader.house.rooms.front().id = "Floor1_Large";
+    for (auto& cat : pipe_reader.house.cats) cat.room_id = "Floor1_Large";
+    pipe_reader.house.rooms.push_back({.id = "Attic"});
+    pipe_reader.house.rooms.push_back({.id = "HousePipe", .residents = {1}});
+    pipe_reader.house.cats.front().room_id = "HousePipe";
+    ui::RuntimeHouseState preview_runtime{.available_room_count = 2,
+        .rooms = {{100, {"Floor1_Large"}}, {200, {"Attic"}}, {300, {"HousePipe"}}}};
+    for (const auto& cat : pipe_reader.house.cats)
+        preview_runtime.cats.push_back({cat.id, static_cast<ui::RuntimePointer>(1000 + cat.id),
+            cat.id == 1 ? 300U : 100U});
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(pipe_reader.house, preview_runtime)));
+    workflow::WorkflowStateMachine pipe_preview_state;
+    AC_CHECK(pipe_preview_state.BeginPreview());
+    const auto pipe_preview = workflow::PreviewBuilder(pipe_reader).Build(
+        50, workflow::WorkflowCapability::MoveOnly, pipe_preview_state);
+    AC_CHECK(static_cast<bool>(pipe_preview));
+    if (pipe_preview) {
+        AC_CHECK(pipe_preview.value.room_plan.move_execution_allowed);
+        const auto return_move = std::ranges::find(
+            pipe_preview.value.room_plan.moves, 1, &room_planning::PlannedMove::cat_id);
+        AC_CHECK(return_move != pipe_preview.value.room_plan.moves.end());
+        if (return_move != pipe_preview.value.room_plan.moves.end()) {
+            AC_CHECK(return_move->executable && return_move->from_room == "Outside");
+            AC_CHECK(return_move->to_room != "HousePipe");
+        }
+    }
 
     const auto manually_moved = RuntimeState(200);
     AC_CHECK(!ui::RuntimeHouseStateMatches(original, manually_moved));
@@ -174,6 +234,14 @@ void RunRuntimeHouseStateTests() {
     AC_CHECK(five_mapping.value.at("Floor2_Small") == 500);
     AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(five_rooms, five_runtime)));
     AC_CHECK(five_rooms.rooms.size() == 5);
+    auto five_pipe = five_runtime;
+    five_pipe.cats.front().room = 600;
+    five_pipe.rooms.push_back({600, {"HousePipe"}});
+    auto five_pipe_snapshot = five_rooms;
+    five_pipe_snapshot.rooms.push_back({.id = "HousePipe", .residents = {1}});
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(five_pipe_snapshot, five_pipe)));
+    AC_CHECK(five_pipe_snapshot.rooms.size() == 5);
+    AC_CHECK(!five_pipe_snapshot.cats.front().room_id);
 
     auto changed_identity = unchanged;
     changed_identity.cats.back().cat_id = 99;

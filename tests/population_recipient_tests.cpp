@@ -1,6 +1,7 @@
 #include "dead_cat_delivery_service.hpp"
 #include "mew_ui_delivery_trace.h"
 #include "mew_ui_house_cat_probe.h"
+#include "mew_ui_population_recipient_policy.h"
 #include "test_support.hpp"
 #include <algorithm>
 #include <array>
@@ -37,9 +38,10 @@ extern "C" int AcMewChooseDeadCatRecipient(void*, int64_t) { return 0; }
 extern "C" int AcMewChooseTrashRecipient(void*, int64_t) { return 0; }
 extern "C" int AcMewFindPopulationRecipient(void*, int64_t id) {
     if (!available || !state.selected_valid || state.cat_id != id) return -1;
+    uint32_t accepts = 1U << 7;
     for (int npc = 0; npc < 7; ++npc)
-        if (quotas[npc] > 0 && (id != 2 || npc == 4)) return npc;
-    return 7;
+        if (quotas[npc] > 0 && (id != 2 || npc == 4)) accepts |= 1U << npc;
+    return AcMewSelectPopulationRecipient(accepts, 0);
 }
 extern "C" int AcMewChoosePopulationRecipient(void* scene, int64_t id, int npc) {
     AC_CHECK(AcMewFindPopulationRecipient(scene, id) == npc);
@@ -53,6 +55,30 @@ extern "C" int AcMewChoosePopulationRecipient(void* scene, int64_t id, int npc) 
 }
 int main() {
     using namespace autocattery;
+    const auto mask = [](std::initializer_list<int> recipients) {
+        uint32_t value = 1U << 7;
+        for (const auto npc : recipients) value |= 1U << npc;
+        return value;
+    };
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({3}), 0) == 3); // Retired -> Frank.
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({1, 3}), 0) == 1); // Butch exception.
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({0, 2}), 0) == 0); // Doctor before Tink.
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({0, 1}), 0) == 1); // Butch before doctor.
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({2, 4, 5}), 0) == 2);
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({4, 5}), 0) == 5); // Either rank-4 is fine.
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({0, 1, 2, 3, 4, 5, 6}), 1) == 6);
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({0, 1, 3}), 1) == -1); // Dead never trash.
+    AC_CHECK(AcMewSelectPopulationRecipient(mask({6}), 0) == 7); // Living never Organ Grinder.
+    AC_CHECK(AcMewSelectPopulationRecipient(0, 0) == -1);
+    // All combinations of currently eligible living recipients obey the same
+    // priority; no specific cat identity or quota is built into that policy.
+    const std::array order{1, 3, 0, 2, 5, 4};
+    for (uint32_t accepts = 0; accepts < 64; ++accepts) {
+        int expected = 7;
+        for (const auto npc : order)
+            if (accepts & (1U << npc)) { expected = npc; break; }
+        AC_CHECK(AcMewSelectPopulationRecipient(accepts | (1U << 7), 0) == expected);
+    }
     ui::DeadCatDeliveryService service;
     snapshot::HouseSnapshot snapshot;
     for (int id = 1; id <= 4; ++id) snapshot.cats.push_back({.id = id,
@@ -68,7 +94,7 @@ int main() {
             ui::DeadCatDeliveryService::Recipient::NpcPreferred)));
     };
     start();
-    quotas = {1, 0, 0, 0, 1, 0, 1};
+    quotas = {1, 0, 0, 1, 1, 0, 0};
     for (int id = 1; id <= 4; ++id) {
         service.Poll(nullptr); // Native cat pipe.
         service.Poll(nullptr); // Recipient preview without donation.
@@ -82,7 +108,7 @@ int main() {
         service.Poll(nullptr);
     }
     AC_CHECK(!service.Active() && cats.empty());
-    AC_CHECK((deliveries == std::vector<int>{0, 4, 6, 7}));
+    AC_CHECK((deliveries == std::vector<int>{3, 4, 0, 7}));
     start();
     quotas = {1};
     service.Poll(nullptr);

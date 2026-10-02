@@ -47,6 +47,12 @@ Result<void> ValidateCatIdentity(
 
 }  // namespace
 
+bool RuntimeRoomIsDeliveryPipe(const RuntimeHouseState& runtime, RuntimePointer pointer) {
+    const auto room = std::ranges::find(runtime.rooms, pointer, &RuntimeRoomEvidence::room);
+    return room != runtime.rooms.end() && room->detected_ids.size() == 1U &&
+        room->detected_ids.front() == "HousePipe";
+}
+
 Result<std::unordered_map<snapshot::RoomId, RuntimePointer>>
 ResolveRuntimeRoomPointers(
     const snapshot::HouseSnapshot& snapshot,
@@ -58,6 +64,8 @@ ResolveRuntimeRoomPointers(
     std::vector<snapshot::RoomId> ids;
     std::unordered_set<snapshot::RoomId> id_set;
     for (const auto& room : snapshot.rooms) {
+        // A saved delivery position is not an ordinary inhabitable room.
+        if (room.id == "HousePipe") continue;
         if (!id_set.insert(room.id).second) {
             return {{}, ErrorCode::SnapshotInvalid,
                     "snapshot room identity is ambiguous"};
@@ -66,7 +74,7 @@ ResolveRuntimeRoomPointers(
     }
     std::vector<RuntimePointer> pointers;
     for (const auto& cat : runtime.cats) {
-        if (cat.room != 0 &&
+        if (cat.room != 0 && !RuntimeRoomIsDeliveryPipe(runtime, cat.room) &&
             std::ranges::find(pointers, cat.room) == pointers.end()) {
             pointers.push_back(cat.room);
         }

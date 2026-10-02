@@ -33,6 +33,9 @@ ResolveRuntimeRoomPointers(
     const snapshot::HouseSnapshot& snapshot,
     const RuntimeHouseState& runtime);
 
+[[nodiscard]] bool RuntimeRoomIsDeliveryPipe(
+    const RuntimeHouseState& runtime, RuntimePointer room);
+
 [[nodiscard]] Result<void> OverlayRuntimeHouseState(
     snapshot::HouseSnapshot& snapshot,
     const RuntimeHouseState& runtime);

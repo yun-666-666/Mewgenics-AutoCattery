@@ -242,3 +242,22 @@ code-simplifier一次限定本轮差异检查完成，无需额外简化，复�
 - 提交边界：本轮原干净的房间适配器、房间/存档测试、用户指南及新增血线辅助/接收方测试可提交。delivery service、native trace、senior UI原有未提交改动与此次行为重叠，population_selection和population_automation原未跟踪且包含前会话完整实现，不能安全整文件纳入；留工作树，全部功能已包含在部署DLL。报告只暂存本节，保留前轮hash补录行未提交。CODEX_TASK原脏，保留本轮前沿。
 - 本地提交：本节所属单一任务提交，具体hash在提交后补录到工作树报告并在最终回复提供；不为hash元数据另建提交。
 - 是否 push：否。
+
+
+## 2026-10-02：玩家NPC权重与交付管道残留恢复
+
+- 请求：按截图1弗兰克、2布奇/比尼斯博士、3汀可、4特蕾西/杰克宝宝交付；退休猫同时满足布奇/弗兰克时先布奇；死猫仍给未编号原接收方；修复中断后需手动拖猫回房间才能整理的问题。
+- 当前同启动证据：11:25原生NPC请求后交付状态不可用停止，后续预览日志明确含HousePipe(1)；11:29多次AC3105为runtime room identity is incomplete，11:29:33重新回房后成功。当前游戏house.gon也记录HousePipe为辅助管道位置。不是再次归因于相邻内存名扫描。
+- 已核实NPC身份：当前EXE274360名称解析返回Beanies0、Butch1、Tink2、Frank3、babyjack4、Tracy5、OrganGrinder6。276600按当前进度/接收要求判断；Frank分支276863使用退休标记，原生死亡判断为CatData+7AC。原生代码只作本地参考，不提交闭源数据。
+- 新策略：完整读取0至7接收位图，以活猫顺序1/3/0/2/5/4选择。弗兰克只接收退休猫，故布奇1在弗兰克3前落实退休例外，其余保持截图级别顺序；两个4同级任一可，当前稳定先特蕾西。死猫固定6，条件不可用不转垃圾桶；活猫仅全部不接收才7。每次交付原生动态资格、额度重新核对保持。
+- 管道修复：精确原生房间名列表追加HousePipe（既有六项索引不变）。房间解析忽略已保存的HousePipe房间，并通过实时证据识别当前管道指针；overlay将管道猫视作待安置猫、移除管道房间，保留真实猫ID。普通房间仍唯一匹配，未知非零指针仍报错。正常预览确认后已有原生搬猫流程可将待安置猫带回居住房，不直接写存档或自动修改猫群；缓存映射也兼容管道进出。
+- 文件：新增src/ui/mew_ui_population_recipient_policy.h；src/ui/mew_ui_delivery_trace.c；src/ui/mew_ui_house_move_probe.h、src/ui/mew_ui_house_move_room_scan.c；src/ui/runtime_house_state.hpp、src/ui/runtime_room_resolution.cpp、src/ui/runtime_snapshot_overlay.cpp；tests/population_recipient_tests.cpp、tests/runtime_house_state_tests.cpp；docs/USER_GUIDE.md、CODEX_TASK.md、本报告。
+- 构建：MSVC环境cmake --build build-ninja --config Release --target AutoCattery population_automation_tests dead_cat_delivery_sequence_tests --parallel 4；18步成功，session74284退出0，初始观察窗口内完成，无监控/重复构建。
+- 验证：cl /EHsc /std:c++20 /MD /O2 /utf-8 /DNOMINMAX /Iinclude /Itests /Isrc/ui，链接core及mew_ui_api，编译运行population_recipient_tests、runtime_house_state_tests+mew_ui_house_move_probe_tests+临时main，两项退出0。CTest dead_cat_delivery_sequence_tests、population_automation_tests、phase14_dll_load_smoke 3/3通过（0.22秒）。未重跑此前无关全量测试或实档数量筛选。
+- 回归：退休Frank、退休Butch覆盖Frank、Butch/博士同权优先、博士先汀可、两4同级、死猫专用NPC及拒绝垃圾桶、活猫不送死猫接收方，64种活猫接收组合；原动态额度/失败停止/取消/完成核对仍通过。HousePipe精确识别、存档中管道残留、实时管道猫、缓存映射后入管道、已回房但存档旧管道、五房含管道、未知房间拒绝。实际PreviewBuilder生成管道猫可执行Outside→普通房间的整理移动。
+- code-simplifier：一次只检查本轮已验证差异，无有益额外简化，未改变行为，复用以上检查。
+- 部署：游戏未运行，DLL复制至Mods/AutoCattery.dll、既有子目录副本、dist/Release；长度1494528，构建时间2026-10-02 11:51:25。未启动/控制游戏，未改真实存档、配置、原游戏或其他MOD，无哈希检查。
+- 实机验收：待玩家重启后测试退休猫的布奇例外/弗兰克、普通猫的博士/汀可/两个4级选择、死猫原接收方；交付中断后直接回猫舍自动整理→确认，检查预览及管道猫回房，无需手动拖动。自动测试不等同当前游戏原生流程或长期繁育通过。
+- 提交范围：原干净的房间解析/capture接口、名称列表、策略helper、两项测试和用户指南及本节报告；mew_ui_delivery_trace.c与前会话未提交原生入口代码重叠，无法安全整文件提交，留工作树且已包含完整部署行为。其他旧改动全部保留，CODEX_TASK原脏只更新前沿，报告旧hash元数据保留。
+- 本地提交：本节单一任务提交，hash提交后补录至工作树报告及最终回复，不为元数据另建提交。
+- 是否 push：否。
