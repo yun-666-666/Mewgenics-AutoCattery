@@ -39,6 +39,72 @@ int wmain(int argc, wchar_t** argv) {
     selected = breeding::SelectPopulation(house, options, config);
     AC_CHECK((selected.value.retained == std::vector<snapshot::CatId>{1, 2, 3, 4}));
 
+    // Low-attribute independent founders get admission places ahead of
+    // ordinary high-attribute descendants, without raising the population cap.
+    auto diverse = house;
+    diverse.cats.clear();
+    diverse.pedigree.clear();
+    diverse.pedigree_pair_coefficients.clear();
+    options.clear();
+    for (int id = 1; id <= 12; ++id) {
+        auto cat = house.cats[static_cast<std::size_t>((id - 1) % 8)];
+        cat.id = id;
+        cat.genetic_stats.values.fill(id <= 10 ? 7 : 1);
+        cat.age_days = id <= 10 ? 10 : 3;
+        diverse.cats.push_back(cat);
+        diverse.pedigree.push_back({id, id <= 10 ? std::optional<snapshot::CatId>(100 + id * 2) : std::nullopt,
+            id <= 10 ? std::optional<snapshot::CatId>(101 + id * 2) : std::nullopt, 0.0});
+        options.push_back({.cat_id = id});
+        for (int other = 1; other < id; ++other)
+            diverse.pedigree_pair_coefficients.push_back({other, id, 0.0});
+    }
+    config = Config{};
+    config.room_planning.population_limit = 6;
+    selected = breeding::SelectPopulation(diverse, options, config);
+    const std::vector<snapshot::CatId> admitted{1, 2, 3, 4, 11, 12};
+    AC_CHECK(selected && selected.value.retained == admitted);
+    diverse.game_day = 100;
+    AC_CHECK(breeding::SelectPopulation(diverse, options, config).value.retained == admitted);
+    // A kitten can be retained until maturity; a missing pedigree cannot be
+    // treated as an unrelated founder simply because its parents are absent.
+    diverse.cats.back().life_stage = snapshot::LifeStage::Kitten;
+    diverse.cats.back().available_for_breeding = snapshot::TriState::No;
+    AC_CHECK(breeding::SelectPopulation(diverse, options, config).value.retained == admitted);
+    diverse.pedigree.pop_back();
+    selected = breeding::SelectPopulation(diverse, options, config);
+    AC_CHECK(std::ranges::find(selected.value.surplus, 12) != selected.value.surplus.end());
+    diverse.pedigree.push_back({12, {}, {}, 0.0});
+    // New independent founders compete for reserved places on age/lineage,
+    // rather than losing every day to the old population's higher attributes.
+    for (int id = 13; id <= 14; ++id) {
+        auto newcomer = house.cats[static_cast<std::size_t>((id - 1) % 8)];
+        newcomer.id = id;
+        newcomer.age_days = 1;
+        newcomer.genetic_stats.values.fill(0);
+        diverse.cats.push_back(newcomer);
+        diverse.pedigree.push_back({id, {}, {}, 0.0});
+        options.push_back({.cat_id = id});
+        for (int other = 1; other < id; ++other)
+            diverse.pedigree_pair_coefficients.push_back({other, id, 0.0});
+    }
+    selected = breeding::SelectPopulation(diverse, options, config);
+    AC_CHECK((selected && selected.value.retained == std::vector<snapshot::CatId>{1, 2, 3, 4, 13, 14}));
+    // Known related founders and founders already represented by descendants
+    // do not displace these independent admission candidates.
+    diverse.pedigree_pair_coefficients.back().coefficient = 0.25; // 13/14
+    selected = breeding::SelectPopulation(diverse, options, config);
+    AC_CHECK(selected && selected.value.retained.size() == 6);
+    AC_CHECK(std::ranges::find(selected.value.retained, 14) != selected.value.retained.end());
+    AC_CHECK(std::ranges::find(selected.value.surplus, 13) != selected.value.surplus.end());
+    diverse.pedigree_pair_coefficients.back().coefficient = 0;
+    diverse.pedigree[0].parent_a_id = 13;
+    selected = breeding::SelectPopulation(diverse, options, config);
+    AC_CHECK(std::ranges::find(selected.value.surplus, 13) != selected.value.surplus.end());
+    options[12].level = protection::ProtectionLevel::NoCull;
+    selected = breeding::SelectPopulation(diverse, options, config);
+    AC_CHECK(std::ranges::find(selected.value.retained, 13) != selected.value.retained.end());
+    AC_CHECK(selected.value.retained.size() == 6);
+
     if (argc > 1) {
         snapshot::SaveSnapshotAdapter adapter(argv[1], argc > 2 ? argv[2] : L"");
         const auto captured = adapter.CaptureHouseSnapshot(1);

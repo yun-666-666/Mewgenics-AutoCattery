@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
+#include "mew_ui_house_move_adapter.h"
 
 #include "test_support.hpp"
 
@@ -56,6 +58,29 @@ const snapshot::RoomSnapshot& Room(
 }  // namespace
 
 void RunRuntimeHouseStateTests() {
+    // Delivery reallocations must not make neighboring names into room IDs.
+    alignas(8) std::array<std::uint8_t, 0x400> native_room{};
+    const auto set_name = [&](const char* name) {
+        std::memset(native_room.data() + 0x40, 0, 0x20);
+        std::memcpy(native_room.data() + 0x40, name, std::strlen(name));
+        const std::size_t size = std::strlen(name), capacity = 15;
+        std::memcpy(native_room.data() + 0x50, &size, sizeof(size));
+        std::memcpy(native_room.data() + 0x58, &capacity, sizeof(capacity));
+    };
+    set_name("Attic");
+    std::memcpy(native_room.data() + 0x90, "Floor1_Large", 12);
+    const char* stray = "Floor1_Small";
+    std::memcpy(native_room.data() + 0x120, &stray, sizeof(stray));
+    AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == (1U << 3));
+    set_name("SpecialRoom");
+    AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == 0);
+    set_name("Floor2_Small");
+    AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == (1U << 5));
+    // The same native MSVC string can use heap storage.
+    const std::size_t capacity = 31;
+    std::memcpy(native_room.data() + 0x40, &stray, sizeof(stray));
+    std::memcpy(native_room.data() + 0x58, &capacity, sizeof(capacity));
+    AC_CHECK(AcMewDetectNativeHouseRoomMask(native_room.data()) == (1U << 1));
     const std::array<ui::RuntimeCatRoomState, 4> occupied_rooms{{
         {1, 1, 100},
         {2, 2, 100},
@@ -79,6 +104,14 @@ void RunRuntimeHouseStateTests() {
     const auto original = TwoRoomSnapshot();
     const auto unchanged = RuntimeState(100);
     AC_CHECK(ui::RuntimeHouseStateMatches(original, unchanged));
+
+    auto interrupted_snapshot = original;
+    std::erase_if(interrupted_snapshot.cats, [](const auto& cat) { return cat.id == 2; });
+    interrupted_snapshot.rooms[0].residents = {1};
+    auto interrupted_runtime = unchanged;
+    std::erase_if(interrupted_runtime.cats, [](const auto& cat) { return cat.cat_id == 2; });
+    interrupted_runtime.rooms.push_back({300, {}}); // Actual special room.
+    AC_CHECK(static_cast<bool>(ui::OverlayRuntimeHouseState(interrupted_snapshot, interrupted_runtime)));
 
     const auto manually_moved = RuntimeState(200);
     AC_CHECK(!ui::RuntimeHouseStateMatches(original, manually_moved));

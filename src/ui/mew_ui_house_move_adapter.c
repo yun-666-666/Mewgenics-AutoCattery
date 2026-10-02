@@ -159,6 +159,17 @@ size_t AcMewEnumerateNativeHouseRooms(
     prepare_rva = AcMewSelectComponentBucketPrepareRva(
         (const uint8_t*)executable,
         AcExecutableImageSize(executable));
+    /* Native room lookup 1E66E0 enumerates bucket 1D2 and compares the
+       MSVC string at room+40 (size+50, capacity+58), at 1E6760. */
+    {
+        static const uint8_t room_name_layout[] = {
+            0x48,0x8b,0x2f,0x48,0x8d,0x4d,0x40,0x48,0x8b,0xd6,
+            0x49,0x83,0xff,0x0f
+        };
+        if (AcExecutableImageSize(executable) < 0x1E6760U + sizeof(room_name_layout) ||
+            memcmp((const uint8_t*)executable + 0x1E6760U,
+                room_name_layout, sizeof(room_name_layout)) != 0) return 0U;
+    }
     if (prepare_rva == 0U) {
         return 0U;
     }
@@ -203,46 +214,22 @@ size_t AcMewEnumerateNativeHouseRooms(
 }
 
 uint32_t AcMewDetectNativeHouseRoomMask(void* room) {
-    AcMewMoveRoomReference references[
-        AC_MEW_MOVE_PROBE_ROOM_REFERENCES];
-    uint32_t reference_count;
-    uint32_t mask;
-    size_t scan_size;
-    MEMORY_BASIC_INFORMATION memory;
-    uintptr_t room_start;
-    uintptr_t region_end;
-    if (!room ||
-        VirtualQuery(room, &memory, sizeof(memory)) != sizeof(memory) ||
-        memory.State != MEM_COMMIT ||
-        (memory.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0U) {
-        return 0U;
-    }
-    room_start = (uintptr_t)room;
-    region_end =
-        (uintptr_t)memory.BaseAddress + memory.RegionSize;
-    if (region_end <= room_start) {
-        return 0U;
-    }
-    scan_size = region_end - room_start;
-    if (scan_size > 0x400U) {
-        scan_size = 0x400U;
-    }
-    reference_count = 0U;
-    memset(references, 0, sizeof(references));
+    uint32_t index;
+    if (!AcReadable(room, 0x60U)) return 0U;
     __try {
-        mask = AcMewMoveRoomMask(
-            (const uint8_t*)room, scan_size);
-        AcMewFindMoveRoomReferences(
-            (const uint8_t*)room,
-            scan_size,
-            AC_MEW_MOVE_PROBE_COMPONENT,
-            references,
-            &reference_count);
-        while (reference_count > 0U) {
-            --reference_count;
-            mask |= 1U << references[reference_count].room_index;
+        const uint8_t* bytes = (const uint8_t*)room;
+        const size_t size = *(const size_t*)(bytes + 0x50U);
+        const size_t capacity = *(const size_t*)(bytes + 0x58U);
+        const char* name = capacity > 0xFU
+            ? *(const char* const*)(bytes + 0x40U) : (const char*)(bytes + 0x40U);
+        if (size == 0U || size > capacity || size > 64U ||
+            !AcReadable(name, size)) return 0U;
+        for (index = 0U; index < AC_MEW_MOVE_PROBE_ROOM_COUNT; ++index) {
+            const char* id = AcMewMoveProbeRoomId(index);
+            if (strlen(id) == size && memcmp(name, id, size) == 0)
+                return 1U << index;
         }
-        return mask;
+        return 0U;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return 0U;
     }

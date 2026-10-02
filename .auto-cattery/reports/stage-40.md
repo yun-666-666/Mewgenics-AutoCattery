@@ -221,3 +221,24 @@ code-simplifier一次限定本轮差异检查完成，无需额外简化，复�
 - code-simplifier：一次仅检查本次新增Python代码，无必要简化，复用已通过验证。
 - 本地提交：本节所属任务提交，具体hash见本次最终回复及Git历史。
 - 是否 push：否。
+
+
+## 2026-10-02：F10后整理预览、NPC优先交付与新血线准入
+
+- 用户要求：停止超额交付后恢复整理预览；超额猫优先给当前愿意接收的NPC，无人接收才给垃圾桶；防止低属性外来种源每天被淘汰导致血线入口关闭。
+- 同启动证据：10:30交付11/21后AC19202正常停止，AC19204捕获F10；猫群160身份唯一匹配，随后AC3105为runtime room identity is incomplete。未归因于未解锁或取消失效。
+- 房间修复：当前EXE原生1E66E0枚举1D2，1E6760读取room+40的MSVC名称（size+50/capacity+58）。替换0x400字节宽扫描，只识别房间自身完整名称；枚举检查已验证布局，未知仍拒绝。原生反汇编只作本地参考，不提交。
+- 交付修复：超额入口使用NpcPreferred；逐猫调用已核实276600，NPC进度+48与当前CatData判断接收，0至6先于垃圾桶7。同意多方时按内部编号。单猫先展示原生地图并记录AC19205，再次核对后调用对应原生chooser；上次交付改变额度后重新判断。识别失败停止，不能退化成垃圾桶；完成核对接收结果、精确移除、原生drawer/延迟收尾。Esc/F10保留。
+- 新血线：保护/独立种猫后、战斗和普通质量排序前，在上限内最多预留两只未留下在屋存活后代的已记录族谱始祖，尽量一公一母。必须与种猫和另一预留猫已知COI0，成年可繁育或幼猫待成熟，有异性兼容组合且非低性欲/受伤；优先年轻、同龄稳定编号，属性不参与预留排序。资料不足不作为独立证据。无需新配置，不硬编码个人猫。保留种源不是强制配种，不宣称长期全七或所有未来配对保证。
+- 本轮文件：src/ui/mew_ui_house_move_adapter.c；src/ui/mew_ui_delivery_trace.c/.h；src/ui/dead_cat_delivery_service.cpp/.hpp；src/ui/in_game_panel_senior.cpp；src/breeding/population_selection.cpp；新增src/breeding/population_lineage_reserve.hpp；tests/runtime_house_state_tests.cpp、tests/population_saved_data_tests.cpp、新tests/population_recipient_tests.cpp；现有tests/dead_cat_delivery_sequence_tests.cpp和tests/population_automation_tests.cpp补新API桩；docs/USER_GUIDE.md、CODEX_TASK.md及本报告。
+- 构建：MSVC环境cmake --build build-ninja --config Release --target AutoCattery population_selection_tests population_automation_tests dead_cat_delivery_sequence_tests --parallel 4；19步成功，原session51703退出0，初始窗口内完成，无新监控。
+- 验证：CTest population_selection_tests、population_automation_tests、dead_cat_delivery_sequence_tests、phase14_dll_load_smoke 4/4通过（0.34秒）。使用cl /EHsc /std:c++20 /MD /O2 /utf-8 /DNOMINMAX /Iinclude /Itests /Isrc/ui及core/mew_ui_api静态库编译population_saved_data_tests、population_recipient_tests、runtime_house_state_tests+临时main，三项均退出0。原session90689在初始窗口内完成。
+- 回归：相邻内存房间名/指针污染、special房间排除、inline/heap名称、交付部分移除后的overlay；NPC动态额度、按猫接收条件、无人接收垃圾桶、读取失败停止、目标变化重预览、取消和原生结果不符停止；低属性/零属性新血线留存、幼猫、未知族谱不误判、无天数轮换、后代已代表/互为近亲、保护和cap6。
+- 真实存档只读：population_saved_data_tests.exe 当前steamcampaign02.sav 游戏根 安装config；160猫→保留150/超额10，12720配对，保护0；读取/推荐COI0/实际上限断言全部通过。未输出猫名，未修改存档。
+- 沿用：原综合unit有10条已知按家具选房与旧固定房名预期冲突，未重跑或修改无关测试；本轮房间测试独立编译验证。
+- code-simplifier：一次只检查本轮变化，无必要简化、未扩展范围，复用已通过验证。
+- 部署：游戏未运行，成功复制DLL到Mods/AutoCattery.dll、既有子目录副本、dist/Release；长度1492992，构建时间2026-10-02 11:02:48。未启动/控制游戏，未改真实存档/玩家配置/原游戏/其他MOD，未做哈希检查。
+- 实机验收：待玩家重启。先保存，触发超额交付、F10停止、等原生收尾回猫舍点自动整理检查预览；继续交付观察接收NPC及额度，只有无人接收转垃圾桶；新一天检查低属性独立种源没有全部被淘汰且数量仍合上限。新血线的真实长期繁育效果未验证。
+- 提交边界：本轮原干净的房间适配器、房间/存档测试、用户指南及新增血线辅助/接收方测试可提交。delivery service、native trace、senior UI原有未提交改动与此次行为重叠，population_selection和population_automation原未跟踪且包含前会话完整实现，不能安全整文件纳入；留工作树，全部功能已包含在部署DLL。报告只暂存本节，保留前轮hash补录行未提交。CODEX_TASK原脏，保留本轮前沿。
+- 本地提交：本节所属单一任务提交，具体hash在提交后补录到工作树报告并在最终回复提供；不为hash元数据另建提交。
+- 是否 push：否。
