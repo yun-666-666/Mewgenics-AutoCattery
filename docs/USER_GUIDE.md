@@ -363,3 +363,15 @@ The MOD no longer refuses to enable because `Mewgenics.exe` has a fixed size or 
 Startup only checks for a regular executable; native adapters still validate pointers,
 components, and call results at runtime. A changed internal layout can safely reject a
 move/probe and log the reason while the panel and read-only preview remain available.
+
+### 全七之后的技能、被动和变异繁育
+
+本版修正 format-19 被动/疾病读取：前十个字符串的最后四项是主动技能缓存，真正的两个被动和两个疾病来自后续四个字符串/等级记录。配对、种猫排名、战斗推荐现在读取实际特性。
+
+部署时 `tools/breeding_trait_profile.py` 从本机当前 `resources.gpak` 生成效果评分，写入 MOD 的 `config/default_config.json`；用户 `user_config.json` 的单项权重仍优先。技能参考伤害、已识别的控制/增益、范围和消耗；被动参考一级属性/效果；变异参考属性净收益与已识别效果。无已识别收益的外观变异不因稀有或数量多自动加分。这是通用效果估分，不能覆盖所有职业、装备、条件效果和技能组合；并非绝对强度榜。
+
+开启且实际可写的“后代遗传全七辅助”时，亲本可以以遗传特性优先选择，允许引入属性稍低但特性更好的种源；关闭辅助、只读、安全模式时仍优先原有全七/属性配对。避近亲、独立血系、玩家保护和预览确认继续生效。繁育模拟也按该效果模型每日重选亲本。
+
+技能、被动、疾病和身体仍按游戏原生规则随机遗传；新生辅助只保证七项基因属性，不保证技能/被动/变异必传或将升级等级传下去。整理后的配对与数量保留同步使用特性优先级，繁育环境在舒适度相当时优先有利于遗传的刺激度。
+
+验证：重启游戏，保持原辅助开关，重新生成整理预览，确认有较好特性的猫进入繁育组；推进一天后看新生猫的七项基础属性与实际技能、被动、变异。连续几天记录亲本与后代才可判断实际保留效果。开启“收集猫数据”后，新快照的 `ability_slots` 第 7–10 项应为真正的被动/疾病，不再重复主动技能。

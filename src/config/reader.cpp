@@ -7,6 +7,7 @@ namespace {
 
 constexpr std::uintmax_t kMaximumConfigBytes = 1024U * 1024U;
 constexpr std::size_t kMaximumObjectMembers = 1024;
+constexpr std::size_t kMaximumTraitOverrides = 16384;
 constexpr std::size_t kMaximumDepth = 32;
 
 Result<void> ValidateStructure(
@@ -22,7 +23,9 @@ Result<void> ValidateStructure(
     if (!value.is_object()) {
         return {};
     }
-    if (value.size() > kMaximumObjectMembers) {
+    const auto member_limit = path.ends_with("_overrides")
+        ? kMaximumTraitOverrides : kMaximumObjectMembers;
+    if (value.size() > member_limit) {
         return {ErrorCode::ConfigInvalid, path + " has too many entries"};
     }
     for (const auto& [key, child] : value.items()) {

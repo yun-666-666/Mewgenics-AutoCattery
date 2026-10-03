@@ -116,7 +116,8 @@ BreedingPairScore ScorePair(
 
 Result<PairRanking> RankBreedingPairs(
     const snapshot::HouseSnapshot& house,
-    const BreedingScoringConfig& config) {
+    const BreedingScoringConfig& config,
+    bool offspring_all_seven_assist) {
     const auto config_validation = Validate(config);
     if (!config_validation) {
         return {{}, config_validation.code, config_validation.message};
@@ -142,7 +143,7 @@ Result<PairRanking> RankBreedingPairs(
                 ScorePair(house.cats[i], house.cats[j], coefficients, config));
         }
     }
-    const bool stable = std::ranges::any_of(
+    const bool stable = offspring_all_seven_assist || std::ranges::any_of(
         ranking.ranked,
         [](const auto& pair) { return pair.stable_all_seven; });
     ranking.stage = stable
@@ -155,7 +156,7 @@ Result<PairRanking> RankBreedingPairs(
             cats.emplace(cat.id, &cat);
         }
         for (auto& pair : ranking.ranked) {
-            if (!pair.stable_all_seven) {
+            if (!pair.eligible || (!offspring_all_seven_assist && !pair.stable_all_seven)) {
                 continue;
             }
             pair.trait_score = detail::StablePairTraitScore(
@@ -168,17 +169,17 @@ Result<PairRanking> RankBreedingPairs(
     }
     std::sort(
         ranking.ranked.begin(), ranking.ranked.end(),
-        [stable](const auto& left, const auto& right) {
+        [stable, offspring_all_seven_assist](const auto& left, const auto& right) {
             return std::tuple{
                 !left.eligible,
-                stable && !left.stable_all_seven,
+                stable && !offspring_all_seven_assist && !left.stable_all_seven,
                 stable ? -left.trait_score : 0.0,
                 -left.score,
                 left.cat_a_id,
                 left.cat_b_id
             } < std::tuple{
                 !right.eligible,
-                stable && !right.stable_all_seven,
+                stable && !offspring_all_seven_assist && !right.stable_all_seven,
                 stable ? -right.trait_score : 0.0,
                 -right.score,
                 right.cat_a_id,

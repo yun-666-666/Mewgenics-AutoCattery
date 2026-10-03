@@ -23,8 +23,8 @@ constexpr std::size_t kStatSeedSize = 8;
 constexpr std::size_t kStatBonusOffset = 36;
 constexpr std::size_t kStatEquipmentOffset = 64;
 constexpr std::size_t kPreAbilityMetadataSize = 14;
-// Core save order verified against the current save format:
-// move, basic attack, four active abilities, two passives, two disorders.
+// Format 19: move, basic attack, four active abilities, four active caches.
+// The following four string/level records are the two passives/two disorders.
 constexpr std::size_t kAbilitySlotCount = 10;
 constexpr std::size_t kExtendedAbilitySlotCount = 4;
 constexpr std::size_t kPostClassMetadataSize = 115;
@@ -272,6 +272,7 @@ Result<CatSnapshot> ParseCatBlob(
             };
         }
         cursor += sizeof(ability_level);
+        cat.raw_ability_slots[6 + index] = std::move(ability);
     }
     std::size_t post_class_start{}, history_size{};
     if (!ReadClassId(bytes, cursor, cat.class_id, post_class_start, history_size)) {

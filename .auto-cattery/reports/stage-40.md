@@ -261,3 +261,17 @@ code-simplifier一次限定本轮差异检查完成，无需额外简化，复�
 - 提交范围：原干净的房间解析/capture接口、名称列表、策略helper、两项测试和用户指南及本节报告；mew_ui_delivery_trace.c与前会话未提交原生入口代码重叠，无法安全整文件提交，留工作树且已包含完整部署行为。其他旧改动全部保留，CODEX_TASK原脏只更新前沿，报告旧hash元数据保留。
 - 本地提交：本节单一任务提交，hash提交后补录至工作树报告及最终回复，不为元数据另建提交。
 - 是否 push：否。
+
+### 2026-10-03 全七辅助后的遗传特性优化（本地已部署，实机验收待玩家）
+
+- 依据：当天 AC4101 确認最新批次 7 只新生猫全部七基因属性为 7；最新只读存档 day297、114 只猫。发现过去把十字符串中的主动缓存误当被动/疾病；真实 CatData 原生反序列化和当天四条记录验证后，改为后续四个字符串/等级记录的名称。
+- 功能：从当前资源通用生成技能/被动/变异效果权重，保留用户覆盖；辅助实际启用时以遗传特性优先，非辅助维持属性优先；单猫、配对、繁育组跨配对、人口保留接线；Python 繁育模拟同步特性选择。技能/被动/变异依然原生随机遗传，没有新增强制特性写入。
+- 文件：include/auto_cattery/breeding/{domain,breeding_ranker,pair_ranker}.hpp；src/breeding/{breeding_ranker,breeding_scorer,pair_ranker,pair_trait_scorer,population_selection}.cpp；src/snapshot/cat_blob_parser.cpp；src/classification/classifier.cpp；src/config/{reader,validation}.cpp；src/workflow/preview_builder.cpp；src/room_planning/balanced_move_only_preferences.cpp；config/config.schema.json；tools/{breeding_trait_profile,breeding_save,breeding_daily}.py、tools/deploy.ps1；tests/{cat_blob_parser,pair_ranker,breeding_trait_quality}_tests.cpp、tests/breeding_trait_profile_tests.py；CMakeLists.txt；docs/USER_GUIDE.md、本报告。
+- 构建：MSVC 环境 cmake --build build-ninja --config Release --target AutoCattery breeding_trait_quality_tests population_selection_tests --parallel 8，最终增量 10 步 exit0。首次仅测试代码显式 bool 转换错误，修正后成功；无活动构建，不需要监控。
+- 检查：breeding_trait_quality_tests（解析、技能/被动/变异优先、辅助开关、低性欲排除、分类、繁育组、配置边界）及 population_selection_tests 退出0；真实存档+生成默认权重+原用户配置，推荐755/815、COI0、trait_score10.7354、包含MeteorStorm，人口保留包含推荐两猫。四条真实猫记录与当前EXE原生反序列化的技能、被动、疾病全部一致。
+- 模拟：对当天档仅内存执行一天，不写真实档；两对亲本755/1005、1023/1032，自己及四条交叉COI均0；同一MOD配对的Python特性代理值10.73541285885，与C++一致。当天模拟出生3只，全七3/3；未证明强技能稳定传承，不当成长期接受。
+- 权重定义数量：技能及变体3076、被动386、疾病125、变异707、先天缺陷53。通用效果估分不覆盖所有条件效果/组合，SkillShare普通非复制遗传不加分。未增加长期模拟、后天升级遗传、自动队伍/休息/出征、技能强制遗传或其他MOD变动。
+- Python语法与git diff --check通过；code-simplifier一次限定检查无需改动，复用验证。未运行游戏时部署1510400字节DLL到Mods根及既有子目录副本，生成默认权重与schema部署到既有MOD配置目录；未改真实存档/user_config/保护规则，未写dist或原游戏资源，无哈希检查。
+- 实机：玩家重启后重新生成整理预览并查看繁育组、新生猫七属性和实际技能/被动/变异。仍需玩家验证新排名与跨日遗传效果；自然遗传概率不保证每只都继承。
+- Git：只提交干净任务文件及可明确分離的权重容量/繁育排名修改。人口筛选、繁育模拟、CMake测试接线、房间偏好和preview辅助接线依赖之前未提交的数量管理/辅助字段及工具，保留工作树，不整文件夹带旧工作。报告提交后补实际hash。
+- 是否 push：否。

@@ -14,7 +14,7 @@ constexpr double kMinimumWeight = -10000.0;
 constexpr double kMaximumWeight = 10000.0;
 constexpr std::size_t kMaximumPoolSize = 10000;
 constexpr std::size_t kMaximumRoomPreference = 1000;
-constexpr std::size_t kMaximumOverrides = 512;
+constexpr std::size_t kMaximumOverrides = 16384;
 
 bool ReasonableFinite(double value) {
     return std::isfinite(value) &&

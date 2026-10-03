@@ -70,10 +70,10 @@ std::vector<std::uint8_t> CatBlob(
     AppendString(bytes, "none");
     bytes.resize(bytes.size() + 14, 0);
     for (int index = 0; index < 10; ++index) {
-        AppendString(bytes, index == 0 ? "DefaultMove" : "None");
+        AppendString(bytes, index == 0 ? "DefaultMove" : index == 6 ? "CachedSpell" : "None");
     }
     for (int index = 0; index < 5; ++index) {
-        AppendString(bytes, "None");
+        AppendString(bytes, index == 0 ? "DualWield" : index == 2 ? "Leprosy" : "None");
         Append(bytes, std::uint32_t{1});
     }
     for (int index = 0; index < 4; ++index) {
@@ -107,6 +107,8 @@ void RunCatBlobParserTests() {
     AC_CHECK(parsed.value.id == 42);
     AC_CHECK(parsed.value.display_name == "Mew");
     AC_CHECK(parsed.value.raw_ability_slots.size() == 10);
+    AC_CHECK(parsed.value.raw_ability_slots[6] == "DualWield");
+    AC_CHECK(parsed.value.raw_ability_slots[8] == "Leprosy");
     AC_CHECK(parsed.value.raw_visual_part_slots.size() == 15);
     AC_CHECK(parsed.value.raw_visual_part_slots[0].id == 300);
     AC_CHECK(parsed.value.raw_visual_part_slots[1].id == 700);

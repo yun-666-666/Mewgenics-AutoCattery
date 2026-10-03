@@ -59,6 +59,7 @@ void AddConfiguredSlots(
         if (!IsPresent(value)) {
             continue;
         }
+        if (prefix == "passive" && value == "SkillShare") continue;
         const auto configured = Weight(overrides, value, fallback);
         const auto contribution = configured * sign;
         result.score += contribution;
@@ -200,6 +201,20 @@ Result<BreedingScoreResult> ScoreBreedingCat(
     } else if (stage == BreedingStage::StableAllSeven) {
         result.limitations.push_back(
             "ten typed core ability slots are unavailable for this cat");
+    }
+
+    if (stage == BreedingStage::StableAllSeven) {
+        for (const auto& trait : cat.visual_traits) {
+            const auto key = trait.category + ":" + std::to_string(trait.id);
+            const bool defect = trait.kind == snapshot::VisualTraitKind::BirthDefect;
+            const auto weight = defect
+                ? Weight(config.birth_defect_overrides, key, config.birth_defect_default_penalty)
+                : Weight(config.mutation_overrides, key, config.mutation_default_weight);
+            const double contribution = defect ? -weight : weight;
+            result.score += contribution;
+            result.components.push_back({"mutation:" + trait.slot + ":" + key,
+                1.0, weight, contribution, "configured value of a confirmed inherited body part"});
+        }
     }
 
     result.limitations.push_back(

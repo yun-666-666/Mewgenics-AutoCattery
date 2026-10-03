@@ -14,7 +14,7 @@
 namespace autocattery::breeding {
 
 inline constexpr char kBreedingAlgorithmVersion[] =
-    "configured-pair-stat-weights-libido-v6";
+    "heritable-trait-quality-assist-v7";
 
 enum class BreedingStage {
     Foundation,
@@ -62,6 +62,7 @@ struct BreedingScoreResult {
     snapshot::CatId cat_id{};
     bool eligible{};
     double score{};
+    double trait_score{};
     double confidence{};
     std::int64_t heritable_stat_sum{};
     std::vector<std::string> exclusion_reasons;

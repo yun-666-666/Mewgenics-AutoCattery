@@ -150,6 +150,28 @@ void RunPairRankerTests() {
     AC_CHECK(visual_ranked.value.ranked[0].cat_b_id == 4);
     AC_CHECK(visual_ranked.value.ranked[0].trait_score > 0.0);
 
+    // Assistance guarantees newborn stats even when the better trait donor
+    // does not have all-seven parental stats. Native mode retains that gate.
+    traits.cats.back().genetic_stats.values.fill(4);
+    const auto native_donor = breeding::RankBreedingPairs(traits, trait_config);
+    AC_CHECK(native_donor.value.ranked.front().cat_b_id == 2);
+    const auto assisted_donor = breeding::RankBreedingPairs(traits, trait_config, true);
+    AC_CHECK(assisted_donor.value.ranked.front().cat_b_id == 4);
+    AC_CHECK(!assisted_donor.value.ranked.front().stable_all_seven);
+    traits.cats.back().libido = snapshot::CatLibido::Low;
+    AC_CHECK(breeding::RankBreedingPairs(traits, trait_config, true).value.ranked.front().cat_b_id == 2);
+
+    traits.cats.back().libido = snapshot::CatLibido::Normal;
+    traits.cats.back().genetic_stats.values.fill(7);
+    traits.cats.back().visual_traits.clear();
+    traits.cats.back().raw_ability_slots[6] = "DualWield";
+    trait_config.passive_overrides["DualWield"] = 8;
+    const auto passive_ranked = breeding::RankBreedingPairs(traits, trait_config);
+    AC_CHECK(passive_ranked.value.ranked.front().cat_b_id == 4);
+    traits.cats.back().raw_ability_slots[8] = "BadDisorder";
+    trait_config.disorder_overrides["BadDisorder"] = 100;
+    AC_CHECK(breeding::RankBreedingPairs(traits, trait_config).value.ranked.front().cat_b_id == 2);
+
     auto hidden = PairHouse();
     hidden.capabilities.read_sexuality = false;
     const auto unavailable = breeding::RankBreedingPairs(hidden);

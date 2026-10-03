@@ -8,6 +8,7 @@ namespace autocattery::breeding {
 Result<BreedingRanking> RankBreedingCats(
     const snapshot::HouseSnapshot& snapshot,
     const BreedingScoringConfig& config,
-    bool avoid_inbreeding_pairs = false);
+    bool avoid_inbreeding_pairs = false,
+    bool offspring_all_seven_assist = false);
 
 }  // namespace autocattery::breeding

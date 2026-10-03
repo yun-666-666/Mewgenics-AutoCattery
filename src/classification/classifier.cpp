@@ -165,7 +165,10 @@ Result<ClassificationPlan> ClassifyCats(
         plan.breeding_pair_preferences.push_back({
             pair.cat_a_id,
             pair.cat_b_id,
-            pair.score,
+            // Preserve the ranker's full ordering (including trait priority)
+            // when the room planner compares numeric cross-pair preferences.
+            static_cast<double>(breeding.ranked_pairs.size() -
+                (&pair - breeding.ranked_pairs.data())),
             pair.offspring_inbreeding_coefficient,
             pair.stable_all_seven
         });

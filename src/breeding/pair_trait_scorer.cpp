@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <string_view>
+#include <tuple>
 
 namespace autocattery::breeding::detail {
 namespace {
@@ -90,13 +91,17 @@ double VisualGroupValue(
 }
 
 double BestStimulation(const snapshot::HouseSnapshot& house) {
-    double result{};
+    const snapshot::RoomAttributes* preferred{};
     for (const auto& room : house.rooms) {
-        if (room.attributes) {
-            result = std::max(result, room.attributes->stimulation);
+        if (room.attributes && room.attributes->breed_suppression <= .99) {
+            const auto& attributes = *room.attributes;
+            if (!preferred || std::tuple{attributes.comfort, attributes.stimulation, attributes.health} >
+                std::tuple{preferred->comfort, preferred->stimulation, preferred->health}) {
+                preferred = &attributes;
+            }
         }
     }
-    return result;
+    return preferred ? preferred->stimulation : 0.0;
 }
 
 double InheritanceChance(double base, double scale, double stimulation) {
