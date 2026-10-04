@@ -168,7 +168,7 @@ def build_profile(gpak):
 
 
 def pair_trait_score(a, b, profile, stimulation=0):
-    """Same slot means/group inheritance proxy as the MOD pair trait scorer."""
+    """Balance actual inheritance utilities without letting one category dominate."""
     def mean(cat, start, end, key, fallback, exclude_share=False):
         values = [profile[key].get(name, fallback)
                   for name in cat["ability_slots"][start:end]
@@ -178,11 +178,15 @@ def pair_trait_score(a, b, profile, stimulation=0):
     def chance(base, scale):
         return max(0.0, min(1.0, base + scale * max(0.0, stimulation)))
 
-    score = .5 * (mean(a, 2, 6, "active_ability_overrides", 1) +
+    def balanced(value):
+        return value / (1 + value) if value > 0 else value
+
+    active = .5 * (mean(a, 2, 6, "active_ability_overrides", 1) +
                    mean(b, 2, 6, "active_ability_overrides", 1)) * \
         (chance(.2, .025) + chance(.02, .005))
-    score += .5 * (mean(a, 6, 8, "passive_overrides", 1, True) +
+    passive = .5 * (mean(a, 6, 8, "passive_overrides", 1, True) +
                     mean(b, 6, 8, "passive_overrides", 1, True)) * chance(.05, .01)
+    score = balanced(active) + balanced(passive)
     score -= .15 * (mean(a, 8, 10, "disorder_overrides", 1) +
                      mean(b, 8, 10, "disorder_overrides", 1))
     preferred = (1 + .01 * max(0.0, stimulation)) / (2 + .01 * max(0.0, stimulation))
@@ -204,10 +208,15 @@ def pair_trait_score(a, b, profile, stimulation=0):
         return {key: sum(values) / len(values) for key, values in result.items()}
 
     av, bv = groups(a), groups(b)
+    mutations = 0
     for group in av.keys() | bv.keys():
-        score += (.5 * (av[group] + bv[group]) if group in av and group in bv else
-                  preferred * (av.get(group, 0) + bv.get(group, 0)))
-    return score
+        value = (.5 * (av[group] + bv[group]) if group in av and group in bv else
+                 preferred * (av.get(group, 0) + bv.get(group, 0)))
+        if value > 0:
+            mutations += value
+        else:
+            score += value
+    return score + balanced(mutations)
 
 
 def main():

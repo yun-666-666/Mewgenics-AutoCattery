@@ -108,6 +108,10 @@ double InheritanceChance(double base, double scale, double stimulation) {
     return std::clamp(base + scale * stimulation, 0.0, 1.0);
 }
 
+double BalancedValue(double value) {
+    return value > 0.0 ? value / (1.0 + value) : value;
+}
+
 }  // namespace
 
 double StablePairTraitScore(
@@ -125,9 +129,9 @@ double StablePairTraitScore(
             MeanSlots(b, kActiveBegin, kActiveEnd,
                       config.active_ability_overrides,
                       config.active_ability_default_weight));
-        score += active_mean * (
+        score += BalancedValue(active_mean * (
             InheritanceChance(0.20, 0.025, stimulation) +
-            InheritanceChance(0.02, 0.005, stimulation));
+            InheritanceChance(0.02, 0.005, stimulation)));
         const auto passive_mean = 0.5 * (
             MeanSlots(a, kPassiveBegin, kPassiveEnd,
                       config.passive_overrides,
@@ -135,8 +139,8 @@ double StablePairTraitScore(
             MeanSlots(b, kPassiveBegin, kPassiveEnd,
                       config.passive_overrides,
                       config.passive_default_weight, true));
-        score += passive_mean *
-            InheritanceChance(0.05, 0.01, stimulation);
+        score += BalancedValue(passive_mean *
+            InheritanceChance(0.05, 0.01, stimulation));
         score -= 0.15 * (
             MeanSlots(a, kDisorderBegin, kDisorderEnd,
                       config.disorder_overrides,
@@ -150,20 +154,18 @@ double StablePairTraitScore(
     }
     const auto preferred = (1.0 + 0.01 * stimulation) /
         (2.0 + 0.01 * stimulation);
+    double mutations{};
     for (const auto group : kVisualGroups) {
         bool a_present{};
         bool b_present{};
         const auto av = VisualGroupValue(a, group, config, a_present);
         const auto bv = VisualGroupValue(b, group, config, b_present);
-        if (a_present && b_present) {
-            score += 0.5 * (av + bv);
-        } else if (a_present) {
-            score += preferred * av;
-        } else if (b_present) {
-            score += preferred * bv;
-        }
+        const auto value = a_present && b_present ? 0.5 * (av + bv)
+            : a_present ? preferred * av : b_present ? preferred * bv : 0.0;
+        if (value > 0.0) mutations += value;
+        else score += value;
     }
-    return score;
+    return score + BalancedValue(mutations);
 }
 
 }  // namespace autocattery::breeding::detail

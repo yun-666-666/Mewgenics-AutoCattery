@@ -23,6 +23,16 @@ def main():
     empty = {"ability_slots": ["None"] * 10, "visual_parts": []}
     good = {"ability_slots": ["None"] * 6 + ["DualWield", "None", "None", "None"], "visual_parts": []}
     assert pair_trait_score(empty, good, profile) > pair_trait_score(empty, empty, profile)
+    high_skill = {"ability_slots": ["None", "None", "MeteorStorm"] + ["None"] * 7,
+                  "visual_parts": []}
+    balanced_donor = {"ability_slots": ["None", "None", "Spur"] + ["None"] * 3 +
+                     ["DualWield", "None", "None", "None"], "visual_parts": []}
+    very_high_skill = {**high_skill, "ability_slots": list(high_skill["ability_slots"])}
+    very_high_skill["ability_slots"][2] = "TestHighSkill"
+    test_profile = {**profile, "active_ability_overrides": {
+        **profile["active_ability_overrides"], "TestHighSkill": 1000000, "Spur": 8}}
+    assert pair_trait_score(balanced_donor, high_skill, test_profile, 13) > \
+        pair_trait_score(very_high_skill, high_skill, test_profile, 13)
     native = NativeCatReference(args.game / "Mewgenics.exe")
     records = read_cat_blobs(args.save)
     # Read a bounded sample with varied names/records through the actual EXE.

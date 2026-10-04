@@ -172,6 +172,18 @@ void RunPairRankerTests() {
     trait_config.disorder_overrides["BadDisorder"] = 100;
     AC_CHECK(breeding::RankBreedingPairs(traits, trait_config).value.ranked.front().cat_b_id == 2);
 
+    traits.cats.back().raw_ability_slots[8].clear();
+    traits.cats[1].raw_ability_slots.assign(10, std::string{});
+    traits.cats[1].raw_ability_slots[2] = "HugeSkill";
+    traits.cats.back().raw_ability_slots[2] = "UsefulSkill";
+    trait_config.active_ability_overrides["HugeSkill"] = 1000000;
+    trait_config.active_ability_overrides["UsefulSkill"] = 8;
+    snapshot::RoomSnapshot stimulating_room;
+    stimulating_room.attributes = snapshot::RoomAttributes{.stimulation = 13};
+    traits.rooms = {stimulating_room};
+    // A huge score in one category must not erase useful passive donors.
+    AC_CHECK(breeding::RankBreedingPairs(traits, trait_config).value.ranked.front().cat_b_id == 4);
+
     auto hidden = PairHouse();
     hidden.capabilities.read_sexuality = false;
     const auto unavailable = breeding::RankBreedingPairs(hidden);

@@ -275,3 +275,57 @@ code-simplifier一次限定本轮差异检查完成，无需额外简化，复�
 - 实机：玩家重启后重新生成整理预览并查看繁育组、新生猫七属性和实际技能/被动/变异。仍需玩家验证新排名与跨日遗传效果；自然遗传概率不保证每只都继承。
 - Git：只提交干净任务文件及可明确分離的权重容量/繁育排名修改。人口筛选、繁育模拟、CMake测试接线、房间偏好和preview辅助接线依赖之前未提交的数量管理/辅助字段及工具，保留工作树，不整文件夹带旧工作。报告提交后补实际hash。
 - 是否 push：否。
+
+### 2026-10-04：完成原生多日对照、平衡遗传特性评分与模拟提速
+
+用户要求在全七辅助之上改善每只后代的主动技能、被动和有益变异，并自行模拟验证及改善模拟速度。本轮已完成两轮原生比较，修正第一轮对被动的不利取舍；部署当前类别平衡候选。没有改技能/被动/变异遗传概率，没有游戏启动、真实存档写入或个人猫权重。
+
+**实现与文件**
+
+- src/breeding/pair_trait_scorer.cpp、tools/breeding_trait_profile.py：主动、被动、正变异的继承效用各自用u/(1+u)单调有界评分，负面效果和疾病保持扣分，避免单项极高分压掉其他类别。同步tests/pair_ranker_tests.cpp、tests/breeding_trait_profile_tests.py。
+- 新tools/breeding_trait_experiment.py：相同起点/种子/条件的两策略长程比较，记录原生后代技能/被动/变异原始身份、效用、优质亲代传递、人口和独立血系；每日JSONL、每臂完整异常、--resume与有条件复用属性控制臂。
+- 新tools/breeding_mating_cache.py、tests/breeding_mating_cache_tests.py：只在纯选择阶段缓存原生effective_stats，精确D2986返回现场，选择结束移除hook，其他原生调用不变。接入原有未跟踪tools/breeding_night.py及tools/breeding_fights.py。
+- 新tools/breeding_checkpoint.py：日界猫序列化、RNG、房间/家具/食物/血谱/到访状态及物品计数器恢复。原有未跟踪tools/breeding_native_generation.py修复已经复现的外来猫赠品库存异常，保留原生物品构造/随机抽取，精确C4236库存写入现场记录奖励。
+
+**命令与验证（沿用已完成结果，不重复运行）**
+
+- python -u .local/profile-trait-day.py：cProfile83.55秒，约106万次资源查询；热点为交配/打架选择反复求有效属性。
+- python -u tests/breeding_mating_cache_tests.py --game .. --save .local/trait-comparison-20261003/input.sav --output .local/trait-cache-verification.json：43231 exit0。同seed7123两日原版92.1717秒、缓存18.2428秒，5.0525倍。DayResult、全部猫序列化字节、最终RNG32字节、房间/家具/食物/血谱普通内容比较全部一致，无hash。
+- python .local/verify-trait-checkpoint.py：恢复日界后下一日事件、猫字节、RNG、全部逻辑状态相同，已通过。
+- .local/probe-arrival-failure.py：原seed303第46日AA1E0外来猫赠品进入空库存异常修复后复现通过，8.78秒、0出生、1到访、3件原生Stick奖励。无删猫或跳过到访分支。
+- powershell -NoProfile -File .local/run-trait-comparison.ps1及之后.local/resume-trait-comparison.ps1：首次异常已定位并修复，外部中断后从checkpoint续跑，完整12臂720日最终51602 exit0，结果.local/trait-comparison-20261003/results.json。
+- powershell -NoProfile -File .local/build-trait-quality.ps1：类别平衡修正后Release增量6步、40444 exit0；breeding_trait_quality_tests与population_selection_tests通过，覆盖解析、配对/单猫、分类、繁育组、配置/人口；Python特性测试及runner语法通过。没有重建未变DLL。
+- powershell -NoProfile -File .local/run-trait-balanced.ps1：65013 exit0，6个新版特性臂360日完成；严格复用相同实验副本、种子、配置、日数且未发生人口裁剪的6个属性控制臂。最终12臂720日结果.local/trait-balanced-20261004/results.json，旧臂和日志保留。
+
+**实际结果与取舍**
+
+第一轮线性特性评分虽改善技能和变异，却使被动每出生效用0.0172→0.0112、优质被动传递出生3→0，未按此结果收工。第二轮当前类别平衡评分的每出生效用如下；每种子等权平均，非所有猫混合平均，不是配对选择代理分。
+
+|后代指标|属性优先|当前特性优先|变化|改善种子|
+|---|---:|---:|---:|---:|
+|主动技能资源效用|1.911913|3.849336|+101.33%|6/6|
+|被动资源效用|0.017225|0.115305|+569.41%|5/6|
+|变异资源效用|4.352646|4.855930|+11.56%|4/6|
+|正向变异部位出现数|4.352646|4.834191|+11.06%|4/6|
+|疾病扣分（低为好）|0.269102|0.035099|-86.96%|5/6|
+|缺陷扣分（低为好）|0.775819|0.037999|-95.10%|6/6|
+
+实际出生总数736→447（-39.27%），主动总效用1406.2543→1707.5027、被动总效用12→52、变异总效用3186→2183；总正向变异部位出现3186→2171。因此改善的是平均后代质量，不能声称出生总量或总变异产量也提高。实际被动槽出现3→26（包括DualWield、Flourish、SkullSmash等）；有优质被动亲本的出生8→126，其中真实匹配亲代的优质被动传递出生3→6。分母/组成不同，6/126与3/8不能解释为修改或提高原生遗传概率。主动亲代传递240/659→182/438，正向变异亲代传递652/699→435/447，同样仅为此实验策略下的观测。
+
+每一日均保持两对独立COI0替代血系（配对内/跨血系均检查）。辅助前原生全七出生447/736→124/447；assisted_all_seven_births记为736/736及447/447，是根据已开启辅助及原有全七写入流程计算，不是每次辅助后独立读回的观测。全七辅助未变，原有辅助检查沿用；不把此计数当作额外验证。最终猫群包含原猫、到访猫和经历原生年龄/战斗/健康变化的猫，并非全体猫群都全七。
+
+仅6个匹配种子。变异效用差均值0.5033、标准误0.6552，证据不足以断言稳健统计提升；被动基线仅3槽，倍数容易显大。资源效用不完整覆盖条件效果、职业/技能配合与实战强度。主动提升一致，被动遗传来源和实际后代出现明显增加，负面性状减少；本轮接受为质量优先候选，并如实保留产量取舍与变异不确定性，不靠继续拟合同一组种子宣称万能最优。
+
+**简化、部署与游戏边界**
+
+code-simplifier一次限定本轮评分、实验、缓存、恢复及接入代码，已读Python guide；无值得进行的行为不变简化，未新增改动，复用已通过验证。git diff --check仅本轮可提交代码通过。
+
+已确认Mewgenics未运行，将已构建build-ninja/out/Release/AutoCattery.dll（1509888字节、2026-10-04 13:58:59）复制至实际Mods/AutoCattery.dll及既有Mods/AutoCattery/AutoCattery.dll。默认profile/schema本轮不变，不重复生成或部署；保留玩家user_config及保护规则。自动监控automation-10和automation-11已删除，无后台任务。
+
+模拟出生遗传执行当前EXE原生指令；名称RNG省略，不是原保存种子的逐事件重放。模拟两对分房与MOD六猫组规划不同，不能将720日结果当六猫房完整实机验证。MOD当前实档只读推荐含MeteorStorm与Charming的COI0亲本组合、人口保留包含推荐猫。游戏内六猫组整理和显示仍待用户正常游玩观察；无需用户替代本轮原生实验。
+
+**Git范围与未提交文件**
+
+本轮可分离评分/测试、四个新工具/测试及这两个文档的本轮末节纳入本地提交。night/fights/native_generation是前会话已存在的未跟踪文件，本轮接入与库存修复保留工作树，不能整文件提交混入旧实现。旧人口/辅助/CMake/UI/配置及其他模拟改动继续保留；因此此任务提交依赖现有工作树里的此前未提交模拟组件，不声称单独该提交可在干净克隆中复现。实验副本、原始记录、探针和DLL均不提交。完成本地任务提交后在工作树补录其hash，不再创建第二提交。
+
+是否 push：否。
