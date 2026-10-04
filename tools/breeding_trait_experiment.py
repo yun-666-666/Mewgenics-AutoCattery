@@ -8,6 +8,7 @@ also recorded so a higher selection proxy alone cannot pass this experiment.
 
 import argparse
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 import json
 import math
@@ -18,6 +19,7 @@ import statistics
 import struct
 import subprocess
 import sys
+import time
 import traceback
 
 from breeding_daily import NativeDailySimulation, SimulationConfig
@@ -255,6 +257,8 @@ def main():
     parser.add_argument("--arm", choices=("attribute", "trait"))
     parser.add_argument("--seed", type=int)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="concurrent independent arms; use 2 when memory permits")
     parser.add_argument("--reuse-baseline", type=Path,
                         help="reuse completed attribute controls when no population trimming occurred")
     args = parser.parse_args()
@@ -262,6 +266,8 @@ def main():
     args.output = args.output.resolve()
     if args.days < 1:
         parser.error("days must be positive")
+    if args.jobs < 1:
+        parser.error("jobs must be positive")
     if args.arm:
         worker(args)
         return
@@ -298,17 +304,38 @@ def main():
     else:
         conditions = json.loads((args.output / "conditions.json").read_text())
         args.seeds, args.days = conditions["seeds"], conditions["days_per_arm"]
-    results = []
-    for seed in args.seeds:
-        for arm in ("attribute", "trait"):
-            completed = args.output / f"seed-{seed}-{arm}.json"
-            if not ((args.resume or args.reuse_baseline) and completed.exists()):
-                subprocess.run([sys.executable, "-u", str(Path(__file__).resolve()),
+    start = time.perf_counter()
+
+    def run_arm(seed, arm):
+        completed = args.output / f"seed-{seed}-{arm}.json"
+        seconds = 0.0
+        if not ((args.resume or args.reuse_baseline) and completed.exists()):
+            arm_start = time.perf_counter()
+            subprocess.run([sys.executable, "-u", str(Path(__file__).resolve()),
                             "--game", str(args.game), "--output", str(args.output),
-                                "--days", str(args.days), "--arm", arm, "--seed", str(seed),
-                                *(["--resume"] if args.resume else [])], check=True)
-            results.append(json.loads(completed.read_text()))
-        write_json(args.output / "results.json", comparison(results))
+                            "--days", str(args.days), "--arm", arm, "--seed", str(seed),
+                            *(["--resume"] if args.resume else [])], check=True)
+            seconds = time.perf_counter() - arm_start
+        return json.loads(completed.read_text()), seconds
+
+    completed = {}
+    durations = {}
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        pending = {pool.submit(run_arm, seed, arm): (seed, arm)
+                   for seed in args.seeds for arm in ("attribute", "trait")}
+        for future in as_completed(pending):
+            seed, arm = pending[future]
+            completed[seed, arm], durations[f"{seed}-{arm}"] = future.result()
+            # Preserve deterministic result order despite worker completion order.
+            results = []
+            for result_seed in args.seeds:
+                if (result_seed, "attribute") in completed and (result_seed, "trait") in completed:
+                    results.extend((completed[result_seed, "attribute"], completed[result_seed, "trait"]))
+            if results:
+                write_json(args.output / "results.json", comparison(results))
+    write_json(args.output / "execution_timing.json",
+               {"jobs": args.jobs, "wall_seconds": time.perf_counter() - start,
+                "arm_seconds": durations})
     print("COMPLETED matched-seed native inheritance comparison", flush=True)
 
 

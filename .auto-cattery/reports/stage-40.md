@@ -329,3 +329,38 @@ code-simplifier一次限定本轮评分、实验、缓存、恢复及接入代�
 本轮可分离评分/测试、四个新工具/测试及这两个文档的本轮末节纳入本地提交。night/fights/native_generation是前会话已存在的未跟踪文件，本轮接入与库存修复保留工作树，不能整文件提交混入旧实现。旧人口/辅助/CMake/UI/配置及其他模拟改动继续保留；因此此任务提交依赖现有工作树里的此前未提交模拟组件，不声称单独该提交可在干净克隆中复现。实验副本、原始记录、探针和DLL均不提交。完成本地任务提交后在工作树补录其hash，不再创建第二提交。
 
 是否 push：否。
+
+### 2026-10-04：进一步优化模拟时间与批量调度
+
+用户反馈模拟结果仍需等待至少40分钟，要求继续减少耗时。本轮只优化模拟执行与独立实验调度，不修改繁育评分、概率或模拟阶段，不重复此前720日质量比较。
+
+**热点与修改**
+
+- python -u .local/profile-simulator-current.py（44923 exit0）：cProfile初始化26.31秒，pefile默认全目录解析占14.10秒（异常表7.62、重定位5.28）；一天14.62秒，189773次资源查询8.35秒，回调返回5.62秒，38次打架severity3.67秒。此处cProfile耗时不能与后面的未加profile计时直接作倍率比较。
+- tools/breeding_native_reference.py：fast_load=True；模拟按固定ImageBase加载节字节，不需要PE异常/重定位目录对象。完整解析与快速解析的整个get_memory_mapped_image普通字节比较相同。
+- tools/breeding_native_cat.py：仅模拟内存中新增x86 RET指令，回调只设置返回值及跳转，让原生RET消费返回地址/栈；MSVC字符串32字节头一次读取，短字符串从头内直接解码，长字符串按已有指针读取。减少大量跨Python/Unicorn操作，不修改真实EXE或原生概率函数。
+- tools/breeding_mating_cache.py、tools/breeding_fights.py：缓存支持显式已核实返回现场。severity阶段所有4次伤害/耐力及4次幸运读取使用同一全-1属性上下文、passives=1、最后flag=0；两只猫在该阶段没有写入。原生084380和C1C00指令验证后，精确限定1EB4D5/1EB58E/1EB63A/1EB6DA/C1C3A，预计算原生有效属性，移除hook后才执行奖励/受伤/死亡。native.fight_stat_cache_enabled=False可诊断关闭；原选择缓存默认行为保留。
+- tools/breeding_trait_experiment.py：新增--jobs参数（默认1），用有界线程池调度独立子进程，每臂自己的状态/RNG/结果文件。完成順序不同但最终输出固定原种子/策略顺序；--resume及复用控制保留。每次调用输出execution_timing.json，记录调度wall_seconds和每臂耗时，跳过已完成臂为0。该文件表示最近一次调用，完整恢复后的零耗时不代表首次运行耗时。
+- 新tests/breeding_runtime_speed_tests.py与tests/breeding_parallel_speed_tests.py：比较旧回调/字符串/PE读取实现和新实现；串/并行实验还比较完整日界checkpoint内猫字节、RNG及全部状态。不使用hash。原生200万指令上限保留，没有用删阶段、减少天数或概率近似提速。
+
+**命令、实际计时与等价性**
+
+1. python -u tests/breeding_runtime_speed_tests.py --game .. --save .local/trait-comparison-20261003/input.sav --output .local/simulator-runtime-speed.json：97028 exit0。同seed7123两日，无cProfile。初始化12.5007→5.4052秒（少56.76%）；两日模拟及状态记录29.9471→17.8279秒（进一步加速1.6798倍，少40.47%）；初始化加两日42.4478→23.2331秒（1.8270倍，少45.27%）。逐日DayResult、出生当刻的完整猫字节、最终每只猫字节、RNG32字节、全部capture_simulation状态一致，PE映像一致。
+2. python -u tests/breeding_parallel_speed_tests.py --game .. --save .local/trait-comparison-20261003/input.sav --output .local/simulator-parallel-speed.json：49202 exit0。相同输入/seed7123、属性和特性各2日，串行46.9139秒、双进程25.1703秒（1.8639倍，少46.35%）。JSONL、各臂JSON、results.json及完整checkpoint内容完全一致；--resume完整臂0.266秒，所有臂运行时长0，未重跑已完成臂。两子进程是不同策略，不是重复同一实验。基准输出保留.local/simulator-scheduling-yh3q8p46/。
+3. 首次测试脚本把pefile.PE替换为普通函数，破坏pefile内部对类常量的引用，测试初始化失败；改为继承原PE类的测试替身后解决。首次仅RET/字符串/PE修正通过；随后加severity缓存的上述最终对照通过。没有将失败结果或第一阶段倍率作为最终收益。
+
+**验收、简化与边界**
+
+相关结果通过后code-simplifier一次，只检查本轮代码，沿用已读Python guide；将并行聚合的多层推导式简化为显式循环。仅复查已完成并行目录--resume：results.json与前值相等、arm_seconds均0、相关7个Python文件语法通过，没有重复模拟。git diff --check仅当前提交内容通过。
+
+本机14核20线程，但分析时可用内存仅约1.69GB，单个旧worker约509MB；因此实测并行度2，未盲目启动大量worker。新进程自动使用Python优化；--jobs 2用于批量对照，单个模拟本身也已减少耗时。未更改默认并发内存需求。
+
+各倍率是不同实验的实测，不能相乘当成整套720日倍率；本轮没有重新测720日总时间。先前8分钟监控还可能增加最多约8分钟的完成发现延迟，旧记录没有完整阶段时间戳，不能断言用户40分钟全是模拟计算。此次验证均在初始观察窗口内完成，无重复长命令；性能分析监控完成后已删除。
+
+没有C++或DLL变动，不重建/部署未变DLL；没有启动或控制游戏，没有写真实存档/用户配置，没有闭源资源提交或hash。上一轮质量策略、结果和存档副本全部保留。两日及4日调度验证证明本次比较的一致性，不冒称所有游戏版本或所有长期轨迹均已验证。
+
+**Git范围**
+
+提交本轮缓存/调度两个干净文件、两项新测试、NativeStatReference的fast_load单独hunk及两文档本节。NativeStatReference原有其他未提交方法/导入不混入；native_cat及fights原未跟踪，不能整文件提交本轮外旧实现，仍留工作树且优化已生效于新模拟进程。其他旧脏/未跟踪保留。因此本地提交依赖现有未提交模拟组件，不是一个可独立干净克隆运行的完整模拟包。提交后补录hash到工作树，不新增第二提交。
+
+是否 push：否。

@@ -19,7 +19,9 @@ from unicorn.x86_const import (
 
 class NativeStatReference:
     def __init__(self, exe):
-        pe = pefile.PE(str(Path(exe)))
+        # The emulator loads section bytes at ImageBase; it does not use PE
+        # imports, unwind tables or relocation-directory parsing.
+        pe = pefile.PE(str(Path(exe)), fast_load=True)
         self.base = pe.OPTIONAL_HEADER.ImageBase
         self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
         self.uc.mem_map(self.base, (pe.OPTIONAL_HEADER.SizeOfImage + 4095) & ~4095)
