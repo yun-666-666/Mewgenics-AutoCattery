@@ -53,6 +53,11 @@ Copy-Item -LiteralPath (Join-Path $distRoot 'data') -Destination $dataRoot -Recu
 Copy-Item -LiteralPath (Join-Path $distRoot 'swfs') -Destination $dataRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $distRoot 'description.json') -Destination $dataRoot
 
+$workbenchRoot = Join-Path $distRoot 'AutoCatteryWorkbench'
+& python (Join-Path $projectRoot 'tools\build_breeding_bundle.py') --output $workbenchRoot
+if ($LASTEXITCODE -ne 0) { throw 'Could not build the external breeding workbench.' }
+Copy-Item -LiteralPath $workbenchRoot -Destination $packageRoot -Recurse
+
 $documentation = @(
     'README.md',
     'README_EN.md',
@@ -85,6 +90,20 @@ $publicSourcePaths = @(
 if ($LASTEXITCODE -ne 0) { throw 'Could not archive the main repository.' }
 & tar -xf $mainArchive -C $sourceRoot
 if ($LASTEXITCODE -ne 0) { throw 'Could not extract the main source archive.' }
+
+# Include the simulator sources actually shipped in the player package, even
+# when a local native-simulator module predates its first repository commit.
+$sourceTools = Join-Path $sourceRoot 'tools'
+New-Item -ItemType Directory -Force -Path $sourceTools | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $workbenchRoot 'tools') -File |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $sourceTools -Force }
+Copy-Item -LiteralPath (Join-Path $projectRoot 'tools\build_breeding_bundle.py') -Destination $sourceTools -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'tools\breeding_requirements.txt') -Destination $sourceTools -Force
+Copy-Item -LiteralPath $PSCommandPath -Destination $sourceTools -Force
+$sourceBreedingAssets = Join-Path $sourceRoot 'assets\breeding'
+New-Item -ItemType Directory -Force -Path $sourceBreedingAssets | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $projectRoot 'assets\breeding') -File |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $sourceBreedingAssets -Force }
 
 $forbiddenSourceEntries = @(
     (Join-Path $sourceRoot '.auto-cattery'),

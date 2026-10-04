@@ -105,6 +105,16 @@ second rather than every UI frame.
 
 ### F10 management panel
 
+The external breeding workbench ships as `AutoCatteryWorkbench` with its own
+isolated Python runtime. Copy that entire folder next to `Mewgenics.exe`.
+Save and exit the game, then double-click `AutoCatteryWorkbench/StartBreeding.cmd`.
+Keep the game closed while simulating and importing. Review the original account
+and slot, added cats, and removed cats, check the confirmation box, and click
+“确认使用此结果” (Use this result). The tool preserves a recoverable copy of the
+original save and writes the result to the original slot. Start the game after
+the success message. No project checkout, system Python, or manual file renaming
+is needed. Changed source saves and a running game block import.
+
 Press `F10` in House to open or close the panel; `Esc` closes it:
 
 - **Settings** changes planning parameters, interface language, and optional data

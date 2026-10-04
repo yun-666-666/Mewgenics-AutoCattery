@@ -121,7 +121,9 @@ Windows 发布包安装步骤：
 3. 将压缩包内 `Mewtator\\AutoCattery\\` 复制到 Mewtator 的 `mods\\` 文件夹，
    使它成为 `Mewtator\\mods\\AutoCattery\\`；并在该目录的 `modlist.txt` 中
    加入一行 `AutoCattery`。
-4. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件，
+4. 将压缩包内整个 `AutoCatteryWorkbench` 文件夹复制到游戏根目录，与
+   `Mewgenics.exe` 同级。这是游戏外繁育模拟器，已带运行环境，无需安装 Python。
+5. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件，
    只从 Steam 直接启动不会加载 Mewtator 数据 MOD。
 
 进入 `House` 后按 `F10` 打开面板。第一次点击“自动整理猫舍”只生成预览，确认
@@ -132,6 +134,16 @@ Windows 发布包安装步骤：
 运行时 DLL 位于 `Mewgenics\\Mods\\AutoCattery.dll`，配置和日志位于
 `Mewgenics\\Mods\\AutoCattery\\`。按钮 SWF 和文本补丁由已启用的 Mewtator
 数据 MOD 提供。
+
+### 游戏外繁育模拟与确认使用
+
+保存并退出游戏后，双击 `AutoCatteryWorkbench/StartBreeding.cmd` 打开本地网页。
+保持启动窗口开启，核对账户和存档槽位后开始培养。模拟及导入期间保持游戏关闭。
+结束后查看新增猫、移出猫和写回槽位，勾选确认框，再点击“确认使用此结果”。
+工具自动保留原档恢复副本并写回所选槽位；成功提示后再启动游戏加载，无需手动
+下载、改名或替换存档。网页会拒绝游戏运行期间的模拟/导入，以及模拟后已变化的原档。
+短程结果未达到连续30日标准时仍可使用；没有存活新全七猫时不会提供导入按钮。
+恢复副本位置显示在成功提示中，详细步骤见随包 `AutoCatteryWorkbench/README.md`。
 
 ## 可选猫数据和数据反馈
 
