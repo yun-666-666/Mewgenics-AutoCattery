@@ -107,6 +107,30 @@ std::pair<std::size_t, std::size_t> SexCounts(
 void RunBalancedMoveOnlyPlannerTests() {
   {
     using namespace room_planning::balanced_internal;
+    // A small comfort advantage cannot discard stimulation, health or mutation.
+    snapshot::RoomSnapshot comfort_room{
+        .id = "Comfort", .attributes = snapshot::RoomAttributes{.comfort = 30}};
+    snapshot::RoomSnapshot quality_room{.id = "Quality"};
+    PlanningContext context;
+    context.room_snapshots = {{comfort_room.id, &comfort_room},
+                             {quality_room.id, &quality_room}};
+    for (const bool stable : {false, true}) {
+      context.breeding_stats_stable = stable;
+      for (const auto attributes : {
+          snapshot::RoomAttributes{.comfort = 29, .stimulation = 4},
+          snapshot::RoomAttributes{.comfort = 29, .health = 4},
+          snapshot::RoomAttributes{.comfort = 29, .mutation = 4}}) {
+        quality_room.attributes = attributes;
+        AC_CHECK(PreferBreedingRoom(context, "Quality", "Comfort"));
+        AC_CHECK(!PreferBreedingRoom(context, "Comfort", "Quality"));
+      }
+      quality_room.attributes = snapshot::RoomAttributes{
+          .comfort = -15, .stimulation = 200, .health = 200, .mutation = 200};
+      AC_CHECK(PreferBreedingRoom(context, "Comfort", "Quality"));
+    }
+  }
+  {
+    using namespace room_planning::balanced_internal;
     // Female 3 wins the first addition (90 > 80), but male 4 exposes
     // her weak cross (20). Female 5 improves the complete group to 80.
     auto house = WorkflowHouse(6);
@@ -624,7 +648,7 @@ void RunBalancedMoveOnlyPlannerTests() {
   purpose_aware.house.capabilities.read_room_attributes = true;
   Room(purpose_aware.house, "Attic").attributes =
       snapshot::RoomAttributes{
-          .comfort = 30, .stimulation = 40, .health = 0};
+          .comfort = 30, .stimulation = 40, .health = 40};
   Room(purpose_aware.house, "Floor1_Small").attributes =
       snapshot::RoomAttributes{
           .comfort = 20, .stimulation = 20, .health = 50};
@@ -665,7 +689,7 @@ void RunBalancedMoveOnlyPlannerTests() {
       }) == 3);
 
   // Room purposes depend on furniture, not current resident counts. Test
-  // all supported room counts, even with another room better for breeding.
+  // all supported room counts, even with another room higher in stimulation.
   for (const auto room_count : {2U, 3U, 4U, 5U}) {
     WorkflowReadFake layout;
     layout.house = purpose_aware.house;
@@ -679,6 +703,7 @@ void RunBalancedMoveOnlyPlannerTests() {
     });
     Room(layout.house, "Floor1_Large").attributes->stimulation = 200;
     Room(layout.house, "Attic").attributes->stimulation = 1;
+    Room(layout.house, "Attic").attributes->health = 100;
     workflow::WorkflowStateMachine layout_state;
     AC_CHECK(layout_state.BeginPreview());
     const auto plan = workflow::PreviewBuilder(layout).Build(

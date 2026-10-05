@@ -54,18 +54,19 @@ auto BreedingKey(
     const snapshot::RoomId& room_id) {
     const auto* attributes = Attributes(context, room_id);
     const auto viable = attributes && attributes->comfort > -10.0;
-    const auto balanced_environment = attributes
-        ? std::min(attributes->comfort, attributes->stimulation)
+    // All four furnished attributes contribute at every breeding stage.
+    const auto quality = attributes
+        ? attributes->comfort + attributes->stimulation +
+            attributes->health + attributes->mutation
         : 0.0;
     return std::tuple{
         attributes ? 0 : 1,
         viable ? 0 : 1,
-        attributes ? -balanced_environment : 0.0,
-        attributes ? -attributes->comfort : 0.0,
+        -quality,
         attributes ? -attributes->stimulation : 0.0,
-        attributes && context.breeding_stats_stable
-            ? -attributes->mutation : 0.0,
         attributes ? -attributes->health : 0.0,
+        attributes ? -attributes->mutation : 0.0,
+        attributes ? -attributes->comfort : 0.0,
         room_id
     };
 }

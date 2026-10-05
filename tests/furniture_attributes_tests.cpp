@@ -17,15 +17,15 @@ void Append(std::vector<std::byte>& bytes, T value) {
 
 snapshot::detail::FurnitureStorageRecord FurnitureRecord(
     std::string_view item,
-    std::string_view room) {
+    std::string_view room,
+    std::uint64_t flags = 0) {
     snapshot::detail::FurnitureStorageRecord record;
     Append<std::uint32_t>(record.blob, 1);
     Append<std::uint64_t>(record.blob, item.size());
     for (const char byte : item) {
         record.blob.push_back(static_cast<std::byte>(byte));
     }
-    Append<std::uint32_t>(record.blob, 0);
-    Append<std::uint32_t>(record.blob, 0);
+    Append<std::uint64_t>(record.blob, flags);
     Append<std::uint32_t>(
         record.blob, static_cast<std::uint32_t>(room.size()));
     Append<std::uint32_t>(record.blob, 0);
@@ -60,6 +60,24 @@ void RunFurnitureAttributesTests() {
     AC_CHECK(house.capabilities.read_room_attributes);
     AC_CHECK(house.rooms[0].attributes->comfort == 3);
     AC_CHECK(house.rooms[0].attributes->stimulation == 2);
+
+    // Saved rarity must affect all room effects, including negative values.
+    catalog["chair"].appeal = -2;
+    for (const auto flags : {0ULL, 2ULL, 6ULL}) {
+        AC_CHECK(snapshot::detail::ParseFurniturePlacements(
+            {FurnitureRecord("chair", "Attic", flags)}, placements, error));
+        AC_CHECK(placements[0].flags == flags);
+        snapshot::detail::ApplyFurnitureRoomAttributes(house, placements, catalog);
+        const auto multiplier = flags == 6 ? 4 : flags == 2 ? 2 : 1;
+        const auto& attributes = *house.rooms[0].attributes;
+        AC_CHECK(attributes.comfort == 3 * multiplier);
+        AC_CHECK(attributes.stimulation == 2 * multiplier);
+        AC_CHECK(attributes.health == multiplier);
+        AC_CHECK(attributes.mutation == 4 * multiplier);
+        AC_CHECK(attributes.appeal == -2 * multiplier);
+    }
+    AC_CHECK(snapshot::detail::ParseFurniturePlacements(
+        {FurnitureRecord("chair", "Attic")}, placements, error));
 
     // Occupancy and poop cannot change the furnished baseline, and a room
     // with furniture but no cats must not disappear from purpose selection.

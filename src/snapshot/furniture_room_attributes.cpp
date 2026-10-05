@@ -31,7 +31,8 @@ bool ParsePlacement(
     const std::size_t item_start = 12;
     const std::size_t header = item_start + item_length;
     std::uint32_t room_length{};
-    if (header < item_start || !Read(bytes, header + 8, room_length)) {
+    if (header < item_start || !Read(bytes, header, placement.flags) ||
+        !Read(bytes, header + 8, room_length)) {
         return false;
     }
     const std::size_t room_start = header + 16;
@@ -47,12 +48,12 @@ bool ParsePlacement(
     return !placement.item_id.empty();
 }
 
-void Add(RoomAttributes& total, const RoomAttributes& value) {
-    total.comfort += value.comfort;
-    total.stimulation += value.stimulation;
-    total.health += value.health;
-    total.mutation += value.mutation;
-    total.appeal += value.appeal;
+void Add(RoomAttributes& total, const RoomAttributes& value, double multiplier) {
+    total.comfort += value.comfort * multiplier;
+    total.stimulation += value.stimulation * multiplier;
+    total.health += value.health * multiplier;
+    total.mutation += value.mutation * multiplier;
+    total.appeal += value.appeal * multiplier;
 }
 
 }  // namespace
@@ -148,7 +149,11 @@ void ApplyFurnitureRoomAttributes(
             snapshot.capabilities.read_room_attributes = false;
             return;
         }
-        Add(totals.at(placement.room_id), found->second);
+        // Native Rare repeats effects twice. Installed enhanced furniture uses
+        // the same saved bits and repeats them 1 + ((flags & 6) >> 1) times.
+        const auto multiplier = 1U + ((placement.flags & 0x6U) >> 1U);
+        Add(totals.at(placement.room_id), found->second,
+            static_cast<double>(multiplier));
     }
     for (auto& room : snapshot.rooms) {
         room.attributes = totals.at(room.id);

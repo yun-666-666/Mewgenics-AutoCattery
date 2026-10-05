@@ -364,3 +364,16 @@ code-simplifier一次限定本轮评分、实验、缓存、恢复及接入代�
 提交本轮缓存/调度两个干净文件、两项新测试、NativeStatReference的fast_load单独hunk及两文档本节。NativeStatReference原有其他未提交方法/导入不混入；native_cat及fights原未跟踪，不能整文件提交本轮外旧实现，仍留工作树且优化已生效于新模拟进程。其他旧脏/未跟踪保留。因此本地提交依赖现有未提交模拟组件，不是一个可独立干净克隆运行的完整模拟包。提交后补录hash到工作树，不新增第二提交。
 
 是否 push：否。
+### 2026-10-05：修复繁育房误选与家具倍率漏读
+
+玩家截图反馈繁育房从阁楼下面右侧切换到右下角，并重申舒适度、刺激度、健康、变异应共同参与选择。今日22:14:48日志记录132猫，Attic/Floor1_Large/Floor1_Small/Floor2_Large为42/42/6/42，预览moves=0；22:14:39最后一批remaining=0，证明旧规划已执行，不能归因于未完成迁猫。
+
+根因：家具存储记录的item字符串之后8字节flags被跳过，稀有2倍和已安装合并MOD强化4倍均漏算；BreedingKey舒适度字典序优先，刺激度/变异还受breeding_stats_stable限制。读取当前存档flags及合并MOD现有原生补丁契约（1+((flags&6)>>1)效果重复次数），补算房间全部数值效果。保留禁止繁育与舒适度可繁育门槛，四项在所有阶段等权相加选房，同分依次刺激/健康/变异/舒适/稳定房ID。算法不写死实际房间、猫或样本权重。现有预览、确认、保护、容量及取消流程复用。
+
+任务代码：include/auto_cattery/snapshot/detail/furniture_attributes.hpp；src/snapshot/furniture_room_attributes.cpp；src/room_planning/balanced_move_only_preferences.cpp；tests/furniture_attributes_tests.cpp；tests/balanced_move_only_planner_tests.cpp。原有混合改动按hunk保留，未整文件夹带提交。已有禁止繁育字段/接线仍留工作树。
+
+验证：powershell -NoProfile -File .local/build-room-fix.ps1，Release增量19步及家具属性/完整balanced planner针对runner退出0，room fix failures=0；覆盖普通/稀有/强化倍率、负效果、未稳定与稳定阶段刺激/健康/变异改变选择、保护、禁止繁育、迁出及幂等。powershell -NoProfile -File .local/verify-room-fix.ps1 <当前存档>退出0：day302/cats132，使用安装配置及生产PreviewBuilder，繁育房Floor2_Large=6、moves67；该房outgoing42/incoming6，原Floor1_Small outgoing6/incoming42；其他两房最终各42。仅内存应用后重复预览moves0/failures0。未写真实存档。只读room_attribute_probe显示Floor2_Large舒适/刺激/健康/变异34/22/3/2，Floor1_Small31/19/1/0；阁楼BreedSuppression仍排除，未因属性高强行安排。
+
+code-simplifier一次限本轮代码，无有益行为不变简化，未改代码或重复有效验证。确认游戏已关闭，将已构建1510400字节DLL（2026-10-05 22:26:54）部署到Mods根及既有AutoCattery子目录。不改用户配置、家具、真实存档或其他MOD，不更新dist。实机搬猫/出生质量须玩家重启后验收；本轮没有启动或控制游戏，不做新长期模拟或出生率保证。
+
+本地提交：本节与可独立分离的任务代码hunk，一个任务提交；提交号随后补录。是否 push：否。

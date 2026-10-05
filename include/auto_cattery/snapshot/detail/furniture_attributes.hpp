@@ -14,6 +14,7 @@ namespace autocattery::snapshot::detail {
 struct FurniturePlacement {
     std::string item_id;
     RoomId room_id;
+    std::uint64_t flags{};
 };
 
 using FurnitureCatalog =
