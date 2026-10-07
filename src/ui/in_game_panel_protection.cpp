@@ -36,6 +36,8 @@ std::size_t Cycle(std::size_t current, std::size_t count, T direction) {
 }  // namespace
 
 void InGamePanelController::StartProtectionLoad() {
+    population_plan_.reset();
+    population_error_.clear();
     protection_loading_ = true;
     current_save_.reset();
     current_save_checked_ = false;
@@ -75,9 +77,12 @@ void InGamePanelController::PollProtectionLoad() {
         ResolveCurrentSave();
         cat_page_ = 0;
         selected_cat_.reset();
-        status_ = English()
-            ? "Select one cat before changing protection or fixed room"
-            : "先明确选择一只猫，再设置保护等级或固定房间";
+        if (current_save_) {
+            (void)protection_->SelectSave(*current_save_);
+            status_ = English()
+                ? "Select one cat before changing protection or fixed room"
+                : "先明确选择一只猫，再设置保护等级或固定房间";
+        }
     }
     if (open_ && (page_ == ManagementPanelPage::Protection ||
                   page_ == ManagementPanelPage::Senior)) Render();

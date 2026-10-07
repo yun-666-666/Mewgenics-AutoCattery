@@ -53,13 +53,19 @@ void RunFurnitureAttributesTests() {
         .comfort = 3,
         .stimulation = 2,
         .health = 1,
-        .mutation = 4
+        .mutation = 4,
+        .breed_suppression = 0.5
     };
     snapshot::detail::ApplyFurnitureRoomAttributes(
         house, placements, catalog);
     AC_CHECK(house.capabilities.read_room_attributes);
     AC_CHECK(house.rooms[0].attributes->comfort == 3);
     AC_CHECK(house.rooms[0].attributes->stimulation == 2);
+    AC_CHECK(house.rooms[0].attributes->breed_suppression == 0.5);
+    placements.push_back({"chair", "Attic"});
+    snapshot::detail::ApplyFurnitureRoomAttributes(house, placements, catalog);
+    AC_CHECK(house.rooms[0].attributes->breed_suppression == 1);
+    placements.pop_back();
 
     // Saved rarity must affect all room effects, including negative values.
     catalog["chair"].appeal = -2;
@@ -75,6 +81,7 @@ void RunFurnitureAttributesTests() {
         AC_CHECK(attributes.health == multiplier);
         AC_CHECK(attributes.mutation == 4 * multiplier);
         AC_CHECK(attributes.appeal == -2 * multiplier);
+        AC_CHECK(attributes.breed_suppression == 0.5 * multiplier);
     }
     AC_CHECK(snapshot::detail::ParseFurniturePlacements(
         {FurnitureRecord("chair", "Attic")}, placements, error));

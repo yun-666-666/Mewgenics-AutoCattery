@@ -1,5 +1,7 @@
 # AutoCattery 繁育工坊
 
+随 AutoCattery v0.5.35 预发布版发布；也可下载独立的 `AutoCattery-v0.5.35-Workbench.zip`。
+
 将整个 `AutoCatteryWorkbench` 文件夹放到游戏目录，与 `Mewgenics.exe` 同级。
 无需安装 Python，也不需要源码项目；运行环境和模拟器已经随包提供。
 
@@ -21,6 +23,11 @@
 
 网页辅助开关仅用于这次模拟。继续在游戏里使用遗传或供食辅助时，
 需要在 MOD 设置中单独开启相应开关。
+
+两个辅助开关首次默认勾选，之后记住上次选择。偏好存储在用户
+`Documents/AutoCattery/workbench-preferences.json`，关闭窗口再打开仍保留。
+“实际安排 / 目标配对”显示每日实际选对数，房间不足时多对可共用繁育房；
+目标配对数不保证每日同样数量的出生。新培养猫使用游戏原生随机名，已有猫不改名。
 
 随包运行环境：Python 3.12.10、pefile 2024.8.26、Unicorn 2.1.4。
 原始许可保留在 runtime 及各包的 dist-info 目录中。

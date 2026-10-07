@@ -1,4 +1,5 @@
 #include "auto_cattery/ui/mew_ui_bridge.hpp"
+#include "mew_breeding_assistance.hpp"
 
 #include "auto_cattery/logger.hpp"
 #include "auto_cattery/ui/house_button_controller.hpp"
@@ -15,6 +16,7 @@ void MewUiBridge::ApplyRuntimeConfig() {
     }
 
     const auto config = config_runtime_->Current();
+    ConfigureBreedingAssistance(config);
     if (organize_workflow_) {
         const auto applied = organize_workflow_->ApplyConfig(config);
         if (!applied) {

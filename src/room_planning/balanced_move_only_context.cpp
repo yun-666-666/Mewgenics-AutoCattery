@@ -98,6 +98,7 @@ bool BuildPlanningContext(
         config.keep_kittens_separate_when_possible;
     context.breeding_pair_preferences =
         &input.classification.breeding_pair_preferences;
+    context.pedigree_pairs = input.snapshot.pedigree_pair_coefficients;
     std::unordered_map<
         snapshot::CatId,
         const protection::ProtectionDecision*> protections;

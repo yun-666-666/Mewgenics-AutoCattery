@@ -116,6 +116,9 @@ Json EditableLayer(const Json& existing, const Config& config) {
 
     auto& planning = layer["room_planning"];
     planning["breeding_room_population"] = config.room_planning.breeding_room_population;
+    planning["offspring_all_seven_assist"] = config.room_planning.offspring_all_seven_assist;
+    planning["food_supply_assist"] = config.room_planning.food_supply_assist;
+    planning["population_limit"] = config.room_planning.population_limit;
     planning["default_soft_capacity"] =
         config.room_planning.default_soft_capacity;
     planning["allow_soft_overflow"] =

@@ -29,7 +29,7 @@ PANEL_GROUP_ELEMENTS = tuple(
      (194.0 + index * 317.0, 148.0, 0.29))
     for index in range(3)
 )
-PANEL_SETTING_COUNTS = (17, 18, 14)
+PANEL_SETTING_COUNTS = (17, 18, 17)
 PANEL_SETTING_ELEMENTS = tuple(
     (f"ac_set_{sum(PANEL_SETTING_COUNTS[:column]) + row + 1}",
      (160.0 + column * 317.0, 191.0 + row * 25.0, (0.30, 0.21)),

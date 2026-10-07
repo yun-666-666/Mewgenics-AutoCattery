@@ -126,6 +126,7 @@ struct RoomAttributes {
     double health{};
     double mutation{};
     double appeal{};
+    double breed_suppression{};
 
     bool operator==(const RoomAttributes&) const = default;
 };

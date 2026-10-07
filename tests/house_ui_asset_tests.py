@@ -142,7 +142,7 @@ def check_asset(path):
                 private_ids.add(character_id)
     check(found_panel_names == set(panel_names),
           "all panel artwork and text placements must remain discoverable")
-    check({"ac_set_49", "ac_set_49_t"} <= found_panel_names,
+    check({"ac_set_49", "ac_set_49_t", "ac_set_50", "ac_set_50_t", "ac_set_51", "ac_set_51_t", "ac_set_52", "ac_set_52_t"} <= found_panel_names,
           "breeding population needs both a visible control and text node")
     check(len(private_ids) == 3, "panel background, controls and recommendation rows")
 

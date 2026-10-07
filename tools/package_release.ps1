@@ -66,6 +66,7 @@ $documentation = @(
     'THIRD_PARTY_NOTICES.md',
     'docs\GAME_VALUE_REFERENCE.md',
     'docs\USER_GUIDE.md',
+    'docs\implementation-status.md',
     "docs\RELEASE_NOTES_v$Version.md"
 )
 foreach ($document in $documentation) {

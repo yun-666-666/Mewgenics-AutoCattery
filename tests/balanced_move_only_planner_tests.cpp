@@ -162,6 +162,22 @@ void RunBalancedMoveOnlyPlannerTests() {
     AC_CHECK(slots[3].preferred_cat == 4);
     AC_CHECK(plan.limitations.empty());
 
+    // A same-sex sister can pass all opposite-sex tests yet collapse the
+    // next generation into one related family. Preserve an unrelated donor.
+    house.pedigree_pair_coefficients = {{1, 5, 0.25}};
+    context.pedigree_pairs = house.pedigree_pair_coefficients;
+    slots = initial_slots;
+    plan = {};
+    AssignBreedingPoolSlots(context, "Attic", plan, slots);
+    AC_CHECK(slots[2].preferred_cat == 3);
+    AC_CHECK(slots[3].preferred_cat == 4);
+    context.config.avoid_inbreeding_pairs = false;
+    slots = initial_slots;
+    AssignBreedingPoolSlots(context, "Attic", plan, slots);
+    AC_CHECK(slots[2].preferred_cat == 5);
+    context.config.avoid_inbreeding_pairs = true;
+    context.pedigree_pairs = {};
+
     // A protected low-libido resident occupies a physical place but is
     // excluded from partner comparisons; automatic choices stay identical.
     house.cats.back().libido = snapshot::CatLibido::Low;
@@ -617,11 +633,11 @@ void RunBalancedMoveOnlyPlannerTests() {
     AC_CHECK(constrained_final.at(id) == "Floor1_Small");
   }
   AC_CHECK(constrained_final.at(1) == "Floor1_Small");
-  // A fixed parent outside the attic cannot silently redefine breeding room.
-
+  // An available real room can host the pair without moving its fixed parent.
+  AC_CHECK(constrained_final.at(10) == "Floor1_Small");
   AC_CHECK(std::ranges::find(
       constrained_plan.value.room_plan.limitations,
-      "breeding-pair-room-unavailable") !=
+      "breeding-pair-room-unavailable") ==
       constrained_plan.value.room_plan.limitations.end());
   std::error_code ignored;
   std::filesystem::remove(protection_path, ignored);
@@ -724,6 +740,27 @@ void RunBalancedMoveOnlyPlannerTests() {
     const auto again = workflow::PreviewBuilder(layout).Build(
         60 + room_count, workflow::WorkflowCapability::MoveOnly, repeat_layout);
     AC_CHECK(again.value.room_plan.moves.empty());
+  }
+
+  // A high-comfort room with breeding suppression must not receive the pair.
+  // Without suppression, its combined room quality selects it.
+  for (const bool suppressed : {false, true}) {
+    WorkflowReadFake real_rooms;
+    real_rooms.house = purpose_aware.house;
+    Room(real_rooms.house, "Attic").attributes->breed_suppression = 1;
+    Room(real_rooms.house, "Floor2_Large").attributes = snapshot::RoomAttributes{
+        .comfort = 26, .stimulation = 75, .health = 2,
+        .breed_suppression = suppressed ? 1.0 : 0.0};
+    workflow::WorkflowStateMachine state;
+    AC_CHECK(state.BeginPreview());
+    const auto plan = workflow::PreviewBuilder(real_rooms).Build(
+        70 + suppressed, workflow::WorkflowCapability::MoveOnly, state);
+    AC_CHECK(static_cast<bool>(plan));
+    AC_CHECK(plan.value.room_plan.validation_errors.empty());
+    const auto rooms = FinalRooms(plan.value);
+    const auto expected = suppressed ? "Floor1_Small" : "Floor2_Large";
+    AC_CHECK(rooms.at(1) == expected);
+    AC_CHECK(rooms.at(2) == expected);
   }
 
   Config shared_room_config;

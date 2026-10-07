@@ -8,12 +8,14 @@ from pathlib import Path
 import struct
 
 import pefile
-from unicorn import Uc, UC_ARCH_X86, UC_MODE_64
+from unicorn import Uc, UC_ARCH_X86, UC_MODE_64, UC_HOOK_CODE
 from unicorn.x86_const import (
     UC_X86_REG_GS_BASE, UC_X86_REG_RSP, UC_X86_REG_RBP,
     UC_X86_REG_R12, UC_X86_REG_R13, UC_X86_REG_RDI,
     UC_X86_REG_XMM9, UC_X86_REG_XMM13, UC_X86_REG_XMM14,
-    UC_X86_REG_RCX, UC_X86_REG_RDX, UC_X86_REG_R8,
+    UC_X86_REG_RCX, UC_X86_REG_RDX, UC_X86_REG_R8, UC_X86_REG_R9,
+    UC_X86_REG_XMM0, UC_X86_REG_XMM1, UC_X86_REG_XMM2,
+    UC_X86_REG_RAX, UC_X86_REG_RIP,
 )
 
 
@@ -38,6 +40,94 @@ class NativeStatReference:
         self.uc.reg_write(UC_X86_REG_GS_BASE, self.data)
         self.uc.mem_write(self.data + 0x58, struct.pack("<Q", self.data + 0x1000))
         self.uc.mem_write(self.data + 0x1000, struct.pack("<Q", self.tls))
+
+    def _call_random_helper(self, address, state):
+        self.uc.mem_write(self.tls + 0x178, struct.pack("<4Q", *state))
+        self.uc.reg_write(UC_X86_REG_RSP, self.stack - 8)
+        stop = self.data + 0x1F000
+        self.uc.mem_write(self.stack - 8, struct.pack("<Q", stop))
+        self.uc.emu_start(self.base + address, stop, count=2000000)
+        return list(struct.unpack("<4Q", self.uc.mem_read(self.tls + 0x178, 32)))
+
+    def mutate_stats(self, stats, increments, decrements, lower, upper, retry, state):
+        """Execute CatStats::mutate, including rejected draws and clamping."""
+        uc = self.uc
+        uc.mem_write(self.child, struct.pack("<7i", *stats))
+        for register, value in (
+            (UC_X86_REG_RCX, self.child), (UC_X86_REG_RDX, increments),
+            (UC_X86_REG_R8, decrements), (UC_X86_REG_R9, lower),
+        ):
+            uc.reg_write(register, value)
+        uc.mem_write(self.stack - 8 + 0x28, struct.pack("<i", upper))
+        uc.mem_write(self.stack - 8 + 0x30, bytes([retry]))
+        final = self._call_random_helper(0xB55B0, state)
+        return list(struct.unpack("<7i", uc.mem_read(self.child, 28))), final
+
+    def biased_random(self, bias, state):
+        """Execute the original helper and its original CRT math implementation."""
+        self.uc.reg_write(UC_X86_REG_RDX, self.tls + 0x178)
+        self.uc.reg_write(UC_X86_REG_XMM0, int.from_bytes(struct.pack("<d", bias), "little"))
+        final = self._call_random_helper(0x94F4C0, state)
+        bits = self.uc.reg_read(UC_X86_REG_XMM0) & ((1 << 64) - 1)
+        return struct.unpack("<d", bits.to_bytes(8, "little"))[0], final
+
+    def initial_personality(self, state):
+        self.uc.reg_write(UC_X86_REG_RCX, self.child)
+        final = self._call_random_helper(0xB7110, state)
+        values = tuple(struct.unpack("<d", self.uc.mem_read(self.child + offset, 8))[0]
+                       for offset in (0x28, 0x30, 0x58, 0x60))
+        return values, final
+
+    def scalar_math(self, address, values):
+        for register, value in zip(
+            (UC_X86_REG_XMM0, UC_X86_REG_XMM1, UC_X86_REG_XMM2), values,
+        ):
+            self.uc.reg_write(register, int.from_bytes(struct.pack("<d", value), "little"))
+        self._call_random_helper(address, [1, 2, 3, 4])
+        bits = self.uc.reg_read(UC_X86_REG_XMM0)
+        return struct.unpack("<2d", bits.to_bytes(16, "little"))
+
+    def attraction(self, libido, sexuality, presentation, target_presentation,
+                   target_charisma, lover_id, target_id, love):
+        """Original mating-weight function with explicit adult/stat adapters.
+
+        Only target adulthood and already-resolved effective stats are supplied;
+        original trigonometry, sex branches and relationship arithmetic run.
+        This does not validate the native effective-stat resolver itself.
+        """
+        uc = self.uc
+        for cat in (self.mother, self.father):
+            uc.mem_write(cat, bytes(0xC58))
+        uc.mem_write(self.mother + 0xC48, struct.pack("<q", target_id + 1))
+        uc.mem_write(self.father + 0xC48, struct.pack("<q", target_id))
+        uc.mem_write(self.mother + 0x5C, struct.pack("<i", presentation))
+        uc.mem_write(self.father + 0x5C, struct.pack("<i", target_presentation))
+        uc.mem_write(self.mother + 0xBB8, struct.pack("<ddqd", libido, sexuality, lover_id, love))
+
+        def resolved_input(uc, address, size, user_data):
+            if address == self.base + 0xD3130:
+                uc.reg_write(UC_X86_REG_RAX, 0)  # supplied adult target
+            else:
+                output = uc.reg_read(UC_X86_REG_RDX)
+                uc.mem_write(output, struct.pack("<7i", 0, 0, 0, 0, 0, target_charisma, 0))
+                uc.reg_write(UC_X86_REG_RAX, output)
+            stack = uc.reg_read(UC_X86_REG_RSP)
+            ret = struct.unpack("<Q", uc.mem_read(stack, 8))[0]
+            uc.reg_write(UC_X86_REG_RSP, stack + 8)
+            uc.reg_write(UC_X86_REG_RIP, ret)
+
+        hooks = [uc.hook_add(UC_HOOK_CODE, resolved_input,
+                             begin=self.base + offset, end=self.base + offset)
+                 for offset in (0xD3130, 0xC1820)]
+        try:
+            uc.reg_write(UC_X86_REG_RCX, self.mother)
+            uc.reg_write(UC_X86_REG_RDX, self.father)
+            self._call_random_helper(0xD2850, [1, 2, 3, 4])
+            bits = uc.reg_read(UC_X86_REG_XMM0) & ((1 << 64) - 1)
+            return struct.unpack("<d", bits.to_bytes(8, "little"))[0]
+        finally:
+            for hook in hooks:
+                uc.hook_del(hook)
 
     def inherit(self, mother, father, weights, state):
         uc = self.uc

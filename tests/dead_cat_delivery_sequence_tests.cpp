@@ -49,6 +49,21 @@ extern "C" int AcMewChooseDeadCatRecipient(void*, int64_t id) {
     state.completion_delay = 0.25;
     return 1;
 }
+extern "C" int AcMewOpenPopulationCatPipe(void* scene, void* cat, int64_t id) {
+    return AcMewOpenDeadCatPipe(scene, cat, id);
+}
+extern "C" int AcMewChooseTrashRecipient(void* scene, int64_t id) {
+    const auto result = AcMewChooseDeadCatRecipient(scene, id);
+    // Trash completion has no verified npc_result contract; exact removal
+    // and drawer cleanup, rather than Organ Grinder's result 6, prove completion.
+    state.npc_result = -1;
+    return result;
+}
+extern "C" int AcMewFindPopulationRecipient(void*, int64_t) { return 7; }
+extern "C" int AcMewChoosePopulationRecipient(void* scene, int64_t id, int recipient) {
+    AC_CHECK(recipient == 7);
+    return AcMewChooseTrashRecipient(scene, id);
+}
 
 int main() {
     using namespace autocattery;
@@ -104,5 +119,23 @@ int main() {
     AC_CHECK(!service.Active());
     AC_CHECK((opened == std::vector<int64_t>{2}));
     AC_CHECK((delivered == std::vector<int64_t>{2}));
+    house = {2, 4, 9};
+    opened.clear();
+    delivered.clear();
+    for (auto& cat : snapshot.cats) cat.life_stage = snapshot::LifeStage::Adult;
+    AC_CHECK(!service.Start(snapshot, {2}, "unused.sav", {}, {}));
+    AC_CHECK(static_cast<bool>(service.Start(snapshot, {2, 4}, "unused.sav", {}, {},
+        ui::DeadCatDeliveryService::Recipient::Trash)));
+    for (const auto id : {2, 4}) {
+        service.Poll(nullptr);
+        service.Poll(nullptr);
+        AC_CHECK(delivered.back() == id);
+        service.Poll(nullptr);
+        AC_CHECK(service.Active());
+        FinishNativeCleanup();
+        service.Poll(nullptr);
+    }
+    AC_CHECK(!service.Active());
+    AC_CHECK((house == std::vector<int64_t>{9}));
     return tests::failures ? 1 : 0;
 }

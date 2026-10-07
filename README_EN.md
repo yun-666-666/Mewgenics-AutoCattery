@@ -4,8 +4,15 @@
 
 AutoCattery is a Windows x64 Mewgenics cattery-management MOD made by
 **OpenAI GPT-5.6** from project requirements, code review, and hands-on player
-feedback. It is not an official game component and does not modify original
-game files, Steam Cloud data, or player save databases.
+feedback. It is not an official game component. It does not modify original
+game files or directly operate Steam Cloud. The in-game MOD uses native runtime
+operations; the external workbench writes a selected local save only after explicit
+confirmation and preserves a recoverable copy.
+
+The current release is **v0.5.35 pre-release (2026-10-07)**, containing the latest
+MOD and external workbench since v0.5.34. See the [GitHub Release](https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.35)
+and [release notes](docs/RELEASE_NOTES_v0.5.35.md). In-game acceptance of population
+management, the revised breeding-room choice, and loading imported cats is pending.
 
 ## Current capabilities
 
@@ -23,11 +30,12 @@ game files, Steam Cloud data, or player save databases.
   selects the matching save by current cat count so a previous save is not reused.
 - Cats currently outside an ordinary room but still belonging to the House are
   treated as unassigned sources and can be moved to verified ordinary rooms.
-- Supports the verified 2-, 3-, and 4-room layouts:
+- Supports 2–5 rooms confirmed from the current save and runtime:
   - `Attic`
   - `Floor1_Large`
   - `Floor1_Small`
   - `Floor2_Large`
+  - `Floor2_Small`
 - Balances actual room counts and reads furniture-derived comfort, stimulation,
   health, mutation, and attraction attributes. Cats are assigned by room purpose,
   not by a fixed room order.
@@ -39,17 +47,17 @@ game files, Steam Cloud data, or player save databases.
   stimulation room. With kitten separation enabled, an additional room becomes
   a health/comfort-oriented nursery. Repeating organization restores the room
   goal after a manual same-count swap.
-- Seven base stats are read when present in early saves. Sexuality and kinship are
-  read only after the corresponding `tink_sexuality`, `tink_inbreeding`, and
-  `tink_relationships` progress is actually unlocked; locked dimensions do not
-  affect scoring.
-- After complete breeding data is unlocked, known female/male adult pairs use seven-stat gaps,
-  cached game COI, and sexuality. Skill and mutation weights stay off before
-  stable all-seven breeding, then abilities, passives, disorders, mutations, and
-  birth defects are considered. Breeding-room selection rejects comfort at or
-  below the confirmed `-10` automatic-failure boundary when a viable room exists,
-  balances comfort with stimulation, and uses Mutation as a stable-stage
-  tie-breaker. Remaining breeding-room slots form one robust cohort: each new
+- Reads base stats, libido, sexuality and the actual pedigree from the verified save
+  format independently of Tink's display unlocks. It does not unlock game progress,
+  and unknown kinship is never treated as safe.
+- Known female/male adult pairs use seven-stat coverage, cached game COI and sexuality.
+  Writable all-seven assistance permits inherited-trait priority; otherwise stats
+  remain the priority until stable coverage. Abilities, passives and positive mutations
+  use bounded category scores, with penalties for disorders and defects.
+  Breeding rooms are selected dynamically: exclude breeding-suppressed rooms,
+  prefer comfort above `-10`, then maximize the equal-weight sum of comfort,
+  stimulation, health and mutation. Rare and installed merged-furniture multipliers
+  are included. Remaining breeding-room slots form one robust cohort: each new
   cat is evaluated against every already selected opposite-sex resident,
   maximizing the weakest cross-pair score before minimizing worst cached
   offspring COI and maximizing average pair score. This matches the game's
@@ -86,7 +94,7 @@ game files, Steam Cloud data, or player save databases.
 
 Auto-Organize continues to use `MoveOnly`. Room attributes, first-stage
 breeding pairing, default base-stat reads, room identity caching, native movement
-of unassigned cats, and Full Preview are player validated. The local test build
+of unassigned cats, and Full Preview are player validated. v0.5.35
 also checks the population limit when entering the house or starting a new day.
 With read-only and safe modes off, a surplus list appears for 10 seconds before
 sequential trash delivery. Esc/F10/Close cancels this house visit; protected,
@@ -115,6 +123,13 @@ original save and writes the result to the original slot. Start the game after
 the success message. No project checkout, system Python, or manual file renaming
 is needed. Changed source saves and a running game block import.
 
+Both workbench assists start enabled and remember explicit choices across restarts.
+They do not change in-game MOD settings. Daily actual/target pairs show the executed
+plan; multiple pairs may share a breeding room, but eligibility and native random
+breeding still apply. Requested pair count does not guarantee daily litter count.
+New cultivated cats use native random names matching the import preview; existing
+cats are not renamed.
+
 Press `F10` in House to open or close the panel; `Esc` closes it:
 
 - **Settings** changes planning parameters, interface language, and optional data
@@ -130,9 +145,11 @@ for every row and refresh.
 
 ## Installation
 
-Download `AutoCattery-vX.Y.Z-Windows-x64.zip` from GitHub Releases.
-`AutoCattery-vX.Y.Z-source.zip` contains the source code so that the MOD can be
-modified.
+Download `AutoCattery-v0.5.35-Windows-x64.zip` from the
+[v0.5.35 Release](https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.35).
+It includes the MOD, data patch, documentation and standalone workbench runtime.
+`AutoCattery-v0.5.35-Workbench.zip` updates only the external workbench;
+`AutoCattery-v0.5.35-source.zip` includes project and third-party source dependencies.
 
 ### Install prerequisites
 
@@ -161,7 +178,9 @@ For a Windows release archive:
 3. Copy `Mewtator\\AutoCattery\\` into the Mewtator `mods\\` folder so the result
    is `Mewtator\\mods\\AutoCattery\\`, then add one line containing `AutoCattery`
    to that folder's `modlist.txt`.
-4. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
+4. Copy the entire `AutoCatteryWorkbench` folder next to `Mewgenics.exe` to use
+   the external simulator. No system Python installation is required.
+5. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
    are prerequisites; launching only from Steam does not load the Mewtator data MOD.
 
 In `House`, press `F10` to open the panel. The first **Auto-Organize Cattery** click

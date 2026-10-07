@@ -4,6 +4,7 @@
 
 #include "auto_cattery/breeding/breeding_scorer.hpp"
 #include "auto_cattery/breeding/pair_ranker.hpp"
+#include "auto_cattery/breeding/lineage_selection.hpp"
 #include "pair_trait_scorer.hpp"
 
 namespace autocattery::breeding {
@@ -51,6 +52,15 @@ Result<BreedingRanking> RankBreedingCats(
             [](const auto& pair) { return pair.eligible; });
         if (recommended != ranking.ranked_pairs.end()) {
             ranking.recommended_pair = *recommended;
+        }
+        if (avoid_inbreeding_pairs) {
+            const auto families = IndependentBreedingFamilies(ranking.ranked_pairs, snapshot);
+            if (!families.empty()) {
+                const auto seed = std::ranges::find_if(ranking.ranked_pairs, [&](const auto& pair) {
+                    return pair.cat_a_id == families[0] && pair.cat_b_id == families[1];
+                });
+                ranking.recommended_pair = *seed;
+            }
         }
     }
     ranking.ranked.reserve(snapshot.cats.size());

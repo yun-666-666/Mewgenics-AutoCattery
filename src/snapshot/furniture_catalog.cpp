@@ -46,6 +46,8 @@ void SetEffect(
         effects.mutation = value;
     } else if (key == "Appeal") {
         effects.appeal = value;
+    } else if (key == "BreedSuppression") {
+        effects.breed_suppression = value;
     }
 }
 

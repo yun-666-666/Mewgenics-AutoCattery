@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoCattery · 繁育工坊</title>
+<style>
+:root{color-scheme:dark;font:15px/1.65 system-ui,"Microsoft YaHei",sans-serif;background:#121916;color:#e3ece5}*{box-sizing:border-box}body{margin:0}main{max-width:1150px;margin:auto;padding:40px 28px 70px}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}.eyebrow{font-size:12px;letter-spacing:3px;color:#97ba9d}h1{font-size:34px;font-weight:600;margin:5px 0}h2{font-size:18px;font-weight:550;margin:0 0 16px}p{color:#a9b9ae;margin:8px 0}.badge{border:1px solid #37503e;border-radius:30px;padding:6px 14px;color:#aed8b6;font-size:12px}.grid{display:grid;grid-template-columns:1.7fr 1fr;gap:22px}.panel{background:#1c2720;border:1px solid #304236;border-radius:14px;padding:24px;margin-bottom:22px}.wide{grid-column:1/-1}label{display:block;margin:12px 0 5px;color:#c9d6cc;font-size:13px}select,input,button{font:inherit}select,input[type=number]{width:100%;background:#111b15;color:#e4eee5;border:1px solid #3c5343;border-radius:7px;padding:10px}button,.link{display:inline-block;border:0;border-radius:7px;padding:11px 18px;background:#bce59b;color:#1c3319;cursor:pointer;font-weight:600;text-decoration:none;font-size:14px}button:disabled{opacity:.4;cursor:default}.secondary{background:#304536;color:#d2e7d6}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.toggle{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid #526840;border-radius:8px;margin-top:18px}.toggle input{margin-top:6px;accent-color:#bce59b}.toggle small{display:block;color:#b2bdab}.muted{font-size:12px;color:#9bb19f}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.stat{background:#152019;border-radius:8px;padding:14px}.stat strong{display:block;font-size:26px;font-weight:500}.stat span{font-size:12px;color:#9bb19f}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 8px;border-bottom:1px solid #35483b;text-align:right}th:first-child,td:first-child{text-align:left}th{color:#9db5a3;font-weight:500}.scroll{overflow-x:auto}.notice{padding:12px 16px;background:#302c1c;border:1px solid #5e5534;border-radius:8px;color:#e1d4a8;font-size:13px;margin:16px 0}.error{color:#ffb8a8;white-space:pre-wrap}progress{width:100%;height:8px;accent-color:#bce59b}#curve{width:100%;height:150px;display:block;margin:16px 0}#result[hidden]{display:none}.path{overflow-wrap:anywhere;font-family:monospace;font-size:12px}footer{color:#7e9c87;font-size:12px;margin-top:16px}a{color:#c4e9ab}@media(max-width:750px){main{padding:22px 15px}.grid{display:block}.stats{grid-template-columns:1fr 1fr}header{align-items:flex-start}h1{font-size:28px}.panel{padding:18px}}
+[hidden]{display:none!important}
+</style>
+<main>
+<header><div><div class="eyebrow">AUTOCATTERY / LOCAL WORKBENCH</div><h1>繁育工坊</h1><p>从你的猫群出发，培养下一代。</p></div><span class="badge">本机运行 · 存档不上传</span></header>
+<div id="error" class="error" role="alert"></div>
+<p id="game-status" class="notice">请先保存并退出游戏。模拟和结果导入期间保持游戏关闭。</p>
+<div class="grid">
+<section class="panel"><h2>01　读取当前猫舍</h2><label for="save">存档 · 默认选择最近保存的一档</label><select id="save" aria-label="选择存档"></select><p class="muted" id="source">正在寻找本机存档…</p>
+<div class="stats"><div class="stat"><strong id="day">—</strong><span>当前天数</span></div><div class="stat"><strong id="cats">—</strong><span>屋内猫数</span></div><div class="stat"><strong id="all7">—</strong><span>遗传全七</span></div><div class="stat"><strong id="food">—</strong><span>食物库存</span></div></div>
+<div class="scroll"><table><thead><tr><th>房间</th><th>舒适</th><th>刺激</th><th>健康</th><th>变异</th><th>吸引</th></tr></thead><tbody id="rooms"></tbody></table></div>
+<p class="muted">数值由所选存档的已放置家具与本机游戏资源计算。其他繁育效果也参与模拟。</p><details><summary class="muted">查看其他家具效果与猫群</summary><div id="effects" class="muted"></div><div class="scroll"><table><thead><tr><th>猫</th><th>性别</th><th>遗传属性</th><th>性欲</th></tr></thead><tbody id="catlist"></tbody></table></div></details>
+<div class="actions"><button id="refresh" class="secondary">重新读取</button></div>
+</section>
+<section class="panel"><h2>02　培养设置</h2><p>每天重新选择种猫与分房。舒适、健康等房屋效果使用真实数值。</p>
+<div class="row"><div><label for="days">最多模拟天数</label><input id="days" type="number" min="1" max="10000" value="365"></div><div><label for="pairs">目标繁育配对数</label><input id="pairs" type="number" min="1" max="5" value="2"></div></div>
+<label for="population-limit">猫群数量上限</label><input id="population-limit" type="number" min="4" max="1000" value="150"><p class="muted">超过上限时保留兼容种猫对、优秀战斗猫，再按遗传质量择优；淘汰记录单独列出，祖先谱系保留。</p>
+<label for="refill">每日额外食物供给</label><input id="refill" type="number" min="0" max="1000000" value="0"><p class="muted">默认 0：只使用真实库存及家具供食。大于 0 表示你计划每天补充的数量，模拟不会替游戏补食。</p>
+<p class="muted">房间不足时，多对种猫会共用繁育房；实际安排数取决于当前合格种猫数量。进展会显示实际安排 / 目标，不保证每对每天都生育。</p>
+<label class="toggle"><input id="assist" type="checkbox" checked disabled><span>后代遗传全七辅助<small>开启后，模拟新出生后代的七项遗传属性设为 7。关闭后使用原生遗传结果。不会提升房间属性，也不能避免饥饿、疾病或死亡。</small></span></label>
+<label class="toggle"><input id="food-assist" type="checkbox" checked disabled><span>供食辅助<small>开启后，每个房间每日提供至少100万份临时食物，供屋内猫消耗；不增加存档库存、不改变家具属性。关闭后使用真实库存与家具供食。游戏内须单独开启同名开关。</small></span></label>
+<p class="muted">首次打开默认开启两个辅助，之后自动记住你的勾选状态。</p>
+<p class="muted">辅助结果会单独计数。选种避免已知近亲；真实同房仍可能出现计划外配对。游戏内辅助须单独在 MOD 设置中开启。</p>
+<div class="actions"><button id="start" disabled>开始培养</button><button id="cancel" class="secondary" disabled>取消</button></div>
+<p class="muted">使用存档副本模拟，不会修改正在玩的原存档。可在完整模拟日结束时取消。</p>
+</section>
+<section class="panel wide"><h2>03　培养进展</h2><p id="status" role="status">读取存档后即可开始。</p><progress id="progress" value="0" max="365"></progress>
+<div class="stats"><div class="stat"><strong id="elapsed">0</strong><span>已模拟天数</span></div><div class="stat"><strong id="population">—</strong><span>当前全七 / 总猫数</span></div><div class="stat"><strong id="planned">—</strong><span>实际安排 / 目标配对数</span></div><div class="stat"><strong id="replacement">—</strong><span>可替换全七配对（达标检查）</span></div><div class="stat"><strong id="ratio">—</strong><span>观察窗口全七后代率</span></div></div>
+<svg id="curve" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-label="全七猫数量变化"><path id="line" fill="none" stroke="#bce59b" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+<p id="detail" class="muted">判定目标：连续 30 日保有至少两对可替换种猫，窗口内出生后代至少 95% 遗传全七。</p>
+<div id="result" hidden><div id="verdict" class="notice"></div>
+<div id="apply-preview" hidden><h2>04　确认使用结果</h2><p id="apply-target" class="path"></p><p id="apply-summary"></p>
+<div class="scroll"><table><thead><tr><th>变化</th><th>猫名 / 编号</th><th>性别</th><th>七项遗传属性</th></tr></thead><tbody id="apply-cats"></tbody></table></div>
+<p>确认后会自动保留原存档恢复副本，并将预览结果写回上方账户与槽位。保留原战役天数、家具和完整祖先谱系，新猫保留培养年龄；因数量上限移出的猫也会列在表中。新增猫使用原游戏随机名，表中的名称与编号在导入后保持一致，可在游戏中核对。</p>
+<label class="toggle"><input id="apply-confirm" type="checkbox"><span>我确认使用上方存档及猫群变化<small>模拟和导入期间保持游戏关闭。写回完成后再启动游戏，加载对应槽位。</small></span></label>
+<div class="actions"><button id="apply" disabled>确认使用此结果</button></div><p id="applied" class="path" role="status"></p></div>
+<div class="actions"><a id="download" class="link secondary" href="/download/save" download="AutoCattery-trained.sav">另存培养存档</a><a class="link secondary" href="/download/report" download="AutoCattery-report.json">下载培养记录</a></div><p id="exportpath" class="path muted"></p></div>
+</section></div><footer>培养模型使用本机游戏的原生繁育逻辑。模拟省略名字随机消费，不承诺与游戏同种子逐次结果相同。模拟通过不等于游戏内验收。</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id), roomNames={Floor1_Large:'一楼大房',Floor1_Small:'一楼小房',Floor2_Large:'二楼大房',Floor2_Small:'二楼小房',Attic:'阁楼'};
+let token='', loaded=false, currentJob={}, gameRunning=false, applying=false, previewKey='';
+let preferenceWrite=Promise.resolve();
+function rememberAssists(){const selected={assist:$('assist').checked,food_assist:$('food-assist').checked};preferenceWrite=preferenceWrite.then(()=>api('/api/preferences',selected)).catch(error)}
+async function api(path,body){const response=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json','X-AutoCattery-Token':token},body:JSON.stringify(body)}:{});const data=await response.json();if(!response.ok)throw Error(data.error||'请求失败');return data}
+function error(e){$('error').textContent=e.message}
+function cells(target,values){const row=document.createElement('tr');for(const value of values){const c=document.createElement('td');c.textContent=value;row.append(c)}target.append(row)}
+async function read(){loaded=false;$('start').disabled=true;$('error').textContent='';try{const s=await api('/api/snapshot/'+$('save').value);$('source').textContent=s.source_path;$('day').textContent=s.day;$('cats').textContent=s.cats.length;$('all7').textContent=s.cats.filter(c=>c.genetic.every(x=>x===7)).length;$('food').textContent=s.food;$('rooms').replaceChildren();$('catlist').replaceChildren();$('effects').replaceChildren();for(const r of s.rooms){cells($('rooms'),[roomNames[r.id]||r.id,...['Comfort','Stimulation','Health','Evolution','Appeal'].map(a=>r.attributes[a])]);const line=document.createElement('p');line.textContent=(roomNames[r.id]||r.id)+'：'+Object.entries(r.effects).map(([k,v])=>k+' '+v).join(' / ');$('effects').append(line)}for(const c of s.cats)cells($('catlist'),[c.name,['公','母','双性'][c.native_sex]||'未知',c.genetic.join(' / '),c.libido.toFixed(2)]);loaded=true;await poll()}catch(e){error(e)}}
+function showApplication(job){
+  const preview=job.preview, key=job.report||'';
+  if(key!==previewKey){
+    previewKey=key;$('apply-confirm').checked=false;$('apply-cats').replaceChildren();
+    if(preview){
+      $('apply-target').textContent='写回账户 / 槽位：'+preview.target;
+      $('apply-summary').textContent=`战役第 ${preview.campaign_day} 天保持不变；屋内猫 ${preview.before_population} → ${preview.after_population}；新增 ${preview.added.length} 只，移出 ${preview.removed.length} 只。`;
+      for(const [change,cats] of [['新增',preview.added],['移出',preview.removed]])
+        for(const cat of cats)cells($('apply-cats'),[change,`${cat.name} / ${cat.id}`,['公','母','双性'][cat.native_sex]||'未知',cat.genetic.join(' / ')]);
+    }
+  }
+  $('apply-preview').hidden=!preview;
+  $('apply-confirm').disabled=applying||!!job.applied||gameRunning;
+  $('apply').disabled=applying||gameRunning||!!job.applied||!preview||!$('apply-confirm').checked;
+  $('apply').textContent=applying?'正在保留原档并写回…':job.applied?'已使用此结果':'确认使用此结果';
+  $('applied').textContent=job.applied?`已写回：${job.applied.target}。现在可以启动游戏加载该槽位。原存档恢复副本：${job.applied.backup}`:'';
+}
+async function poll(){
+  try{
+    const s=await api('/api/state');token=s.token;gameRunning=s.game_running;
+    const j=s.job,r=j.latest,busy=j.status==='running';currentJob=j;
+    $('game-status').textContent=gameRunning?'检测到游戏正在运行，请保存并退出游戏后再模拟或导入。':'游戏已关闭，可以模拟并确认使用结果。导入完成后再启动游戏。';
+    $('start').disabled=busy||applying||gameRunning||!loaded;
+    $('cancel').disabled=!busy;$('save').disabled=busy||applying;$('refresh').disabled=busy||applying;
+    $('status').textContent=j.message||'读取存档后即可开始。';$('progress').max=j.max_days||365;
+    $('progress').value=j.elapsed||0;$('elapsed').textContent=j.elapsed||0;
+    if(r){
+      $('population').textContent=r.all_seven_population+' / '+r.population;
+      $('planned').textContent=(r.planned_pairs??r.selected_pairs.length)+' / '+(r.target_pairs??j.config.breeding_pairs);
+      $('replacement').textContent=r.replacement_pairs>=2?'≥2':r.replacement_pairs;
+      $('ratio').textContent=(r.window_ratio*100).toFixed(1)+'%';
+      $('detail').textContent=`观察窗口 ${r.window_days}/30 日 · 窗口出生 ${r.window_births} 只 · 剩余食物 ${r.food_remaining} · 今日辅助 ${r.assisted_births} 只 · 今日死亡移出 ${r.removed_dead.length} 只 · 数量淘汰 ${(r.removed_population||[]).length} 只`;
+      const h=j.history,max=Math.max(1,...h.map(x=>x.all_seven_population));
+      $('line').setAttribute('d',h.map((x,i)=>(i?'L':'M')+(i/Math.max(1,h.length-1)*1000)+','+(140-x.all_seven_population/max*125)).join(' '));
+    }
+    $('result').hidden=!['completed','cancelled'].includes(j.status);$('download').hidden=!j.export;
+    $('verdict').textContent=(j.passed?'模拟窗口达标。':'尚未达到持续繁育标准。')+(j.assist?' 本次启用了后代遗传辅助。':' 本次使用原生遗传。')+(j.food_refill?` 每日补食假设：${j.food_refill}。`:' 未额外补食。')+(j.food_assist?' 本次启用了每房每日100万份临时供食辅助。':'')+(j.export_error||'');
+    $('exportpath').textContent=j.export?'可另存结果：'+j.export.file:'本次没有可导出的全七后代。';
+    showApplication(j);if(j.status==='failed')error(Error(j.message));
+  }catch(e){error(e)}
+}
+$('apply-confirm').onchange=()=>showApplication(currentJob);
+$('assist').onchange=rememberAssists;$('food-assist').onchange=rememberAssists;
+$('apply').onclick=async()=>{
+  if(applying||!$('apply-confirm').checked||!currentJob.preview)return;
+  applying=true;showApplication(currentJob);
+  try{$('error').textContent='';await api('/api/apply',{confirmed:true,result:currentJob.report});await read();}
+  catch(e){error(e)}finally{applying=false;await poll()}
+};
+$('save').onchange=read;$('refresh').onclick=read;$('start').onclick=async()=>{try{$('error').textContent='';await api('/api/start',{save:Number($('save').value),days:Number($('days').value),pairs:Number($('pairs').value),food_refill:Number($('refill').value),assist:$('assist').checked,food_assist:$('food-assist').checked,population_limit:Number($('population-limit').value)});await poll()}catch(e){error(e)}};$('cancel').onclick=async()=>{try{await api('/api/cancel',{});$('status').textContent='取消已请求，等待当前模拟日结束。'}catch(e){error(e)}};
+(async()=>{try{const s=await api('/api/state');token=s.token;$('assist').checked=s.preferences.assist;$('food-assist').checked=s.preferences.food_assist;$('assist').disabled=false;$('food-assist').disabled=false;for(const entry of s.saves){const o=document.createElement('option');o.value=entry.id;o.textContent=entry.name;$('save').append(o)}$('source').textContent=s.saves.length?'检测到 '+s.saves.length+' 个存档；开始培养时会重新读取。':'未检测到存档，请先在游戏中保存。';if(s.saves.length)await read();setInterval(poll,2000)}catch(e){error(e)}})();
+</script></html>

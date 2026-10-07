@@ -209,7 +209,10 @@ Result<PreviewBundle> PreviewBuilder::Build(std::uint64_t scene_generation,
   auto combat = scoring::RankCombatCats(scoring_snapshot, combat_config);
   auto breeding =
       breeding::RankBreedingCats(captured.value, breeding_config,
-          config_.room_planning.avoid_inbreeding_pairs);
+          config_.room_planning.avoid_inbreeding_pairs,
+          config_.room_planning.offspring_all_seven_assist && config_.mod_enabled &&
+              !config_.safe_mode && !config_.force_read_only &&
+              !config_.execution_safety.read_only_mode);
   if (!combat) {
     state.Fail();
     return {{}, combat.code, combat.message};

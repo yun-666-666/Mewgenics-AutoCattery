@@ -33,6 +33,7 @@ public:
     [[nodiscard]] std::vector<std::string> AllRows();
     [[nodiscard]] std::vector<std::string> GroupTitles() const;
     [[nodiscard]] bool IsEnglish() const noexcept;
+    [[nodiscard]] const Config& CurrentConfig() const noexcept { return config_; }
     [[nodiscard]] bool RequiresGameRestart(std::size_t index) const noexcept;
 
 private:

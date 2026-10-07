@@ -20,17 +20,19 @@ std::vector<snapshot::CatId> PlanDeadCatDelivery(const snapshot::HouseSnapshot& 
 
 Result<void> DeadCatDeliveryService::Start(const snapshot::HouseSnapshot& snapshot,
     std::vector<snapshot::CatId> cats, const std::filesystem::path& source,
-    const std::filesystem::path&, const std::filesystem::path&) {
+    const std::filesystem::path&, const std::filesystem::path&, Recipient recipient) {
     if (Active() || cats.empty() || source.empty()) {
         message_ = "没有可交付猫或存档尚未确认";
         return {ErrorCode::CatDataUnavailable, message_};
     }
     for (const auto id : cats) {
         const auto found = std::ranges::find(snapshot.cats, id, &snapshot::CatSnapshot::id);
-        if (found == snapshot.cats.end() || found->life_stage != snapshot::LifeStage::Dead)
+        if (found == snapshot.cats.end() ||
+            (recipient == Recipient::OrganGrinder && found->life_stage != snapshot::LifeStage::Dead))
             return {ErrorCode::CatDataUnavailable, "交付队列包含非死亡猫"};
     }
     queue_ = std::move(cats);
+    recipient_ = recipient;
     std::ranges::sort(queue_);
     expected_.clear();
     for (const auto& cat : snapshot.cats) expected_.push_back(cat.id);
@@ -73,7 +75,9 @@ void DeadCatDeliveryService::Poll(void* scene) {
     if (phase_ == Phase::OpenPipe) {
         void* cat{};
         if (!Match(scene, expected_, &cat)) { Stop("猫群变化，请重新预览"); return; }
-        const auto opened = AcMewOpenDeadCatPipe(scene, cat, queue_[done_]);
+        const auto opened = recipient_ != Recipient::OrganGrinder
+            ? AcMewOpenPopulationCatPipe(scene, cat, queue_[done_])
+            : AcMewOpenDeadCatPipe(scene, cat, queue_[done_]);
         if (opened == 2) return;
         if (opened != 1) {
             Stop("原生管道入口未就绪，未继续交付"); return;
@@ -88,17 +92,49 @@ void DeadCatDeliveryService::Poll(void* scene) {
     }
     if (phase_ == Phase::Choose) {
         if (!state.cat_mode || !state.selected_valid) return;
-        if (state.cat_id != queue_[done_] ||
-            AcMewChooseDeadCatRecipient(scene, queue_[done_]) != 1) {
+        if (state.cat_id != queue_[done_]) { Stop("待交付猫变化"); return; }
+        if (recipient_ == Recipient::NpcPreferred) {
+            chosen_recipient_ = AcMewFindPopulationRecipient(scene, queue_[done_]);
+            if (chosen_recipient_ < 0) { Stop("NPC接收条件不可用，未继续交付"); return; }
+            message_ = chosen_recipient_ == 7 ? "当前没有NPC接收，下一步送入垃圾桶" :
+                "当前接收NPC编号 " + std::to_string(chosen_recipient_) + "；可按F10停止";
+            Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19205",
+                "Recipient preview cat_id=" + std::to_string(queue_[done_]) +
+                " recipient=" + std::to_string(chosen_recipient_));
+            phase_ = Phase::ConfirmRecipient;
+            return;
+        }
+        const auto chosen = recipient_ == Recipient::Trash
+            ? AcMewChooseTrashRecipient(scene, queue_[done_])
+            : AcMewChooseDeadCatRecipient(scene, queue_[done_]);
+        if (chosen != 1) {
             Stop("待交付猫或目标界面变化"); return;
         }
         Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19201",
-            "Requested Organ Grinder delivery cat_id=" + std::to_string(queue_[done_]));
+            std::string(recipient_ == Recipient::Trash ? "Requested trash cat_id=" :
+                "Requested Organ Grinder delivery cat_id=") + std::to_string(queue_[done_]));
+        phase_ = Phase::CompleteCat;
+        return;
+    }
+    if (phase_ == Phase::ConfirmRecipient) {
+        const auto current = AcMewFindPopulationRecipient(scene, queue_[done_]);
+        if (current < 0) { Stop("NPC接收条件不可用，未继续交付"); return; }
+        if (current != chosen_recipient_) { phase_ = Phase::Choose; return; }
+        if (AcMewChoosePopulationRecipient(scene, queue_[done_], current) != 1) {
+            Stop("待交付猫或NPC接收条件变化"); return;
+        }
+        Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19201",
+            "Requested population delivery cat_id=" + std::to_string(queue_[done_]) +
+            " recipient=" + std::to_string(current));
         phase_ = Phase::CompleteCat;
         return;
     }
     if (state.selected_valid || state.callback_rva) return;
-    if (state.npc_result != 6) { Stop("NPC交付结果与预期不符"); return; }
+    if ((recipient_ == Recipient::OrganGrinder && state.npc_result != 6) ||
+        (recipient_ == Recipient::NpcPreferred && chosen_recipient_ < 7 &&
+            state.npc_result != chosen_recipient_)) {
+        Stop("NPC交付结果与预期不符"); return;
+    }
     auto remaining = expected_;
     std::erase(remaining, queue_[done_]);
     if (!Match(scene, remaining)) return;
@@ -108,8 +144,10 @@ void DeadCatDeliveryService::Poll(void* scene) {
     expected_ = std::move(remaining);
     ++done_;
     Logger::Instance().Write(LogLevel::Info, "DeadCatDelivery", "AC19203",
-        "Completed Organ Grinder delivery cat_id=" + std::to_string(queue_[done_ - 1]));
-    if (done_ == queue_.size()) Stop("死亡猫交付完成");
+        "Completed delivery cat_id=" + std::to_string(queue_[done_ - 1]) +
+        " recipient=" + std::to_string(recipient_ == Recipient::NpcPreferred ?
+            chosen_recipient_ : recipient_ == Recipient::Trash ? 7 : 6));
+    if (done_ == queue_.size()) Stop(recipient_ != Recipient::OrganGrinder ? "超额猫交付完成" : "死亡猫交付完成");
     else {
         phase_ = Phase::OpenPipe;
         deadline_ = now + std::chrono::seconds(15);

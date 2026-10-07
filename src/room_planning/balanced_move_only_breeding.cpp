@@ -45,8 +45,8 @@ std::optional<snapshot::RoomId> FindBreedingTarget(
     }
     std::optional<snapshot::RoomId> target;
     for (const auto& room_id : context.rooms) {
-        // Attic is the player-selected breeding room, independent of occupancy.
-        if (room_id != "Attic") {
+        const auto& attributes = context.room_snapshots.at(room_id)->attributes;
+        if (attributes && attributes->breed_suppression > 0.99) {
             continue;
         }
         if (fixed_target && room_id != *fixed_target) {
@@ -183,6 +183,13 @@ void AssignBreedingPoolSlots(
     const auto pair_key = [](snapshot::CatId left, snapshot::CatId right) {
         return left < right ? PairKey{left, right} : PairKey{right, left};
     };
+    std::map<PairKey, double> ancestry;
+    for (const auto& pair : context.pedigree_pairs)
+        ancestry[pair_key(pair.cat_a_id, pair.cat_b_id)] = pair.coefficient;
+    const auto related = [&](snapshot::CatId a, snapshot::CatId b) {
+        const auto found = ancestry.find(pair_key(a, b));
+        return context.config.avoid_inbreeding_pairs && found != ancestry.end() && found->second > 0;
+    };
     std::map<PairKey, const classification::BreedingPairPreference*>
         preferences;
     std::vector<snapshot::CatId> candidates;
@@ -285,6 +292,10 @@ void AssignBreedingPoolSlots(
             bool compatible = true;
             for (const auto selected_id : selected) {
                 const auto& other = *context.cats.at(selected_id);
+                if (related(cat_id, selected_id)) {
+                    compatible = false;
+                    break;
+                }
                 if (cat.sex == other.sex || other.libido == snapshot::CatLibido::Low) {
                     continue;
                 }
@@ -335,6 +346,7 @@ void AssignBreedingPoolSlots(
         std::ranges::sort(members);
         for (const auto left : members) {
             for (const auto right : members) {
+                if (left < right && related(left, right)) return std::nullopt;
                 if (left >= right || context.cats.at(left)->sex == context.cats.at(right)->sex ||
                     context.cats.at(left)->libido == snapshot::CatLibido::Low ||
                     context.cats.at(right)->libido == snapshot::CatLibido::Low) continue;

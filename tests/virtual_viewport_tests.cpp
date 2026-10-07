@@ -66,7 +66,14 @@ void RunVirtualViewportTests() {
             AC_CHECK(arrow->direction == (x < 944.0 ? -1 : 1));
         }
     }
-    AC_CHECK(!ui::HitTestSettingsRow(944.0, 553.0));
+    const auto assistance = ui::HitTestSettingsRow(944.0, 553.0);
+    AC_CHECK(assistance && assistance->row == 49);
+    const auto food_assist = ui::HitTestSettingsRow(944.0, 578.0);
+    AC_CHECK(food_assist.has_value());
+    if (food_assist) AC_CHECK(food_assist->row == 50);
+    const auto population_limit = ui::HitTestSettingsRow(944.0, 603.0);
+    AC_CHECK(population_limit && population_limit->row == 51);
+    AC_CHECK(!ui::HitTestSettingsRow(944.0, 628.0));
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0100, 0x1B));
     AC_CHECK(ui::ShouldConsumePanelMessage(0x0104, 0x1B));
     AC_CHECK(!ui::ShouldConsumePanelMessage(0x0100, 'A'));

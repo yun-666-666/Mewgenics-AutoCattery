@@ -12,6 +12,7 @@
 #include "in_game_preview_model.hpp"
 #include "in_game_settings_model.hpp"
 #include "dead_cat_delivery_service.hpp"
+#include "auto_cattery/breeding/population_selection.hpp"
 #include "mew_ui_management_panel_view.hpp"
 
 namespace autocattery::ui {
@@ -34,6 +35,7 @@ public:
     [[nodiscard]] bool IsOpen() const noexcept;
 
 private:
+    friend struct InGamePanelControllerTestAccess;
     enum class ProtectionChoice { None, Level, Room };
     using ProtectionModel = protection::ProtectionEditorModel;
     using ProtectionLoad = Result<std::shared_ptr<ProtectionModel>>;
@@ -46,11 +48,13 @@ private:
     void HandleProtectionRow(std::size_t row, int direction);
     void StartProtectionLoad();
     void PollProtectionLoad();
+    void PollPopulationAutomation(const UiContextSnapshot& context);
+    void CancelPopulationAutomation() noexcept;
     void ResolveCurrentSave();
     void LoadPreview();
     void HandleSeniorRow(std::size_t row);
     void StartDeadCatDelivery();
-    std::vector<const snapshot::CatSnapshot*> SeniorCats() const;
+    std::vector<const snapshot::CatSnapshot*> SeniorCats();
     ManagementPanelContent SeniorContent();
     void Render();
     [[nodiscard]] ManagementPanelContent SettingsContent();
@@ -78,6 +82,16 @@ private:
     std::size_t senior_page_{};
     bool senior_sort_by_stats_{true};
     bool delivery_preview_{};
+    bool population_preview_{};
+    std::optional<Result<breeding::PopulationSelection>> population_plan_;
+    std::string population_error_;
+    bool population_auto_loading_{};
+    bool population_auto_preview_{};
+    std::uint64_t population_checked_generation_{};
+    std::size_t population_checked_limit_{};
+    std::chrono::steady_clock::time_point population_next_check_{};
+    std::chrono::steady_clock::time_point population_deadline_{};
+    int population_countdown_{-1};
     DeadCatDeliveryService delivery_;
     DetailedPreviewModel preview_;
     ProtectionChoice protection_choice_{ProtectionChoice::None};

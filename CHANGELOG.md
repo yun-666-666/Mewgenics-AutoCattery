@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.35 — 2026-10-07 (Pre-release)
+
+- Publishes the complete current MOD and external workbench sources since v0.5.34,
+  including the previously uncommitted population, assistance and native simulator modules.
+- Reads saved breeding fields independently of Tink display unlocks; refreshes native room
+  identities and supports five-room houses and unassigned HousePipe cats.
+- Adds configurable population management with a cancellable 10-second surplus preview,
+  protected-cat retention, sequential trash delivery and NPC recipient priorities.
+- Exposes optional in-game all-seven offspring and food assists. Balances inherited ability,
+  passive and positive mutation categories while retaining disorder/defect penalties.
+- Selects breeding rooms dynamically by comfort, stimulation, health and mutation,
+  excluding breeding suppression and including rare/merged-furniture effect multipliers.
+- Ships a standalone external breeding workbench with Python, native simulation, confirmed
+  save application and recovery copy, native random names, actual/target pair display,
+  and persistent assist preferences. Includes a separate Workbench download.
+- Supports checkpoint resume and bounded parallel experiment arms; preserves completed
+  native-equivalence and long-run comparison evidence without treating it as game acceptance.
+- Updates Chinese/English READMEs, user instructions and implementation status. New in-game
+  population/breeding flows and loading imported cats still require player validation;
+  the known aggregate fixed-room test failures are documented in the release notes.
+
 ## 0.5.34 — 2026-09-10
 
 - Clear House poop after confirmed organization, including zero-move plans; preserve normal furniture and the confirmation label.

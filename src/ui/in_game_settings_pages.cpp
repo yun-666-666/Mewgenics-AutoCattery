@@ -83,6 +83,12 @@ std::vector<InGameSettingsModel::Page> InGameSettingsModel::Pages() {
          &level_up.reroll_count, 0, 99, 1},
         {L(en, "繁育房猫数", "Breeding room target cats"),
          &rooms.breeding_room_population, 2, 1000, 1},
+        {L(en, "后代遗传全七辅助", "Newborn all-seven assist"),
+         &rooms.offspring_all_seven_assist},
+        {L(en, "供食辅助（每房每日100万份）", "Food assist (1M/room/day)"),
+         &rooms.food_supply_assist},
+        {L(en, "猫群上限（新一天自动淘汰）", "Cat limit (auto trim on new day)"),
+         &rooms.population_limit, 4, 1000, 1},
     });
 
     std::vector<Page> pages;

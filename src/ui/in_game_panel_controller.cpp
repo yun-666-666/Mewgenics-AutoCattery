@@ -101,7 +101,10 @@ void InGamePanelController::Poll(
         if (open_) Close();
         else Open(context);
     }
-    if (!open_) return;
+    if (!open_) {
+        PollPopulationAutomation(context);
+        return;
+    }
     if (escape_pressed) {
         if (view_.IsEditing()) {
             view_.CancelNumericInput();
@@ -117,6 +120,7 @@ void InGamePanelController::Poll(
     }
     PollProtectionLoad();
     if (const auto event = view_.Poll()) Handle(*event);
+    PollPopulationAutomation(context);
 }
 
 void InGamePanelController::PollDeliveryTrace() {
@@ -142,8 +146,11 @@ void InGamePanelController::PollDeliveryTrace() {
 }
 
 void InGamePanelController::Open(const UiContextSnapshot& context) {
+    CancelPopulationAutomation();
     (void)context;
     const auto loaded = settings_.Reload();
+    population_plan_.reset();
+    population_error_.clear();
     status_ = loaded
         ? (English()
             ? "Use the sides to adjust; click the center to type a value"
@@ -171,6 +178,7 @@ void InGamePanelController::Open(const UiContextSnapshot& context) {
 }
 
 void InGamePanelController::Close() noexcept {
+    CancelPopulationAutomation();
     view_.Hide();
     open_ = false;
     editing_setting_.reset();
@@ -186,6 +194,7 @@ void InGamePanelController::Close() noexcept {
 }
 
 void InGamePanelController::Detach() noexcept {
+    CancelPopulationAutomation();
     if (view_.IsAttached()) view_.Detach();
     open_ = false;
     attached_generation_ = 0;
@@ -200,9 +209,13 @@ void InGamePanelController::Detach() noexcept {
     next_attach_retry_ = {};
 }
 
-bool InGamePanelController::IsOpen() const noexcept { return open_; }
+bool InGamePanelController::IsOpen() const noexcept { return open_ || delivery_.Active(); }
 
 void InGamePanelController::Handle(const ManagementPanelEvent& event) {
+    // Browsing the proposed cats is safe; editing or refreshing cancels the timer.
+    if (event.control != ManagementPanelControl::Previous &&
+        event.control != ManagementPanelControl::Next &&
+        event.control != ManagementPanelControl::Scroll) CancelPopulationAutomation();
     switch (event.control) {
     case ManagementPanelControl::Close:
         Close();
@@ -213,6 +226,7 @@ void InGamePanelController::Handle(const ManagementPanelEvent& event) {
         editing_text_.clear();
         page_ = ManagementPanelPage::Senior;
         delivery_preview_ = false;
+        population_preview_ = false;
         senior_page_ = 0;
         if (!protection_loading_) StartProtectionLoad();
         break;
@@ -327,6 +341,7 @@ void InGamePanelController::Render() {
 }
 
 void InGamePanelController::AbandonScene() noexcept {
+    CancelPopulationAutomation();
     view_.AbandonScene();
     open_ = false;
     attached_generation_ = 0;

@@ -21,6 +21,11 @@ typedef struct AcDeliveryTrace {
 AcDeliveryTrace AcMewReadDeliveryTrace(void* scene);
 int AcMewOpenDeadCatPipe(void* scene, void* cat, int64_t cat_id);
 int AcMewChooseDeadCatRecipient(void* scene, int64_t cat_id);
+int AcMewOpenPopulationCatPipe(void* scene, void* cat, int64_t cat_id);
+int AcMewChooseTrashRecipient(void* scene, int64_t cat_id);
+/* -1 means unavailable, 0..6 a currently accepting NPC, 7 trash only. */
+int AcMewFindPopulationRecipient(void* scene, int64_t cat_id);
+int AcMewChoosePopulationRecipient(void* scene, int64_t cat_id, int recipient);
 #ifdef __cplusplus
 }
 #endif

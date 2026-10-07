@@ -34,6 +34,7 @@
 #include "mew_ui_recommendation_marker_view.hpp"
 #include "mew_ui_scene_probe.h"
 #include "runtime_house_move_gateway.hpp"
+#include "mew_breeding_assistance.hpp"
 #include "runtime_house_state_capture.hpp"
 #include "runtime_matched_save_snapshot_adapter.hpp"
 #ifdef WIN32_LEAN_AND_MEAN
@@ -279,6 +280,8 @@ bool MewUiBridge::Initialize(const InitContext& context) {
         runtime_move_gateway_->Initialize(
             context.game_root / L"Mewgenics.exe");
     runtime_move_available_ = runtime_move_available;
+    InitializeBreedingAssistance(runtime_move_available);
+    ConfigureBreedingAssistance(config);
     auto runtime_snapshot_adapter =
         std::make_unique<RuntimeMatchedSaveSnapshotAdapter>(
             context.game_root);
@@ -405,6 +408,7 @@ bool MewUiBridge::Initialize(const InitContext& context) {
 }
 
 void MewUiBridge::Shutdown() noexcept {
+    DisableBreedingAssistance();
     MewUI_SetWorkSuspended(false);
     if (in_game_panel_controller_) {
         in_game_panel_controller_->Detach();

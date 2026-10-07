@@ -27,10 +27,11 @@ void RouteSurplusAdults(
     for (const auto& move : plan.moves) {
         rooms[move.cat_id] = move.to_room;
     }
-    const auto breeding_room = context.config.keep_breeding_pairs_together &&
-        std::ranges::find(context.rooms, "Attic") != context.rooms.end()
-        ? std::optional<snapshot::RoomId>{"Attic"}
-        : std::nullopt;
+    std::optional<snapshot::RoomId> breeding_room;
+    if (context.config.keep_breeding_pairs_together && context.breeding_pair.size() == 2 &&
+        rooms.at(context.breeding_pair[0]) == rooms.at(context.breeding_pair[1])) {
+        breeding_room = rooms.at(context.breeding_pair[0]);
+    }
     const bool has_breeding_group = breeding_room && context.breeding_pair.size() == 2 &&
         std::ranges::all_of(context.breeding_pair, [&](const auto id) {
             return rooms.at(id) == *breeding_room;

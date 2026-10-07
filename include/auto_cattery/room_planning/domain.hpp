@@ -50,6 +50,9 @@ struct RoomPlanningConfig {
     std::uint32_t version{1};
     std::size_t default_soft_capacity{4};
     std::size_t breeding_room_population{4};
+    bool offspring_all_seven_assist{false};
+    bool food_supply_assist{false};
+    std::size_t population_limit{150};
     bool allow_soft_overflow{true};
     std::size_t max_soft_overflow_per_room{2};
     bool never_exceed_known_hard_capacity{true};

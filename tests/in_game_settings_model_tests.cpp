@@ -62,13 +62,14 @@ void RunInGameSettingsModelTests() {
 
     ui::InGameSettingsModel model({}, user, data_mod);
     AC_CHECK(static_cast<bool>(model.Reload()));
-    AC_CHECK(model.PageCount() == 8);
+    AC_CHECK(model.PageCount() == 9);
     AC_CHECK(model.Rows(0).size() == 8);
-    AC_CHECK(model.Rows(7).size() == 6);
-    AC_CHECK(model.AllRows().size() == 49);
+    AC_CHECK(model.Rows(7).size() == 8);
+    AC_CHECK(model.Rows(8).size() == 1);
+    AC_CHECK(model.AllRows().size() == 52);
     AC_CHECK(model.DirectValue(0).has_value());
     AC_CHECK(!model.DirectValue(3).has_value());
-    AC_CHECK(model.PageTitle(0).find("1/8") != std::string::npos);
+    AC_CHECK(model.PageTitle(0).find("1/9") != std::string::npos);
 
     SettingsFileEditor reader({{}, user});
     const auto before = reader.Load();
@@ -96,7 +97,19 @@ void RunInGameSettingsModelTests() {
     AC_CHECK(!model.RequiresGameRestart(46));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(47, "9")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(47, "100")));
-    AC_CHECK(!static_cast<bool>(model.AdjustFlat(49, 1)));
+    AC_CHECK(static_cast<bool>(model.AdjustFlat(49, 1)));
+    AC_CHECK(reader.Load().value.room_planning.offspring_all_seven_assist);
+    AC_CHECK(static_cast<bool>(model.AdjustFlat(49, 1)));
+    AC_CHECK(!reader.Load().value.room_planning.offspring_all_seven_assist);
+    AC_CHECK(static_cast<bool>(model.AdjustFlat(50, 1)));
+    AC_CHECK(reader.Load().value.room_planning.food_supply_assist);
+    AC_CHECK(!reader.Load().value.room_planning.offspring_all_seven_assist);
+    AC_CHECK(static_cast<bool>(model.AdjustFlat(50, 1)));
+    AC_CHECK(!reader.Load().value.room_planning.food_supply_assist);
+    AC_CHECK(static_cast<bool>(model.SetFlatValue(51, "150")));
+    AC_CHECK(reader.Load().value.room_planning.population_limit == 150);
+    AC_CHECK(!static_cast<bool>(model.SetFlatValue(51, "3")));
+    AC_CHECK(!static_cast<bool>(model.AdjustFlat(52, 1)));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(0, "23")));
     AC_CHECK(static_cast<bool>(model.SetFlatValue(1, "12.50")));
     AC_CHECK(!static_cast<bool>(model.SetFlatValue(0, "wrong")));

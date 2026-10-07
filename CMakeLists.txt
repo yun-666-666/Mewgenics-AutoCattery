@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(AutoCattery VERSION 0.5.34 LANGUAGES C CXX)
+project(AutoCattery VERSION 0.5.35 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "AutoCattery phase 01 supports Windows x64 only.")
@@ -54,6 +54,7 @@ add_library(auto_cattery_core STATIC
     src/breeding/breeding_ranker.cpp
     src/breeding/breeding_scorer.cpp
     src/breeding/pair_ranker.cpp
+    src/breeding/population_selection.cpp
     src/breeding/pair_trait_scorer.cpp
     src/classification/classifier.cpp
     src/classification/protection_adapter.cpp
@@ -147,6 +148,7 @@ add_library(auto_cattery_core STATIC
     src/ui/house_move_probe_session.cpp
     src/ui/in_game_panel_controller.cpp
     src/ui/in_game_panel_current_save.cpp
+    src/ui/in_game_panel_population.cpp
     src/ui/in_game_panel_protection.cpp
     src/ui/in_game_panel_senior.cpp
     src/ui/dead_cat_delivery_service.cpp
@@ -182,6 +184,7 @@ add_library(auto_cattery_core STATIC
     src/ui/scene_context.cpp
     src/ui/mew_ui_bridge.cpp
     src/ui/mew_ui_config_binding.cpp
+    src/ui/mew_breeding_assistance.cpp
     src/ui/mew_ui_scene_components.c
     src/ui/mew_ui_safe_node_lookup.cpp
     src/ui/mew_ui_scene_probe.c
@@ -343,9 +346,26 @@ if(AUTOCATTERY_BUILD_TESTS)
     autocattery_enable_warnings(auto_cattery_tests)
     add_test(NAME phase14_unit_tests COMMAND auto_cattery_tests)
     add_executable(dead_cat_delivery_sequence_tests tests/dead_cat_delivery_sequence_tests.cpp)
+    add_executable(population_selection_tests tests/population_selection_tests.cpp)
+    target_link_libraries(population_selection_tests PRIVATE auto_cattery_core)
+    autocattery_enable_warnings(population_selection_tests)
+    add_test(NAME population_selection_tests COMMAND population_selection_tests)
     target_link_libraries(dead_cat_delivery_sequence_tests PRIVATE auto_cattery_core)
     autocattery_enable_warnings(dead_cat_delivery_sequence_tests)
     add_test(NAME dead_cat_delivery_sequence_tests COMMAND dead_cat_delivery_sequence_tests)
+    add_executable(population_automation_tests tests/population_automation_tests.cpp)
+    target_link_libraries(population_automation_tests PRIVATE auto_cattery_core)
+    autocattery_enable_warnings(population_automation_tests)
+    add_test(NAME population_automation_tests COMMAND population_automation_tests)
+    add_executable(breeding_trait_quality_tests
+        tests/breeding_trait_quality_tests.cpp tests/cat_blob_parser_tests.cpp
+        tests/pair_ranker_tests.cpp tests/breeding_ranker_tests.cpp
+        tests/breeding_scorer_tests.cpp tests/classifier_tests.cpp
+        tests/balanced_move_only_planner_tests.cpp tests/config_boundary_tests.cpp)
+    target_link_libraries(breeding_trait_quality_tests PRIVATE auto_cattery_core)
+    target_include_directories(breeding_trait_quality_tests PRIVATE third_party/json/include)
+    autocattery_enable_warnings(breeding_trait_quality_tests)
+    add_test(NAME breeding_trait_quality_tests COMMAND breeding_trait_quality_tests)
 
     add_executable(poop_cleanup_tests tests/poop_cleanup_tests.cpp)
     target_link_libraries(poop_cleanup_tests PRIVATE auto_cattery_core)
@@ -361,6 +381,11 @@ if(AUTOCATTERY_BUILD_TESTS)
     target_link_libraries(breeding_data_probe PRIVATE auto_cattery_core)
     target_compile_features(breeding_data_probe PRIVATE cxx_std_20)
     autocattery_enable_warnings(breeding_data_probe)
+
+    add_executable(breeding_snapshot_export tools/breeding_snapshot_main.cpp)
+    target_link_libraries(breeding_snapshot_export PRIVATE auto_cattery_core)
+    target_compile_features(breeding_snapshot_export PRIVATE cxx_std_20)
+    autocattery_enable_warnings(breeding_snapshot_export)
 
     add_executable(
         room_attribute_probe tests/room_attribute_probe.cpp)

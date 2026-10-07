@@ -34,19 +34,26 @@ bool AllocateOccupancyTargets(
             "fixed-room-count-exceeds-movable-count");
         return false;
     }
+    CountMap capacities;
+    for (const auto& room_id : context.rooms) {
+        capacities.emplace(room_id, RoomCapacity(context, room_id));
+    }
+    const auto breeding_target = FindBreedingTarget(context, capacities, std::nullopt);
+    const auto needs_breeding_slots = [&](const snapshot::RoomId& room_id) {
+        return breeding_target && room_id == *breeding_target &&
+            target.at(room_id) < context.pinned_count.at(room_id) + 2;
+    };
     for (std::size_t remaining =
              context.movable.size() - context.fixed_rooms.size();
          remaining > 0;
          --remaining) {
         std::optional<snapshot::RoomId> best;
         for (const auto& room_id : context.rooms) {
-            const bool breeding = !context.breeding_pair.empty() && room_id == "Attic";
             if (target[room_id] >= RoomCapacity(context, room_id)) {
                 continue;
             }
-            if (!best || (breeding && target[room_id] < 2) ||
-                (!(context.breeding_pair.size() == 2 && *best == "Attic" &&
-                    target[*best] < 2) && PreferOccupancyRoom(
+            if (!best || needs_breeding_slots(room_id) ||
+                (!needs_breeding_slots(*best) && PreferOccupancyRoom(
                     context, room_id, *best, target))) {
                 best = room_id;
             }
@@ -197,7 +204,6 @@ std::optional<snapshot::RoomId> FindDevelopmentTarget(
     std::optional<snapshot::RoomId> target;
     for (const auto& room_id : context.rooms) {
         if (occupancy.at(room_id) == 0 ||
-            (context.config.keep_breeding_pairs_together && room_id == "Attic") ||
             (breeding_target && room_id == *breeding_target)) {
             continue;
         }

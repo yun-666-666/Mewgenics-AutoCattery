@@ -1,4 +1,5 @@
 #include "auto_cattery/config.hpp"
+#include "auto_cattery/breeding/offspring_assistance.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -23,6 +24,13 @@ void Write(const std::filesystem::path& path, const char* contents) {
 }  // namespace
 
 void RunConfigTests() {
+    std::array<std::int32_t, 7> genetic{1, 2, 3, 4, 5, 6, 7};
+    const auto original = genetic;
+    AC_CHECK(!breeding::ApplyOffspringAssistance(genetic, false));
+    AC_CHECK(genetic == original);
+    AC_CHECK(breeding::ApplyOffspringAssistance(genetic, true));
+    AC_CHECK((genetic == std::array<std::int32_t, 7>{7, 7, 7, 7, 7, 7, 7}));
+    AC_CHECK(!breeding::ApplyOffspringAssistance(genetic, true));
     const auto directory = TestDirectory();
     const auto defaults = directory / "default.json";
     const auto user = directory / "user.json";

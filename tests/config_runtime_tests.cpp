@@ -151,6 +151,28 @@ void RunConfigRuntimeTests() {
         AC_CHECK(runtime.Current().room_planning.breeding_room_population == 6);
         AC_CHECK(!runtime.Current().room_planning.prefer_single_combat_staging_room);
     }
+    // Changing only the newborn intervention must invalidate the live config.
+    for (const bool enabled : {true, false}) {
+        fixture.Write(enabled
+            ? R"({"room_planning":{"offspring_all_seven_assist":true}})"
+            : R"({"room_planning":{"offspring_all_seven_assist":false}})");
+        const auto generation = runtime.Generation();
+        AC_CHECK(runtime.RequestReload(workflow::WorkflowState::Idle).status ==
+                 ConfigReloadStatus::Applied);
+        AC_CHECK(runtime.Current().room_planning.offspring_all_seven_assist == enabled);
+        AC_CHECK(runtime.Generation() == generation + 1);
+    }
+    for (const bool enabled : {true, false}) {
+        fixture.Write(enabled
+            ? R"({"room_planning":{"food_supply_assist":true}})"
+            : R"({"room_planning":{"food_supply_assist":false}})");
+        const auto generation = runtime.Generation();
+        AC_CHECK(runtime.RequestReload(workflow::WorkflowState::Idle).status ==
+                 ConfigReloadStatus::Applied);
+        AC_CHECK(runtime.Current().room_planning.food_supply_assist == enabled);
+        AC_CHECK(!runtime.Current().room_planning.offspring_all_seven_assist);
+        AC_CHECK(runtime.Generation() == generation + 1);
+    }
 }
 
 }  // namespace autocattery::tests

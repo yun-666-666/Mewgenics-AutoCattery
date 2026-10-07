@@ -295,6 +295,11 @@ Result<void> ValidateProtectionAndPlanning(const Json& value) {
         return result;
     }
     const auto population = planning.at("breeding_room_population").get<std::size_t>();
+    const auto total_population = planning.at("population_limit").get<std::size_t>();
+    if (total_population < 4 || total_population > 1000) {
+        return {ErrorCode::ConfigInvalid,
+            "room_planning.population_limit must be between 4 and 1000"};
+    }
     if (population < 2 || population > 1000) {
         return {ErrorCode::ConfigInvalid,
             "room_planning.breeding_room_population must be between 2 and 1000"};

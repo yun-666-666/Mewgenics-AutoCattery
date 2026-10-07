@@ -43,6 +43,7 @@ struct PlanningContext {
         const snapshot::RoomSnapshot*> room_snapshots;
     std::vector<snapshot::CatId> movable;
     std::vector<snapshot::CatId> breeding_pair;
+    std::span<const snapshot::PedigreePairCoefficient> pedigree_pairs;
     const std::vector<classification::BreedingPairPreference>*
         breeding_pair_preferences{};
     std::unordered_map<snapshot::CatId, snapshot::RoomId> fixed_rooms;

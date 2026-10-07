@@ -54,6 +54,7 @@ void Add(RoomAttributes& total, const RoomAttributes& value, double multiplier) 
     total.health += value.health * multiplier;
     total.mutation += value.mutation * multiplier;
     total.appeal += value.appeal * multiplier;
+    total.breed_suppression += value.breed_suppression * multiplier;
 }
 
 }  // namespace
