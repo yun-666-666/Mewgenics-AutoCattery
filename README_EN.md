@@ -9,10 +9,10 @@ game files or directly operate Steam Cloud. The in-game MOD uses native runtime
 operations; the external workbench writes a selected local save only after explicit
 confirmation and preserves a recoverable copy.
 
-The current release is **v0.5.35 pre-release (2026-10-07)**, containing the latest
+The current release is **v0.5.35 stable release (2026-10-07)**, containing the latest
 MOD and external workbench since v0.5.34. See the [GitHub Release](https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.35)
-and [release notes](docs/RELEASE_NOTES_v0.5.35.md). In-game acceptance of population
-management, the revised breeding-room choice, and loading imported cats is pending.
+and [release notes](docs/RELEASE_NOTES_v0.5.35.md). On 2026-10-07, the player confirmed
+that the current MOD works during actual play; v0.5.35 is the formal Latest Release.
 
 ## Current capabilities
 
@@ -99,7 +99,7 @@ also checks the population limit when entering the house or starting a new day.
 With read-only and safe modes off, a surplus list appears for 10 seconds before
 sequential trash delivery. Esc/F10/Close cancels this house visit; protected,
 fixed-room, and unknown-state cats are retained. Re-entering the house or changing
-the limit permits another check. In-game acceptance of this repair is pending. See
+the limit permits another check. The player has confirmed normal actual play with the current MOD. See
 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) and
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md).
 

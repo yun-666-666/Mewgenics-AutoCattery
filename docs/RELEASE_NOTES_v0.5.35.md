@@ -1,8 +1,8 @@
 # AutoCattery v0.5.35 — 2026-10-07
 
-本版为 **预发布版 / Pre-release**，整合 v0.5.34 之后的最新 MOD 和游戏外繁育工坊。
-新的数量管理、繁育房选择和工坊导入后的游戏加载仍待玩家实机验收；此前正式版本
-v0.5.34 继续保留。源码、安装包和说明同步发布，源码包含此前留在工作树中的必要组件。
+本版为 **正式版 / Latest Release**，整合 v0.5.34 之后的最新 MOD 和游戏外繁育工坊。
+玩家于2026-10-07确认当前MOD实际游玩正常，并授权将v0.5.35转为正式版。
+源码、安装包和说明同步发布，源码包含此前留在工作树中的必要组件。
 
 ## 下载与升级
 
@@ -67,12 +67,12 @@ v0.5.34 继续保留。源码、安装包和说明同步发布，源码包含此
 - 历史综合 `phase14_unit_tests` 有10条固定房名断言与后续动态房间规划不一致。
   本版沿用该已记录限制，不宣称完整suite通过，不在发布任务中改写旧测试。
 
-玩家仍需验证：重启后F10版本、自动数量名单与取消、逐只交付、动态房间实际迁猫及
-新生猫；工坊确认导入后游戏加载、使用新猫并正常保存重载。未启动或控制游戏来代替验收。
+玩家于2026-10-07确认当前MOD实际游玩正常，本次正式发布依据此玩家确认。
+本次转正只修改发布状态与相关文档，沿用已完成的构建和测试结果。
 
 ## English
 
-This pre-release publishes the complete current MOD and standalone workbench since v0.5.34.
+This stable release publishes the complete current MOD and standalone workbench since v0.5.34.
 It includes population management with a cancellable preview, saved breeding data independent
 of Tink display unlocks, optional offspring/food assistance, balanced inherited-trait scoring,
 dynamic breeding-room selection and furniture multipliers. The workbench bundles its runtime,
@@ -84,7 +84,8 @@ tool only. Keep personal configuration/protection rules when upgrading. Keep the
 while simulating or importing, and confirm the result before writing the selected save.
 
 Targeted build/tests and package checks accompany the release. Existing native-equivalence
-and long-run evidence is retained; full aggregate test success and player acceptance of the
-new in-game flows are not claimed. The scoring experiment improved average heuristic ability
+and long-run evidence is retained; full aggregate test success is not claimed. On 2026-10-07,
+the player confirmed normal actual play and authorized promotion to the formal Latest Release.
+The scoring experiment improved average heuristic ability
 and passive utility per offspring while reducing total births; mutation improvement is not
-statistically established. Game loading of imported cats and save/reload remain player checks.
+statistically established.

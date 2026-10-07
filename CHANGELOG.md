@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.35 — 2026-10-07 (Pre-release)
+## 0.5.35 — 2026-10-07
 
 - Publishes the complete current MOD and external workbench sources since v0.5.34,
   including the previously uncommitted population, assistance and native simulator modules.
@@ -17,9 +17,9 @@
   and persistent assist preferences. Includes a separate Workbench download.
 - Supports checkpoint resume and bounded parallel experiment arms; preserves completed
   native-equivalence and long-run comparison evidence without treating it as game acceptance.
-- Updates Chinese/English READMEs, user instructions and implementation status. New in-game
-  population/breeding flows and loading imported cats still require player validation;
-  the known aggregate fixed-room test failures are documented in the release notes.
+- Updates Chinese/English READMEs, user instructions and implementation status. The player
+  confirmed normal actual play on 2026-10-07, promoting v0.5.35 to the formal Latest Release.
+  The known aggregate fixed-room test failures remain documented in the release notes.
 
 ## 0.5.34 — 2026-09-10
 

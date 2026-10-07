@@ -7,9 +7,9 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 它不是游戏官方组件，不修改游戏原始文件，也不直接操作 Steam Cloud。
 游戏内 MOD 通过原生运行时操作猫舍；游戏外繁育工坊仅在玩家确认使用结果后写回所选本地存档，并保留恢复副本。
 
-当前发布版本为 **v0.5.35 预发布版（2026-10-07）**，包含自 v0.5.34 以来的最新 MOD 和繁育工坊。
+当前发布版本为 **v0.5.35 正式版（2026-10-07）**，包含自 v0.5.34 以来的最新 MOD 和繁育工坊。
 下载与完整变更见 [GitHub Release](https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.35)
-和 [发布说明](docs/RELEASE_NOTES_v0.5.35.md)。游戏内数量管理、新版繁育房和工坊导入后的游戏加载仍待玩家验收。
+和 [发布说明](docs/RELEASE_NOTES_v0.5.35.md)。玩家已于 2026-10-07 确认当前 MOD 实际游玩正常，本版作为正式 Latest Release 发布。
 
 ## 当前能力
 
@@ -78,7 +78,7 @@ AutoCattery 是一个面向 Windows x64 Mewgenics 的自动猫舍管理 MOD。
 v0.5.35 另有独立数量管理：关闭只读/安全模式后，进入猫舍或新一天时
 按配置上限检查超额猫，显示名单并倒计时 10 秒后送入垃圾桶；Esc/F10/关闭可取消
 本轮，玩家保护、固定房间和数据不明的猫保留。取消后本次猫舍访问不重复启动，
-下次进入猫舍或更改上限后重新检查。此修复的游戏内验收仍待玩家确认。见
+下次进入猫舍或更改上限后重新检查。玩家已确认当前 MOD 实际游玩正常。见
 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) 和
 [`docs/pre-completion-functional-roadmap.md`](docs/pre-completion-functional-roadmap.md)。
 

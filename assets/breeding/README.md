@@ -1,6 +1,6 @@
 # AutoCattery 繁育工坊
 
-随 AutoCattery v0.5.35 预发布版发布；也可下载独立的 `AutoCattery-v0.5.35-Workbench.zip`。
+随 AutoCattery v0.5.35 正式版发布；也可下载独立的 `AutoCattery-v0.5.35-Workbench.zip`。
 
 将整个 `AutoCatteryWorkbench` 文件夹放到游戏目录，与 `Mewgenics.exe` 同级。
 无需安装 Python，也不需要源码项目；运行环境和模拟器已经随包提供。
