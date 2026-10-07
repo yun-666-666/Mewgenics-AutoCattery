@@ -1,6 +1,7 @@
 # AutoCattery 繁育工坊
 
 随 AutoCattery v0.5.35 正式版发布；也可下载独立的 `AutoCattery-v0.5.35-Workbench.zip`。
+繁育工坊是可选组件；`AutoCattery-v0.5.35-MOD-only.zip` 不含工坊，但完整保留游戏内F10遗传与供食辅助。
 
 将整个 `AutoCatteryWorkbench` 文件夹放到游戏目录，与 `Mewgenics.exe` 同级。
 无需安装 Python，也不需要源码项目；运行环境和模拟器已经随包提供。

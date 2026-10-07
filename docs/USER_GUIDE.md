@@ -8,6 +8,14 @@
 
 ## 中文
 
+### 选择安装包
+
+只使用游戏内MOD时下载 `AutoCattery-v0.5.35-MOD-only.zip`，安装DLL、配置和Mewtator
+数据补丁即可。F10的“后代遗传全七辅助”和“供食辅助”完整保留，均不依赖繁育工坊。
+游戏内两个辅助默认关闭，需要玩家在F10设置中开启，并满足可写模式要求。
+需要游戏外培养时再选择安装独立 `AutoCattery-v0.5.35-Workbench.zip`；
+`AutoCattery-v0.5.35-Windows-x64.zip` 同时包含两者。
+
 ### 游戏外繁育工坊
 
 发布包中的 `AutoCatteryWorkbench` 整个文件夹放到游戏目录，与 `Mewgenics.exe`

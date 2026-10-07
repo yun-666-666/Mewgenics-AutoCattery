@@ -6,11 +6,15 @@
 
 ## 下载与升级
 
+- `AutoCattery-v0.5.35-MOD-only.zip`：只含完整 MOD DLL、配置、Mewtator 数据补丁和文档，
+  不含繁育工坊/运行环境；F10“后代遗传全七辅助”和“供食辅助”均保留，无需工坊即可使用。
 - `AutoCattery-v0.5.35-Windows-x64.zip`：完整安装包，含 DLL、配置、Mewtator 数据补丁、
   文档及带独立 Python 运行环境的 `AutoCatteryWorkbench`。
 - `AutoCattery-v0.5.35-Workbench.zip`：只更新游戏外繁育工坊，将整个文件夹放到
   `Mewgenics.exe` 同级，双击 `StartBreeding.cmd`。无需系统 Python。
 - `AutoCattery-v0.5.35-source.zip`：当前完整项目源码及第三方源码依赖，供修改与构建。
+
+玩家可先只安装MOD，再自行选择是否添加独立Workbench包；游戏内辅助不依赖工坊。
 
 关闭游戏后按 [README](../README.md) 安装。DLL 位于游戏 `Mods/AutoCattery.dll`，
 配置/日志位于 `Mods/AutoCattery/`；Mewtator 数据放入其 `mods/AutoCattery/` 并启用。
@@ -79,8 +83,9 @@ dynamic breeding-room selection and furniture multipliers. The workbench bundles
 native simulation, confirmed save application and recovery copy, native random names,
 actual/target pairs and persistent assist preferences.
 
-Install the Windows archive for the complete MOD, or the Workbench archive for the external
-tool only. Keep personal configuration/protection rules when upgrading. Keep the game closed
+Install the MOD-only archive for the full in-game MOD, including both F10 offspring and food
+assists, without the workbench/runtime. Optionally add the separate Workbench archive, or use
+the Windows archive for both. Keep personal configuration/protection rules when upgrading. Keep the game closed
 while simulating or importing, and confirm the result before writing the selected save.
 
 Targeted build/tests and package checks accompany the release. Existing native-equivalence

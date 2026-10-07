@@ -2,6 +2,8 @@
 
 ## 0.5.35 — 2026-10-07
 
+- Adds a MOD-only download without the external workbench/runtime. Both in-game F10
+  offspring all-seven and food assists are included; the workbench is an optional separate download.
 - Publishes the complete current MOD and external workbench sources since v0.5.34,
   including the previously uncommitted population, assistance and native simulator modules.
 - Reads saved breeding fields independently of Tink display unlocks; refreshes native room

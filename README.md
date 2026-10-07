@@ -101,8 +101,10 @@ v0.5.35 另有独立数量管理：关闭只读/安全模式后，进入猫舍�
 ## 安装
 
 请在 [v0.5.35 Release](https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.35)
-下载 `AutoCattery-v0.5.35-Windows-x64.zip`，包含 MOD、数据补丁、文档及带独立运行环境的繁育工坊。
-`AutoCattery-v0.5.35-Workbench.zip` 供只更新游戏外工坊使用；
+选择 `AutoCattery-v0.5.35-MOD-only.zip` 可只安装 MOD、配置、数据补丁和文档，不包含繁育工坊或 Python 运行环境。
+这个包保留完整 F10 控制面板，包括“后代遗传全七辅助”和“供食辅助”，无需工坊即可使用。
+需要游戏外培养功能时，再自行下载 `AutoCattery-v0.5.35-Workbench.zip`；
+也可下载 `AutoCattery-v0.5.35-Windows-x64.zip` 一次取得 MOD 与繁育工坊。
 `AutoCattery-v0.5.35-source.zip` 包含源码和第三方源码依赖，供修改或自行构建。
 
 ### 安装前置 MOD
@@ -122,15 +124,16 @@ AutoCattery 需要先安装并启用 [Mewjector](https://github.com/githubuser50
 
 Windows 发布包安装步骤：
 
-1. 解压 `Windows-x64.zip`。不要再套一层压缩包目录到 `mods` 中。
+1. 解压 `MOD-only.zip` 或 `Windows-x64.zip`。不要再套一层压缩包目录到 `mods` 中。
 2. 将压缩包内 `Mewjector\\mods\\AutoCattery.dll` 和
    `Mewjector\\mods\\AutoCattery\\` 复制到游戏根目录的 `mods\\`（或
    Mewjector 实际扫描的同名目录）。
 3. 将压缩包内 `Mewtator\\AutoCattery\\` 复制到 Mewtator 的 `mods\\` 文件夹，
    使它成为 `Mewtator\\mods\\AutoCattery\\`；并在该目录的 `modlist.txt` 中
    加入一行 `AutoCattery`。
-4. 将压缩包内整个 `AutoCatteryWorkbench` 文件夹复制到游戏根目录，与
-   `Mewgenics.exe` 同级。这是游戏外繁育模拟器，已带运行环境，无需安装 Python。
+4. **可选**：需要游戏外繁育工坊时，将独立 `Workbench.zip` 或完整包中的整个
+   `AutoCatteryWorkbench` 文件夹复制到游戏根目录，与 `Mewgenics.exe` 同级。
+   工坊已带运行环境，无需安装 Python；只使用游戏内 MOD 时跳过此步。
 5. 通过 Mewtator 启动游戏；Mewjector 和兼容的数据 MOD 加载器是前置条件，
    只从 Steam 直接启动不会加载 Mewtator 数据 MOD。
 

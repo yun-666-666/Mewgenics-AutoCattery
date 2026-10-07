@@ -2,7 +2,8 @@
 param(
     [string]$Version,
     [ValidateSet('Debug', 'Release')]
-    [string]$Configuration = 'Release'
+    [string]$Configuration = 'Release',
+    [switch]$ModOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,11 +54,6 @@ Copy-Item -LiteralPath (Join-Path $distRoot 'data') -Destination $dataRoot -Recu
 Copy-Item -LiteralPath (Join-Path $distRoot 'swfs') -Destination $dataRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $distRoot 'description.json') -Destination $dataRoot
 
-$workbenchRoot = Join-Path $distRoot 'AutoCatteryWorkbench'
-& python (Join-Path $projectRoot 'tools\build_breeding_bundle.py') --output $workbenchRoot
-if ($LASTEXITCODE -ne 0) { throw 'Could not build the external breeding workbench.' }
-Copy-Item -LiteralPath $workbenchRoot -Destination $packageRoot -Recurse
-
 $documentation = @(
     'README.md',
     'README_EN.md',
@@ -72,6 +68,20 @@ $documentation = @(
 foreach ($document in $documentation) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $document) -Destination $docsRoot
 }
+
+$modOnlyZip = Join-Path $releaseRoot "AutoCattery-v$Version-MOD-only.zip"
+if (Test-Path -LiteralPath $modOnlyZip) { Remove-Item -LiteralPath $modOnlyZip -Force }
+Compress-Archive -LiteralPath $packageRoot -DestinationPath $modOnlyZip -CompressionLevel Optimal
+if ($ModOnly) {
+    Remove-Item -LiteralPath $workRoot -Recurse -Force
+    Get-Item -LiteralPath $modOnlyZip | Select-Object FullName, Length
+    return
+}
+
+$workbenchRoot = Join-Path $distRoot 'AutoCatteryWorkbench'
+& python (Join-Path $projectRoot 'tools\build_breeding_bundle.py') --output $workbenchRoot
+if ($LASTEXITCODE -ne 0) { throw 'Could not build the external breeding workbench.' }
+Copy-Item -LiteralPath $workbenchRoot -Destination $packageRoot -Recurse
 
 $binaryZip = Join-Path $releaseRoot "$packageName.zip"
 if (Test-Path -LiteralPath $binaryZip) { Remove-Item -LiteralPath $binaryZip -Force }
@@ -146,5 +156,5 @@ if (Test-Path -LiteralPath $sourceZip) { Remove-Item -LiteralPath $sourceZip -Fo
 Compress-Archive -LiteralPath $sourceRoot -DestinationPath $sourceZip -CompressionLevel Optimal
 
 Remove-Item -LiteralPath $workRoot -Recurse -Force
-Get-Item -LiteralPath $binaryZip, $sourceZip |
+Get-Item -LiteralPath $binaryZip, $modOnlyZip, $sourceZip |
     Select-Object FullName, Length

@@ -145,10 +145,13 @@ for every row and refresh.
 
 ## Installation
 
-Download `AutoCattery-v0.5.35-Windows-x64.zip` from the
+Choose a package from the
 [v0.5.35 Release](https://github.com/yun-666-666/Mewgenics-AutoCattery/releases/tag/v0.5.35).
-It includes the MOD, data patch, documentation and standalone workbench runtime.
-`AutoCattery-v0.5.35-Workbench.zip` updates only the external workbench;
+`AutoCattery-v0.5.35-MOD-only.zip` includes the complete MOD, configuration, data patch
+and documentation without the workbench or Python runtime. Both F10 offspring all-seven
+and food assists remain available and work without the workbench.
+Optionally add `AutoCattery-v0.5.35-Workbench.zip` for external cultivation, or choose
+`AutoCattery-v0.5.35-Windows-x64.zip` for both packages together.
 `AutoCattery-v0.5.35-source.zip` includes project and third-party source dependencies.
 
 ### Install prerequisites
@@ -170,7 +173,7 @@ AutoCattery requires [Mewjector](https://github.com/githubuser508/mewjector) and
 
 For a Windows release archive:
 
-1. Extract `Windows-x64.zip`; do not place the archive's outer folder as an extra
+1. Extract `MOD-only.zip` or `Windows-x64.zip`; do not place the archive's outer folder as an extra
    nested level inside `mods`.
 2. Copy `Mewjector\\mods\\AutoCattery.dll` and
    `Mewjector\\mods\\AutoCattery\\` from the archive into the game's `mods\\`
@@ -178,8 +181,9 @@ For a Windows release archive:
 3. Copy `Mewtator\\AutoCattery\\` into the Mewtator `mods\\` folder so the result
    is `Mewtator\\mods\\AutoCattery\\`, then add one line containing `AutoCattery`
    to that folder's `modlist.txt`.
-4. Copy the entire `AutoCatteryWorkbench` folder next to `Mewgenics.exe` to use
-   the external simulator. No system Python installation is required.
+4. **Optional:** copy `AutoCatteryWorkbench` from the separate Workbench archive
+   or full package next to `Mewgenics.exe`. Skip this step for in-game MOD use only.
+   No system Python installation is required for the external simulator.
 5. Launch the game through Mewtator. Mewjector and a compatible data-mod loader
    are prerequisites; launching only from Steam does not load the Mewtator data MOD.
 
